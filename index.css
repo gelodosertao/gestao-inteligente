@@ -1,0 +1,43 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: 'Inter', sans-serif;
+}
+
+/* --- PRINT STYLES FOR THERMAL PRINTER --- */
+@media print {
+
+  /* Hide everything by default */
+  body * {
+    visibility: hidden;
+  }
+
+  /* Only show the receipt area */
+  #printable-receipt,
+  #printable-receipt * {
+    visibility: visible;
+  }
+
+  /* Position the receipt at the top-left */
+  #printable-receipt {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 80mm;
+    /* Standard thermal paper width */
+    padding: 0;
+    margin: 0;
+    font-family: 'Courier New', Courier, monospace;
+    /* Monospaced looks better on receipts */
+    color: black;
+    background: white;
+  }
+
+  /* Remove browser headers/footers if possible (user setting dependent, but this helps) */
+  @page {
+    size: auto;
+    margin: 0mm;
+  }
+}
