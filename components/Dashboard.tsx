@@ -64,6 +64,19 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials }) =>
     { month: 'Dez', vendas: 0 },
   ];
 
+  // Dynamic Calculations for BI
+  const avgTicket = sales.length > 0 ? totalRevenue / sales.length : 0;
+  const salesForecast = 0; // Placeholder
+  const conversionRate = 0; // Placeholder
+
+  const marginData = [
+    { name: 'Gelo Sabor', margem: 0 },
+    { name: 'Gelo Cubo', margem: 0 },
+    { name: 'Gelo Escama', margem: 0 },
+    { name: 'Destilados', margem: 0 },
+    { name: 'Cervejas', margem: 0 },
+  ];
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500 relative">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
@@ -232,16 +245,16 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials }) =>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                 <div className="bg-white p-5 rounded-lg shadow-sm border border-slate-200">
                   <p className="text-sm text-slate-500">Previsão de Vendas (Próx. Mês)</p>
-                  <p className="text-2xl font-bold text-blue-800">{formatCurrency(22450.00)}</p>
+                  <p className="text-2xl font-bold text-blue-800">{formatCurrency(salesForecast)}</p>
                   <p className="text-xs text-green-600 mt-1 flex items-center gap-1"><ArrowUpRight size={12} /> +5% vs mês anterior</p>
                 </div>
                 <div className="bg-white p-5 rounded-lg shadow-sm border border-slate-200">
                   <p className="text-sm text-slate-500">Ticket Médio</p>
-                  <p className="text-2xl font-bold text-slate-800">{formatCurrency(145.20)}</p>
+                  <p className="text-2xl font-bold text-slate-800">{formatCurrency(avgTicket)}</p>
                 </div>
                 <div className="bg-white p-5 rounded-lg shadow-sm border border-slate-200">
                   <p className="text-sm text-slate-500">Taxa de Conversão</p>
-                  <p className="text-2xl font-bold text-slate-800">18.5%</p>
+                  <p className="text-2xl font-bold text-slate-800">{conversionRate}%</p>
                 </div>
               </div>
 
@@ -271,13 +284,7 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials }) =>
                   <h4 className="font-bold text-slate-700 mb-4">Margem por Categoria</h4>
                   <div className="h-80 flex items-center justify-center">
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart layout="vertical" data={[
-                        { name: 'Gelo Sabor', margem: 70 },
-                        { name: 'Gelo Cubo', margem: 62 },
-                        { name: 'Gelo Escama', margem: 55 },
-                        { name: 'Destilados', margem: 30 },
-                        { name: 'Cervejas', margem: 25 },
-                      ]}>
+                      <BarChart layout="vertical" data={marginData}>
                         <CartesianGrid strokeDasharray="3 3" horizontal={false} />
                         <XAxis type="number" unit="%" />
                         <YAxis dataKey="name" type="category" width={100} />
