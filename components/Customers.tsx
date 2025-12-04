@@ -1,16 +1,21 @@
 import React, { useState, useRef } from 'react';
-import { Customer } from '../types';
-import { Users, Plus, Upload, Search, Trash2, Save, X, FileText } from 'lucide-react';
+import { User, Customer } from '../types';
+import { Users, Plus, Upload, Search, Trash2, Save, X, FileText, Edit } from 'lucide-react';
 
 interface CustomersProps {
     customers: Customer[];
     onAddCustomer: (customer: Customer) => void;
     onImportCustomers: (customers: Customer[]) => void;
+    currentUser: User;
+    onUpdateCustomer: (customer: Customer) => void;
+    onDeleteCustomer: (customerId: string) => void;
 }
 
-const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImportCustomers }) => {
+const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImportCustomers, currentUser, onUpdateCustomer, onDeleteCustomer }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [showAddModal, setShowAddModal] = useState(false);
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
     const [newCustomer, setNewCustomer] = useState<Partial<Customer>>({});
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -34,6 +39,18 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
         onAddCustomer(customer);
         setShowAddModal(false);
         setNewCustomer({});
+    };
+
+    const handleUpdateCustomerSave = () => {
+        if (!editingCustomer || !editingCustomer.name) return;
+        onUpdateCustomer(editingCustomer);
+        setShowEditModal(false);
+        setEditingCustomer(null);
+    };
+
+    const openEditModal = (customer: Customer) => {
+        setEditingCustomer({ ...customer });
+        setShowEditModal(true);
     };
 
     const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -159,10 +176,25 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
                                         <td className="px-6 py-3">{customer.cpfCnpj || '-'}</td>
                                         <td className="px-6 py-3">{customer.email || '-'}</td>
                                         <td className="px-6 py-3">{customer.phone || '-'}</td>
-                                        <td className="px-6 py-3 text-right">
-                                            <button className="text-slate-400 hover:text-blue-600 p-1">
-                                                <FileText size={16} />
-                                            </button>
+                                        <td className="px-6 py-3 text-right flex justify-end gap-2">
+                                            {currentUser.role === 'ADMIN' && (
+                                                <button
+                                                    onClick={() => openEditModal(customer)}
+                                                    className="text-slate-400 hover:text-blue-600 p-1"
+                                                    title="Editar Cliente"
+                                                >
+                                                    <Edit size={16} />
+                                                </button>
+                                            )}
+                                            {currentUser.role === 'ADMIN' && (
+                                                <button
+                                                    onClick={() => onDeleteCustomer(customer.id)}
+                                                    className="text-slate-400 hover:text-red-600 p-1"
+                                                    title="Excluir Cliente"
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            )}
                                         </td>
                                     </tr>
                                 ))
@@ -241,6 +273,80 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
                                 className="w-full bg-blue-800 hover:bg-blue-700 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue-900/10 mt-2"
                             >
                                 <Save size={18} /> Salvar Cliente
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* EDIT CUSTOMER MODAL */}
+            {showEditModal && editingCustomer && (
+                <div className="fixed inset-0 bg-blue-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+                    <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden">
+                        <div className="p-4 bg-blue-900 text-white flex justify-between items-center">
+                            <h3 className="font-bold flex items-center gap-2">
+                                <Edit size={20} className="text-orange-400" /> Editar Cliente
+                            </h3>
+                            <button onClick={() => setShowEditModal(false)}><X size={20} /></button>
+                        </div>
+
+                        <div className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-1">Nome Completo</label>
+                                <input
+                                    type="text"
+                                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                                    value={editingCustomer.name || ''}
+                                    onChange={(e) => setEditingCustomer({ ...editingCustomer, name: e.target.value })}
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 mb-1">CPF / CNPJ</label>
+                                    <input
+                                        type="text"
+                                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                                        value={editingCustomer.cpfCnpj || ''}
+                                        onChange={(e) => setEditingCustomer({ ...editingCustomer, cpfCnpj: e.target.value })}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 mb-1">Telefone</label>
+                                    <input
+                                        type="text"
+                                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                                        value={editingCustomer.phone || ''}
+                                        onChange={(e) => setEditingCustomer({ ...editingCustomer, phone: e.target.value })}
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-1">Email</label>
+                                <input
+                                    type="email"
+                                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                                    value={editingCustomer.email || ''}
+                                    onChange={(e) => setEditingCustomer({ ...editingCustomer, email: e.target.value })}
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-1">Endereço</label>
+                                <input
+                                    type="text"
+                                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                                    value={editingCustomer.address || ''}
+                                    onChange={(e) => setEditingCustomer({ ...editingCustomer, address: e.target.value })}
+                                />
+                            </div>
+
+                            <button
+                                onClick={handleUpdateCustomerSave}
+                                className="w-full bg-blue-800 hover:bg-blue-700 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue-900/10 mt-2"
+                            >
+                                <Save size={18} /> Salvar Alterações
                             </button>
                         </div>
                     </div>

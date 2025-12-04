@@ -2,6 +2,15 @@ import { supabase } from './supabase';
 import { Product, Sale, FinancialRecord, Category, Branch, User, Role, Customer } from '../types';
 
 // --- USERS & AUTH ---
+
+async function hashPassword(password: string): Promise<string> {
+  const msgBuffer = new TextEncoder().encode(password);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  return hashHex;
+}
+
 export const dbUsers = {
   async login(email: string, password: string): Promise<User> {
     const { data, error } = await supabase
@@ -14,10 +23,14 @@ export const dbUsers = {
       throw new Error('Usuário não encontrado. Verifique o e-mail.');
     }
 
-    // Verificação simples de senha (para o protótipo)
-    // Nota: Em produção, use supabase.auth ou hash de senha
-    if (data.password !== password) {
-      throw new Error('Senha incorreta.');
+    const hashedPassword = await hashPassword(password);
+
+    // Check if password matches (hashed)
+    if (data.password !== hashedPassword) {
+      // Fallback for legacy plain text passwords (optional, for transition)
+      if (data.password !== password) {
+        throw new Error('Senha incorreta.');
+      }
     }
 
     return {
@@ -30,11 +43,13 @@ export const dbUsers = {
   },
 
   async register(user: { name: string, email: string, password: string, role: Role }): Promise<User> {
+    const hashedPassword = await hashPassword(user.password);
+
     const newUser = {
       id: crypto.randomUUID(), // Gera ID único
       name: user.name,
       email: user.email,
-      password: user.password,
+      password: hashedPassword,
       role: user.role,
       avatar_initials: user.name.substring(0, 2).toUpperCase()
     };
@@ -140,6 +155,25 @@ export const dbSales = {
       items: sale.items
     }]);
     if (error) throw error;
+  },
+
+  async update(sale: Sale) {
+    const { error } = await supabase.from('sales').update({
+      date: sale.date,
+      customer_name: sale.customerName,
+      total: sale.total,
+      branch: sale.branch,
+      status: sale.status,
+      payment_method: sale.paymentMethod,
+      has_invoice: sale.hasInvoice,
+      items: sale.items
+    }).eq('id', sale.id);
+    if (error) throw error;
+  },
+
+  async delete(id: string) {
+    const { error } = await supabase.from('sales').delete().eq('id', id);
+    if (error) throw error;
   }
 };
 
@@ -198,6 +232,22 @@ export const dbCustomers = {
       address: c.address
     }));
     const { error } = await supabase.from('customers').insert(rows);
+    if (error) throw error;
+  },
+
+  async update(customer: Customer) {
+    const { error } = await supabase.from('customers').update({
+      name: customer.name,
+      cpf_cnpj: customer.cpfCnpj,
+      email: customer.email,
+      phone: customer.phone,
+      address: customer.address
+    }).eq('id', customer.id);
+    if (error) throw error;
+  },
+
+  async delete(id: string) {
+    const { error } = await supabase.from('customers').delete().eq('id', id);
     if (error) throw error;
   }
 };

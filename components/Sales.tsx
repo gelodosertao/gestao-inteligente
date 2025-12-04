@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
-import { Sale, Branch, Product, Customer } from '../types';
+import { Sale, Branch, Product, Customer, User } from '../types';
 import { invoiceService } from '../services/invoiceService';
-import { ShoppingCart, FileText, CheckCircle, Clock, X, Printer, Send, ScanBarcode, Search, Trash2, Plus, Minus, CreditCard, Banknote, QrCode, Bluetooth, ArrowRight, Store, Factory, Calculator, User, UserPlus } from 'lucide-react';
+import { ShoppingCart, FileText, CheckCircle, Clock, X, Printer, Send, ScanBarcode, Search, Trash2, Plus, Minus, CreditCard, Banknote, QrCode, Bluetooth, ArrowRight, Store, Factory, Calculator, User as UserIcon, UserPlus, Edit, Save } from 'lucide-react';
 
 interface SalesProps {
    sales: Sale[];
@@ -9,6 +9,9 @@ interface SalesProps {
    customers: Customer[];
    onAddSale: (sale: Sale) => void;
    onAddCustomer: (customer: Customer) => void;
+   currentUser: User;
+   onUpdateSale: (sale: Sale) => void;
+   onDeleteSale: (saleId: string) => void;
 }
 
 interface CartItem {
@@ -19,8 +22,24 @@ interface CartItem {
 
 type PaymentMethod = 'Pix' | 'Credit' | 'Debit' | 'Cash';
 
-const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, onAddCustomer }) => {
+const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, onAddCustomer, currentUser, onUpdateSale, onDeleteSale }) => {
    const [activeTab, setActiveTab] = useState<'History' | 'POS'>('History');
+
+   // --- EDIT SALE STATE ---
+   const [showEditSaleModal, setShowEditSaleModal] = useState(false);
+   const [editingSale, setEditingSale] = useState<Sale | null>(null);
+
+   const openEditSaleModal = (sale: Sale) => {
+      setEditingSale({ ...sale });
+      setShowEditSaleModal(true);
+   };
+
+   const handleSaveEditedSale = () => {
+      if (!editingSale) return;
+      onUpdateSale(editingSale);
+      setShowEditSaleModal(false);
+      setEditingSale(null);
+   };
 
    // --- INVOICE MODAL STATE ---
    const [selectedSaleForInvoice, setSelectedSaleForInvoice] = useState<Sale | null>(null);
@@ -350,6 +369,22 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                               <Printer size={12} /> Imprimir DANFE
                            </button>
                         )}
+                        {currentUser.role === 'ADMIN' && (
+                           <div className="flex gap-2">
+                              <button
+                                 onClick={() => openEditSaleModal(sale)}
+                                 className="text-xs text-slate-400 font-medium hover:text-blue-600 flex items-center gap-1 cursor-pointer"
+                              >
+                                 <Edit size={12} /> Editar
+                              </button>
+                              <button
+                                 onClick={() => onDeleteSale(sale.id)}
+                                 className="text-xs text-slate-400 font-medium hover:text-red-600 flex items-center gap-1 cursor-pointer"
+                              >
+                                 <Trash2 size={12} /> Excluir
+                              </button>
+                           </div>
+                        )}
                      </div>
                   </div>
                ))}
@@ -480,7 +515,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                         onClick={() => setShowCustomerModal(true)}
                         className="text-xs bg-white/20 hover:bg-white/30 px-2 py-1 rounded flex items-center gap-1 transition-colors"
                      >
-                        <User size={12} />
+                        <UserIcon size={12} />
                         {selectedCustomer ? selectedCustomer.name.split(' ')[0] : 'Identificar Cliente'}
                      </button>
                   </div>
@@ -538,305 +573,386 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                   </div>
                </div>
             </div>
-         )}
+         )
+         }
 
          {/* --- WHOLESALE PRICE NEGOTIATION MODAL --- */}
-         {showPriceModal && pendingProduct && (
-            <div className="fixed inset-0 bg-blue-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-               <div className="bg-white w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden">
-                  <div className="p-4 bg-blue-800 text-white flex justify-between items-center">
-                     <h3 className="font-bold flex items-center gap-2">
-                        <Calculator size={20} /> Negociar Atacado
-                     </h3>
-                     <button onClick={() => setShowPriceModal(false)}><X size={20} /></button>
+         {
+            showPriceModal && pendingProduct && (
+               <div className="fixed inset-0 bg-blue-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+                  <div className="bg-white w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden">
+                     <div className="p-4 bg-blue-800 text-white flex justify-between items-center">
+                        <h3 className="font-bold flex items-center gap-2">
+                           <Calculator size={20} /> Negociar Atacado
+                        </h3>
+                        <button onClick={() => setShowPriceModal(false)}><X size={20} /></button>
+                     </div>
+                     <div className="p-6 space-y-4">
+                        <div className="text-center">
+                           <p className="text-sm text-slate-500">Adicionando ao carrinho:</p>
+                           <h4 className="text-lg font-bold text-slate-800">{pendingProduct.name}</h4>
+                           <p className="text-xs text-slate-400 mt-1">Preço Base Sugerido: {formatCurrency(pendingProduct.priceMatriz)}</p>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                           <div>
+                              <label className="block text-xs font-bold text-slate-500 mb-1 uppercase">Quantidade</label>
+                              <input
+                                 type="number"
+                                 min="1"
+                                 className="w-full px-3 py-2 border border-slate-200 rounded-lg text-lg font-bold text-center bg-white text-slate-900 focus:ring-2 focus:ring-blue-500"
+                                 value={negotiatedQty}
+                                 onChange={(e) => setNegotiatedQty(Math.max(1, Number(e.target.value)))}
+                              />
+                           </div>
+                           <div>
+                              <label className="block text-xs font-bold text-slate-500 mb-1 uppercase">Valor Unitário</label>
+                              <div className="relative">
+                                 <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">R$</span>
+                                 <input
+                                    type="number"
+                                    step="0.01"
+                                    placeholder="0,00"
+                                    className="w-full pl-8 pr-2 py-2 border border-slate-200 rounded-lg text-lg font-bold text-center bg-white text-blue-700 focus:ring-2 focus:ring-blue-500"
+                                    value={negotiatedPrice}
+                                    onChange={(e) => setNegotiatedPrice(e.target.value)}
+                                    autoFocus
+                                 />
+                              </div>
+                           </div>
+                        </div>
+
+                        <div className="bg-slate-50 p-3 rounded-lg flex justify-between items-center border border-slate-100">
+                           <span className="text-sm font-medium text-slate-600">Total do Item:</span>
+                           <span className="text-lg font-bold text-slate-800">
+                              {formatCurrency(negotiatedQty * (parseFloat(negotiatedPrice) || 0))}
+                           </span>
+                        </div>
+
+                        <button
+                           onClick={confirmCustomItem}
+                           className="w-full bg-blue-700 hover:bg-blue-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-blue-900/10"
+                        >
+                           Confirmar Valor
+                        </button>
+                     </div>
                   </div>
+               </div>
+            )
+         }
+
+         {/* --- PAYMENT MODAL --- */}
+         {
+            showPaymentModal && (
+               <div className="fixed inset-0 bg-blue-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+                  <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+
+                     <div className="p-4 bg-blue-900 text-white flex justify-between items-center">
+                        <h3 className="font-bold flex items-center gap-2">
+                           <CreditCard size={20} className="text-orange-400" /> Pagamento
+                        </h3>
+                        {checkoutStep !== 'RECEIPT' && <button onClick={() => setShowPaymentModal(false)}><X size={20} /></button>}
+                     </div>
+
+                     <div className="p-6">
+                        {checkoutStep === 'METHOD' && (
+                           <>
+                              <div className="text-center mb-6">
+                                 <p className="text-sm text-slate-500">Total a Pagar</p>
+                                 <h2 className="text-4xl font-bold text-slate-900">{formatCurrency(cartTotal)}</h2>
+                              </div>
+
+                              <p className="text-sm font-bold text-slate-700 mb-3">Selecione a Forma de Pagamento:</p>
+                              <div className="grid grid-cols-2 gap-3 mb-6">
+                                 {['Pix', 'Credit', 'Debit', 'Cash'].map((method) => (
+                                    <button
+                                       key={method}
+                                       onClick={() => setSelectedPaymentMethod(method as PaymentMethod)}
+                                       className={`p-4 rounded-xl border-2 font-bold flex flex-col items-center gap-2 transition-all ${selectedPaymentMethod === method ? 'border-orange-500 bg-orange-50 text-orange-700' : 'border-slate-100 hover:border-slate-300 text-slate-600'}`}
+                                    >
+                                       {method === 'Pix' && <QrCode size={24} />}
+                                       {method === 'Credit' && <CreditCard size={24} />}
+                                       {method === 'Debit' && <CreditCard size={24} />}
+                                       {method === 'Cash' && <Banknote size={24} />}
+                                       {method === 'Cash' ? 'Dinheiro' : method === 'Credit' ? 'Crédito' : method === 'Debit' ? 'Débito' : method}
+                                    </button>
+                                 ))}
+                              </div>
+
+                              {selectedPaymentMethod === 'Cash' && (
+                                 <div className="mb-6 animate-in slide-in-from-top-2">
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">Valor Recebido</label>
+                                    <input
+                                       type="number"
+                                       autoFocus
+                                       className="w-full px-4 py-3 text-lg border border-slate-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none text-slate-900"
+                                       placeholder="R$ 0,00"
+                                       value={cashReceived}
+                                       onChange={(e) => setCashReceived(e.target.value)}
+                                       min={cartTotal}
+                                    />
+
+                                    {/* Quick Cash Buttons */}
+                                    <div className="flex gap-2 mt-2 overflow-x-auto pb-1">
+                                       {[cartTotal, Math.ceil(cartTotal / 10) * 10, Math.ceil(cartTotal / 50) * 50].filter((v, i, a) => a.indexOf(v) === i).map(val => (
+                                          <button
+                                             key={val}
+                                             onClick={() => setCashReceived(val.toString())}
+                                             className="px-3 py-1 bg-slate-100 text-slate-600 text-xs font-bold rounded hover:bg-slate-200 whitespace-nowrap"
+                                          >
+                                             {formatCurrency(val)}
+                                          </button>
+                                       ))}
+                                    </div>
+
+                                    {parseFloat(cashReceived) >= cartTotal && (
+                                       <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg flex justify-between items-center">
+                                          <span className="font-bold text-green-800">Troco a Devolver:</span>
+                                          <span className="font-bold text-xl text-green-700">{formatCurrency(changeAmount)}</span>
+                                       </div>
+                                    )}
+                                 </div>
+                              )}
+
+                              <button
+                                 disabled={!selectedPaymentMethod || (selectedPaymentMethod === 'Cash' && (!cashReceived || parseFloat(cashReceived) < cartTotal))}
+                                 onClick={processPayment}
+                                 className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white py-4 rounded-xl font-bold text-lg shadow-lg shadow-blue-900/20 transition-all"
+                              >
+                                 Confirmar Pagamento
+                              </button>
+                           </>
+                        )}
+
+                        {checkoutStep === 'PROCESSING' && (
+                           <div className="flex flex-col items-center justify-center py-12">
+                              <div className="w-16 h-16 border-4 border-blue-100 border-t-orange-500 rounded-full animate-spin mb-6"></div>
+                              <h4 className="text-xl font-bold text-slate-800">Processando...</h4>
+                              <p className="text-slate-500">Autorizando NFC-e junto à SEFAZ</p>
+                           </div>
+                        )}
+
+                        {checkoutStep === 'RECEIPT' && (
+                           <div className="flex flex-col h-full animate-in zoom-in-95 duration-300">
+                              <div className="text-center mb-6">
+                                 <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-3">
+                                    <CheckCircle size={32} />
+                                 </div>
+                                 <h3 className="text-2xl font-bold text-slate-800">Venda Concluída!</h3>
+                                 <p className="text-slate-500">NFC-e autorizada com sucesso.</p>
+                              </div>
+
+                              {/* Simulated Thermal Receipt */}
+                              <div className="bg-yellow-50 border border-yellow-100 p-4 rounded-lg font-mono text-xs text-slate-600 mb-6 shadow-inner max-h-60 overflow-y-auto mx-4">
+                                 <div className="text-center mb-2 border-b border-yellow-200 pb-2">
+                                    <p className="font-bold uppercase">Gelo do Sertão Ltda</p>
+                                    <p>CNPJ: 00.000.000/0001-00</p>
+                                    <p>Unidade: {selectedBranch}</p>
+                                 </div>
+                                 <div className="space-y-1 mb-2">
+                                    {cart.map((item) => (
+                                       <div key={item.product.id} className="flex justify-between">
+                                          <span>{item.quantity}x {item.product.name.substring(0, 15)}</span>
+                                          <span>{formatCurrency(item.quantity * getProductPrice(item))}</span>
+                                       </div>
+                                    ))}
+                                 </div>
+                                 <div className="border-t border-yellow-200 pt-2 flex justify-between font-bold">
+                                    <span>TOTAL R$</span>
+                                    <span>{formatCurrency(cartTotal)}</span>
+                                 </div>
+                                 <div className="flex justify-between mt-1">
+                                    <span>Pagamento: {selectedPaymentMethod}</span>
+                                    <span>{selectedPaymentMethod === 'Cash' ? formatCurrency(parseFloat(cashReceived)) : formatCurrency(cartTotal)}</span>
+                                 </div>
+                                 {selectedPaymentMethod === 'Cash' && (
+                                    <div className="flex justify-between">
+                                       <span>Troco</span>
+                                       <span>{formatCurrency(changeAmount)}</span>
+                                    </div>
+                                 )}
+                                 <div className="text-center mt-4 pt-2 border-t border-yellow-200">
+                                    <p>NFC-e Nº 00000123 Série 1</p>
+                                    <p>Consulte pela Chave de Acesso em</p>
+                                    <p>www.sefaz.gov.br</p>
+                                    <div className="w-24 h-24 bg-black/10 mx-auto mt-2 flex items-center justify-center text-[8px] text-center p-1">
+                                       [QR CODE SIMULADO]
+                                    </div>
+                                 </div>
+                              </div>
+
+                              <div className="flex gap-3">
+                                 <button onClick={() => window.print()} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-3 rounded-xl font-bold flex items-center justify-center gap-2">
+                                    <Printer size={18} /> Imprimir
+                                 </button>
+                                 <button
+                                    onClick={finishSale}
+                                    className="flex-1 bg-orange-500 hover:bg-orange-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2"
+                                 >
+                                    Nova Venda <ArrowRight size={18} />
+                                 </button>
+                              </div>
+                           </div>
+                        )}
+                     </div>
+                  </div>
+               </div>
+            )
+         }
+
+         {/* Invoice Modal (Existing - For History) */}
+         {
+            selectedSaleForInvoice && (
+               <div className="fixed inset-0 bg-blue-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+                  <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
+                     <div className="p-4 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
+                        <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                           <FileText size={18} className="text-blue-600" /> Emissão de NF-e
+                        </h3>
+                        <button onClick={closeInvoiceModal} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
+                     </div>
+
+                     <div className="p-6">
+                        {invoiceStep === 'FORM' && (
+                           <>
+                              <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-100 text-sm text-blue-700">
+                                 <p><strong>Venda #{selectedSaleForInvoice.id}</strong> - {selectedSaleForInvoice.customerName}</p>
+                                 <p>Valor Total: {formatCurrency(selectedSaleForInvoice.total)}</p>
+                              </div>
+
+                              <div className="space-y-4">
+                                 <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">CPF / CNPJ do Cliente</label>
+                                    <input
+                                       type="text"
+                                       placeholder="000.000.000-00"
+                                       className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:outline-none"
+                                       value={cpf}
+                                       onChange={(e) => setCpf(e.target.value)}
+                                    />
+                                 </div>
+                                 <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">Natureza da Operação</label>
+                                    <select className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-white">
+                                       <option>5.102 - Venda de mercadoria</option>
+                                       <option>5.405 - Venda subst. tributária</option>
+                                    </select>
+                                 </div>
+                              </div>
+
+                              <button
+                                 onClick={handleEmitInvoice}
+                                 className="w-full mt-6 bg-blue-600 hover:bg-blue-500 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20 transition-all"
+                              >
+                                 <Send size={18} /> Transmitir para SEFAZ
+                              </button>
+                           </>
+                        )}
+
+                        {invoiceStep === 'PROCESSING' && (
+                           <div className="flex flex-col items-center justify-center py-8">
+                              <div className="w-12 h-12 border-4 border-blue-100 border-t-blue-500 rounded-full animate-spin mb-4"></div>
+                              <h4 className="font-bold text-slate-800">Autorizando Nota...</h4>
+                              <p className="text-sm text-slate-500">Conectando aos servidores da SEFAZ</p>
+                           </div>
+                        )}
+
+                        {invoiceStep === 'SUCCESS' && (
+                           <div className="flex flex-col items-center justify-center py-4 text-center">
+                              <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-4">
+                                 <CheckCircle size={32} />
+                              </div>
+                              <h4 className="text-xl font-bold text-slate-800 mb-1">Nota Autorizada!</h4>
+                              <p className="text-sm text-slate-500 mb-6">Chave: 3523 1000 0000 0000 0000 5500 1000 0000 0100</p>
+
+                              <div className="flex gap-3 w-full">
+                                 <button onClick={() => window.print()} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-2 rounded-lg font-medium flex items-center justify-center gap-2">
+                                    <Printer size={18} /> Imprimir
+                                 </button>
+                                 <button
+                                    onClick={closeInvoiceModal}
+                                    className="flex-1 bg-blue-600 hover:bg-blue-500 text-white py-2 rounded-lg font-medium"
+                                 >
+                                    Fechar
+                                 </button>
+                              </div>
+                           </div>
+                        )}
+                     </div>
+                  </div>
+               </div>
+            )}
+
+         {/* --- EDIT SALE MODAL --- */}
+         {showEditSaleModal && editingSale && (
+            <div className="fixed inset-0 bg-blue-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+               <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden">
+                  <div className="p-4 bg-blue-900 text-white flex justify-between items-center">
+                     <h3 className="font-bold flex items-center gap-2">
+                        <Edit size={20} className="text-orange-400" /> Editar Venda #{editingSale.id}
+                     </h3>
+                     <button onClick={() => setShowEditSaleModal(false)}><X size={20} /></button>
+                  </div>
+
                   <div className="p-6 space-y-4">
-                     <div className="text-center">
-                        <p className="text-sm text-slate-500">Adicionando ao carrinho:</p>
-                        <h4 className="text-lg font-bold text-slate-800">{pendingProduct.name}</h4>
-                        <p className="text-xs text-slate-400 mt-1">Preço Base Sugerido: {formatCurrency(pendingProduct.priceMatriz)}</p>
+                     <div>
+                        <label className="block text-sm font-bold text-slate-700 mb-1">Nome do Cliente</label>
+                        <input
+                           type="text"
+                           className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                           value={editingSale.customerName}
+                           onChange={(e) => setEditingSale({ ...editingSale, customerName: e.target.value })}
+                        />
                      </div>
 
                      <div className="grid grid-cols-2 gap-4">
                         <div>
-                           <label className="block text-xs font-bold text-slate-500 mb-1 uppercase">Quantidade</label>
+                           <label className="block text-sm font-bold text-slate-700 mb-1">Data</label>
                            <input
-                              type="number"
-                              min="1"
-                              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-lg font-bold text-center bg-white text-slate-900 focus:ring-2 focus:ring-blue-500"
-                              value={negotiatedQty}
-                              onChange={(e) => setNegotiatedQty(Math.max(1, Number(e.target.value)))}
+                              type="date"
+                              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                              value={editingSale.date}
+                              onChange={(e) => setEditingSale({ ...editingSale, date: e.target.value })}
                            />
                         </div>
                         <div>
-                           <label className="block text-xs font-bold text-slate-500 mb-1 uppercase">Valor Unitário</label>
-                           <div className="relative">
-                              <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">R$</span>
-                              <input
-                                 type="number"
-                                 step="0.01"
-                                 placeholder="0,00"
-                                 className="w-full pl-8 pr-2 py-2 border border-slate-200 rounded-lg text-lg font-bold text-center bg-white text-blue-700 focus:ring-2 focus:ring-blue-500"
-                                 value={negotiatedPrice}
-                                 onChange={(e) => setNegotiatedPrice(e.target.value)}
-                                 autoFocus
-                              />
-                           </div>
+                           <label className="block text-sm font-bold text-slate-700 mb-1">Método de Pagamento</label>
+                           <select
+                              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
+                              value={editingSale.paymentMethod}
+                              onChange={(e) => setEditingSale({ ...editingSale, paymentMethod: e.target.value as PaymentMethod })}
+                           >
+                              <option value="Cash">Dinheiro</option>
+                              <option value="Pix">Pix</option>
+                              <option value="Credit">Crédito</option>
+                              <option value="Debit">Débito</option>
+                           </select>
                         </div>
                      </div>
 
-                     <div className="bg-slate-50 p-3 rounded-lg flex justify-between items-center border border-slate-100">
-                        <span className="text-sm font-medium text-slate-600">Total do Item:</span>
-                        <span className="text-lg font-bold text-slate-800">
-                           {formatCurrency(negotiatedQty * (parseFloat(negotiatedPrice) || 0))}
-                        </span>
+                     <div>
+                        <label className="block text-sm font-bold text-slate-700 mb-1">Status</label>
+                        <select
+                           className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
+                           value={editingSale.status}
+                           onChange={(e) => setEditingSale({ ...editingSale, status: e.target.value as any })}
+                        >
+                           <option value="Completed">Concluída</option>
+                           <option value="Pending">Pendente</option>
+                           <option value="Cancelled">Cancelada</option>
+                        </select>
+                     </div>
+
+                     <div className="bg-amber-50 border border-amber-100 p-3 rounded-lg text-xs text-amber-800">
+                        <strong>Atenção:</strong> Alterar os itens da venda não é permitido nesta versão para garantir a integridade do estoque. Para corrigir itens, cancele esta venda e lance uma nova.
                      </div>
 
                      <button
-                        onClick={confirmCustomItem}
-                        className="w-full bg-blue-700 hover:bg-blue-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-blue-900/10"
+                        onClick={handleSaveEditedSale}
+                        className="w-full bg-blue-800 hover:bg-blue-700 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue-900/10 mt-2"
                      >
-                        Confirmar Valor
+                        <Save size={18} /> Salvar Alterações
                      </button>
-                  </div>
-               </div>
-            </div>
-         )}
-
-         {/* --- PAYMENT MODAL --- */}
-         {showPaymentModal && (
-            <div className="fixed inset-0 bg-blue-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-               <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-
-                  <div className="p-4 bg-blue-900 text-white flex justify-between items-center">
-                     <h3 className="font-bold flex items-center gap-2">
-                        <CreditCard size={20} className="text-orange-400" /> Pagamento
-                     </h3>
-                     {checkoutStep !== 'RECEIPT' && <button onClick={() => setShowPaymentModal(false)}><X size={20} /></button>}
-                  </div>
-
-                  <div className="p-6">
-                     {checkoutStep === 'METHOD' && (
-                        <>
-                           <div className="text-center mb-6">
-                              <p className="text-sm text-slate-500">Total a Pagar</p>
-                              <h2 className="text-4xl font-bold text-slate-900">{formatCurrency(cartTotal)}</h2>
-                           </div>
-
-                           <p className="text-sm font-bold text-slate-700 mb-3">Selecione a Forma de Pagamento:</p>
-                           <div className="grid grid-cols-2 gap-3 mb-6">
-                              {['Pix', 'Credit', 'Debit', 'Cash'].map((method) => (
-                                 <button
-                                    key={method}
-                                    onClick={() => setSelectedPaymentMethod(method as PaymentMethod)}
-                                    className={`p-4 rounded-xl border-2 font-bold flex flex-col items-center gap-2 transition-all ${selectedPaymentMethod === method ? 'border-orange-500 bg-orange-50 text-orange-700' : 'border-slate-100 hover:border-slate-300 text-slate-600'}`}
-                                 >
-                                    {method === 'Pix' && <QrCode size={24} />}
-                                    {method === 'Credit' && <CreditCard size={24} />}
-                                    {method === 'Debit' && <CreditCard size={24} />}
-                                    {method === 'Cash' && <Banknote size={24} />}
-                                    {method === 'Cash' ? 'Dinheiro' : method === 'Credit' ? 'Crédito' : method === 'Debit' ? 'Débito' : method}
-                                 </button>
-                              ))}
-                           </div>
-
-                           {selectedPaymentMethod === 'Cash' && (
-                              <div className="mb-6 animate-in slide-in-from-top-2">
-                                 <label className="block text-sm font-medium text-slate-700 mb-1">Valor Recebido</label>
-                                 <input
-                                    type="number"
-                                    autoFocus
-                                    className="w-full px-4 py-3 text-lg border border-slate-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none text-slate-900"
-                                    placeholder="R$ 0,00"
-                                    value={cashReceived}
-                                    onChange={(e) => setCashReceived(e.target.value)}
-                                    min={cartTotal}
-                                 />
-
-                                 {/* Quick Cash Buttons */}
-                                 <div className="flex gap-2 mt-2 overflow-x-auto pb-1">
-                                    {[cartTotal, Math.ceil(cartTotal / 10) * 10, Math.ceil(cartTotal / 50) * 50].filter((v, i, a) => a.indexOf(v) === i).map(val => (
-                                       <button
-                                          key={val}
-                                          onClick={() => setCashReceived(val.toString())}
-                                          className="px-3 py-1 bg-slate-100 text-slate-600 text-xs font-bold rounded hover:bg-slate-200 whitespace-nowrap"
-                                       >
-                                          {formatCurrency(val)}
-                                       </button>
-                                    ))}
-                                 </div>
-
-                                 {parseFloat(cashReceived) >= cartTotal && (
-                                    <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg flex justify-between items-center">
-                                       <span className="font-bold text-green-800">Troco a Devolver:</span>
-                                       <span className="font-bold text-xl text-green-700">{formatCurrency(changeAmount)}</span>
-                                    </div>
-                                 )}
-                              </div>
-                           )}
-
-                           <button
-                              disabled={!selectedPaymentMethod || (selectedPaymentMethod === 'Cash' && (!cashReceived || parseFloat(cashReceived) < cartTotal))}
-                              onClick={processPayment}
-                              className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white py-4 rounded-xl font-bold text-lg shadow-lg shadow-blue-900/20 transition-all"
-                           >
-                              Confirmar Pagamento
-                           </button>
-                        </>
-                     )}
-
-                     {checkoutStep === 'PROCESSING' && (
-                        <div className="flex flex-col items-center justify-center py-12">
-                           <div className="w-16 h-16 border-4 border-blue-100 border-t-orange-500 rounded-full animate-spin mb-6"></div>
-                           <h4 className="text-xl font-bold text-slate-800">Processando...</h4>
-                           <p className="text-slate-500">Autorizando NFC-e junto à SEFAZ</p>
-                        </div>
-                     )}
-
-                     {checkoutStep === 'RECEIPT' && (
-                        <div className="flex flex-col h-full animate-in zoom-in-95 duration-300">
-                           <div className="text-center mb-6">
-                              <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-3">
-                                 <CheckCircle size={32} />
-                              </div>
-                              <h3 className="text-2xl font-bold text-slate-800">Venda Concluída!</h3>
-                              <p className="text-slate-500">NFC-e autorizada com sucesso.</p>
-                           </div>
-
-                           {/* Simulated Thermal Receipt */}
-                           <div className="bg-yellow-50 border border-yellow-100 p-4 rounded-lg font-mono text-xs text-slate-600 mb-6 shadow-inner max-h-60 overflow-y-auto mx-4">
-                              <div className="text-center mb-2 border-b border-yellow-200 pb-2">
-                                 <p className="font-bold uppercase">Gelo do Sertão Ltda</p>
-                                 <p>CNPJ: 00.000.000/0001-00</p>
-                                 <p>Unidade: {selectedBranch}</p>
-                              </div>
-                              <div className="space-y-1 mb-2">
-                                 {cart.map((item) => (
-                                    <div key={item.product.id} className="flex justify-between">
-                                       <span>{item.quantity}x {item.product.name.substring(0, 15)}</span>
-                                       <span>{formatCurrency(item.quantity * getProductPrice(item))}</span>
-                                    </div>
-                                 ))}
-                              </div>
-                              <div className="border-t border-yellow-200 pt-2 flex justify-between font-bold">
-                                 <span>TOTAL R$</span>
-                                 <span>{formatCurrency(cartTotal)}</span>
-                              </div>
-                              <div className="flex justify-between mt-1">
-                                 <span>Pagamento: {selectedPaymentMethod}</span>
-                                 <span>{selectedPaymentMethod === 'Cash' ? formatCurrency(parseFloat(cashReceived)) : formatCurrency(cartTotal)}</span>
-                              </div>
-                              {selectedPaymentMethod === 'Cash' && (
-                                 <div className="flex justify-between">
-                                    <span>Troco</span>
-                                    <span>{formatCurrency(changeAmount)}</span>
-                                 </div>
-                              )}
-                              <div className="text-center mt-4 pt-2 border-t border-yellow-200">
-                                 <p>NFC-e Nº 00000123 Série 1</p>
-                                 <p>Consulte pela Chave de Acesso em</p>
-                                 <p>www.sefaz.gov.br</p>
-                                 <div className="w-24 h-24 bg-black/10 mx-auto mt-2 flex items-center justify-center text-[8px] text-center p-1">
-                                    [QR CODE SIMULADO]
-                                 </div>
-                              </div>
-                           </div>
-
-                           <div className="flex gap-3">
-                              <button onClick={() => window.print()} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-3 rounded-xl font-bold flex items-center justify-center gap-2">
-                                 <Printer size={18} /> Imprimir
-                              </button>
-                              <button
-                                 onClick={finishSale}
-                                 className="flex-1 bg-orange-500 hover:bg-orange-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2"
-                              >
-                                 Nova Venda <ArrowRight size={18} />
-                              </button>
-                           </div>
-                        </div>
-                     )}
-                  </div>
-               </div>
-            </div>
-         )}
-
-         {/* Invoice Modal (Existing - For History) */}
-         {selectedSaleForInvoice && (
-            <div className="fixed inset-0 bg-blue-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-               <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
-                  <div className="p-4 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
-                     <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                        <FileText size={18} className="text-blue-600" /> Emissão de NF-e
-                     </h3>
-                     <button onClick={closeInvoiceModal} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
-                  </div>
-
-                  <div className="p-6">
-                     {invoiceStep === 'FORM' && (
-                        <>
-                           <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-100 text-sm text-blue-700">
-                              <p><strong>Venda #{selectedSaleForInvoice.id}</strong> - {selectedSaleForInvoice.customerName}</p>
-                              <p>Valor Total: {formatCurrency(selectedSaleForInvoice.total)}</p>
-                           </div>
-
-                           <div className="space-y-4">
-                              <div>
-                                 <label className="block text-sm font-medium text-slate-700 mb-1">CPF / CNPJ do Cliente</label>
-                                 <input
-                                    type="text"
-                                    placeholder="000.000.000-00"
-                                    className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:outline-none"
-                                    value={cpf}
-                                    onChange={(e) => setCpf(e.target.value)}
-                                 />
-                              </div>
-                              <div>
-                                 <label className="block text-sm font-medium text-slate-700 mb-1">Natureza da Operação</label>
-                                 <select className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-white">
-                                    <option>5.102 - Venda de mercadoria</option>
-                                    <option>5.405 - Venda subst. tributária</option>
-                                 </select>
-                              </div>
-                           </div>
-
-                           <button
-                              onClick={handleEmitInvoice}
-                              className="w-full mt-6 bg-blue-600 hover:bg-blue-500 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20 transition-all"
-                           >
-                              <Send size={18} /> Transmitir para SEFAZ
-                           </button>
-                        </>
-                     )}
-
-                     {invoiceStep === 'PROCESSING' && (
-                        <div className="flex flex-col items-center justify-center py-8">
-                           <div className="w-12 h-12 border-4 border-blue-100 border-t-blue-500 rounded-full animate-spin mb-4"></div>
-                           <h4 className="font-bold text-slate-800">Autorizando Nota...</h4>
-                           <p className="text-sm text-slate-500">Conectando aos servidores da SEFAZ</p>
-                        </div>
-                     )}
-
-                     {invoiceStep === 'SUCCESS' && (
-                        <div className="flex flex-col items-center justify-center py-4 text-center">
-                           <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-4">
-                              <CheckCircle size={32} />
-                           </div>
-                           <h4 className="text-xl font-bold text-slate-800 mb-1">Nota Autorizada!</h4>
-                           <p className="text-sm text-slate-500 mb-6">Chave: 3523 1000 0000 0000 0000 5500 1000 0000 0100</p>
-
-                           <div className="flex gap-3 w-full">
-                              <button onClick={() => window.print()} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-2 rounded-lg font-medium flex items-center justify-center gap-2">
-                                 <Printer size={18} /> Imprimir
-                              </button>
-                              <button
-                                 onClick={closeInvoiceModal}
-                                 className="flex-1 bg-blue-600 hover:bg-blue-500 text-white py-2 rounded-lg font-medium"
-                              >
-                                 Fechar
-                              </button>
-                           </div>
-                        </div>
-                     )}
                   </div>
                </div>
             </div>
@@ -848,7 +964,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
                   <div className="p-4 bg-slate-800 text-white flex justify-between items-center">
                      <h3 className="font-bold flex items-center gap-2">
-                        <User size={20} className="text-orange-400" /> Selecionar Cliente
+                        <UserIcon size={20} className="text-orange-400" /> Selecionar Cliente
                      </h3>
                      <button onClick={() => setShowCustomerModal(false)}><X size={20} /></button>
                   </div>
@@ -917,6 +1033,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                </div>
             </div>
          )}
+
          {/* --- HIDDEN THERMAL RECEIPT (Visible only on Print) --- */}
          <div id="printable-receipt" className="hidden">
             {(lastCompletedSale || selectedSaleForInvoice) && (

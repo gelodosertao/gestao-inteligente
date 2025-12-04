@@ -160,6 +160,48 @@ const App: React.FC = () => {
     }
   };
 
+  const handleUpdateCustomer = async (updatedCustomer: Customer) => {
+    setCustomers(prev => prev.map(c => c.id === updatedCustomer.id ? updatedCustomer : c));
+    try {
+      await dbCustomers.update(updatedCustomer);
+    } catch (e) {
+      console.error(e);
+      alert("Erro ao atualizar cliente no banco.");
+    }
+  };
+
+  const handleDeleteCustomer = async (customerId: string) => {
+    if (!confirm("Tem certeza que deseja excluir este cliente?")) return;
+    setCustomers(prev => prev.filter(c => c.id !== customerId));
+    try {
+      await dbCustomers.delete(customerId);
+    } catch (e) {
+      console.error(e);
+      alert("Erro ao excluir cliente no banco.");
+    }
+  };
+
+  const handleUpdateSale = async (updatedSale: Sale) => {
+    setSales(prev => prev.map(s => s.id === updatedSale.id ? updatedSale : s));
+    try {
+      await dbSales.update(updatedSale);
+    } catch (e) {
+      console.error(e);
+      alert("Erro ao atualizar venda no banco.");
+    }
+  };
+
+  const handleDeleteSale = async (saleId: string) => {
+    if (!confirm("Tem certeza que deseja excluir esta venda? O estoque NÃO será revertido automaticamente.")) return;
+    setSales(prev => prev.filter(s => s.id !== saleId));
+    try {
+      await dbSales.delete(saleId);
+    } catch (e) {
+      console.error(e);
+      alert("Erro ao excluir venda no banco.");
+    }
+  };
+
   const handleResetData = async () => {
     alert("Para resetar o banco de dados Supabase, utilize o editor SQL no painel do Supabase (Comando TRUNCATE).");
   };
@@ -212,9 +254,9 @@ const App: React.FC = () => {
       case 'INVENTORY':
         return <Inventory products={products} onUpdateProduct={handleUpdateProduct} onAddProduct={handleAddProduct} />;
       case 'SALES':
-        return <Sales sales={sales} products={products} customers={customers} onAddSale={handleAddSale} onAddCustomer={handleAddCustomer} />;
+        return <Sales sales={sales} products={products} customers={customers} onAddSale={handleAddSale} onAddCustomer={handleAddCustomer} currentUser={currentUser} onUpdateSale={handleUpdateSale} onDeleteSale={handleDeleteSale} />;
       case 'CUSTOMERS':
-        return <Customers customers={customers} onAddCustomer={handleAddCustomer} onImportCustomers={handleImportCustomers} />;
+        return <Customers customers={customers} onAddCustomer={handleAddCustomer} onImportCustomers={handleImportCustomers} currentUser={currentUser} onUpdateCustomer={handleUpdateCustomer} onDeleteCustomer={handleDeleteCustomer} />;
       case 'FINANCIAL':
         if (currentUser?.role !== 'ADMIN') return <Dashboard products={products} sales={sales} financials={financials} />;
         return <Financial records={financials} onAddRecord={handleAddFinancialRecord} />;
