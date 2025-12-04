@@ -1,4 +1,4 @@
-import { Sale } from '../../types';
+import { Sale } from '../types';
 
 // Interface para resposta da API de Notas (padrão genérico)
 export interface InvoiceResponse {

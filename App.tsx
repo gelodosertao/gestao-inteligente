@@ -7,9 +7,10 @@ import Financial from './components/Financial';
 import AIAssistant from './components/AIAssistant';
 import Settings from './components/Settings';
 import Login from './components/Login';
-import { ViewState, User, Product, Sale, FinancialRecord, Branch } from './types';
+import Customers from './components/Customers';
+import { ViewState, User, Product, Sale, FinancialRecord, Branch, Customer } from './types';
 import { MOCK_PRODUCTS, MOCK_SALES, MOCK_FINANCIALS } from './constants';
-import { dbProducts, dbSales, dbFinancials } from './services/db';
+import { dbProducts, dbSales, dbFinancials, dbCustomers } from './services/db';
 import { Loader2, AlertCircle } from 'lucide-react';
 
 const App: React.FC = () => {
@@ -20,6 +21,7 @@ const App: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
   const [financials, setFinancials] = useState<FinancialRecord[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
 
   // Loading & Error States
   const [isLoading, setIsLoading] = useState(false);
@@ -37,15 +39,17 @@ const App: React.FC = () => {
     setDbError(null);
     try {
       // Parallel fetch for speed
-      const [p, s, f] = await Promise.all([
+      const [p, s, f, c] = await Promise.all([
         dbProducts.getAll(),
         dbSales.getAll(),
-        dbFinancials.getAll()
+        dbFinancials.getAll(),
+        dbCustomers.getAll()
       ]);
 
       setProducts(p.length > 0 ? p : []);
       setSales(s);
       setFinancials(f);
+      setCustomers(c);
 
     } catch (error: any) {
       console.error("Erro ao conectar com Supabase:", error);
@@ -55,8 +59,8 @@ const App: React.FC = () => {
         setDbError("Erro de conexão com o banco de dados. Verifique a internet.");
       }
       setProducts(MOCK_PRODUCTS);
-      setSales(MOCK_SALES);
-      setFinancials(MOCK_FINANCIALS);
+      setSales([]); // Cleaned as requested
+      setFinancials([]); // Cleaned as requested
     } finally {
       setIsLoading(false);
     }
@@ -136,6 +140,26 @@ const App: React.FC = () => {
     }
   };
 
+  const handleAddCustomer = async (newCustomer: Customer) => {
+    setCustomers(prev => [...prev, newCustomer]);
+    try {
+      await dbCustomers.add(newCustomer);
+    } catch (e) {
+      console.error(e);
+      alert("Erro ao salvar cliente no banco.");
+    }
+  };
+
+  const handleImportCustomers = async (newCustomers: Customer[]) => {
+    setCustomers(prev => [...prev, ...newCustomers]);
+    try {
+      await dbCustomers.addBatch(newCustomers);
+    } catch (e) {
+      console.error(e);
+      alert("Erro ao importar clientes no banco.");
+    }
+  };
+
   const handleResetData = async () => {
     alert("Para resetar o banco de dados Supabase, utilize o editor SQL no painel do Supabase (Comando TRUNCATE).");
   };
@@ -172,7 +196,8 @@ const App: React.FC = () => {
             -- Execute este SQL no Supabase:<br />
             create table products (id text primary key, name text, category text, price_matriz numeric, price_filial numeric, cost numeric, stock_matriz integer, stock_filial integer, unit text, min_stock integer);<br />
             create table sales (id text primary key, date text, customer_name text, total numeric, branch text, status text, payment_method text, has_invoice boolean, items jsonb);<br />
-            create table financials (id text primary key, date text, description text, amount numeric, type text, category text);
+            create table financials (id text primary key, date text, description text, amount numeric, type text, category text);<br />
+            create table customers (id text primary key, name text, cpf_cnpj text, email text, phone text, address text);
           </div>
           <button onClick={() => loadDataFromCloud()} className="mt-6 bg-red-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-red-700">
             Tentar Conectar Novamente
@@ -187,7 +212,9 @@ const App: React.FC = () => {
       case 'INVENTORY':
         return <Inventory products={products} onUpdateProduct={handleUpdateProduct} onAddProduct={handleAddProduct} />;
       case 'SALES':
-        return <Sales sales={sales} products={products} onAddSale={handleAddSale} />;
+        return <Sales sales={sales} products={products} customers={customers} onAddSale={handleAddSale} onAddCustomer={handleAddCustomer} />;
+      case 'CUSTOMERS':
+        return <Customers customers={customers} onAddCustomer={handleAddCustomer} onImportCustomers={handleImportCustomers} />;
       case 'FINANCIAL':
         if (currentUser?.role !== 'ADMIN') return <Dashboard products={products} sales={sales} financials={financials} />;
         return <Financial records={financials} onAddRecord={handleAddFinancialRecord} />;

@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Package, ShoppingCart, DollarSign, Sparkles, Settings, LogOut, Sun } from 'lucide-react';
+import { LayoutDashboard, Package, ShoppingCart, DollarSign, Sparkles, Settings, LogOut, Sun, Users } from 'lucide-react';
 import { ViewState, User } from '../types';
 
 interface AppSidebarProps {
@@ -10,12 +10,13 @@ interface AppSidebarProps {
 }
 
 const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, setView, currentUser, onLogout }) => {
-  
+
   // Define menu structure based on roles
   const allMenuItems = [
     { id: 'DASHBOARD', label: 'Dashboard', icon: LayoutDashboard, roles: ['ADMIN', 'OPERATOR'] },
     { id: 'INVENTORY', label: 'Estoque & Produtos', icon: Package, roles: ['ADMIN', 'OPERATOR'] },
     { id: 'SALES', label: 'Vendas & PDV', icon: ShoppingCart, roles: ['ADMIN', 'OPERATOR'] },
+    { id: 'CUSTOMERS', label: 'Clientes', icon: Users, roles: ['ADMIN', 'OPERATOR'] },
     { id: 'FINANCIAL', label: 'Financeiro', icon: DollarSign, roles: ['ADMIN'] }, // Restricted to Admin
     { id: 'AI_INSIGHTS', label: 'Consultor IA', icon: Sparkles, roles: ['ADMIN', 'OPERATOR'] },
   ];
@@ -25,22 +26,22 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, setView, currentUs
   return (
     <div className="w-20 lg:w-64 bg-blue-900 text-white flex flex-col h-screen fixed left-0 top-0 z-50 transition-all duration-300 shadow-xl border-r border-blue-800">
       <div className="p-4 flex flex-col items-center justify-center border-b border-blue-800 h-28 relative overflow-hidden">
-        
+
         {/* Compact Logo Simulation */}
         <div className="relative z-10 flex flex-col items-center select-none">
-            <div className="w-12 h-6 bg-gradient-to-b from-orange-400 to-orange-500 rounded-t-full relative border-2 border-white mb-[-6px] shadow-sm">
-                {/* Tiny Cactus */}
-                <div className="absolute bottom-1 left-2 w-0.5 h-2 bg-amber-900"></div>
-                <div className="absolute bottom-1 right-2 w-0.5 h-3 bg-amber-900"></div>
-            </div>
-            <div className="bg-[#1e40af] px-2 py-0.5 rounded border border-white transform skew-x-[-5deg] z-20 shadow-md">
-                <span className="font-black text-sm tracking-tighter italic font-sans">GELO DO SERTÃO</span>
-            </div>
+          <div className="w-12 h-6 bg-gradient-to-b from-orange-400 to-orange-500 rounded-t-full relative border-2 border-white mb-[-6px] shadow-sm">
+            {/* Tiny Cactus */}
+            <div className="absolute bottom-1 left-2 w-0.5 h-2 bg-amber-900"></div>
+            <div className="absolute bottom-1 right-2 w-0.5 h-3 bg-amber-900"></div>
+          </div>
+          <div className="bg-[#1e40af] px-2 py-0.5 rounded border border-white transform skew-x-[-5deg] z-20 shadow-md">
+            <span className="font-black text-sm tracking-tighter italic font-sans">GELO DO SERTÃO</span>
+          </div>
         </div>
-        
+
         {/* Background Decoration */}
         <div className="absolute -right-4 -top-4 text-orange-500 opacity-10 rotate-12">
-            <Sun size={80} />
+          <Sun size={80} />
         </div>
       </div>
 
@@ -52,8 +53,8 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, setView, currentUs
               key={item.id}
               onClick={() => setView(item.id as ViewState)}
               className={`w-full flex items-center justify-center lg:justify-start gap-3 p-3 rounded-xl transition-all duration-200 group relative
-                ${isActive 
-                  ? 'bg-orange-500 text-white shadow-lg shadow-orange-900/40' 
+                ${isActive
+                  ? 'bg-orange-500 text-white shadow-lg shadow-orange-900/40'
                   : 'text-blue-200 hover:bg-blue-800 hover:text-white'
                 }
               `}
@@ -69,12 +70,12 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, setView, currentUs
       <div className="p-4 border-t border-blue-800 space-y-2 bg-blue-950/30">
         {/* Settings Button (Admin Only or limited for User) */}
         {currentUser.role === 'ADMIN' && (
-          <button 
-             onClick={() => setView('SETTINGS')}
-             className={`w-full flex items-center justify-center lg:justify-start gap-3 p-2 rounded-lg transition-colors ${currentView === 'SETTINGS' ? 'bg-blue-800 text-orange-400' : 'text-blue-300 hover:text-white hover:bg-blue-800'}`}
+          <button
+            onClick={() => setView('SETTINGS')}
+            className={`w-full flex items-center justify-center lg:justify-start gap-3 p-2 rounded-lg transition-colors ${currentView === 'SETTINGS' ? 'bg-blue-800 text-orange-400' : 'text-blue-300 hover:text-white hover:bg-blue-800'}`}
           >
-             <Settings size={20} />
-             <span className="hidden lg:block text-sm font-medium">Configurações</span>
+            <Settings size={20} />
+            <span className="hidden lg:block text-sm font-medium">Configurações</span>
           </button>
         )}
 
@@ -86,20 +87,20 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, setView, currentUs
             <p className="text-sm font-semibold truncate text-white">{currentUser.name}</p>
             <p className="text-[10px] text-blue-300 uppercase tracking-wider">{currentUser.role === 'ADMIN' ? 'Sócio Admin' : 'Operador'}</p>
           </div>
-          <button 
+          <button
             onClick={onLogout}
-            className="text-blue-300 hover:text-rose-400 transition-colors p-1" 
+            className="text-blue-300 hover:text-rose-400 transition-colors p-1"
             title="Sair"
           >
-             <LogOut size={18} />
+            <LogOut size={18} />
           </button>
         </div>
-        
+
         {/* Mobile Logout */}
         <div className="lg:hidden flex justify-center pt-2">
-           <button onClick={onLogout} className="text-blue-300 hover:text-rose-400">
-             <LogOut size={20} />
-           </button>
+          <button onClick={onLogout} className="text-blue-300 hover:text-rose-400">
+            <LogOut size={20} />
+          </button>
         </div>
       </div>
     </div>

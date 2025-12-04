@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { Product, Sale, FinancialRecord, Category, Branch, User, Role } from '../../types';
+import { Product, Sale, FinancialRecord, Category, Branch, User, Role, Customer } from '../types';
 
 // --- USERS & AUTH ---
 export const dbUsers = {
@@ -155,6 +155,49 @@ export const dbFinancials = {
   async addBatch(records: FinancialRecord[]) {
     if (records.length === 0) return;
     const { error } = await supabase.from('financials').insert(records);
+    if (error) throw error;
+  }
+};
+
+// --- CUSTOMERS ---
+export const dbCustomers = {
+  async getAll(): Promise<Customer[]> {
+    const { data, error } = await supabase.from('customers').select('*').order('name', { ascending: true });
+    if (error) throw error;
+
+    return (data || []).map((row: any) => ({
+      id: row.id,
+      name: row.name,
+      cpfCnpj: row.cpf_cnpj,
+      email: row.email,
+      phone: row.phone,
+      address: row.address
+    }));
+  },
+
+  async add(customer: Customer) {
+    const { error } = await supabase.from('customers').insert([{
+      id: customer.id,
+      name: customer.name,
+      cpf_cnpj: customer.cpfCnpj,
+      email: customer.email,
+      phone: customer.phone,
+      address: customer.address
+    }]);
+    if (error) throw error;
+  },
+
+  async addBatch(customers: Customer[]) {
+    if (customers.length === 0) return;
+    const rows = customers.map(c => ({
+      id: c.id,
+      name: c.name,
+      cpf_cnpj: c.cpfCnpj,
+      email: c.email,
+      phone: c.phone,
+      address: c.address
+    }));
+    const { error } = await supabase.from('customers').insert(rows);
     if (error) throw error;
   }
 };

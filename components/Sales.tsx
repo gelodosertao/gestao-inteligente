@@ -1,12 +1,14 @@
 import React, { useState, useRef } from 'react';
-import { Sale, Branch, Product } from '../types';
+import { Sale, Branch, Product, Customer } from '../types';
 import { invoiceService } from '../services/invoiceService';
-import { ShoppingCart, FileText, CheckCircle, Clock, X, Printer, Send, ScanBarcode, Search, Trash2, Plus, Minus, CreditCard, Banknote, QrCode, Bluetooth, ArrowRight, Store, Factory, Calculator } from 'lucide-react';
+import { ShoppingCart, FileText, CheckCircle, Clock, X, Printer, Send, ScanBarcode, Search, Trash2, Plus, Minus, CreditCard, Banknote, QrCode, Bluetooth, ArrowRight, Store, Factory, Calculator, User, UserPlus } from 'lucide-react';
 
 interface SalesProps {
    sales: Sale[];
    products: Product[];
+   customers: Customer[];
    onAddSale: (sale: Sale) => void;
+   onAddCustomer: (customer: Customer) => void;
 }
 
 interface CartItem {
@@ -17,7 +19,7 @@ interface CartItem {
 
 type PaymentMethod = 'Pix' | 'Credit' | 'Debit' | 'Cash';
 
-const Sales: React.FC<SalesProps> = ({ sales, products, onAddSale }) => {
+const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, onAddCustomer }) => {
    const [activeTab, setActiveTab] = useState<'History' | 'POS'>('History');
 
    // --- INVOICE MODAL STATE ---
@@ -199,6 +201,16 @@ const Sales: React.FC<SalesProps> = ({ sales, products, onAddSale }) => {
       setShowPaymentModal(true);
    };
 
+   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+   const [showCustomerModal, setShowCustomerModal] = useState(false);
+   const [customerSearch, setCustomerSearch] = useState('');
+
+   // Filter customers for selection
+   const filteredCustomers = customers.filter(c =>
+      c.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
+      c.cpfCnpj?.includes(customerSearch)
+   );
+
    const processPayment = () => {
       setCheckoutStep('PROCESSING');
 
@@ -207,7 +219,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, onAddSale }) => {
          const newSale: Sale = {
             id: Math.floor(Math.random() * 10000).toString(),
             date: new Date().toISOString().split('T')[0],
-            customerName: selectedBranch === Branch.MATRIZ ? 'Cliente Atacado' : 'Consumidor Final',
+            customerName: selectedCustomer ? selectedCustomer.name : (selectedBranch === Branch.MATRIZ ? 'Cliente Atacado' : 'Consumidor Final'),
             total: cartTotal,
             branch: selectedBranch,
             status: 'Completed',
@@ -464,7 +476,13 @@ const Sales: React.FC<SalesProps> = ({ sales, products, onAddSale }) => {
                         <ShoppingCart size={20} className="text-white" />
                         <span className="font-bold">Caixa: {selectedBranch === Branch.MATRIZ ? 'ATACADO' : 'VAREJO'}</span>
                      </div>
-                     <span className="text-xs bg-white/20 px-2 py-0.5 rounded">Operador: JP</span>
+                     <button
+                        onClick={() => setShowCustomerModal(true)}
+                        className="text-xs bg-white/20 hover:bg-white/30 px-2 py-1 rounded flex items-center gap-1 transition-colors"
+                     >
+                        <User size={12} />
+                        {selectedCustomer ? selectedCustomer.name.split(' ')[0] : 'Identificar Cliente'}
+                     </button>
                   </div>
 
                   {/* Cart Items List */}
@@ -819,6 +837,82 @@ const Sales: React.FC<SalesProps> = ({ sales, products, onAddSale }) => {
                            </div>
                         </div>
                      )}
+                  </div>
+               </div>
+            </div>
+         )}
+
+         {/* --- CUSTOMER SELECTION MODAL --- */}
+         {showCustomerModal && (
+            <div className="fixed inset-0 bg-blue-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+               <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
+                  <div className="p-4 bg-slate-800 text-white flex justify-between items-center">
+                     <h3 className="font-bold flex items-center gap-2">
+                        <User size={20} className="text-orange-400" /> Selecionar Cliente
+                     </h3>
+                     <button onClick={() => setShowCustomerModal(false)}><X size={20} /></button>
+                  </div>
+
+                  <div className="p-4 border-b border-slate-100 bg-slate-50">
+                     <div className="relative">
+                        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                           type="text"
+                           placeholder="Buscar cliente..."
+                           className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                           value={customerSearch}
+                           onChange={(e) => setCustomerSearch(e.target.value)}
+                           autoFocus
+                        />
+                     </div>
+                  </div>
+
+                  <div className="flex-1 overflow-y-auto p-2">
+                     {filteredCustomers.length === 0 ? (
+                        <div className="text-center py-8 text-slate-400">
+                           <p>Nenhum cliente encontrado.</p>
+                        </div>
+                     ) : (
+                        <div className="space-y-1">
+                           {filteredCustomers.map(customer => (
+                              <button
+                                 key={customer.id}
+                                 onClick={() => {
+                                    setSelectedCustomer(customer);
+                                    setShowCustomerModal(false);
+                                 }}
+                                 className={`w-full text-left p-3 rounded-lg flex justify-between items-center transition-colors ${selectedCustomer?.id === customer.id ? 'bg-blue-50 border border-blue-200' : 'hover:bg-slate-50 border border-transparent'}`}
+                              >
+                                 <div>
+                                    <p className="font-bold text-slate-800">{customer.name}</p>
+                                    <p className="text-xs text-slate-500">{customer.cpfCnpj || 'Sem Documento'}</p>
+                                 </div>
+                                 {selectedCustomer?.id === customer.id && <CheckCircle size={16} className="text-blue-600" />}
+                              </button>
+                           ))}
+                        </div>
+                     )}
+                  </div>
+
+                  <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-between items-center">
+                     {selectedCustomer && (
+                        <button
+                           onClick={() => { setSelectedCustomer(null); setShowCustomerModal(false); }}
+                           className="text-sm text-red-600 hover:underline font-medium"
+                        >
+                           Remover Seleção
+                        </button>
+                     )}
+                     <button
+                        onClick={() => {
+                           // Quick add logic could go here, or redirect to Customers tab
+                           alert("Para cadastrar um novo cliente, vá para a aba Clientes.");
+                           setShowCustomerModal(false);
+                        }}
+                        className="ml-auto flex items-center gap-2 text-sm font-bold text-blue-700 hover:text-blue-800"
+                     >
+                        <UserPlus size={16} /> Novo Cadastro
+                     </button>
                   </div>
                </div>
             </div>

@@ -66,4 +66,13 @@ export interface User {
   avatarInitials: string;
 }
 
-export type ViewState = 'DASHBOARD' | 'INVENTORY' | 'SALES' | 'FINANCIAL' | 'AI_INSIGHTS' | 'SETTINGS';
+export type ViewState = 'DASHBOARD' | 'INVENTORY' | 'SALES' | 'FINANCIAL' | 'AI_INSIGHTS' | 'SETTINGS' | 'CUSTOMERS';
+
+export interface Customer {
+  id: string;
+  name: string;
+  cpfCnpj?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+}
