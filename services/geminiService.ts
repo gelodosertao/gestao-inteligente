@@ -1,5 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
-import { Product, Sale, FinancialRecord } from '../../types';
+import { Product, Sale, FinancialRecord } from '../types';
 
 const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || '' });
 
