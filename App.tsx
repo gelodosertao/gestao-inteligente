@@ -283,7 +283,7 @@ const App: React.FC = () => {
         onLogout={handleLogout}
       />
 
-      <main className="flex-1 ml-20 lg:ml-64 p-4 lg:p-8 transition-all duration-300">
+      <main className="flex-1 md:ml-20 lg:ml-64 p-4 lg:p-8 transition-all duration-300 mb-20 md:mb-0">
         <div className="max-w-7xl mx-auto h-full">
           {renderContent()}
         </div>

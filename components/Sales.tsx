@@ -506,18 +506,71 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
 
                {/* Right Column: Cart & Checkout */}
                <div className="bg-white rounded-2xl shadow-xl border border-slate-200 flex flex-col overflow-hidden h-full">
-                  <div className={`p-4 text-white flex justify-between items-center ${selectedBranch === Branch.MATRIZ ? 'bg-blue-800' : 'bg-orange-500'}`}>
-                     <div className="flex items-center gap-2">
+                  <div className={`p-4 text-white flex justify-between items-center gap-2 ${selectedBranch === Branch.MATRIZ ? 'bg-blue-800' : 'bg-orange-500'}`}>
+                     <div className="flex items-center gap-2 shrink-0">
                         <ShoppingCart size={20} className="text-white" />
-                        <span className="font-bold">Caixa: {selectedBranch === Branch.MATRIZ ? 'ATACADO' : 'VAREJO'}</span>
+                        <span className="font-bold hidden md:inline">Caixa: {selectedBranch === Branch.MATRIZ ? 'ATACADO' : 'VAREJO'}</span>
+                        <span className="font-bold md:hidden">{selectedBranch === Branch.MATRIZ ? 'ATACADO' : 'VAREJO'}</span>
                      </div>
-                     <button
-                        onClick={() => setShowCustomerModal(true)}
-                        className="text-xs bg-white/20 hover:bg-white/30 px-2 py-1 rounded flex items-center gap-1 transition-colors"
-                     >
-                        <UserIcon size={12} />
-                        {selectedCustomer ? selectedCustomer.name.split(' ')[0] : 'Identificar Cliente'}
-                     </button>
+
+                     {/* Customer Autocomplete */}
+                     <div className="relative flex-1 max-w-[200px]">
+                        <div className="flex items-center bg-white/20 hover:bg-white/30 transition-colors rounded-lg px-2 py-1.5 gap-2 border border-white/10 focus-within:bg-white/40 focus-within:border-white/30">
+                           <UserIcon size={14} className="text-white/80 shrink-0" />
+                           <input
+                              type="text"
+                              value={selectedCustomer ? selectedCustomer.name : customerSearch}
+                              onChange={(e) => {
+                                 setCustomerSearch(e.target.value);
+                                 if (selectedCustomer) setSelectedCustomer(null);
+                              }}
+                              placeholder="Identificar Cliente..."
+                              className="bg-transparent border-none outline-none text-white text-xs font-medium placeholder-white/60 w-full"
+                           />
+                           {selectedCustomer || customerSearch ? (
+                              <button
+                                 onClick={() => { setSelectedCustomer(null); setCustomerSearch(''); }}
+                                 className="text-white/70 hover:text-white"
+                              >
+                                 <X size={12} />
+                              </button>
+                           ) : null}
+                        </div>
+
+                        {/* Autocomplete Dropdown */}
+                        {customerSearch && !selectedCustomer && (
+                           <div className="absolute top-full right-0 w-64 bg-white text-slate-800 shadow-xl rounded-xl mt-2 z-50 max-h-60 overflow-y-auto border border-slate-100 animate-in fade-in slide-in-from-top-2">
+                              {filteredCustomers.length > 0 ? (
+                                 filteredCustomers.map(c => (
+                                    <button
+                                       key={c.id}
+                                       onClick={() => {
+                                          setSelectedCustomer(c);
+                                          setCustomerSearch('');
+                                       }}
+                                       className="w-full text-left px-4 py-3 text-sm hover:bg-blue-50 border-b border-slate-50 last:border-none flex flex-col gap-0.5 group"
+                                    >
+                                       <span className="font-bold text-slate-700 group-hover:text-blue-700">{c.name}</span>
+                                       <span className="text-xs text-slate-400 flex items-center gap-1">
+                                          {c.cpfCnpj || 'Sem Documento'}
+                                          {c.phone && <span>• {c.phone}</span>}
+                                       </span>
+                                    </button>
+                                 ))
+                              ) : (
+                                 <div className="p-4 text-center">
+                                    <p className="text-xs text-slate-500 mb-2">Nenhum cliente encontrado.</p>
+                                    <button
+                                       onClick={() => { setShowCustomerModal(true); setCustomerSearch(''); }}
+                                       className="text-xs bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg font-bold hover:bg-blue-200 w-full"
+                                    >
+                                       + Cadastrar Novo
+                                    </button>
+                                 </div>
+                              )}
+                           </div>
+                        )}
+                     </div>
                   </div>
 
                   {/* Cart Items List */}

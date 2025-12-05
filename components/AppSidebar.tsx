@@ -10,100 +10,120 @@ interface AppSidebarProps {
 }
 
 const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, setView, currentUser, onLogout }) => {
-
   // Define menu structure based on roles
   const allMenuItems = [
     { id: 'DASHBOARD', label: 'Dashboard', icon: LayoutDashboard, roles: ['ADMIN', 'OPERATOR'] },
-    { id: 'INVENTORY', label: 'Estoque & Produtos', icon: Package, roles: ['ADMIN', 'OPERATOR'] },
-    { id: 'SALES', label: 'Vendas & PDV', icon: ShoppingCart, roles: ['ADMIN', 'OPERATOR'] },
+    { id: 'INVENTORY', label: 'Estoque', icon: Package, roles: ['ADMIN', 'OPERATOR'] },
+    { id: 'SALES', label: 'Vendas', icon: ShoppingCart, roles: ['ADMIN', 'OPERATOR'] },
     { id: 'CUSTOMERS', label: 'Clientes', icon: Users, roles: ['ADMIN', 'OPERATOR'] },
-    { id: 'FINANCIAL', label: 'Financeiro', icon: DollarSign, roles: ['ADMIN'] }, // Restricted to Admin
-    { id: 'AI_INSIGHTS', label: 'Consultor IA', icon: Sparkles, roles: ['ADMIN', 'OPERATOR'] },
+    { id: 'FINANCIAL', label: 'Financeiro', icon: DollarSign, roles: ['ADMIN'] },
+    { id: 'AI_INSIGHTS', label: 'IA', icon: Sparkles, roles: ['ADMIN', 'OPERATOR'] },
   ];
 
   const visibleItems = allMenuItems.filter(item => item.roles.includes(currentUser.role));
 
   return (
-    <div className="w-20 lg:w-64 bg-blue-900 text-white flex flex-col h-screen fixed left-0 top-0 z-50 transition-all duration-300 shadow-xl border-r border-blue-800">
-      <div className="p-4 flex flex-col items-center justify-center border-b border-blue-800 h-28 relative overflow-hidden">
-
-        {/* Compact Logo Simulation */}
-        <div className="relative z-10 flex flex-col items-center select-none">
-          <div className="w-12 h-6 bg-gradient-to-b from-orange-400 to-orange-500 rounded-t-full relative border-2 border-white mb-[-6px] shadow-sm">
-            {/* Tiny Cactus */}
-            <div className="absolute bottom-1 left-2 w-0.5 h-2 bg-amber-900"></div>
-            <div className="absolute bottom-1 right-2 w-0.5 h-3 bg-amber-900"></div>
+    <>
+      {/* DESKTOP SIDEBAR */}
+      <div className="hidden md:flex w-20 lg:w-64 bg-blue-900 text-white flex-col h-screen fixed left-0 top-0 z-50 transition-all duration-300 shadow-xl border-r border-blue-800">
+        <div className="p-4 flex flex-col items-center justify-center border-b border-blue-800 h-28 relative overflow-hidden">
+          {/* Compact Logo Simulation */}
+          <div className="relative z-10 flex flex-col items-center select-none">
+            <div className="w-12 h-6 bg-gradient-to-b from-orange-400 to-orange-500 rounded-t-full relative border-2 border-white mb-[-6px] shadow-sm">
+              <div className="absolute bottom-1 left-2 w-0.5 h-2 bg-amber-900"></div>
+              <div className="absolute bottom-1 right-2 w-0.5 h-3 bg-amber-900"></div>
+            </div>
+            <div className="bg-[#1e40af] px-2 py-0.5 rounded border border-white transform skew-x-[-5deg] z-20 shadow-md">
+              <span className="font-black text-sm tracking-tighter italic font-sans">GELO DO SERTÃO</span>
+            </div>
           </div>
-          <div className="bg-[#1e40af] px-2 py-0.5 rounded border border-white transform skew-x-[-5deg] z-20 shadow-md">
-            <span className="font-black text-sm tracking-tighter italic font-sans">GELO DO SERTÃO</span>
+          <div className="absolute -right-4 -top-4 text-orange-500 opacity-10 rotate-12">
+            <Sun size={80} />
           </div>
         </div>
 
-        {/* Background Decoration */}
-        <div className="absolute -right-4 -top-4 text-orange-500 opacity-10 rotate-12">
-          <Sun size={80} />
+        <nav className="flex-1 py-6 px-2 lg:px-4 space-y-2 overflow-y-auto">
+          {visibleItems.map((item) => {
+            const isActive = currentView === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => setView(item.id as ViewState)}
+                className={`w-full flex items-center justify-center lg:justify-start gap-3 p-3 rounded-xl transition-all duration-200 group relative
+                  ${isActive
+                    ? 'bg-orange-500 text-white shadow-lg shadow-orange-900/40'
+                    : 'text-blue-200 hover:bg-blue-800 hover:text-white'
+                  }
+                `}
+              >
+                <item.icon size={20} className={`${isActive ? 'text-white' : 'text-blue-300 group-hover:text-white'}`} />
+                <span className="hidden lg:block font-medium">{item.label}</span>
+                {isActive && <div className="hidden lg:block absolute right-3 w-1.5 h-1.5 rounded-full bg-white animate-pulse" />}
+              </button>
+            );
+          })}
+        </nav>
+
+        <div className="p-4 border-t border-blue-800 space-y-2 bg-blue-950/30">
+          {currentUser.role === 'ADMIN' && (
+            <button
+              onClick={() => setView('SETTINGS')}
+              className={`w-full flex items-center justify-center lg:justify-start gap-3 p-2 rounded-lg transition-colors ${currentView === 'SETTINGS' ? 'bg-blue-800 text-orange-400' : 'text-blue-300 hover:text-white hover:bg-blue-800'}`}
+            >
+              <Settings size={20} />
+              <span className="hidden lg:block text-sm font-medium">Configurações</span>
+            </button>
+          )}
+
+          <div className="hidden lg:flex items-center gap-3 pt-2">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-orange-400 to-orange-600 flex items-center justify-center font-bold text-white shadow-sm border-2 border-blue-800">
+              {currentUser.avatarInitials}
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <p className="text-sm font-semibold truncate text-white">{currentUser.name}</p>
+              <p className="text-[10px] text-blue-300 uppercase tracking-wider">{currentUser.role === 'ADMIN' ? 'Sócio Admin' : 'Operador'}</p>
+            </div>
+            <button onClick={onLogout} className="text-blue-300 hover:text-rose-400 transition-colors p-1" title="Sair">
+              <LogOut size={18} />
+            </button>
+          </div>
+
+          <div className="lg:hidden flex justify-center pt-2">
+            <button onClick={onLogout} className="text-blue-300 hover:text-rose-400">
+              <LogOut size={20} />
+            </button>
+          </div>
         </div>
       </div>
 
-      <nav className="flex-1 py-6 px-2 lg:px-4 space-y-2">
-        {visibleItems.map((item) => {
-          const isActive = currentView === item.id;
-          return (
-            <button
-              key={item.id}
-              onClick={() => setView(item.id as ViewState)}
-              className={`w-full flex items-center justify-center lg:justify-start gap-3 p-3 rounded-xl transition-all duration-200 group relative
-                ${isActive
-                  ? 'bg-orange-500 text-white shadow-lg shadow-orange-900/40'
-                  : 'text-blue-200 hover:bg-blue-800 hover:text-white'
-                }
-              `}
-            >
-              <item.icon size={20} className={`${isActive ? 'text-white' : 'text-blue-300 group-hover:text-white'}`} />
-              <span className="hidden lg:block font-medium">{item.label}</span>
-              {isActive && <div className="hidden lg:block absolute right-3 w-1.5 h-1.5 rounded-full bg-white animate-pulse" />}
-            </button>
-          );
-        })}
-      </nav>
-
-      <div className="p-4 border-t border-blue-800 space-y-2 bg-blue-950/30">
-        {/* Settings Button (Admin Only or limited for User) */}
-        {currentUser.role === 'ADMIN' && (
+      {/* MOBILE BOTTOM NAVIGATION */}
+      <div className="md:hidden fixed bottom-0 left-0 w-full bg-blue-900 text-white z-50 border-t border-blue-800 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] pb-safe">
+        <div className="flex justify-around items-center p-2">
+          {visibleItems.slice(0, 5).map((item) => { // Show max 5 items on mobile to fit
+            const isActive = currentView === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => setView(item.id as ViewState)}
+                className={`flex flex-col items-center justify-center p-2 rounded-lg transition-all
+                   ${isActive ? 'text-orange-400' : 'text-blue-300'}
+                 `}
+              >
+                <item.icon size={24} strokeWidth={isActive ? 2.5 : 2} />
+                <span className="text-[10px] mt-1 font-medium">{item.label}</span>
+              </button>
+            );
+          })}
           <button
             onClick={() => setView('SETTINGS')}
-            className={`w-full flex items-center justify-center lg:justify-start gap-3 p-2 rounded-lg transition-colors ${currentView === 'SETTINGS' ? 'bg-blue-800 text-orange-400' : 'text-blue-300 hover:text-white hover:bg-blue-800'}`}
+            className={`flex flex-col items-center justify-center p-2 rounded-lg transition-all ${currentView === 'SETTINGS' ? 'text-orange-400' : 'text-blue-300'}`}
           >
-            <Settings size={20} />
-            <span className="hidden lg:block text-sm font-medium">Configurações</span>
-          </button>
-        )}
-
-        <div className="hidden lg:flex items-center gap-3 pt-2">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-orange-400 to-orange-600 flex items-center justify-center font-bold text-white shadow-sm border-2 border-blue-800">
-            {currentUser.avatarInitials}
-          </div>
-          <div className="flex-1 overflow-hidden">
-            <p className="text-sm font-semibold truncate text-white">{currentUser.name}</p>
-            <p className="text-[10px] text-blue-300 uppercase tracking-wider">{currentUser.role === 'ADMIN' ? 'Sócio Admin' : 'Operador'}</p>
-          </div>
-          <button
-            onClick={onLogout}
-            className="text-blue-300 hover:text-rose-400 transition-colors p-1"
-            title="Sair"
-          >
-            <LogOut size={18} />
-          </button>
-        </div>
-
-        {/* Mobile Logout */}
-        <div className="lg:hidden flex justify-center pt-2">
-          <button onClick={onLogout} className="text-blue-300 hover:text-rose-400">
-            <LogOut size={20} />
+            <Settings size={24} />
+            <span className="text-[10px] mt-1 font-medium">Ajustes</span>
           </button>
         </div>
       </div>
-    </div>
+    </>
   );
 };
 
