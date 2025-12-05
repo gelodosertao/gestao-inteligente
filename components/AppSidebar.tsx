@@ -27,15 +27,9 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, setView, currentUs
       {/* DESKTOP SIDEBAR */}
       <div className="hidden md:flex w-20 lg:w-64 bg-blue-900 text-white flex-col h-screen fixed left-0 top-0 z-50 transition-all duration-300 shadow-xl border-r border-blue-800">
         <div className="p-4 flex flex-col items-center justify-center border-b border-blue-800 h-28 relative overflow-hidden">
-          {/* Compact Logo Simulation */}
+          {/* Logo Image */}
           <div className="relative z-10 flex flex-col items-center select-none">
-            <div className="w-12 h-6 bg-gradient-to-b from-orange-400 to-orange-500 rounded-t-full relative border-2 border-white mb-[-6px] shadow-sm">
-              <div className="absolute bottom-1 left-2 w-0.5 h-2 bg-amber-900"></div>
-              <div className="absolute bottom-1 right-2 w-0.5 h-3 bg-amber-900"></div>
-            </div>
-            <div className="bg-[#1e40af] px-2 py-0.5 rounded border border-white transform skew-x-[-5deg] z-20 shadow-md">
-              <span className="font-black text-sm tracking-tighter italic font-sans">GELO DO SERTÃO</span>
-            </div>
+            <img src="/logo.png" alt="Gelo do Sertão" className="h-16 w-auto object-contain drop-shadow-md" />
           </div>
           <div className="absolute -right-4 -top-4 text-orange-500 opacity-10 rotate-12">
             <Sun size={80} />

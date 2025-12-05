@@ -65,53 +65,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     }
   };
 
-  // Componente Visual da Logo Gelo do Sertão
-  const GeloDoSertaoLogo = ({ size = 'normal' }: { size?: 'normal' | 'small' }) => {
-    const scale = size === 'small' ? 0.6 : 1;
-    return (
-      <div className="relative flex flex-col items-center justify-center select-none" style={{ transform: `scale(${scale})` }}>
-        {/* Top: Sun & Cactus */}
-        <div className="w-48 h-24 bg-gradient-to-b from-orange-400 to-orange-500 rounded-t-full relative overflow-hidden z-0 border-4 border-white shadow-sm">
-          <div className="absolute bottom-0 w-full h-8 bg-[#d97706]/20 rounded-t-[50%]"></div>
-          {/* Cactus Simulation */}
-          <div className="absolute bottom-2 left-10 w-2 h-10 bg-amber-900 rounded-t-full">
-            <div className="absolute top-2 -left-2 w-2 h-4 bg-amber-900 rounded-l-full rounded-t-full border-b-2 border-orange-500/0 rotate-[-15deg]"></div>
-          </div>
-          <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 w-3 h-14 bg-amber-900 rounded-t-full">
-            <div className="absolute top-4 -right-2 w-2 h-4 bg-amber-900 rounded-r-full rounded-t-full rotate-[15deg]"></div>
-            <div className="absolute top-3 -left-2 w-2 h-4 bg-amber-900 rounded-l-full rounded-t-full rotate-[-15deg]"></div>
-          </div>
-          <div className="absolute bottom-2 right-10 w-2 h-8 bg-amber-900 rounded-t-full"></div>
 
-          {/* Arc Text */}
-          <svg className="absolute top-1 left-0 w-full h-full pointer-events-none" viewBox="0 0 200 100">
-            <path id="curve" d="M 30,90 A 70,70 0 0,1 170,90" fill="transparent" />
-            <text width="200" className="text-[10px] font-bold fill-amber-900 uppercase tracking-widest" style={{ fontSize: '10px' }}>
-              <textPath xlinkHref="#curve" startOffset="50%" textAnchor="middle">
-                Gelo de Sabor • Cubo • Escama
-              </textPath>
-            </text>
-          </svg>
-        </div>
-
-        {/* Middle: Banner */}
-        <div className="relative z-20 -mt-4 bg-[#1e40af] text-white py-2 px-8 rounded-lg shadow-lg border-2 border-white transform skew-x-[-5deg]">
-          <div className="flex items-center gap-2 transform skew-x-[5deg]">
-            <span className="font-black text-3xl tracking-wide drop-shadow-md" style={{ fontFamily: 'Impact, sans-serif' }}>GELO</span>
-            <div className="flex flex-col justify-center h-full">
-              <span className="text-[8px] font-bold text-orange-400 leading-none">DO</span>
-            </div>
-            <span className="font-black text-3xl tracking-wide drop-shadow-md" style={{ fontFamily: 'Impact, sans-serif' }}>SERTÃO</span>
-          </div>
-        </div>
-
-        {/* Bottom: Ice Base */}
-        <div className="relative z-10 -mt-6 pt-8 pb-2 px-6 bg-gradient-to-b from-[#3b82f6] to-[#60a5fa] rounded-b-[3rem] w-40 flex justify-center border-b-4 border-white shadow-inner">
-          <Snowflake size={40} className="text-white opacity-80 animate-pulse" strokeWidth={2.5} />
-        </div>
-      </div>
-    );
-  };
 
   return (
     <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
@@ -125,7 +79,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           </div>
 
           <div className="transform scale-90 md:scale-100 mb-2 filter drop-shadow-2xl">
-            <GeloDoSertaoLogo />
+            <img src="/logo.png" alt="Gelo do Sertão" className="h-40 w-auto object-contain" />
           </div>
 
           <p className="text-blue-200 text-xs mt-4 font-medium tracking-wider uppercase opacity-80 relative z-20">
