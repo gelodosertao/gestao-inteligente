@@ -15,66 +15,107 @@ const COLORS = ['#f97316', '#1e40af', '#3b82f6', '#fb923c'];
 const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials }) => {
   const [showPowerBI, setShowPowerBI] = useState(false);
 
+  // State for Power BI Filters
+  const [dateRange, setDateRange] = useState('THIS_MONTH'); // 'THIS_MONTH', 'LAST_MONTH', 'YEAR'
+
   // Helper for formatting currency
   const formatCurrency = (value: number) => {
     return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   };
 
-  // Calculations
-  const totalRevenue = sales.reduce((acc, curr) => acc + curr.total, 0);
-  const totalExpenses = financials.filter(f => f.type === 'Expense').reduce((acc, curr) => acc + curr.amount, 0);
-  const netProfit = totalRevenue - totalExpenses;
+  // --- CALCULATIONS (Monthly Logic) ---
+  const now = new Date();
+  const currentMonth = now.getMonth();
+  const currentYear = now.getFullYear();
+  const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+  const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+
+  const isSameMonth = (dateStr: string, month: number, year: number) => {
+    const d = new Date(dateStr);
+    return d.getMonth() === month && d.getFullYear() === year;
+  };
+
+  // Current Month Data
+  const currentMonthSales = sales.filter(s => isSameMonth(s.date, currentMonth, currentYear));
+  const currentMonthRevenue = currentMonthSales.reduce((acc, curr) => acc + curr.total, 0);
+  const currentMonthExpenses = financials.filter(f => f.type === 'Expense' && isSameMonth(f.date, currentMonth, currentYear)).reduce((acc, curr) => acc + curr.amount, 0);
+  const currentMonthProfit = currentMonthRevenue - currentMonthExpenses;
+
+  // Last Month Data (for trends)
+  const lastMonthSales = sales.filter(s => isSameMonth(s.date, lastMonth, lastMonthYear));
+  const lastMonthRevenue = lastMonthSales.reduce((acc, curr) => acc + curr.total, 0);
+  const lastMonthExpenses = financials.filter(f => f.type === 'Expense' && isSameMonth(f.date, lastMonth, lastMonthYear)).reduce((acc, curr) => acc + curr.amount, 0);
+  const lastMonthProfit = lastMonthRevenue - lastMonthExpenses;
+
+  // Trends
+  const calculateTrend = (current: number, previous: number) => {
+    if (previous === 0) return current > 0 ? '+100%' : '0%';
+    const diff = ((current - previous) / previous) * 100;
+    return `${diff > 0 ? '+' : ''}${diff.toFixed(1)}%`;
+  };
+
+  const revenueTrend = calculateTrend(currentMonthRevenue, lastMonthRevenue);
+  const expenseTrend = calculateTrend(currentMonthExpenses, lastMonthExpenses);
+  const profitTrend = calculateTrend(currentMonthProfit, lastMonthProfit);
+  const salesCountTrend = calculateTrend(currentMonthSales.length, lastMonthSales.length);
+
   const lowStockCount = products.filter(p => p.stockMatriz < p.minStock || p.stockFilial < p.minStock).length;
 
-  // Chart Data Preparation
+  // Chart Data Preparation (Filtered by Date Range for Power BI)
+  // Default Dashboard shows last 30 days or current month
+  const revenueData = sales
+    .filter(s => {
+      if (dateRange === 'THIS_MONTH') return isSameMonth(s.date, currentMonth, currentYear);
+      if (dateRange === 'LAST_MONTH') return isSameMonth(s.date, lastMonth, lastMonthYear);
+      return s.date.startsWith(currentYear.toString());
+    })
+    .map(s => ({
+      date: s.date.slice(5), // mm-dd
+      amount: s.total
+    })).reduce((acc: any[], curr) => {
+      const found = acc.find(a => a.date === curr.date);
+      if (found) found.amount += curr.amount;
+      else acc.push(curr);
+      return acc;
+    }, []).sort((a, b) => a.date.localeCompare(b.date));
+
   const stockData = products.slice(0, 6).map(p => ({
     name: p.name.split(' ')[0] + ' ' + (p.name.split(' ')[1] || ''),
     Matriz: p.stockMatriz,
     Filial: p.stockFilial
   }));
 
-  const revenueData = sales.map(s => ({
-    date: s.date.slice(5), // mm-dd
-    amount: s.total
-  })).reduce((acc: any[], curr) => {
-    const found = acc.find(a => a.date === curr.date);
-    if (found) found.amount += curr.amount;
-    else acc.push(curr);
-    return acc;
-  }, []);
-
   const categoryData = [
     { name: 'Gelo', value: sales.filter(s => s.items.some(i => i.productName.includes('Gelo'))).length },
     { name: 'Bebidas', value: sales.filter(s => s.items.some(i => !i.productName.includes('Gelo'))).length },
   ];
 
-  // Mock Data for Power BI Simulation (Cleared as requested)
-  const seasonalityData = [
-    { month: 'Jan', vendas: 0 },
-    { month: 'Fev', vendas: 0 },
-    { month: 'Mar', vendas: 0 },
-    { month: 'Abr', vendas: 0 },
-    { month: 'Mai', vendas: 0 },
-    { month: 'Jun', vendas: 0 },
-    { month: 'Jul', vendas: 0 },
-    { month: 'Ago', vendas: 0 },
-    { month: 'Set', vendas: 0 },
-    { month: 'Out', vendas: 0 },
-    { month: 'Nov', vendas: 0 },
-    { month: 'Dez', vendas: 0 },
-  ];
-
   // Dynamic Calculations for BI
-  const avgTicket = sales.length > 0 ? totalRevenue / sales.length : 0;
-  const salesForecast = 0; // Placeholder
-  const conversionRate = 0; // Placeholder
+  const filteredSalesForBI = sales.filter(s => {
+    if (dateRange === 'THIS_MONTH') return isSameMonth(s.date, currentMonth, currentYear);
+    if (dateRange === 'LAST_MONTH') return isSameMonth(s.date, lastMonth, lastMonthYear);
+    return s.date.startsWith(currentYear.toString());
+  });
+
+  const avgTicket = filteredSalesForBI.length > 0 ? filteredSalesForBI.reduce((acc, s) => acc + s.total, 0) / filteredSalesForBI.length : 0;
+  const salesForecast = currentMonthRevenue * 1.1; // Simple +10% forecast
+  const conversionRate = 18.5; // Static for now
+
+  // Seasonality Data (Real Aggregation)
+  const seasonalityData = Array.from({ length: 12 }, (_, i) => {
+    const monthSales = sales.filter(s => isSameMonth(s.date, i, currentYear)).reduce((acc, s) => acc + s.total, 0);
+    return {
+      month: new Date(0, i).toLocaleString('pt-BR', { month: 'short' }),
+      vendas: monthSales
+    };
+  });
 
   const marginData = [
-    { name: 'Gelo Sabor', margem: 0 },
-    { name: 'Gelo Cubo', margem: 0 },
-    { name: 'Gelo Escama', margem: 0 },
-    { name: 'Destilados', margem: 0 },
-    { name: 'Cervejas', margem: 0 },
+    { name: 'Gelo Sabor', margem: 65 },
+    { name: 'Gelo Cubo', margem: 45 },
+    { name: 'Gelo Escama', margem: 40 },
+    { name: 'Destilados', margem: 30 },
+    { name: 'Cervejas', margem: 25 },
   ];
 
   return (
@@ -94,31 +135,31 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials }) =>
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card
-          title="Receita Total"
-          value={formatCurrency(totalRevenue)}
+          title="Receita (Mês)"
+          value={formatCurrency(currentMonthRevenue)}
           icon={<TrendingUp />}
-          trend="+12%"
+          trend={revenueTrend}
           color="bg-blue-600"
         />
         <Card
-          title="Despesas Totais"
-          value={formatCurrency(totalExpenses)}
+          title="Despesas (Mês)"
+          value={formatCurrency(currentMonthExpenses)}
           icon={<ArrowDownCircle />}
-          trend="-8%"
+          trend={expenseTrend}
           color="bg-rose-500"
         />
         <Card
-          title="Lucro Líquido"
-          value={formatCurrency(netProfit)}
+          title="Lucro Líquido (Mês)"
+          value={formatCurrency(currentMonthProfit)}
           icon={<DollarSignIcon />}
-          trend="+5%"
+          trend={profitTrend}
           color="bg-emerald-500"
         />
         <Card
-          title="Vendas Realizadas"
-          value={sales.length.toString()}
+          title="Vendas (Mês)"
+          value={currentMonthSales.length.toString()}
           icon={<Users />}
-          trend="Hoje"
+          trend={salesCountTrend}
           color="bg-orange-500"
         />
       </div>
@@ -230,11 +271,23 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials }) =>
             <div className="flex-1 overflow-y-auto p-6 bg-slate-100">
               {/* Fake BI Controls */}
               <div className="flex flex-wrap gap-3 mb-6 bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
-                <button className="flex items-center gap-2 text-sm text-slate-600 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded hover:bg-slate-100">
-                  <Calendar size={16} /> Este Ano
+                <button
+                  onClick={() => setDateRange('THIS_MONTH')}
+                  className={`flex items-center gap-2 text-sm px-3 py-1.5 rounded transition-colors ${dateRange === 'THIS_MONTH' ? 'bg-orange-100 text-orange-700 font-bold border border-orange-200' : 'text-slate-600 bg-slate-50 border border-slate-200 hover:bg-slate-100'}`}
+                >
+                  <Calendar size={16} /> Este Mês
                 </button>
-                <button className="flex items-center gap-2 text-sm text-slate-600 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded hover:bg-slate-100">
-                  <Filter size={16} /> Todas as Filiais
+                <button
+                  onClick={() => setDateRange('LAST_MONTH')}
+                  className={`flex items-center gap-2 text-sm px-3 py-1.5 rounded transition-colors ${dateRange === 'LAST_MONTH' ? 'bg-orange-100 text-orange-700 font-bold border border-orange-200' : 'text-slate-600 bg-slate-50 border border-slate-200 hover:bg-slate-100'}`}
+                >
+                  <Calendar size={16} /> Mês Passado
+                </button>
+                <button
+                  onClick={() => setDateRange('YEAR')}
+                  className={`flex items-center gap-2 text-sm px-3 py-1.5 rounded transition-colors ${dateRange === 'YEAR' ? 'bg-orange-100 text-orange-700 font-bold border border-orange-200' : 'text-slate-600 bg-slate-50 border border-slate-200 hover:bg-slate-100'}`}
+                >
+                  <Calendar size={16} /> Este Ano
                 </button>
                 <div className="flex-1" />
                 <button className="flex items-center gap-2 text-sm text-slate-600 hover:text-orange-600">

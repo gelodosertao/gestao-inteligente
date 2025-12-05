@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { User, Customer } from '../types';
-import { Users, Plus, Upload, Search, Trash2, Save, X, FileText, Edit } from 'lucide-react';
+import { Users, Plus, Upload, Search, Trash2, Save, X, FileText, Edit, ArrowLeft } from 'lucide-react';
 
 interface CustomersProps {
     customers: Customer[];
@@ -9,9 +9,10 @@ interface CustomersProps {
     currentUser: User;
     onUpdateCustomer: (customer: Customer) => void;
     onDeleteCustomer: (customerId: string) => void;
+    onBack: () => void;
 }
 
-const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImportCustomers, currentUser, onUpdateCustomer, onDeleteCustomer }) => {
+const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImportCustomers, currentUser, onUpdateCustomer, onDeleteCustomer, onBack }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [showAddModal, setShowAddModal] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
@@ -107,9 +108,14 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div>
-                    <h2 className="text-2xl font-bold text-slate-800">Clientes</h2>
-                    <p className="text-slate-500">Gerencie sua base de clientes e importações.</p>
+                <div className="flex items-center gap-3">
+                    <button onClick={onBack} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
+                        <ArrowLeft size={24} className="text-slate-600" />
+                    </button>
+                    <div>
+                        <h2 className="text-2xl font-bold text-slate-800">Clientes</h2>
+                        <p className="text-slate-500">Gerencie sua base de clientes e importações.</p>
+                    </div>
                 </div>
                 <div className="flex gap-2">
                     <button

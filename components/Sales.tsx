@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Sale, Branch, Product, Customer, User } from '../types';
 import { invoiceService } from '../services/invoiceService';
-import { ShoppingCart, FileText, CheckCircle, Clock, X, Printer, Send, ScanBarcode, Search, Trash2, Plus, Minus, CreditCard, Banknote, QrCode, Bluetooth, ArrowRight, Store, Factory, Calculator, User as UserIcon, UserPlus, Edit, Save } from 'lucide-react';
+import { ShoppingCart, FileText, CheckCircle, Clock, X, Printer, Send, ScanBarcode, Search, Trash2, Plus, Minus, CreditCard, Banknote, QrCode, Bluetooth, ArrowRight, Store, Factory, Calculator, User as UserIcon, UserPlus, Edit, Save, ArrowLeft } from 'lucide-react';
 
 interface SalesProps {
    sales: Sale[];
@@ -12,6 +12,7 @@ interface SalesProps {
    currentUser: User;
    onUpdateSale: (sale: Sale) => void;
    onDeleteSale: (saleId: string) => void;
+   onBack: () => void;
 }
 
 interface CartItem {
@@ -22,7 +23,7 @@ interface CartItem {
 
 type PaymentMethod = 'Pix' | 'Credit' | 'Debit' | 'Cash';
 
-const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, onAddCustomer, currentUser, onUpdateSale, onDeleteSale }) => {
+const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, onAddCustomer, currentUser, onUpdateSale, onDeleteSale, onBack }) => {
    const [activeTab, setActiveTab] = useState<'History' | 'POS'>('History');
 
    // --- EDIT SALE STATE ---
@@ -306,11 +307,16 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
    return (
       <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 relative h-full">
          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <div>
-               <h2 className="text-2xl font-bold text-slate-800">Vendas & PDV</h2>
-               <p className="text-slate-500">
-                  {activeTab === 'History' ? 'Gerencie vendas e emita Notas Fiscais (NFC-e).' : 'Frente de Caixa - Operador: João Pedro'}
-               </p>
+            <div className="flex items-center gap-3">
+               <button onClick={onBack} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
+                  <ArrowLeft size={24} className="text-slate-600" />
+               </button>
+               <div>
+                  <h2 className="text-2xl font-bold text-slate-800">Vendas & PDV</h2>
+                  <p className="text-slate-500">
+                     {activeTab === 'History' ? 'Gerencie vendas e emita Notas Fiscais (NFC-e).' : 'Frente de Caixa - Operador: João Pedro'}
+                  </p>
+               </div>
             </div>
             <div className="bg-slate-200 p-1 rounded-lg flex text-sm font-medium">
                <button
@@ -330,7 +336,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
 
          {activeTab === 'History' ? (
             // --- HISTORY VIEW ---
-            <div className="grid gap-4">
+            <div className="grid gap-4 pb-20 md:pb-0">
                {sales.map(sale => (
                   <div key={sale.id} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center hover:border-blue-200 transition-colors">
                      <div className="flex gap-4 items-center">
@@ -346,9 +352,9 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                         </div>
                      </div>
 
-                     <div className="mt-4 md:mt-0 flex flex-col items-end gap-2">
+                     <div className="mt-4 md:mt-0 flex flex-col items-end gap-2 w-full md:w-auto">
                         <span className="font-bold text-lg text-slate-800">{formatCurrency(sale.total)}</span>
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 flex-wrap justify-end">
                            <span className={`px-2 py-0.5 rounded text-xs font-bold border flex items-center gap-1 ${sale.hasInvoice ? 'bg-green-50 text-green-700 border-green-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
                               {sale.hasInvoice ? <CheckCircle size={10} /> : <Clock size={10} />}
                               {sale.hasInvoice ? 'NF-e Emitida' : 'Sem NF-e'}
@@ -357,44 +363,46 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                               {sale.paymentMethod}
                            </span>
                         </div>
-                        {!sale.hasInvoice ? (
-                           <button
-                              onClick={() => handleOpenInvoice(sale)}
-                              className="text-xs text-blue-600 font-bold hover:underline flex items-center gap-1 cursor-pointer bg-blue-50 px-2 py-1 rounded hover:bg-blue-100 transition-colors"
-                           >
-                              <FileText size={12} /> Emitir Nota
-                           </button>
-                        ) : (
-                           <button className="text-xs text-slate-400 font-medium hover:text-slate-600 flex items-center gap-1 cursor-pointer">
-                              <Printer size={12} /> Imprimir DANFE
-                           </button>
-                        )}
-                        {currentUser.role === 'ADMIN' && (
-                           <div className="flex gap-2">
+                        <div className="flex gap-2 mt-2">
+                           {!sale.hasInvoice ? (
                               <button
-                                 onClick={() => openEditSaleModal(sale)}
-                                 className="text-xs text-slate-400 font-medium hover:text-blue-600 flex items-center gap-1 cursor-pointer"
+                                 onClick={() => handleOpenInvoice(sale)}
+                                 className="text-xs text-blue-600 font-bold hover:underline flex items-center gap-1 cursor-pointer bg-blue-50 px-2 py-1 rounded hover:bg-blue-100 transition-colors"
                               >
-                                 <Edit size={12} /> Editar
+                                 <FileText size={12} /> Emitir Nota
                               </button>
-                              <button
-                                 onClick={() => onDeleteSale(sale.id)}
-                                 className="text-xs text-slate-400 font-medium hover:text-red-600 flex items-center gap-1 cursor-pointer"
-                              >
-                                 <Trash2 size={12} /> Excluir
+                           ) : (
+                              <button className="text-xs text-slate-400 font-medium hover:text-slate-600 flex items-center gap-1 cursor-pointer">
+                                 <Printer size={12} /> Imprimir DANFE
                               </button>
-                           </div>
-                        )}
+                           )}
+                           {currentUser.role === 'ADMIN' && (
+                              <>
+                                 <button
+                                    onClick={() => openEditSaleModal(sale)}
+                                    className="text-xs text-slate-400 font-medium hover:text-blue-600 flex items-center gap-1 cursor-pointer"
+                                 >
+                                    <Edit size={12} /> Editar
+                                 </button>
+                                 <button
+                                    onClick={() => onDeleteSale(sale.id)}
+                                    className="text-xs text-slate-400 font-medium hover:text-red-600 flex items-center gap-1 cursor-pointer"
+                                 >
+                                    <Trash2 size={12} /> Excluir
+                                 </button>
+                              </>
+                           )}
+                        </div>
                      </div>
                   </div>
                ))}
             </div>
          ) : (
             // --- POS (POINT OF SALE) VIEW ---
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-12rem)] min-h-[500px]">
+            <div className="flex flex-col lg:grid lg:grid-cols-3 gap-6 h-auto lg:h-[calc(100vh-12rem)] min-h-[500px] pb-20 lg:pb-0">
 
                {/* Left Column: Product Selection */}
-               <div className="lg:col-span-2 flex flex-col gap-4">
+               <div className="lg:col-span-2 flex flex-col gap-4 order-2 lg:order-1">
 
                   {/* Branch Toggle & Scanner */}
                   <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col gap-4">
@@ -402,15 +410,15 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                      <div className="flex bg-slate-100 p-1.5 rounded-xl">
                         <button
                            onClick={() => { setSelectedBranch(Branch.FILIAL); setCart([]); }}
-                           className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg font-bold transition-all ${selectedBranch === Branch.FILIAL ? 'bg-white text-orange-600 shadow-md' : 'text-slate-500 hover:text-slate-700'}`}
+                           className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg font-bold transition-all text-xs md:text-base ${selectedBranch === Branch.FILIAL ? 'bg-white text-orange-600 shadow-md' : 'text-slate-500 hover:text-slate-700'}`}
                         >
-                           <Store size={18} /> Venda na FILIAL (Varejo)
+                           <Store size={16} /> Varejo (Filial)
                         </button>
                         <button
                            onClick={() => { setSelectedBranch(Branch.MATRIZ); setCart([]); }}
-                           className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg font-bold transition-all ${selectedBranch === Branch.MATRIZ ? 'bg-white text-blue-700 shadow-md' : 'text-slate-500 hover:text-slate-700'}`}
+                           className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg font-bold transition-all text-xs md:text-base ${selectedBranch === Branch.MATRIZ ? 'bg-white text-blue-700 shadow-md' : 'text-slate-500 hover:text-slate-700'}`}
                         >
-                           <Factory size={18} /> Venda na MATRIZ (Atacado)
+                           <Factory size={16} /> Atacado (Matriz)
                         </button>
                      </div>
 
@@ -423,7 +431,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                               value={barcodeInput}
                               onChange={(e) => setBarcodeInput(e.target.value)}
                               onKeyDown={handleBarcodeSubmit}
-                              placeholder={scannerStatus === 'CONNECTED' ? "Escaneie o código de barras..." : "Digite o código do produto e enter..."}
+                              placeholder={scannerStatus === 'CONNECTED' ? "Escaneie..." : "Código..."}
                               className={`w-full pl-10 pr-4 py-3 rounded-xl border-2 transition-all outline-none ${scannerStatus === 'CONNECTED' ? 'border-green-500 bg-green-50/20' : 'border-slate-200 focus:border-orange-500'}`}
                            />
                         </div>
@@ -439,37 +447,37 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                               }`}
                         >
                            <Bluetooth size={18} />
-                           {scannerStatus === 'CONNECTED' ? 'Leitor Pareado' : scannerStatus === 'CONNECTING' ? 'Pareando...' : 'Parear Leitor'}
+                           <span className="md:hidden lg:inline">{scannerStatus === 'CONNECTED' ? 'Pareado' : 'Parear'}</span>
+                           <span className="hidden md:inline lg:hidden">{scannerStatus === 'CONNECTED' ? 'Leitor Pareado' : 'Parear Leitor'}</span>
                         </button>
                      </div>
                   </div>
 
                   {/* Product Grid */}
-                  <div className="flex-1 bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col overflow-hidden">
+                  <div className="flex-1 bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col overflow-hidden min-h-[400px]">
                      <div className="flex justify-between items-center mb-4">
-                        <h3 className="font-bold text-slate-700">
-                           {selectedBranch === Branch.MATRIZ ? 'Catálogo de Gelo (Atacado)' : 'Catálogo Completo (Varejo)'}
+                        <h3 className="font-bold text-slate-700 text-sm md:text-base">
+                           {selectedBranch === Branch.MATRIZ ? 'Catálogo Atacado' : 'Catálogo Varejo'}
                         </h3>
-                        <div className="relative">
+                        <div className="relative w-1/2 md:w-auto">
                            <Search size={14} className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400" />
                            <input
                               type="text"
-                              placeholder="Filtrar por nome..."
+                              placeholder="Buscar..."
                               value={posSearchTerm}
                               onChange={(e) => setPosSearchTerm(e.target.value)}
-                              className="pl-7 pr-3 py-1 text-sm border border-slate-200 rounded-lg bg-slate-50 focus:outline-none focus:ring-1 focus:ring-orange-500"
+                              className="w-full pl-7 pr-3 py-1 text-sm border border-slate-200 rounded-lg bg-slate-50 focus:outline-none focus:ring-1 focus:ring-orange-500"
                            />
                         </div>
                      </div>
 
                      {filteredPosProducts.length === 0 && (
                         <div className="flex-1 flex flex-col items-center justify-center text-slate-400">
-                           <p>Nenhum produto encontrado para esta unidade.</p>
-                           {selectedBranch === Branch.MATRIZ && <p className="text-xs mt-1">(Apenas Gelo é vendido no Atacado)</p>}
+                           <p>Nenhum produto.</p>
                         </div>
                      )}
 
-                     <div className="overflow-y-auto grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 pr-2">
+                     <div className="overflow-y-auto grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-3 pr-2">
                         {filteredPosProducts.map(product => {
                            const stock = getProductStock(product);
                            const isWholesaleIce = selectedBranch === Branch.MATRIZ && product.category.includes('Gelo');
@@ -479,22 +487,22 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                               <button
                                  key={product.id}
                                  onClick={() => handleProductClick(product)}
-                                 className="flex flex-col items-center justify-center p-4 rounded-xl border border-slate-100 hover:border-orange-500 hover:bg-orange-50 transition-all text-center group bg-slate-50 active:scale-95 relative"
+                                 className="flex flex-col items-center justify-center p-3 rounded-xl border border-slate-100 hover:border-orange-500 hover:bg-orange-50 transition-all text-center group bg-slate-50 active:scale-95 relative h-32"
                                  disabled={stock <= 0}
                               >
-                                 <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm mb-2 group-hover:scale-110 transition-transform text-orange-600 font-bold text-xs border border-slate-100">
+                                 <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-sm mb-2 group-hover:scale-110 transition-transform text-orange-600 font-bold text-[10px] border border-slate-100">
                                     {product.unit}
                                  </div>
-                                 <span className="font-semibold text-sm text-slate-800 leading-tight line-clamp-2">{product.name}</span>
+                                 <span className="font-semibold text-xs text-slate-800 leading-tight line-clamp-2">{product.name}</span>
 
                                  {isWholesaleIce ? (
-                                    <span className="text-blue-700 font-bold mt-1 text-xs bg-blue-50 px-2 py-0.5 rounded border border-blue-100">Definir Valor</span>
+                                    <span className="text-blue-700 font-bold mt-1 text-[10px] bg-blue-50 px-2 py-0.5 rounded border border-blue-100">Definir</span>
                                  ) : (
-                                    <span className="text-blue-700 font-bold mt-1">{formatCurrency(price)}</span>
+                                    <span className="text-blue-700 font-bold mt-1 text-xs">{formatCurrency(price)}</span>
                                  )}
 
                                  {/* Stock Indicator */}
-                                 <span className={`absolute top-2 right-2 text-[10px] font-bold px-1.5 rounded ${stock < product.minStock ? 'bg-red-100 text-red-600' : 'bg-slate-200 text-slate-600'}`}>
+                                 <span className={`absolute top-1 right-1 text-[9px] font-bold px-1 rounded ${stock < product.minStock ? 'bg-red-100 text-red-600' : 'bg-slate-200 text-slate-600'}`}>
                                     {stock}
                                  </span>
                               </button>
@@ -505,7 +513,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                </div>
 
                {/* Right Column: Cart & Checkout */}
-               <div className="bg-white rounded-2xl shadow-xl border border-slate-200 flex flex-col overflow-hidden h-full">
+               <div className="bg-white rounded-2xl shadow-xl border border-slate-200 flex flex-col overflow-hidden h-[500px] lg:h-full order-1 lg:order-2 sticky top-4 z-10">
                   <div className={`p-4 text-white flex justify-between items-center gap-2 ${selectedBranch === Branch.MATRIZ ? 'bg-blue-800' : 'bg-orange-500'}`}>
                      <div className="flex items-center gap-2 shrink-0">
                         <ShoppingCart size={20} className="text-white" />
@@ -524,7 +532,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                                  setCustomerSearch(e.target.value);
                                  if (selectedCustomer) setSelectedCustomer(null);
                               }}
-                              placeholder="Identificar Cliente..."
+                              placeholder="Cliente..."
                               className="bg-transparent border-none outline-none text-white text-xs font-medium placeholder-white/60 w-full"
                            />
                            {selectedCustomer || customerSearch ? (
@@ -552,19 +560,18 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                                     >
                                        <span className="font-bold text-slate-700 group-hover:text-blue-700">{c.name}</span>
                                        <span className="text-xs text-slate-400 flex items-center gap-1">
-                                          {c.cpfCnpj || 'Sem Documento'}
-                                          {c.phone && <span>• {c.phone}</span>}
+                                          {c.cpfCnpj || 'Sem Doc'}
                                        </span>
                                     </button>
                                  ))
                               ) : (
                                  <div className="p-4 text-center">
-                                    <p className="text-xs text-slate-500 mb-2">Nenhum cliente encontrado.</p>
+                                    <p className="text-xs text-slate-500 mb-2">Nada encontrado.</p>
                                     <button
                                        onClick={() => { setShowCustomerModal(true); setCustomerSearch(''); }}
                                        className="text-xs bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg font-bold hover:bg-blue-200 w-full"
                                     >
-                                       + Cadastrar Novo
+                                       + Novo
                                     </button>
                                  </div>
                               )}
@@ -578,7 +585,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                      {cart.length === 0 ? (
                         <div className="h-full flex flex-col items-center justify-center text-slate-400 opacity-60">
                            <ScanBarcode size={48} className="mb-2" />
-                           <p className="text-sm">Escaneie um produto ou selecione ao lado.</p>
+                           <p className="text-sm text-center">Carrinho Vazio</p>
                         </div>
                      ) : (
                         cart.map((item) => (
@@ -587,11 +594,11 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                                  <p className="font-bold text-sm text-slate-800 line-clamp-1">{item.product.name}</p>
                                  <p className="text-xs text-slate-500">
                                     {item.quantity} x {formatCurrency(getProductPrice(item))}
-                                    {item.negotiatedPrice && <span className="text-blue-600 font-bold ml-1">(Negociado)</span>}
+                                    {item.negotiatedPrice && <span className="text-blue-600 font-bold ml-1">(Neg)</span>}
                                  </p>
                               </div>
                               <div className="flex items-center gap-3">
-                                 <span className="font-bold text-slate-700">{formatCurrency(item.quantity * getProductPrice(item))}</span>
+                                 <span className="font-bold text-slate-700 text-sm">{formatCurrency(item.quantity * getProductPrice(item))}</span>
                                  <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-0.5">
                                     <button onClick={() => updateQuantity(item.product.id, -1, item.negotiatedPrice)} className="p-1 hover:bg-white rounded text-slate-600"><Minus size={12} /></button>
                                     <button onClick={() => removeFromCart(item.product.id, item.negotiatedPrice)} className="p-1 hover:bg-rose-100 text-rose-500 rounded"><Trash2 size={12} /></button>
@@ -604,14 +611,10 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                   </div>
 
                   {/* Cart Totals & Checkout */}
-                  <div className="p-5 bg-white border-t border-slate-200 shadow-[0_-5px_15px_rgba(0,0,0,0.05)]">
-                     <div className="space-y-2 mb-4">
-                        <div className="flex justify-between text-sm text-slate-500">
-                           <span>Subtotal</span>
-                           <span>{formatCurrency(cartTotal)}</span>
-                        </div>
-                        <div className="flex justify-between text-xl font-bold text-slate-800 pt-2 border-t border-slate-100">
-                           <span>Total a Pagar</span>
+                  <div className="p-4 bg-white border-t border-slate-200 shadow-[0_-5px_15px_rgba(0,0,0,0.05)]">
+                     <div className="space-y-1 mb-3">
+                        <div className="flex justify-between text-xl font-bold text-slate-800 pt-2">
+                           <span>Total</span>
                            <span className="text-blue-600">{formatCurrency(cartTotal)}</span>
                         </div>
                      </div>
@@ -621,7 +624,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                         disabled={cart.length === 0}
                         className={`w-full text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed ${selectedBranch === Branch.MATRIZ ? 'bg-blue-800 hover:bg-blue-700 shadow-blue-900/20' : 'bg-orange-500 hover:bg-orange-600 shadow-orange-900/20'}`}
                      >
-                        Finalizar Venda (F2)
+                        Finalizar (F2)
                      </button>
                   </div>
                </div>

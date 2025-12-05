@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Product, Branch, Category } from '../types';
-import { Search, Plus, ArrowRightLeft, Filter, Save, X, Truck, AlertTriangle, Upload, FileText } from 'lucide-react';
+import { Search, Plus, ArrowRightLeft, Filter, Save, X, Truck, AlertTriangle, Upload, FileText, ArrowLeft } from 'lucide-react';
 
 interface InventoryProps {
   products: Product[];
   onUpdateProduct: (product: Product) => void;
   onAddProduct: (product: Product) => void;
+  onBack: () => void;
 }
 
-const Inventory: React.FC<InventoryProps> = ({ products, onUpdateProduct, onAddProduct }) => {
+const Inventory: React.FC<InventoryProps> = ({ products, onUpdateProduct, onAddProduct, onBack }) => {
   const [filter, setFilter] = useState('');
 
   // Modal States
@@ -196,9 +197,14 @@ const Inventory: React.FC<InventoryProps> = ({ products, onUpdateProduct, onAddP
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 relative">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-800">Controle de Estoque</h2>
-          <p className="text-slate-500">Gerencie níveis de gelo e bebidas entre Matriz e Filial.</p>
+        <div className="flex items-center gap-3">
+          <button onClick={onBack} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
+            <ArrowLeft size={24} className="text-slate-600" />
+          </button>
+          <div>
+            <h2 className="text-2xl font-bold text-slate-800">Controle de Estoque</h2>
+            <p className="text-slate-500">Gerencie níveis de gelo e bebidas entre Matriz e Filial.</p>
+          </div>
         </div>
         <div className="flex gap-2">
           <button

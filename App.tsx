@@ -252,16 +252,16 @@ const App: React.FC = () => {
       case 'DASHBOARD':
         return <Dashboard products={products} sales={sales} financials={financials} />;
       case 'INVENTORY':
-        return <Inventory products={products} onUpdateProduct={handleUpdateProduct} onAddProduct={handleAddProduct} />;
+        return <Inventory products={products} onUpdateProduct={handleUpdateProduct} onAddProduct={handleAddProduct} onBack={() => setCurrentView('DASHBOARD')} />;
       case 'SALES':
-        return <Sales sales={sales} products={products} customers={customers} onAddSale={handleAddSale} onAddCustomer={handleAddCustomer} currentUser={currentUser} onUpdateSale={handleUpdateSale} onDeleteSale={handleDeleteSale} />;
+        return <Sales sales={sales} products={products} customers={customers} onAddSale={handleAddSale} onAddCustomer={handleAddCustomer} currentUser={currentUser} onUpdateSale={handleUpdateSale} onDeleteSale={handleDeleteSale} onBack={() => setCurrentView('DASHBOARD')} />;
       case 'CUSTOMERS':
-        return <Customers customers={customers} onAddCustomer={handleAddCustomer} onImportCustomers={handleImportCustomers} currentUser={currentUser} onUpdateCustomer={handleUpdateCustomer} onDeleteCustomer={handleDeleteCustomer} />;
+        return <Customers customers={customers} onAddCustomer={handleAddCustomer} onImportCustomers={handleImportCustomers} currentUser={currentUser} onUpdateCustomer={handleUpdateCustomer} onDeleteCustomer={handleDeleteCustomer} onBack={() => setCurrentView('DASHBOARD')} />;
       case 'FINANCIAL':
         if (currentUser?.role !== 'ADMIN') return <Dashboard products={products} sales={sales} financials={financials} />;
-        return <Financial records={financials} onAddRecord={handleAddFinancialRecord} />;
+        return <Financial records={financials} onAddRecord={handleAddFinancialRecord} onBack={() => setCurrentView('DASHBOARD')} />;
       case 'AI_INSIGHTS':
-        return <AIAssistant products={products} sales={sales} financials={financials} />;
+        return <AIAssistant products={products} sales={sales} financials={financials} onBack={() => setCurrentView('DASHBOARD')} />;
       case 'SETTINGS':
         if (!currentUser) return null;
         return <Settings currentUser={currentUser} onResetData={handleResetData} />;

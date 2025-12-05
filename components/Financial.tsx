@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
 import { FinancialRecord } from '../types';
-import { ArrowUpCircle, ArrowDownCircle, PieChart, FileText, Download, X, AlertCircle, Plus, Calendar, DollarSign, Repeat } from 'lucide-react';
+import { ArrowUpCircle, ArrowDownCircle, PieChart, FileText, Download, X, AlertCircle, Plus, Calendar, DollarSign, Repeat, ArrowLeft } from 'lucide-react';
 import { PieChart as RechartsPie, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 
 interface FinancialProps {
    records: FinancialRecord[];
    onAddRecord: (records: FinancialRecord[]) => void;
+   onBack: () => void;
 }
 
-const Financial: React.FC<FinancialProps> = ({ records, onAddRecord }) => {
+const Financial: React.FC<FinancialProps> = ({ records, onAddRecord, onBack }) => {
    const [showTaxModal, setShowTaxModal] = useState(false);
    const [showAddModal, setShowAddModal] = useState(false);
 
@@ -88,9 +89,14 @@ const Financial: React.FC<FinancialProps> = ({ records, onAddRecord }) => {
    return (
       <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 relative">
          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <div>
-               <h2 className="text-2xl font-bold text-slate-800">Gestão Financeira</h2>
-               <p className="text-slate-500">Fluxo de caixa, contas a pagar e impostos.</p>
+            <div className="flex items-center gap-3">
+               <button onClick={onBack} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
+                  <ArrowLeft size={24} className="text-slate-600" />
+               </button>
+               <div>
+                  <h2 className="text-2xl font-bold text-slate-800">Gestão Financeira</h2>
+                  <p className="text-slate-500">Fluxo de caixa, contas a pagar e impostos.</p>
+               </div>
             </div>
             <button
                onClick={() => setShowAddModal(true)}

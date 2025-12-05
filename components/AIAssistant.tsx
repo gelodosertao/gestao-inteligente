@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Sparkles, Send, Bot, Loader2 } from 'lucide-react';
+import { Sparkles, Send, Bot, Loader2, ArrowLeft } from 'lucide-react';
 import { getBusinessAnalysis } from '../services/geminiService';
 import { Product, Sale, FinancialRecord } from '../types';
 import ReactMarkdown from 'react-markdown';
@@ -8,9 +8,10 @@ interface AIAssistantProps {
   products: Product[];
   sales: Sale[];
   financials: FinancialRecord[];
+  onBack: () => void;
 }
 
-const AIAssistant: React.FC<AIAssistantProps> = ({ products, sales, financials }) => {
+const AIAssistant: React.FC<AIAssistantProps> = ({ products, sales, financials, onBack }) => {
   const [query, setQuery] = useState('');
   const [response, setResponse] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -29,12 +30,19 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ products, sales, financials }
   return (
     <div className="h-[calc(100vh-2rem)] flex flex-col animate-in fade-in zoom-in-95 duration-300">
       <div className="flex-none mb-6">
-        <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-          <Sparkles className="text-orange-500" /> Consultor IA
-        </h2>
-        <p className="text-slate-500">
-          Pergunte sobre estratégias de vendas, redução de custos ou análise de estoque.
-        </p>
+        <div className="flex items-center gap-3">
+          <button onClick={onBack} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
+            <ArrowLeft size={24} className="text-slate-600" />
+          </button>
+          <div>
+            <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+              <Sparkles className="text-orange-500" /> Consultor IA
+            </h2>
+            <p className="text-slate-500">
+              Pergunte sobre estratégias de vendas, redução de custos ou análise de estoque.
+            </p>
+          </div>
+        </div>
       </div>
 
       <div className="flex-1 bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col overflow-hidden">
