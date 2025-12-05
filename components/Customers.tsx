@@ -117,7 +117,7 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
                         <p className="text-slate-500">Gerencie sua base de clientes e importações.</p>
                     </div>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                     <button
                         onClick={() => fileInputRef.current?.click()}
                         className="bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 px-4 py-2 rounded-lg font-bold flex items-center gap-2 transition-colors"

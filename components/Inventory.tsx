@@ -206,7 +206,7 @@ const Inventory: React.FC<InventoryProps> = ({ products, onUpdateProduct, onAddP
             <p className="text-slate-500">Gerencie níveis de gelo e bebidas entre Matriz e Filial.</p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <button
             onClick={handleOpenTransfer}
             className="bg-blue-800 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors shadow-lg shadow-blue-900/10"

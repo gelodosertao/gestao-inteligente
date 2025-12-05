@@ -402,7 +402,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
             <div className="flex flex-col lg:grid lg:grid-cols-3 gap-6 h-auto lg:h-[calc(100vh-12rem)] min-h-[500px] pb-20 lg:pb-0">
 
                {/* Left Column: Product Selection */}
-               <div className="lg:col-span-2 flex flex-col gap-4 order-2 lg:order-1">
+               <div className="lg:col-span-2 flex flex-col gap-4 order-1 lg:order-1">
 
                   {/* Branch Toggle & Scanner */}
                   <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col gap-4">
@@ -513,7 +513,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                </div>
 
                {/* Right Column: Cart & Checkout */}
-               <div className="bg-white rounded-2xl shadow-xl border border-slate-200 flex flex-col overflow-hidden h-[500px] lg:h-full order-1 lg:order-2 sticky top-4 z-10">
+               <div className="bg-white rounded-2xl shadow-xl border border-slate-200 flex flex-col overflow-hidden h-[500px] lg:h-full order-2 lg:order-2 sticky top-4 z-10">
                   <div className={`p-4 text-white flex justify-between items-center gap-2 ${selectedBranch === Branch.MATRIZ ? 'bg-blue-800' : 'bg-orange-500'}`}>
                      <div className="flex items-center gap-2 shrink-0">
                         <ShoppingCart size={20} className="text-white" />
