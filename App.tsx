@@ -239,7 +239,7 @@ const App: React.FC = () => {
             create table products (id text primary key, name text, category text, price_matriz numeric, price_filial numeric, cost numeric, stock_matriz integer, stock_filial integer, unit text, min_stock integer);<br />
             create table sales (id text primary key, date text, customer_name text, total numeric, branch text, status text, payment_method text, has_invoice boolean, items jsonb);<br />
             create table financials (id text primary key, date text, description text, amount numeric, type text, category text);<br />
-            create table customers (id text primary key, name text, cpf_cnpj text, email text, phone text, address text);
+            create table customers (id text primary key, name text, cpf_cnpj text, email text, phone text, address text, segment text, city text, state text);
           </div>
           <button onClick={() => loadDataFromCloud()} className="mt-6 bg-red-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-red-700">
             Tentar Conectar Novamente

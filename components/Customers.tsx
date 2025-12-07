@@ -41,6 +41,22 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
         c.cpfCnpj?.includes(searchTerm)
     );
 
+    const sortedCustomers = [...filteredCustomers].sort((a, b) => {
+        // Sort by Segment first
+        const segmentA = a.segment || '';
+        const segmentB = b.segment || '';
+        const segmentComparison = segmentA.localeCompare(segmentB);
+
+        if (segmentComparison !== 0) {
+            return segmentComparison;
+        }
+
+        // Then sort by City
+        const cityA = a.city || '';
+        const cityB = b.city || '';
+        return cityA.localeCompare(cityB);
+    });
+
     const fetchAddress = async (isEditing: boolean) => {
         // ... existing fetchAddress logic ...
         const cleanCep = cepInput.replace(/\D/g, '');
@@ -61,9 +77,19 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
             const fullAddress = `${data.logradouro}, ${data.bairro}, ${data.localidade} - ${data.uf}`;
 
             if (isEditing && editingCustomer) {
-                setEditingCustomer({ ...editingCustomer, address: fullAddress });
+                setEditingCustomer({
+                    ...editingCustomer,
+                    address: fullAddress,
+                    city: data.localidade,
+                    state: data.uf
+                });
             } else {
-                setNewCustomer({ ...newCustomer, address: fullAddress });
+                setNewCustomer({
+                    ...newCustomer,
+                    address: fullAddress,
+                    city: data.localidade,
+                    state: data.uf
+                });
             }
         } catch (error) {
             console.error("Erro ao buscar CEP:", error);
@@ -81,7 +107,9 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
             email: newCustomer.email || '',
             phone: newCustomer.phone || '',
             address: newCustomer.address || '',
-            segment: newCustomer.segment || ''
+            segment: newCustomer.segment || '',
+            city: newCustomer.city || '',
+            state: newCustomer.state || ''
         };
 
         onAddCustomer(customer);
@@ -157,9 +185,10 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
         if (fileInputRef.current) fileInputRef.current.value = '';
     };
 
+
+
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {/* ... header ... */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div className="flex items-center gap-3">
                     <button onClick={onBack} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
@@ -216,6 +245,7 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
                             <tr>
                                 <th className="px-6 py-3">Nome</th>
                                 <th className="px-6 py-3">Ramo</th>
+                                <th className="px-6 py-3">Cidade</th>
                                 <th className="px-6 py-3">CPF / CNPJ</th>
                                 <th className="px-6 py-3">Email</th>
                                 <th className="px-6 py-3">Telefone</th>
@@ -223,14 +253,14 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                            {filteredCustomers.length === 0 ? (
+                            {sortedCustomers.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6} className="px-6 py-8 text-center text-slate-400">
+                                    <td colSpan={7} className="px-6 py-8 text-center text-slate-400">
                                         Nenhum cliente encontrado.
                                     </td>
                                 </tr>
                             ) : (
-                                filteredCustomers.map((customer) => (
+                                sortedCustomers.map((customer) => (
                                     <tr key={customer.id} className="hover:bg-slate-50 transition-colors">
                                         <td className="px-6 py-3 font-medium text-slate-800">{customer.name}</td>
                                         <td className="px-6 py-3">
@@ -242,6 +272,7 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
                                                 <span className="text-slate-400">-</span>
                                             )}
                                         </td>
+                                        <td className="px-6 py-3">{customer.city || '-'}</td>
                                         <td className="px-6 py-3">{customer.cpfCnpj || '-'}</td>
                                         <td className="px-6 py-3">{customer.email || '-'}</td>
                                         <td className="px-6 py-3">{customer.phone || '-'}</td>

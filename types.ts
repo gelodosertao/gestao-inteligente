@@ -76,4 +76,6 @@ export interface Customer {
   phone?: string;
   address?: string;
   segment?: string;
+  city?: string;
+  state?: string;
 }
