@@ -174,23 +174,63 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
     };
 
     const processImportedData = (data: any[]) => {
-        const parsedCustomers: Customer[] = data.map((row: any) => ({
-            id: crypto.randomUUID(),
-            name: row['Nome'] || row['Name'] || row['Cliente'] || 'Sem Nome',
-            cpfCnpj: row['CPF'] || row['CNPJ'] || row['CpfCnpj'] || row['Documento'] || '',
-            email: row['Email'] || row['E-mail'] || '',
-            phone: row['Telefone'] || row['Phone'] || row['Celular'] || '',
-            address: row['Endereço'] || row['Address'] || '',
-            segment: row['Ramo'] || row['Segment'] || '',
-            city: row['Cidade'] || row['City'] || '',
-            state: row['Estado'] || row['State'] || row['UF'] || ''
-        })).filter(c => c.name !== 'Sem Nome'); // Basic filtering
+        if (data.length === 0) {
+            alert("O arquivo está vazio.");
+            return;
+        }
+
+        const normalizeKey = (key: string) => key.trim().toLowerCase();
+
+        const parsedCustomers: Customer[] = data.map((row: any) => {
+            // Create a normalized map of the row for easier lookup
+            const normalizedRow: Record<string, any> = {};
+            Object.keys(row).forEach(key => {
+                normalizedRow[normalizeKey(key)] = row[key];
+            });
+
+            const getValue = (possibleKeys: string[]) => {
+                for (const key of possibleKeys) {
+                    const normalized = normalizeKey(key);
+                    if (normalizedRow[normalized] !== undefined) return normalizedRow[normalized];
+                }
+                return undefined;
+            };
+
+            // Helper to find value by partial match if exact match fails
+            const findValue = (possibleKeys: string[]) => {
+                let val = getValue(possibleKeys);
+                if (val !== undefined) return val;
+
+                // Fallback: check if any row key contains one of the possible keys
+                for (const rowKey of Object.keys(normalizedRow)) {
+                    for (const key of possibleKeys) {
+                        if (rowKey.includes(normalizeKey(key))) {
+                            return normalizedRow[rowKey];
+                        }
+                    }
+                }
+                return '';
+            };
+
+            return {
+                id: crypto.randomUUID(),
+                name: findValue(['Nome', 'Name', 'Cliente', 'Razão Social', 'Razao Social']) || 'Sem Nome',
+                cpfCnpj: findValue(['CPF', 'CNPJ', 'CpfCnpj', 'Documento']) || '',
+                email: findValue(['Email', 'E-mail', 'Correo']) || '',
+                phone: findValue(['Telefone', 'Phone', 'Celular', 'Tel', 'Contato', 'Whatsapp']) || '',
+                address: findValue(['Endereço', 'Endereco', 'Address', 'Logradouro', 'Rua']) || '',
+                segment: findValue(['Ramo', 'Segment', 'Atividade', 'Categoria']) || '',
+                city: findValue(['Cidade', 'City', 'Municipio', 'Localidade']) || '',
+                state: findValue(['Estado', 'State', 'UF']) || ''
+            };
+        }).filter(c => c.name !== 'Sem Nome');
 
         if (parsedCustomers.length > 0) {
             onImportCustomers(parsedCustomers);
             alert(`${parsedCustomers.length} clientes importados com sucesso!`);
         } else {
-            alert("Nenhum cliente válido encontrado no arquivo.");
+            const firstRowKeys = Object.keys(data[0]).join(', ');
+            alert(`Nenhum cliente válido encontrado. Colunas identificadas: ${firstRowKeys}. Verifique se existe uma coluna de Nome.`);
         }
 
         if (fileInputRef.current) fileInputRef.current.value = '';
