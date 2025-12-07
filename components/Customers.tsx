@@ -18,12 +18,42 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
     const [showEditModal, setShowEditModal] = useState(false);
     const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
     const [newCustomer, setNewCustomer] = useState<Partial<Customer>>({});
+    const [cepInput, setCepInput] = useState('');
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const filteredCustomers = customers.filter(c =>
         c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         c.cpfCnpj?.includes(searchTerm)
     );
+
+    const fetchAddress = async (isEditing: boolean) => {
+        const cleanCep = cepInput.replace(/\D/g, '');
+        if (cleanCep.length !== 8) {
+            alert("CEP inválido. Digite 8 números.");
+            return;
+        }
+
+        try {
+            const response = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
+            const data = await response.json();
+
+            if (data.erro) {
+                alert("CEP não encontrado.");
+                return;
+            }
+
+            const fullAddress = `${data.logradouro}, ${data.bairro}, ${data.localidade} - ${data.uf}`;
+
+            if (isEditing && editingCustomer) {
+                setEditingCustomer({ ...editingCustomer, address: fullAddress });
+            } else {
+                setNewCustomer({ ...newCustomer, address: fullAddress });
+            }
+        } catch (error) {
+            console.error("Erro ao buscar CEP:", error);
+            alert("Erro ao buscar endereço. Verifique sua conexão.");
+        }
+    };
 
     const handleSaveCustomer = () => {
         if (!newCustomer.name) return;
@@ -40,6 +70,7 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
         onAddCustomer(customer);
         setShowAddModal(false);
         setNewCustomer({});
+        setCepInput('');
     };
 
     const handleUpdateCustomerSave = () => {
@@ -47,10 +78,12 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
         onUpdateCustomer(editingCustomer);
         setShowEditModal(false);
         setEditingCustomer(null);
+        setCepInput('');
     };
 
     const openEditModal = (customer: Customer) => {
         setEditingCustomer({ ...customer });
+        setCepInput('');
         setShowEditModal(true);
     };
 
@@ -266,11 +299,28 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
 
                             <div>
                                 <label className="block text-sm font-bold text-slate-700 mb-1">Endereço</label>
+                                <div className="flex gap-2 mb-2">
+                                    <input
+                                        type="text"
+                                        className="w-32 px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                                        placeholder="CEP"
+                                        value={cepInput}
+                                        onChange={(e) => setCepInput(e.target.value)}
+                                        maxLength={9}
+                                    />
+                                    <button
+                                        onClick={() => fetchAddress(false)}
+                                        className="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-2 rounded-lg font-bold text-sm transition-colors"
+                                    >
+                                        Buscar
+                                    </button>
+                                </div>
                                 <input
                                     type="text"
                                     className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
                                     value={newCustomer.address || ''}
                                     onChange={(e) => setNewCustomer({ ...newCustomer, address: e.target.value })}
+                                    placeholder="Rua, Bairro, Cidade - UF"
                                 />
                             </div>
 
@@ -340,11 +390,28 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
 
                             <div>
                                 <label className="block text-sm font-bold text-slate-700 mb-1">Endereço</label>
+                                <div className="flex gap-2 mb-2">
+                                    <input
+                                        type="text"
+                                        className="w-32 px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                                        placeholder="CEP"
+                                        value={cepInput}
+                                        onChange={(e) => setCepInput(e.target.value)}
+                                        maxLength={9}
+                                    />
+                                    <button
+                                        onClick={() => fetchAddress(true)}
+                                        className="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-2 rounded-lg font-bold text-sm transition-colors"
+                                    >
+                                        Buscar
+                                    </button>
+                                </div>
                                 <input
                                     type="text"
                                     className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
                                     value={editingCustomer.address || ''}
                                     onChange={(e) => setEditingCustomer({ ...editingCustomer, address: e.target.value })}
+                                    placeholder="Rua, Bairro, Cidade - UF"
                                 />
                             </div>
 
