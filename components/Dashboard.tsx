@@ -1,18 +1,19 @@
 import React, { useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
 import { TrendingUp, Users, AlertTriangle, ArrowUpRight, X, Filter, Download, Calendar, DollarSign, ArrowDownCircle } from 'lucide-react';
-import { Product, Sale, FinancialRecord } from '../types';
+import { Product, Sale, FinancialRecord, Customer } from '../types';
 
 interface DashboardProps {
   products: Product[];
   sales: Sale[];
   financials: FinancialRecord[];
+  customers: Customer[];
 }
 
 // Updated Colors: Blue (Primary), Orange (Secondary/Highlight)
 const COLORS = ['#f97316', '#1e40af', '#3b82f6', '#fb923c'];
 
-const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials }) => {
+const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, customers }) => {
   const [showPowerBI, setShowPowerBI] = useState(false);
 
   // State for Power BI Filters
@@ -117,6 +118,23 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials }) =>
     { name: 'Destilados', margem: 30 },
     { name: 'Cervejas', margem: 25 },
   ];
+
+  // Customer Analytics
+  const customersBySegment = customers.reduce((acc: any[], curr) => {
+    const segment = curr.segment || 'Não Informado';
+    const found = acc.find(a => a.name === segment);
+    if (found) found.value += 1;
+    else acc.push({ name: segment, value: 1 });
+    return acc;
+  }, []).sort((a, b) => b.value - a.value);
+
+  const customersByCity = customers.reduce((acc: any[], curr) => {
+    const city = curr.city || 'Não Informado';
+    const found = acc.find(a => a.name === city);
+    if (found) found.value += 1;
+    else acc.push({ name: city, value: 1 });
+    return acc;
+  }, []).sort((a, b) => b.value - a.value).slice(0, 10); // Top 10 cities
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 relative">
@@ -343,6 +361,39 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials }) =>
                         <YAxis dataKey="name" type="category" width={100} />
                         <RechartsTooltip />
                         <Bar dataKey="margem" fill="#1e40af" radius={[0, 4, 4, 0]} barSize={20} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              </div>
+
+              {/* Customer Analytics Row */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+                <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200">
+                  <h4 className="font-bold text-slate-700 mb-4">Clientes por Ramo de Atividade</h4>
+                  <div className="h-80">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart layout="vertical" data={customersBySegment}>
+                        <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                        <XAxis type="number" />
+                        <YAxis dataKey="name" type="category" width={120} fontSize={11} />
+                        <RechartsTooltip />
+                        <Bar dataKey="value" fill="#8884d8" radius={[0, 4, 4, 0]} barSize={20} name="Clientes" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200">
+                  <h4 className="font-bold text-slate-700 mb-4">Top 10 Cidades</h4>
+                  <div className="h-80">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={customersByCity}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                        <XAxis dataKey="name" fontSize={11} interval={0} angle={-45} textAnchor="end" height={60} />
+                        <YAxis />
+                        <RechartsTooltip />
+                        <Bar dataKey="value" fill="#82ca9d" radius={[4, 4, 0, 0]} name="Clientes" />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>

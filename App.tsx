@@ -250,7 +250,7 @@ const App: React.FC = () => {
 
     switch (currentView) {
       case 'DASHBOARD':
-        return <Dashboard products={products} sales={sales} financials={financials} />;
+        return <Dashboard products={products} sales={sales} financials={financials} customers={customers} />;
       case 'INVENTORY':
         return <Inventory products={products} onUpdateProduct={handleUpdateProduct} onAddProduct={handleAddProduct} onBack={() => setCurrentView('DASHBOARD')} />;
       case 'SALES':
@@ -258,7 +258,7 @@ const App: React.FC = () => {
       case 'CUSTOMERS':
         return <Customers customers={customers} onAddCustomer={handleAddCustomer} onImportCustomers={handleImportCustomers} currentUser={currentUser} onUpdateCustomer={handleUpdateCustomer} onDeleteCustomer={handleDeleteCustomer} onBack={() => setCurrentView('DASHBOARD')} />;
       case 'FINANCIAL':
-        if (currentUser?.role !== 'ADMIN') return <Dashboard products={products} sales={sales} financials={financials} />;
+        if (currentUser?.role !== 'ADMIN') return <Dashboard products={products} sales={sales} financials={financials} customers={customers} />;
         return <Financial records={financials} onAddRecord={handleAddFinancialRecord} onBack={() => setCurrentView('DASHBOARD')} />;
       case 'AI_INSIGHTS':
         return <AIAssistant products={products} sales={sales} financials={financials} onBack={() => setCurrentView('DASHBOARD')} />;
@@ -266,7 +266,7 @@ const App: React.FC = () => {
         if (!currentUser) return null;
         return <Settings currentUser={currentUser} onResetData={handleResetData} />;
       default:
-        return <Dashboard products={products} sales={sales} financials={financials} />;
+        return <Dashboard products={products} sales={sales} financials={financials} customers={customers} />;
     }
   };
 
