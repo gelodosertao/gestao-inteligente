@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { User, Customer } from '../types';
-import { Users, Plus, Upload, Search, Trash2, Save, X, FileText, Edit, ArrowLeft } from 'lucide-react';
+import { Users, Plus, Upload, Search, Trash2, Save, X, FileText, Edit, ArrowLeft, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { read, utils } from 'xlsx';
 
 interface CustomersProps {
     customers: Customer[];
@@ -33,6 +34,7 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
     const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
     const [newCustomer, setNewCustomer] = useState<Partial<Customer>>({});
     const [cepInput, setCepInput] = useState('');
+    const [sortConfig, setSortConfig] = useState<{ key: keyof Customer; direction: 'asc' | 'desc' } | null>({ key: 'segment', direction: 'asc' });
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // ... existing functions ...
@@ -41,20 +43,29 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
         c.cpfCnpj?.includes(searchTerm)
     );
 
-    const sortedCustomers = [...filteredCustomers].sort((a, b) => {
-        // Sort by Segment first
-        const segmentA = a.segment || '';
-        const segmentB = b.segment || '';
-        const segmentComparison = segmentA.localeCompare(segmentB);
-
-        if (segmentComparison !== 0) {
-            return segmentComparison;
+    const handleSort = (key: keyof Customer) => {
+        let direction: 'asc' | 'desc' = 'asc';
+        if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+            direction = 'desc';
         }
+        setSortConfig({ key, direction });
+    };
 
-        // Then sort by City
-        const cityA = a.city || '';
-        const cityB = b.city || '';
-        return cityA.localeCompare(cityB);
+    const sortedCustomers = [...filteredCustomers].sort((a, b) => {
+        if (!sortConfig) return 0;
+
+        const { key, direction } = sortConfig;
+
+        const valueA = (a[key] || '').toString().toLowerCase();
+        const valueB = (b[key] || '').toString().toLowerCase();
+
+        if (valueA < valueB) {
+            return direction === 'asc' ? -1 : 1;
+        }
+        if (valueA > valueB) {
+            return direction === 'asc' ? 1 : -1;
+        }
+        return 0;
     });
 
     const fetchAddress = async (isEditing: boolean) => {
@@ -133,16 +144,56 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
     };
 
     const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-        // ... existing logic ...
         const file = event.target.files?.[0];
         if (!file) return;
 
         const reader = new FileReader();
-        reader.onload = (e) => {
-            const text = e.target?.result as string;
-            parseXML(text);
-        };
-        reader.readAsText(file);
+
+        if (file.name.endsWith('.xml')) {
+            reader.onload = (e) => {
+                const text = e.target?.result as string;
+                parseXML(text);
+            };
+            reader.readAsText(file);
+        } else {
+            reader.onload = (e) => {
+                const data = e.target?.result;
+                try {
+                    const workbook = read(data, { type: 'array' });
+                    const sheetName = workbook.SheetNames[0];
+                    const sheet = workbook.Sheets[sheetName];
+                    const json = utils.sheet_to_json(sheet);
+                    processImportedData(json);
+                } catch (error) {
+                    console.error("Erro ao ler arquivo Excel:", error);
+                    alert("Erro ao processar arquivo. Verifique se é um Excel válido.");
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+    };
+
+    const processImportedData = (data: any[]) => {
+        const parsedCustomers: Customer[] = data.map((row: any) => ({
+            id: crypto.randomUUID(),
+            name: row['Nome'] || row['Name'] || row['Cliente'] || 'Sem Nome',
+            cpfCnpj: row['CPF'] || row['CNPJ'] || row['CpfCnpj'] || row['Documento'] || '',
+            email: row['Email'] || row['E-mail'] || '',
+            phone: row['Telefone'] || row['Phone'] || row['Celular'] || '',
+            address: row['Endereço'] || row['Address'] || '',
+            segment: row['Ramo'] || row['Segment'] || '',
+            city: row['Cidade'] || row['City'] || '',
+            state: row['Estado'] || row['State'] || row['UF'] || ''
+        })).filter(c => c.name !== 'Sem Nome'); // Basic filtering
+
+        if (parsedCustomers.length > 0) {
+            onImportCustomers(parsedCustomers);
+            alert(`${parsedCustomers.length} clientes importados com sucesso!`);
+        } else {
+            alert("Nenhum cliente válido encontrado no arquivo.");
+        }
+
+        if (fileInputRef.current) fileInputRef.current.value = '';
     };
 
     const parseXML = (xmlText: string) => {
@@ -204,13 +255,13 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
                         onClick={() => fileInputRef.current?.click()}
                         className="bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 px-4 py-2 rounded-lg font-bold flex items-center gap-2 transition-colors"
                     >
-                        <Upload size={18} /> Importar XML
+                        <Upload size={18} /> Importar (Excel/XML)
                     </button>
                     <input
                         type="file"
                         ref={fileInputRef}
                         onChange={handleFileUpload}
-                        accept=".xml"
+                        accept=".xml,.xlsx,.xls,.csv"
                         className="hidden"
                     />
                     <button
@@ -243,12 +294,42 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
                     <table className="w-full text-left text-sm text-slate-600">
                         <thead className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200">
                             <tr>
-                                <th className="px-6 py-3">Nome</th>
-                                <th className="px-6 py-3">Ramo</th>
-                                <th className="px-6 py-3">Cidade</th>
-                                <th className="px-6 py-3">CPF / CNPJ</th>
-                                <th className="px-6 py-3">Email</th>
-                                <th className="px-6 py-3">Telefone</th>
+                                <th className="px-6 py-3 cursor-pointer hover:bg-slate-100" onClick={() => handleSort('name')}>
+                                    <div className="flex items-center gap-1">
+                                        Nome
+                                        {sortConfig?.key === 'name' && (sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}
+                                    </div>
+                                </th>
+                                <th className="px-6 py-3 cursor-pointer hover:bg-slate-100" onClick={() => handleSort('segment')}>
+                                    <div className="flex items-center gap-1">
+                                        Ramo
+                                        {sortConfig?.key === 'segment' && (sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}
+                                    </div>
+                                </th>
+                                <th className="px-6 py-3 cursor-pointer hover:bg-slate-100" onClick={() => handleSort('city')}>
+                                    <div className="flex items-center gap-1">
+                                        Cidade
+                                        {sortConfig?.key === 'city' && (sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}
+                                    </div>
+                                </th>
+                                <th className="px-6 py-3 cursor-pointer hover:bg-slate-100" onClick={() => handleSort('cpfCnpj')}>
+                                    <div className="flex items-center gap-1">
+                                        CPF / CNPJ
+                                        {sortConfig?.key === 'cpfCnpj' && (sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}
+                                    </div>
+                                </th>
+                                <th className="px-6 py-3 cursor-pointer hover:bg-slate-100" onClick={() => handleSort('email')}>
+                                    <div className="flex items-center gap-1">
+                                        Email
+                                        {sortConfig?.key === 'email' && (sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}
+                                    </div>
+                                </th>
+                                <th className="px-6 py-3 cursor-pointer hover:bg-slate-100" onClick={() => handleSort('phone')}>
+                                    <div className="flex items-center gap-1">
+                                        Telefone
+                                        {sortConfig?.key === 'phone' && (sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}
+                                    </div>
+                                </th>
                                 <th className="px-6 py-3 text-right">Ações</th>
                             </tr>
                         </thead>
