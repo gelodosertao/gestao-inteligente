@@ -12,7 +12,20 @@ interface CustomersProps {
     onBack: () => void;
 }
 
+const CUSTOMER_SEGMENTS = [
+    'Adega',
+    'Atacadista',
+    'Bar',
+    'Conveniência',
+    'Distribuidora',
+    'Geleiro',
+    'Mercadinho',
+    'Restaurante',
+    'Supermercado'
+];
+
 const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImportCustomers, currentUser, onUpdateCustomer, onDeleteCustomer, onBack }) => {
+    // ... existing state ...
     const [searchTerm, setSearchTerm] = useState('');
     const [showAddModal, setShowAddModal] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
@@ -21,12 +34,14 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
     const [cepInput, setCepInput] = useState('');
     const fileInputRef = useRef<HTMLInputElement>(null);
 
+    // ... existing functions ...
     const filteredCustomers = customers.filter(c =>
         c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         c.cpfCnpj?.includes(searchTerm)
     );
 
     const fetchAddress = async (isEditing: boolean) => {
+        // ... existing fetchAddress logic ...
         const cleanCep = cepInput.replace(/\D/g, '');
         if (cleanCep.length !== 8) {
             alert("CEP inválido. Digite 8 números.");
@@ -64,7 +79,8 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
             cpfCnpj: newCustomer.cpfCnpj || '',
             email: newCustomer.email || '',
             phone: newCustomer.phone || '',
-            address: newCustomer.address || ''
+            address: newCustomer.address || '',
+            segment: newCustomer.segment || ''
         };
 
         onAddCustomer(customer);
@@ -88,6 +104,7 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
     };
 
     const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+        // ... existing logic ...
         const file = event.target.files?.[0];
         if (!file) return;
 
@@ -100,6 +117,7 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
     };
 
     const parseXML = (xmlText: string) => {
+        // ... existing logic ...
         try {
             const parser = new DOMParser();
             const xmlDoc = parser.parseFromString(xmlText, "text/xml");
@@ -140,6 +158,7 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {/* ... header ... */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div className="flex items-center gap-3">
                     <button onClick={onBack} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
@@ -195,6 +214,7 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
                         <thead className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200">
                             <tr>
                                 <th className="px-6 py-3">Nome</th>
+                                <th className="px-6 py-3">Ramo</th>
                                 <th className="px-6 py-3">CPF / CNPJ</th>
                                 <th className="px-6 py-3">Email</th>
                                 <th className="px-6 py-3">Telefone</th>
@@ -204,7 +224,7 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
                         <tbody className="divide-y divide-slate-100">
                             {filteredCustomers.length === 0 ? (
                                 <tr>
-                                    <td colSpan={5} className="px-6 py-8 text-center text-slate-400">
+                                    <td colSpan={6} className="px-6 py-8 text-center text-slate-400">
                                         Nenhum cliente encontrado.
                                     </td>
                                 </tr>
@@ -212,6 +232,15 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
                                 filteredCustomers.map((customer) => (
                                     <tr key={customer.id} className="hover:bg-slate-50 transition-colors">
                                         <td className="px-6 py-3 font-medium text-slate-800">{customer.name}</td>
+                                        <td className="px-6 py-3">
+                                            {customer.segment ? (
+                                                <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs font-bold border border-blue-100">
+                                                    {customer.segment}
+                                                </span>
+                                            ) : (
+                                                <span className="text-slate-400">-</span>
+                                            )}
+                                        </td>
                                         <td className="px-6 py-3">{customer.cpfCnpj || '-'}</td>
                                         <td className="px-6 py-3">{customer.email || '-'}</td>
                                         <td className="px-6 py-3">{customer.phone || '-'}</td>
@@ -264,6 +293,20 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
                                     onChange={(e) => setNewCustomer({ ...newCustomer, name: e.target.value })}
                                     autoFocus
                                 />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-1">Ramo de Atividade</label>
+                                <select
+                                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
+                                    value={newCustomer.segment || ''}
+                                    onChange={(e) => setNewCustomer({ ...newCustomer, segment: e.target.value })}
+                                >
+                                    <option value="">Selecione...</option>
+                                    {CUSTOMER_SEGMENTS.map(segment => (
+                                        <option key={segment} value={segment}>{segment}</option>
+                                    ))}
+                                </select>
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
@@ -355,6 +398,20 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
                                     value={editingCustomer.name || ''}
                                     onChange={(e) => setEditingCustomer({ ...editingCustomer, name: e.target.value })}
                                 />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-1">Ramo de Atividade</label>
+                                <select
+                                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
+                                    value={editingCustomer.segment || ''}
+                                    onChange={(e) => setEditingCustomer({ ...editingCustomer, segment: e.target.value })}
+                                >
+                                    <option value="">Selecione...</option>
+                                    {CUSTOMER_SEGMENTS.map(segment => (
+                                        <option key={segment} value={segment}>{segment}</option>
+                                    ))}
+                                </select>
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">

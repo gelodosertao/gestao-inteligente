@@ -75,4 +75,5 @@ export interface Customer {
   email?: string;
   phone?: string;
   address?: string;
+  segment?: string;
 }

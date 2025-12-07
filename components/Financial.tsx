@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { FinancialRecord } from '../types';
-import { ArrowUpCircle, ArrowDownCircle, PieChart, FileText, Download, X, AlertCircle, Plus, Calendar, DollarSign, Repeat, ArrowLeft } from 'lucide-react';
-import { PieChart as RechartsPie, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import { ArrowUpCircle, ArrowDownCircle, X, Plus, Calendar, DollarSign, Repeat, ArrowLeft } from 'lucide-react';
 
 interface FinancialProps {
    records: FinancialRecord[];
@@ -10,7 +9,7 @@ interface FinancialProps {
 }
 
 const Financial: React.FC<FinancialProps> = ({ records, onAddRecord, onBack }) => {
-   const [showTaxModal, setShowTaxModal] = useState(false);
+
    const [showAddModal, setShowAddModal] = useState(false);
 
    // Form State - Defaulted to Expense, removed logic to switch to Income in UI
@@ -31,15 +30,7 @@ const Financial: React.FC<FinancialProps> = ({ records, onAddRecord, onBack }) =
       return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
    };
 
-   // Mock Tax Data - Set to 0 as requested for clean slate
-   const taxData = [
-      { name: 'CPP (Previdência)', value: 0, color: '#3b82f6' },
-      { name: 'ICMS', value: 0, color: '#f97316' },
-      { name: 'ISS', value: 0, color: '#1e40af' },
-      { name: 'PIS/COFINS', value: 0, color: '#f43f5e' },
-   ];
 
-   const totalTax = 0;
 
    const handleSaveRecord = () => {
       if (!newRecord.description || !newRecord.amount || !newRecord.date) return;
@@ -106,7 +97,7 @@ const Financial: React.FC<FinancialProps> = ({ records, onAddRecord, onBack }) =
             </button>
          </div>
 
-         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="bg-emerald-500 text-white p-6 rounded-2xl shadow-lg relative overflow-hidden">
                <div className="relative z-10">
                   <p className="text-emerald-100 font-medium">Entradas (Mês)</p>
@@ -120,14 +111,6 @@ const Financial: React.FC<FinancialProps> = ({ records, onAddRecord, onBack }) =
                   <h3 className="text-3xl font-bold mt-1">{formatCurrency(totalExpense)}</h3>
                </div>
                <ArrowDownCircle className="absolute right-4 bottom-4 text-rose-400 opacity-50" size={64} />
-            </div>
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-center items-center text-center group cursor-pointer hover:border-orange-300 transition-colors" onClick={() => setShowTaxModal(true)}>
-               <div className="bg-orange-50 p-3 rounded-full mb-2 group-hover:bg-orange-100 transition-colors">
-                  <PieChart className="text-orange-600" size={28} />
-               </div>
-               <h4 className="font-bold text-slate-800">Relatório Fiscal</h4>
-               <p className="text-xs text-slate-500 mb-3">Simples Nacional (Out/23)</p>
-               <button className="text-blue-600 text-sm font-bold hover:underline">Ver Detalhes</button>
             </div>
          </div>
 
@@ -276,89 +259,7 @@ const Financial: React.FC<FinancialProps> = ({ records, onAddRecord, onBack }) =
             </div>
          )}
 
-         {/* Fiscal Modal (Existing) */}
-         {showTaxModal && (
-            <div className="fixed inset-0 bg-blue-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-               <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-                  <div className="p-5 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
-                     <div className="flex items-center gap-3">
-                        <div className="bg-blue-100 p-2 rounded-lg">
-                           <FileText size={20} className="text-blue-700" />
-                        </div>
-                        <div>
-                           <h3 className="font-bold text-slate-800">Demonstrativo de Impostos</h3>
-                           <p className="text-xs text-slate-500">Regime: Simples Nacional</p>
-                        </div>
-                     </div>
-                     <button onClick={() => setShowTaxModal(false)} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
-                  </div>
 
-                  <div className="p-6 overflow-y-auto">
-                     <div className="flex flex-col md:flex-row gap-8 mb-8">
-                        {/* Tax Chart */}
-                        <div className="flex-1 flex flex-col items-center">
-                           <div className="w-48 h-48 relative">
-                              <ResponsiveContainer width="100%" height="100%">
-                                 <RechartsPie>
-                                    <Pie
-                                       data={taxData}
-                                       cx="50%"
-                                       cy="50%"
-                                       innerRadius={60}
-                                       outerRadius={80}
-                                       paddingAngle={5}
-                                       dataKey="value"
-                                    >
-                                       {taxData.map((entry, index) => (
-                                          <Cell key={`cell-${index}`} fill={entry.color} />
-                                       ))}
-                                    </Pie>
-                                    <Tooltip formatter={(value: number) => formatCurrency(value)} />
-                                 </RechartsPie>
-                              </ResponsiveContainer>
-                              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                                 <span className="text-2xl font-bold text-slate-800">{formatCurrency(totalTax)}</span>
-                                 <span className="text-[10px] text-slate-400 uppercase tracking-wide">Total DAS</span>
-                              </div>
-                           </div>
-                        </div>
-
-                        {/* Tax Legend */}
-                        <div className="flex-1 space-y-3">
-                           <h4 className="font-semibold text-slate-700 mb-2">Detalhamento da Guia (DAS)</h4>
-                           {taxData.map((item) => (
-                              <div key={item.name} className="flex items-center justify-between p-2 rounded hover:bg-slate-50">
-                                 <div className="flex items-center gap-2">
-                                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></div>
-                                    <span className="text-sm text-slate-600">{item.name}</span>
-                                 </div>
-                                 <span className="font-bold text-slate-800 text-sm">{formatCurrency(item.value)}</span>
-                              </div>
-                           ))}
-                           <div className="border-t border-slate-100 mt-4 pt-3 flex justify-between items-center">
-                              <span className="font-bold text-slate-800">Vencimento</span>
-                              <span className="text-rose-600 font-bold bg-rose-50 px-2 py-1 rounded text-xs">20/11/2023</span>
-                           </div>
-                        </div>
-                     </div>
-
-                     <div className="bg-amber-50 border border-amber-100 rounded-lg p-4 mb-6 flex items-start gap-3">
-                        <AlertCircle className="text-amber-500 shrink-0 mt-0.5" size={18} />
-                        <div>
-                           <h5 className="font-bold text-amber-800 text-sm">Alerta Fiscal</h5>
-                           <p className="text-amber-700 text-xs mt-1">
-                              A alíquota efetiva subiu para 4.5% este mês devido ao aumento do faturamento bruto acumulado nos últimos 12 meses.
-                           </p>
-                        </div>
-                     </div>
-
-                     <button className="w-full bg-slate-800 hover:bg-slate-700 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-colors">
-                        <Download size={18} /> Baixar Guia DAS (PDF)
-                     </button>
-                  </div>
-               </div>
-            </div>
-         )}
       </div>
    );
 };
