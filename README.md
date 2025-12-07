@@ -38,6 +38,7 @@ O **IceManager** é uma solução SaaS (Software as a Service) desenvolvida espe
 - **Busca por CEP**: Preenchimento automático de endereço via integração com ViaCEP.
 - **Segmentação**: Classificação por ramo de atividade:
   - Adega
+  - Ambulante
   - Atacadista
   - Bar
   - Conveniência

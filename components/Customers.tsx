@@ -14,6 +14,7 @@ interface CustomersProps {
 
 const CUSTOMER_SEGMENTS = [
     'Adega',
+    'Ambulante',
     'Atacadista',
     'Bar',
     'Conveniência',
