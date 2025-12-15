@@ -123,14 +123,14 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
    const handleProductClick = (product: Product) => {
       const isIce = product.category.includes('Gelo');
 
-      // If Atacado (Matriz) and it is Ice, open negotiation modal
-      if (selectedBranch === Branch.MATRIZ && isIce) {
+      // If Ice product (Matriz or Filial), open negotiation modal for wholesale logic
+      if (isIce) {
          setPendingProduct(product);
          setNegotiatedPrice(''); // Force manual entry
-         setNegotiatedQty(1);
+         setNegotiatedQty(0); // Start with 0 as requested
          setShowPriceModal(true);
       } else {
-         // Normal add to cart (Filial or Non-Ice)
+         // Normal add to cart (Non-Ice products)
          addToCart(product);
       }
    };
@@ -138,6 +138,11 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
    const confirmCustomItem = () => {
       if (!pendingProduct) return;
       const price = parseFloat(negotiatedPrice);
+
+      if (!negotiatedQty || negotiatedQty <= 0) {
+         alert("Digite uma quantidade válida.");
+         return;
+      }
 
       if (!price || price <= 0) {
          alert("Digite um valor válido.");
@@ -148,7 +153,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
       setShowPriceModal(false);
       setPendingProduct(null);
       setNegotiatedPrice('');
-      setNegotiatedQty(1);
+      setNegotiatedQty(0);
    };
 
    const addToCart = (product: Product, qty = 1, customPrice?: number) => {
@@ -480,7 +485,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                      <div className="overflow-y-auto grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-3 pr-2">
                         {filteredPosProducts.map(product => {
                            const stock = getProductStock(product);
-                           const isWholesaleIce = selectedBranch === Branch.MATRIZ && product.category.includes('Gelo');
+                           const isWholesaleIce = product.category.includes('Gelo');
                            const price = selectedBranch === Branch.FILIAL ? product.priceFilial : product.priceMatriz;
 
                            return (
@@ -655,10 +660,10 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                               <label className="block text-xs font-bold text-slate-500 mb-1 uppercase">Quantidade</label>
                               <input
                                  type="number"
-                                 min="1"
+                                 min="0"
                                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-lg font-bold text-center bg-white text-slate-900 focus:ring-2 focus:ring-blue-500"
-                                 value={negotiatedQty}
-                                 onChange={(e) => setNegotiatedQty(Math.max(1, Number(e.target.value)))}
+                                 value={negotiatedQty || ''}
+                                 onChange={(e) => setNegotiatedQty(Number(e.target.value))}
                               />
                            </div>
                            <div>

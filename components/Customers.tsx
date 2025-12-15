@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
-import { User, Customer } from '../types';
-import { Users, Plus, Upload, Search, Trash2, Save, X, FileText, Edit, ArrowLeft, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { User, Customer, Branch } from '../types';
+import { Users, Plus, Upload, Search, Trash2, Save, X, FileText, Edit, ArrowLeft, ArrowUpDown, ArrowUp, ArrowDown, Building2 } from 'lucide-react';
 import { read, utils } from 'xlsx';
 
 interface CustomersProps {
@@ -32,7 +32,7 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
     const [showAddModal, setShowAddModal] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
     const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
-    const [newCustomer, setNewCustomer] = useState<Partial<Customer>>({});
+    const [newCustomer, setNewCustomer] = useState<Partial<Customer>>({ branch: Branch.MATRIZ });
     const [cepInput, setCepInput] = useState('');
     const [sortConfig, setSortConfig] = useState<{ key: keyof Customer; direction: 'asc' | 'desc' } | null>({ key: 'segment', direction: 'asc' });
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -120,12 +120,13 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
             address: newCustomer.address || '',
             segment: newCustomer.segment || '',
             city: newCustomer.city || '',
-            state: newCustomer.state || ''
+            state: newCustomer.state || '',
+            branch: newCustomer.branch
         };
 
         onAddCustomer(customer);
         setShowAddModal(false);
-        setNewCustomer({});
+        setNewCustomer({ branch: Branch.MATRIZ });
         setCepInput('');
     };
 
@@ -214,14 +215,15 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
 
             return {
                 id: crypto.randomUUID(),
-                name: findValue(['Nome', 'Name', 'Cliente', 'Razão Social', 'Razao Social']) || 'Sem Nome',
-                cpfCnpj: findValue(['CPF', 'CNPJ', 'CpfCnpj', 'Documento']) || '',
-                email: findValue(['Email', 'E-mail', 'Correo']) || '',
-                phone: findValue(['Telefone', 'Phone', 'Celular', 'Tel', 'Contato', 'Whatsapp']) || '',
-                address: findValue(['Endereço', 'Endereco', 'Address', 'Logradouro', 'Rua']) || '',
-                segment: findValue(['Ramo', 'Segment', 'Atividade', 'Categoria']) || '',
-                city: findValue(['Cidade', 'City', 'Municipio', 'Localidade']) || '',
-                state: findValue(['Estado', 'State', 'UF']) || ''
+                name: findValue(['Nome', 'Name', 'Cliente', 'Razão Social', 'Razao Social', 'Titular']) || 'Sem Nome',
+                cpfCnpj: findValue(['CPF', 'CNPJ', 'CpfCnpj', 'Documento', 'Doc']) || '',
+                email: findValue(['Email', 'E-mail', 'Correo', 'Mail']) || '',
+                phone: findValue(['Telefone', 'Phone', 'Celular', 'Tel', 'Contato', 'Whatsapp', 'Cel']) || '',
+                address: findValue(['Endereço', 'Endereco', 'Address', 'Logradouro', 'Rua', 'Av', 'Avenida']) || '',
+                segment: findValue(['Ramo', 'Segment', 'Atividade', 'Categoria', 'Setor', 'Tipo', 'Classificação', 'Classificacao', 'Area']) || '',
+                city: findValue(['Cidade', 'City', 'Municipio', 'Localidade', 'Local', 'Sede', 'Município']) || '',
+                state: findValue(['Estado', 'State', 'UF', 'Provincia']) || '',
+                branch: Branch.MATRIZ // Default imported to Matriz for now, or could try to detect
             };
         }).filter(c => c.name !== 'Sem Nome');
 
@@ -258,7 +260,8 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
                     id: crypto.randomUUID(),
                     name: name,
                     cpfCnpj: cpfCnpj,
-                    email: email
+                    email: email,
+                    branch: Branch.MATRIZ // Default
                 });
             }
 
@@ -383,7 +386,14 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
                             ) : (
                                 sortedCustomers.map((customer) => (
                                     <tr key={customer.id} className="hover:bg-slate-50 transition-colors">
-                                        <td className="px-6 py-3 font-medium text-slate-800">{customer.name}</td>
+                                        <td className="px-6 py-3 font-medium text-slate-800">
+                                            {customer.name}
+                                            {customer.branch && (
+                                                <span className={`ml-2 text-[10px] px-1.5 py-0.5 rounded border ${customer.branch === Branch.MATRIZ ? 'bg-blue-50 text-blue-700 border-blue-100' : 'bg-orange-50 text-orange-700 border-orange-100'}`}>
+                                                    {customer.branch === Branch.MATRIZ ? 'Matriz' : 'Filial'}
+                                                </span>
+                                            )}
+                                        </td>
                                         <td className="px-6 py-3">
                                             {customer.segment ? (
                                                 <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs font-bold border border-blue-100">
@@ -437,6 +447,24 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
                         </div>
 
                         <div className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-1">Unidade (Origem)</label>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => setNewCustomer({ ...newCustomer, branch: Branch.MATRIZ })}
+                                        className={`flex-1 py-2 rounded-lg border font-medium text-sm flex items-center justify-center gap-2 ${newCustomer.branch === Branch.MATRIZ ? 'bg-blue-50 border-blue-500 text-blue-700' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                                    >
+                                        <Building2 size={16} /> Matriz
+                                    </button>
+                                    <button
+                                        onClick={() => setNewCustomer({ ...newCustomer, branch: Branch.FILIAL })}
+                                        className={`flex-1 py-2 rounded-lg border font-medium text-sm flex items-center justify-center gap-2 ${newCustomer.branch === Branch.FILIAL ? 'bg-orange-50 border-orange-500 text-orange-700' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                                    >
+                                        <Building2 size={16} /> Filial
+                                    </button>
+                                </div>
+                            </div>
+
                             <div>
                                 <label className="block text-sm font-bold text-slate-700 mb-1">Nome Completo</label>
                                 <input
@@ -544,6 +572,23 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
 
                         <div className="p-6 space-y-4">
                             <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-1">Unidade (Origem)</label>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => setEditingCustomer({ ...editingCustomer, branch: Branch.MATRIZ })}
+                                        className={`flex-1 py-2 rounded-lg border font-medium text-sm flex items-center justify-center gap-2 ${editingCustomer.branch === Branch.MATRIZ ? 'bg-blue-50 border-blue-500 text-blue-700' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                                    >
+                                        <Building2 size={16} /> Matriz
+                                    </button>
+                                    <button
+                                        onClick={() => setEditingCustomer({ ...editingCustomer, branch: Branch.FILIAL })}
+                                        className={`flex-1 py-2 rounded-lg border font-medium text-sm flex items-center justify-center gap-2 ${editingCustomer.branch === Branch.FILIAL ? 'bg-orange-50 border-orange-500 text-orange-700' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                                    >
+                                        <Building2 size={16} /> Filial
+                                    </button>
+                                </div>
+                            </div>
+                            <div>
                                 <label className="block text-sm font-bold text-slate-700 mb-1">Nome Completo</label>
                                 <input
                                     type="text"
@@ -635,6 +680,7 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
                     </div>
                 </div>
             )}
+
         </div>
     );
 };

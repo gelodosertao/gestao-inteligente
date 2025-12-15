@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
 import { TrendingUp, Users, AlertTriangle, ArrowUpRight, X, Filter, Download, Calendar, DollarSign, ArrowDownCircle } from 'lucide-react';
-import { Product, Sale, FinancialRecord, Customer } from '../types';
+import { Product, Sale, FinancialRecord, Customer, Branch } from '../types';
 
 interface DashboardProps {
   products: Product[];
@@ -15,6 +15,7 @@ const COLORS = ['#f97316', '#1e40af', '#3b82f6', '#fb923c'];
 
 const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, customers }) => {
   const [showPowerBI, setShowPowerBI] = useState(false);
+  const [selectedBranch, setSelectedBranch] = useState<'ALL' | Branch>('ALL');
 
   // State for Power BI Filters
   const [dateRange, setDateRange] = useState('THIS_MONTH'); // 'THIS_MONTH', 'LAST_MONTH', 'YEAR'
@@ -23,6 +24,11 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
   const formatCurrency = (value: number) => {
     return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   };
+
+  // --- FILTERING BY BRANCH ---
+  const filteredSales = sales.filter(s => selectedBranch === 'ALL' || s.branch === selectedBranch);
+  const filteredFinancials = financials.filter(f => selectedBranch === 'ALL' || f.branch === selectedBranch);
+  const filteredCustomers = customers.filter(c => selectedBranch === 'ALL' || c.branch === selectedBranch);
 
   // --- CALCULATIONS (Monthly Logic) ---
   const now = new Date();
@@ -37,15 +43,16 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
   };
 
   // Current Month Data
-  const currentMonthSales = sales.filter(s => isSameMonth(s.date, currentMonth, currentYear));
+  const currentMonthSales = filteredSales.filter(s => isSameMonth(s.date, currentMonth, currentYear));
   const currentMonthRevenue = currentMonthSales.reduce((acc, curr) => acc + curr.total, 0);
-  const currentMonthExpenses = financials.filter(f => f.type === 'Expense' && isSameMonth(f.date, currentMonth, currentYear)).reduce((acc, curr) => acc + curr.amount, 0);
+  const currentMonthExpenses = filteredFinancials.filter(f => f.type === 'Expense' && isSameMonth(f.date, currentMonth, currentYear)).reduce((acc, curr) => acc + curr.amount, 0);
   const currentMonthProfit = currentMonthRevenue - currentMonthExpenses;
 
   // Last Month Data (for trends)
-  const lastMonthSales = sales.filter(s => isSameMonth(s.date, lastMonth, lastMonthYear));
+  // Note: We use the SAME filter for branch to get accurate trends for the selected view
+  const lastMonthSales = sales.filter(s => (selectedBranch === 'ALL' || s.branch === selectedBranch) && isSameMonth(s.date, lastMonth, lastMonthYear));
   const lastMonthRevenue = lastMonthSales.reduce((acc, curr) => acc + curr.total, 0);
-  const lastMonthExpenses = financials.filter(f => f.type === 'Expense' && isSameMonth(f.date, lastMonth, lastMonthYear)).reduce((acc, curr) => acc + curr.amount, 0);
+  const lastMonthExpenses = financials.filter(f => (selectedBranch === 'ALL' || f.branch === selectedBranch) && f.type === 'Expense' && isSameMonth(f.date, lastMonth, lastMonthYear)).reduce((acc, curr) => acc + curr.amount, 0);
   const lastMonthProfit = lastMonthRevenue - lastMonthExpenses;
 
   // Trends
@@ -60,11 +67,17 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
   const profitTrend = calculateTrend(currentMonthProfit, lastMonthProfit);
   const salesCountTrend = calculateTrend(currentMonthSales.length, lastMonthSales.length);
 
-  const lowStockCount = products.filter(p => p.stockMatriz < p.minStock || p.stockFilial < p.minStock).length;
+  // Stock Data - Dynamic based on Branch
+  const lowStockCount = products.filter(p => {
+    if (selectedBranch === 'ALL') return p.stockMatriz < p.minStock || p.stockFilial < p.minStock;
+    if (selectedBranch === Branch.MATRIZ) return p.stockMatriz < p.minStock;
+    if (selectedBranch === Branch.FILIAL) return p.stockFilial < p.minStock;
+    return false;
+  }).length;
 
   // Chart Data Preparation (Filtered by Date Range for Power BI)
   // Default Dashboard shows last 30 days or current month
-  const revenueData = sales
+  const revenueData = filteredSales
     .filter(s => {
       if (dateRange === 'THIS_MONTH') return isSameMonth(s.date, currentMonth, currentYear);
       if (dateRange === 'LAST_MONTH') return isSameMonth(s.date, lastMonth, lastMonthYear);
@@ -80,19 +93,20 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
       return acc;
     }, []).sort((a, b) => a.date.localeCompare(b.date));
 
-  const stockData = products.slice(0, 6).map(p => ({
-    name: p.name.split(' ')[0] + ' ' + (p.name.split(' ')[1] || ''),
-    Matriz: p.stockMatriz,
-    Filial: p.stockFilial
-  }));
+  const stockData = products.slice(0, 6).map(p => {
+    const item: any = { name: p.name.split(' ')[0] + ' ' + (p.name.split(' ')[1] || '') };
+    if (selectedBranch === 'ALL' || selectedBranch === Branch.MATRIZ) item.Matriz = p.stockMatriz;
+    if (selectedBranch === 'ALL' || selectedBranch === Branch.FILIAL) item.Filial = p.stockFilial;
+    return item;
+  });
 
   const categoryData = [
-    { name: 'Gelo', value: sales.filter(s => s.items.some(i => i.productName.includes('Gelo'))).length },
-    { name: 'Bebidas', value: sales.filter(s => s.items.some(i => !i.productName.includes('Gelo'))).length },
+    { name: 'Gelo', value: filteredSales.filter(s => s.items.some(i => i.productName.includes('Gelo'))).length },
+    { name: 'Bebidas', value: filteredSales.filter(s => s.items.some(i => !i.productName.includes('Gelo'))).length },
   ];
 
   // Dynamic Calculations for BI
-  const filteredSalesForBI = sales.filter(s => {
+  const filteredSalesForBI = filteredSales.filter(s => {
     if (dateRange === 'THIS_MONTH') return isSameMonth(s.date, currentMonth, currentYear);
     if (dateRange === 'LAST_MONTH') return isSameMonth(s.date, lastMonth, lastMonthYear);
     return s.date.startsWith(currentYear.toString());
@@ -104,7 +118,7 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
 
   // Seasonality Data (Real Aggregation)
   const seasonalityData = Array.from({ length: 12 }, (_, i) => {
-    const monthSales = sales.filter(s => isSameMonth(s.date, i, currentYear)).reduce((acc, s) => acc + s.total, 0);
+    const monthSales = filteredSales.filter(s => isSameMonth(s.date, i, currentYear)).reduce((acc, s) => acc + s.total, 0);
     return {
       month: new Date(0, i).toLocaleString('pt-BR', { month: 'short' }),
       vendas: monthSales
@@ -120,16 +134,21 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
   ];
 
   // Customer Analytics
-  const customersBySegment = customers.reduce((acc: any[], curr) => {
-    const segment = curr.segment || 'Não Informado';
+  const normalizeString = (str: string) => {
+    if (!str) return 'Não Informado';
+    return str.trim().charAt(0).toUpperCase() + str.trim().slice(1).toLowerCase();
+  };
+
+  const customersBySegment = filteredCustomers.reduce((acc: any[], curr) => {
+    const segment = normalizeString(curr.segment || '');
     const found = acc.find(a => a.name === segment);
     if (found) found.value += 1;
     else acc.push({ name: segment, value: 1 });
     return acc;
   }, []).sort((a, b) => b.value - a.value);
 
-  const customersByCity = customers.reduce((acc: any[], curr) => {
-    const city = curr.city || 'Não Informado';
+  const customersByCity = filteredCustomers.reduce((acc: any[], curr) => {
+    const city = normalizeString(curr.city || '');
     const found = acc.find(a => a.name === city);
     if (found) found.value += 1;
     else acc.push({ name: city, value: 1 });
@@ -144,9 +163,26 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
           <p className="text-slate-500">Acompanhe o desempenho da Gelo do Sertão em tempo real.</p>
         </div>
         <div className="flex gap-2 mt-4 md:mt-0">
-          <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold border border-green-200 flex items-center gap-1">
-            Status: Sistema Operante
-          </span>
+          <div className="bg-white p-1 rounded-lg border border-slate-200 flex">
+            <button
+              onClick={() => setSelectedBranch('ALL')}
+              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${selectedBranch === 'ALL' ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}
+            >
+              Geral
+            </button>
+            <button
+              onClick={() => setSelectedBranch(Branch.MATRIZ)}
+              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${selectedBranch === Branch.MATRIZ ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}
+            >
+              Matriz
+            </button>
+            <button
+              onClick={() => setSelectedBranch(Branch.FILIAL)}
+              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${selectedBranch === Branch.FILIAL ? 'bg-orange-500 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}
+            >
+              Filial
+            </button>
+          </div>
         </div>
       </div>
 

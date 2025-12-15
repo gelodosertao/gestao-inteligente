@@ -1,36 +1,140 @@
 import React, { useState } from 'react';
-import { FinancialRecord } from '../types';
-import { ArrowUpCircle, ArrowDownCircle, X, Plus, Calendar, DollarSign, Repeat, ArrowLeft } from 'lucide-react';
+import { FinancialRecord, Branch, Sale, Product } from '../types';
+import { ArrowUpCircle, ArrowDownCircle, X, Plus, Calendar, DollarSign, Repeat, ArrowLeft, Building2, BarChart3, LineChart } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts';
 
 interface FinancialProps {
    records: FinancialRecord[];
+   sales: Sale[];
+   products: Product[];
    onAddRecord: (records: FinancialRecord[]) => void;
    onBack: () => void;
 }
 
-const Financial: React.FC<FinancialProps> = ({ records, onAddRecord, onBack }) => {
+const Financial: React.FC<FinancialProps> = ({ records, sales, products, onAddRecord, onBack }) => {
 
    const [showAddModal, setShowAddModal] = useState(false);
+   const [viewMode, setViewMode] = useState<'CASH_FLOW' | 'DRE'>('CASH_FLOW');
+   const [selectedBranch, setSelectedBranch] = useState<'ALL' | Branch>('ALL');
+   const [dateRange, setDateRange] = useState('THIS_MONTH'); // Simplified for now
 
    // Form State - Defaulted to Expense, removed logic to switch to Income in UI
    const [newRecord, setNewRecord] = useState<Partial<FinancialRecord>>({
       type: 'Expense',
       date: new Date().toISOString().split('T')[0],
-      category: 'Fornecedores'
+      category: 'Fornecedores',
+      branch: Branch.MATRIZ
    });
    const [isRecurring, setIsRecurring] = useState(false);
    const [installments, setInstallments] = useState(2); // Default to 2 if recurring
 
-   // Calculate totals dynamically from records
-   const totalIncome = records.filter(r => r.type === 'Income').reduce((acc, curr) => acc + curr.amount, 0);
-   const totalExpense = records.filter(r => r.type === 'Expense').reduce((acc, curr) => acc + curr.amount, 0);
+   // --- FILTERING ---
+   const filteredRecords = records.filter(r => selectedBranch === 'ALL' || r.branch === selectedBranch);
+   const filteredSales = sales.filter(s => selectedBranch === 'ALL' || s.branch === selectedBranch);
+
+   // --- DRE CALCULATIONS ---
+   const calculateDRE = () => {
+      // 1. Gross Revenue (Faturamento Bruto)
+      const grossRevenue = filteredSales.reduce((acc, s) => acc + s.total, 0);
+
+      // 2. Deductions (Impostos sobre Venda - Simplificado)
+      // Assuming 'Impostos' category in expenses are sales taxes for now, or we could estimate
+      const taxExpenses = filteredRecords.filter(r => r.type === 'Expense' && r.category === 'Impostos').reduce((acc, r) => acc + r.amount, 0);
+      const netRevenue = grossRevenue - taxExpenses;
+
+      // 3. CMV (Custo da Mercadoria Vendida)
+      let cmv = 0;
+      filteredSales.forEach(sale => {
+         sale.items.forEach(item => {
+            const product = products.find(p => p.id === item.productId);
+            if (product) {
+               cmv += (product.cost || 0) * item.quantity;
+            }
+         });
+      });
+
+      // 4. Gross Profit
+      const grossProfit = netRevenue - cmv;
+
+      // 5. Operating Expenses (Despesas Operacionais)
+      const operatingExpenses = filteredRecords
+         .filter(r => r.type === 'Expense' && r.category !== 'Impostos') // Exclude taxes already deducted
+         .reduce((acc, r) => acc + r.amount, 0);
+
+      // 6. Net Profit (Lucro Líquido)
+      const netProfit = grossProfit - operatingExpenses;
+
+      // Group Expenses for Detail View
+      const expensesByCategory = filteredRecords
+         .filter(r => r.type === 'Expense')
+         .reduce((acc: any, curr) => {
+            acc[curr.category] = (acc[curr.category] || 0) + curr.amount;
+            return acc;
+         }, {});
+
+      return {
+         grossRevenue,
+         taxExpenses,
+         netRevenue,
+         cmv,
+         grossProfit,
+         operatingExpenses,
+         netProfit,
+         expensesByCategory
+      };
+   };
+
+   const dreData = calculateDRE();
+
+   // --- CASH FLOW CALCULATIONS ---
+   const calculateCashFlow = () => {
+      // Combine Sales (Income) and Records (Income/Expense)
+      const dailyMap = new Map<string, { income: number, expense: number, balance: number }>();
+
+      // Process Sales as Income
+      filteredSales.forEach(sale => {
+         const date = sale.date; // YYYY-MM-DD
+         const current = dailyMap.get(date) || { income: 0, expense: 0, balance: 0 };
+         current.income += sale.total;
+         dailyMap.set(date, current);
+      });
+
+      // Process Financial Records
+      filteredRecords.forEach(record => {
+         const date = record.date;
+         const current = dailyMap.get(date) || { income: 0, expense: 0, balance: 0 };
+         if (record.type === 'Income') {
+            current.income += record.amount;
+         } else {
+            current.expense += record.amount;
+         }
+         dailyMap.set(date, current);
+      });
+
+      // Convert to Array and Sort
+      const sortedDates = Array.from(dailyMap.keys()).sort();
+      let runningBalance = 0;
+
+      return sortedDates.map(date => {
+         const data = dailyMap.get(date)!;
+         const dailyNet = data.income - data.expense;
+         runningBalance += dailyNet;
+         return {
+            date: date.slice(5), // MM-DD
+            fullDate: date,
+            ...data,
+            accumulated: runningBalance
+         };
+      });
+   };
+
+   const cashFlowData = calculateCashFlow();
+   const currentBalance = cashFlowData.length > 0 ? cashFlowData[cashFlowData.length - 1].accumulated : 0;
 
    // Helper for currency
    const formatCurrency = (value: number) => {
       return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
    };
-
-
 
    const handleSaveRecord = () => {
       if (!newRecord.description || !newRecord.amount || !newRecord.date) return;
@@ -54,7 +158,8 @@ const Financial: React.FC<FinancialProps> = ({ records, onAddRecord, onBack }) =
                description: `${newRecord.description} (${i + 1}/${installments})`,
                amount: amount,
                type: recordType,
-               category: newRecord.category || 'Outros'
+               category: newRecord.category || 'Outros',
+               branch: newRecord.branch
             });
          }
       } else {
@@ -65,14 +170,15 @@ const Financial: React.FC<FinancialProps> = ({ records, onAddRecord, onBack }) =
             description: newRecord.description,
             amount: amount,
             type: recordType,
-            category: newRecord.category || 'Outros'
+            category: newRecord.category || 'Outros',
+            branch: newRecord.branch
          });
       }
 
       onAddRecord(recordsToAdd);
       setShowAddModal(false);
       // Reset form
-      setNewRecord({ type: 'Expense', date: new Date().toISOString().split('T')[0], category: 'Fornecedores', description: '', amount: 0 });
+      setNewRecord({ type: 'Expense', date: new Date().toISOString().split('T')[0], category: 'Fornecedores', description: '', amount: 0, branch: Branch.MATRIZ });
       setIsRecurring(false);
       setInstallments(2);
    };
@@ -86,61 +192,203 @@ const Financial: React.FC<FinancialProps> = ({ records, onAddRecord, onBack }) =
                </button>
                <div>
                   <h2 className="text-2xl font-bold text-slate-800">Gestão Financeira</h2>
-                  <p className="text-slate-500">Fluxo de caixa, contas a pagar e impostos.</p>
+                  <p className="text-slate-500">Fluxo de caixa, DRE e controle de despesas.</p>
                </div>
             </div>
-            <button
-               onClick={() => setShowAddModal(true)}
-               className="bg-blue-800 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 shadow-lg shadow-blue-900/10 transition-colors"
-            >
-               <Plus size={18} /> Lançar Despesa
-            </button>
-         </div>
 
-         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-emerald-500 text-white p-6 rounded-2xl shadow-lg relative overflow-hidden">
-               <div className="relative z-10">
-                  <p className="text-emerald-100 font-medium">Entradas (Mês)</p>
-                  <h3 className="text-3xl font-bold mt-1">{formatCurrency(totalIncome)}</h3>
+            <div className="flex gap-2">
+               {/* Branch Selector */}
+               <div className="bg-white p-1 rounded-lg border border-slate-200 flex">
+                  <button onClick={() => setSelectedBranch('ALL')} className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${selectedBranch === 'ALL' ? 'bg-slate-800 text-white' : 'text-slate-500 hover:bg-slate-50'}`}>Geral</button>
+                  <button onClick={() => setSelectedBranch(Branch.MATRIZ)} className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${selectedBranch === Branch.MATRIZ ? 'bg-blue-600 text-white' : 'text-slate-500 hover:bg-slate-50'}`}>Matriz</button>
+                  <button onClick={() => setSelectedBranch(Branch.FILIAL)} className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${selectedBranch === Branch.FILIAL ? 'bg-orange-500 text-white' : 'text-slate-500 hover:bg-slate-50'}`}>Filial</button>
                </div>
-               <ArrowUpCircle className="absolute right-4 bottom-4 text-emerald-400 opacity-50" size={64} />
-            </div>
-            <div className="bg-rose-500 text-white p-6 rounded-2xl shadow-lg relative overflow-hidden">
-               <div className="relative z-10">
-                  <p className="text-rose-100 font-medium">Saídas (Mês)</p>
-                  <h3 className="text-3xl font-bold mt-1">{formatCurrency(totalExpense)}</h3>
-               </div>
-               <ArrowDownCircle className="absolute right-4 bottom-4 text-rose-400 opacity-50" size={64} />
+
+               <button
+                  onClick={() => setShowAddModal(true)}
+                  className="bg-blue-800 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 shadow-lg shadow-blue-900/10 transition-colors"
+               >
+                  <Plus size={18} /> Lançar Despesa
+               </button>
             </div>
          </div>
 
-         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-            <div className="p-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
-               <h3 className="font-bold text-slate-700">Extrato Recente</h3>
-               <button className="text-xs text-blue-600 font-bold hover:underline">Ver Todo Histórico</button>
+         {/* VIEW TOGGLE */}
+         <div className="flex justify-center">
+            <div className="bg-slate-200 p-1 rounded-xl flex">
+               <button
+                  onClick={() => setViewMode('CASH_FLOW')}
+                  className={`px-6 py-2 rounded-lg font-bold text-sm flex items-center gap-2 transition-all ${viewMode === 'CASH_FLOW' ? 'bg-white text-blue-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+               >
+                  <LineChart size={18} /> Fluxo de Caixa
+               </button>
+               <button
+                  onClick={() => setViewMode('DRE')}
+                  className={`px-6 py-2 rounded-lg font-bold text-sm flex items-center gap-2 transition-all ${viewMode === 'DRE' ? 'bg-white text-blue-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+               >
+                  <BarChart3 size={18} /> DRE Gerencial
+               </button>
             </div>
-            <div className="divide-y divide-slate-100 max-h-[500px] overflow-y-auto">
-               {records.map(record => (
-                  <div key={record.id} className="p-4 flex justify-between items-center hover:bg-slate-50 transition-colors">
-                     <div className="flex items-center gap-4">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${record.type === 'Income' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
-                           {record.type === 'Income' ? <ArrowUpCircle size={20} /> : <ArrowDownCircle size={20} />}
-                        </div>
-                        <div>
-                           <p className="font-bold text-slate-800">{record.description}</p>
-                           <div className="flex gap-2">
-                              <p className="text-xs text-slate-500 flex items-center gap-1"><Calendar size={10} /> {record.date}</p>
-                              <span className="text-xs px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">{record.category}</span>
+         </div>
+
+         {viewMode === 'CASH_FLOW' ? (
+            <div className="space-y-6 animate-in fade-in">
+               {/* Summary Cards */}
+               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                     <p className="text-slate-500 font-medium text-sm">Saldo Atual</p>
+                     <h3 className={`text-3xl font-bold mt-1 ${currentBalance >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                        {formatCurrency(currentBalance)}
+                     </h3>
+                  </div>
+                  <div className="bg-emerald-50 p-6 rounded-2xl border border-emerald-100">
+                     <p className="text-emerald-700 font-medium text-sm">Entradas (Período)</p>
+                     <h3 className="text-2xl font-bold mt-1 text-emerald-800">
+                        {formatCurrency(cashFlowData.reduce((acc, d) => acc + d.income, 0))}
+                     </h3>
+                  </div>
+                  <div className="bg-rose-50 p-6 rounded-2xl border border-rose-100">
+                     <p className="text-rose-700 font-medium text-sm">Saídas (Período)</p>
+                     <h3 className="text-2xl font-bold mt-1 text-rose-800">
+                        {formatCurrency(cashFlowData.reduce((acc, d) => acc + d.expense, 0))}
+                     </h3>
+                  </div>
+               </div>
+
+               {/* Chart */}
+               <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 h-80">
+                  <h4 className="font-bold text-slate-700 mb-4">Evolução do Saldo</h4>
+                  <ResponsiveContainer width="100%" height="100%">
+                     <AreaChart data={cashFlowData}>
+                        <defs>
+                           <linearGradient id="colorBalance" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1} />
+                              <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                           </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                        <XAxis dataKey="date" fontSize={12} />
+                        <YAxis fontSize={12} />
+                        <RechartsTooltip formatter={(value: number) => formatCurrency(value)} />
+                        <Area type="monotone" dataKey="accumulated" stroke="#3b82f6" fillOpacity={1} fill="url(#colorBalance)" name="Saldo Acumulado" strokeWidth={2} />
+                     </AreaChart>
+                  </ResponsiveContainer>
+               </div>
+
+               {/* Transaction List */}
+               <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                  <div className="p-4 border-b border-slate-100 bg-slate-50">
+                     <h3 className="font-bold text-slate-700">Movimentações Recentes</h3>
+                  </div>
+                  <div className="divide-y divide-slate-100 max-h-[400px] overflow-y-auto">
+                     {filteredRecords.map(record => (
+                        <div key={record.id} className="p-4 flex justify-between items-center hover:bg-slate-50 transition-colors">
+                           <div className="flex items-center gap-4">
+                              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${record.type === 'Income' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
+                                 {record.type === 'Income' ? <ArrowUpCircle size={20} /> : <ArrowDownCircle size={20} />}
+                              </div>
+                              <div>
+                                 <p className="font-bold text-slate-800">{record.description}</p>
+                                 <div className="flex gap-2 items-center">
+                                    <p className="text-xs text-slate-500 flex items-center gap-1"><Calendar size={10} /> {record.date}</p>
+                                    <span className="text-xs px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">{record.category}</span>
+                                    {record.branch && (
+                                       <span className={`text-[10px] px-1.5 py-0.5 rounded border ${record.branch === Branch.MATRIZ ? 'bg-blue-50 text-blue-700 border-blue-100' : 'bg-orange-50 text-orange-700 border-orange-100'}`}>
+                                          {record.branch === Branch.MATRIZ ? 'Matriz' : 'Filial'}
+                                       </span>
+                                    )}
+                                 </div>
+                              </div>
                            </div>
+                           <span className={`font-bold ${record.type === 'Income' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                              {record.type === 'Income' ? '+' : '-'} {formatCurrency(record.amount)}
+                           </span>
+                        </div>
+                     ))}
+                  </div>
+               </div>
+            </div>
+         ) : (
+            <div className="space-y-6 animate-in fade-in">
+               {/* DRE View */}
+               <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 max-w-4xl mx-auto">
+                  <div className="text-center mb-8">
+                     <h3 className="text-2xl font-bold text-slate-800">Demonstração do Resultado do Exercício</h3>
+                     <p className="text-slate-500">Visão Gerencial {selectedBranch !== 'ALL' ? `- ${selectedBranch}` : ''}</p>
+                  </div>
+
+                  <div className="space-y-4">
+                     {/* Gross Revenue */}
+                     <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
+                        <span className="font-bold text-blue-900">(=) Receita Bruta de Vendas</span>
+                        <span className="font-bold text-blue-900">{formatCurrency(dreData.grossRevenue)}</span>
+                     </div>
+
+                     {/* Deductions */}
+                     <div className="flex justify-between items-center px-4 text-rose-600">
+                        <span>(-) Impostos / Deduções</span>
+                        <span>{formatCurrency(dreData.taxExpenses)}</span>
+                     </div>
+
+                     <div className="border-t border-slate-200 my-2"></div>
+
+                     {/* Net Revenue */}
+                     <div className="flex justify-between items-center px-3 font-bold text-slate-700">
+                        <span>(=) Receita Líquida</span>
+                        <span>{formatCurrency(dreData.netRevenue)}</span>
+                     </div>
+
+                     {/* CMV */}
+                     <div className="flex justify-between items-center px-4 text-rose-600">
+                        <span>(-) Custo da Mercadoria Vendida (CMV)</span>
+                        <span>{formatCurrency(dreData.cmv)}</span>
+                     </div>
+
+                     <div className="border-t border-slate-200 my-2"></div>
+
+                     {/* Gross Profit */}
+                     <div className="flex justify-between items-center p-3 bg-slate-100 rounded-lg">
+                        <span className="font-bold text-slate-800">(=) Lucro Bruto</span>
+                        <span className="font-bold text-slate-800">{formatCurrency(dreData.grossProfit)}</span>
+                     </div>
+
+                     {/* Operating Expenses */}
+                     <div className="pl-4 space-y-2">
+                        <div className="flex justify-between items-center font-medium text-rose-700">
+                           <span>(-) Despesas Operacionais</span>
+                           <span>{formatCurrency(dreData.operatingExpenses)}</span>
+                        </div>
+                        {/* Detail Expenses */}
+                        <div className="pl-4 text-sm text-slate-500 space-y-1">
+                           {Object.entries(dreData.expensesByCategory).map(([cat, amount]: [string, any]) => (
+                              cat !== 'Impostos' && (
+                                 <div key={cat} className="flex justify-between">
+                                    <span>• {cat}</span>
+                                    <span>{formatCurrency(amount)}</span>
+                                 </div>
+                              )
+                           ))}
                         </div>
                      </div>
-                     <span className={`font-bold ${record.type === 'Income' ? 'text-emerald-600' : 'text-rose-600'}`}>
-                        {record.type === 'Income' ? '+' : '-'} {formatCurrency(record.amount)}
-                     </span>
+
+                     <div className="border-t-2 border-slate-800 my-4"></div>
+
+                     {/* Net Profit */}
+                     <div className={`flex justify-between items-center p-4 rounded-xl text-white shadow-lg ${dreData.netProfit >= 0 ? 'bg-emerald-600' : 'bg-rose-600'}`}>
+                        <span className="text-xl font-bold">(=) Resultado Líquido (Lucro/Prejuízo)</span>
+                        <span className="text-2xl font-bold">{formatCurrency(dreData.netProfit)}</span>
+                     </div>
+
+                     {/* Margin Indicator */}
+                     <div className="text-center mt-4">
+                        <span className="text-sm font-medium text-slate-500">
+                           Margem Líquida: {dreData.grossRevenue > 0 ? ((dreData.netProfit / dreData.grossRevenue) * 100).toFixed(1) : 0}%
+                        </span>
+                     </div>
                   </div>
-               ))}
+               </div>
             </div>
-         </div>
+         )}
 
          {/* --- ADD RECORD MODAL --- */}
          {showAddModal && (
@@ -156,6 +404,24 @@ const Financial: React.FC<FinancialProps> = ({ records, onAddRecord, onBack }) =
                   <div className="p-6 space-y-4">
                      <div className="p-3 bg-rose-50 border border-rose-100 rounded-lg text-rose-700 text-sm font-medium">
                         <p>Este formulário registra apenas saídas (pagamentos). Para registrar entradas, utilize o PDV.</p>
+                     </div>
+
+                     <div>
+                        <label className="block text-sm font-bold text-slate-700 mb-1">Unidade (Pagador)</label>
+                        <div className="flex gap-2">
+                           <button
+                              onClick={() => setNewRecord({ ...newRecord, branch: Branch.MATRIZ })}
+                              className={`flex-1 py-2 rounded-lg border font-medium text-sm flex items-center justify-center gap-2 ${newRecord.branch === Branch.MATRIZ ? 'bg-blue-50 border-blue-500 text-blue-700' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                           >
+                              <Building2 size={16} /> Matriz
+                           </button>
+                           <button
+                              onClick={() => setNewRecord({ ...newRecord, branch: Branch.FILIAL })}
+                              className={`flex-1 py-2 rounded-lg border font-medium text-sm flex items-center justify-center gap-2 ${newRecord.branch === Branch.FILIAL ? 'bg-orange-50 border-orange-500 text-orange-700' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                           >
+                              <Building2 size={16} /> Filial
+                           </button>
+                        </div>
                      </div>
 
                      <div>

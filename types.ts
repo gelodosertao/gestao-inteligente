@@ -54,6 +54,7 @@ export interface FinancialRecord {
   amount: number;
   type: 'Income' | 'Expense';
   category: string;
+  branch?: Branch;
 }
 
 export type Role = 'ADMIN' | 'OPERATOR';
@@ -66,7 +67,7 @@ export interface User {
   avatarInitials: string;
 }
 
-export type ViewState = 'DASHBOARD' | 'INVENTORY' | 'SALES' | 'FINANCIAL' | 'AI_INSIGHTS' | 'SETTINGS' | 'CUSTOMERS';
+export type ViewState = 'DASHBOARD' | 'INVENTORY' | 'SALES' | 'FINANCIAL' | 'AI_INSIGHTS' | 'SETTINGS' | 'CUSTOMERS' | 'PRICING';
 
 export interface Customer {
   id: string;
@@ -78,4 +79,5 @@ export interface Customer {
   segment?: string;
   city?: string;
   state?: string;
+  branch?: Branch;
 }
