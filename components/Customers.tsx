@@ -20,6 +20,7 @@ const CUSTOMER_SEGMENTS = [
     'Bar',
     'Conveniência',
     'Distribuidora',
+    'Eventos',
     'Geleiro',
     'Mercadinho',
     'Restaurante',
@@ -343,10 +344,22 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
                                         {sortConfig?.key === 'name' && (sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}
                                     </div>
                                 </th>
+                                <th className="px-6 py-3 cursor-pointer hover:bg-slate-100" onClick={() => handleSort('cpfCnpj')}>
+                                    <div className="flex items-center gap-1">
+                                        CPF / CNPJ
+                                        {sortConfig?.key === 'cpfCnpj' && (sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}
+                                    </div>
+                                </th>
                                 <th className="px-6 py-3 cursor-pointer hover:bg-slate-100" onClick={() => handleSort('segment')}>
                                     <div className="flex items-center gap-1">
                                         Ramo
                                         {sortConfig?.key === 'segment' && (sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}
+                                    </div>
+                                </th>
+                                <th className="px-6 py-3 cursor-pointer hover:bg-slate-100" onClick={() => handleSort('phone')}>
+                                    <div className="flex items-center gap-1">
+                                        Telefone
+                                        {sortConfig?.key === 'phone' && (sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}
                                     </div>
                                 </th>
                                 <th className="px-6 py-3 cursor-pointer hover:bg-slate-100" onClick={() => handleSort('city')}>
@@ -355,22 +368,10 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
                                         {sortConfig?.key === 'city' && (sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}
                                     </div>
                                 </th>
-                                <th className="px-6 py-3 cursor-pointer hover:bg-slate-100" onClick={() => handleSort('cpfCnpj')}>
+                                <th className="px-6 py-3 cursor-pointer hover:bg-slate-100" onClick={() => handleSort('state')}>
                                     <div className="flex items-center gap-1">
-                                        CPF / CNPJ
-                                        {sortConfig?.key === 'cpfCnpj' && (sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}
-                                    </div>
-                                </th>
-                                <th className="px-6 py-3 cursor-pointer hover:bg-slate-100" onClick={() => handleSort('email')}>
-                                    <div className="flex items-center gap-1">
-                                        Email
-                                        {sortConfig?.key === 'email' && (sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}
-                                    </div>
-                                </th>
-                                <th className="px-6 py-3 cursor-pointer hover:bg-slate-100" onClick={() => handleSort('phone')}>
-                                    <div className="flex items-center gap-1">
-                                        Telefone
-                                        {sortConfig?.key === 'phone' && (sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}
+                                        Estado
+                                        {sortConfig?.key === 'state' && (sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}
                                     </div>
                                 </th>
                                 <th className="px-6 py-3 text-right">Ações</th>
@@ -394,6 +395,7 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
                                                 </span>
                                             )}
                                         </td>
+                                        <td className="px-6 py-3 text-slate-500 text-xs">{customer.cpfCnpj || '-'}</td>
                                         <td className="px-6 py-3">
                                             {customer.segment ? (
                                                 <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs font-bold border border-blue-100">
@@ -403,10 +405,9 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
                                                 <span className="text-slate-400">-</span>
                                             )}
                                         </td>
-                                        <td className="px-6 py-3">{customer.city || '-'}</td>
-                                        <td className="px-6 py-3">{customer.cpfCnpj || '-'}</td>
-                                        <td className="px-6 py-3">{customer.email || '-'}</td>
                                         <td className="px-6 py-3">{customer.phone || '-'}</td>
+                                        <td className="px-6 py-3">{customer.city || '-'}</td>
+                                        <td className="px-6 py-3">{customer.state || '-'}</td>
                                         <td className="px-6 py-3 text-right flex justify-end gap-2">
                                             {currentUser.role === 'ADMIN' && (
                                                 <button
