@@ -141,6 +141,27 @@ const App: React.FC = () => {
     }
   };
 
+  const handleUpdateFinancialRecord = async (updatedRecord: FinancialRecord) => {
+    setFinancials(prev => prev.map(r => r.id === updatedRecord.id ? updatedRecord : r));
+    try {
+      await dbFinancials.update(updatedRecord);
+    } catch (e) {
+      console.error(e);
+      alert("Erro ao atualizar registro financeiro no banco.");
+    }
+  };
+
+  const handleDeleteFinancialRecord = async (recordId: string) => {
+    if (!confirm("Tem certeza que deseja excluir este registro financeiro?")) return;
+    setFinancials(prev => prev.filter(r => r.id !== recordId));
+    try {
+      await dbFinancials.delete(recordId);
+    } catch (e) {
+      console.error(e);
+      alert("Erro ao excluir registro financeiro no banco.");
+    }
+  };
+
   const handleAddCustomer = async (newCustomer: Customer) => {
     setCustomers(prev => [...prev, newCustomer]);
     try {
@@ -150,6 +171,8 @@ const App: React.FC = () => {
       alert("Erro ao salvar cliente no banco.");
     }
   };
+
+
 
   const handleImportCustomers = async (newCustomers: Customer[]) => {
     setCustomers(prev => [...prev, ...newCustomers]);
@@ -266,7 +289,7 @@ const App: React.FC = () => {
         return <Pricing products={products} onUpdateProduct={handleUpdateProduct} onBack={() => setCurrentView('DASHBOARD')} />;
       case 'FINANCIAL':
         if (currentUser?.role !== 'ADMIN') return <Dashboard products={products} sales={sales} financials={financials} customers={customers} />;
-        return <Financial records={financials} sales={sales} products={products} onAddRecord={handleAddFinancialRecord} onBack={() => setCurrentView('DASHBOARD')} />;
+        return <Financial records={financials} sales={sales} products={products} onAddRecord={handleAddFinancialRecord} onUpdateRecord={handleUpdateFinancialRecord} onDeleteRecord={handleDeleteFinancialRecord} onBack={() => setCurrentView('DASHBOARD')} />;
       case 'AI_INSIGHTS':
         return <AIAssistant products={products} sales={sales} financials={financials} onBack={() => setCurrentView('DASHBOARD')} />;
       case 'SETTINGS':

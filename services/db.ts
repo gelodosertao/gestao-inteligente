@@ -207,6 +207,23 @@ export const dbFinancials = {
     }));
     const { error } = await supabase.from('financials').insert(rows);
     if (error) throw error;
+  },
+
+  async update(record: FinancialRecord) {
+    const { error } = await supabase.from('financials').update({
+      date: record.date,
+      description: record.description,
+      amount: record.amount,
+      type: record.type,
+      category: record.category,
+      branch: record.branch
+    }).eq('id', record.id);
+    if (error) throw error;
+  },
+
+  async delete(id: string) {
+    const { error } = await supabase.from('financials').delete().eq('id', id);
+    if (error) throw error;
   }
 };
 

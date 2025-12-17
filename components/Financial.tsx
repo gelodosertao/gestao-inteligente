@@ -8,10 +8,12 @@ interface FinancialProps {
    sales: Sale[];
    products: Product[];
    onAddRecord: (records: FinancialRecord[]) => void;
+   onUpdateRecord: (record: FinancialRecord) => void;
+   onDeleteRecord: (id: string) => void;
    onBack: () => void;
 }
 
-const Financial: React.FC<FinancialProps> = ({ records, sales, products, onAddRecord, onBack }) => {
+const Financial: React.FC<FinancialProps> = ({ records, sales, products, onAddRecord, onUpdateRecord, onDeleteRecord, onBack }) => {
 
    const [showAddModal, setShowAddModal] = useState(false);
    const [viewMode, setViewMode] = useState<'CASH_FLOW' | 'DRE'>('CASH_FLOW');
@@ -141,6 +143,21 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, onAddRe
    // Helper for currency
    const formatCurrency = (value: number) => {
       return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+   };
+
+   const [showEditModal, setShowEditModal] = useState(false);
+   const [editingRecord, setEditingRecord] = useState<FinancialRecord | null>(null);
+
+   const handleEditRecord = (record: FinancialRecord) => {
+      setEditingRecord({ ...record });
+      setShowEditModal(true);
+   };
+
+   const handleUpdateRecordSave = () => {
+      if (!editingRecord) return;
+      onUpdateRecord(editingRecord);
+      setShowEditModal(false);
+      setEditingRecord(null);
    };
 
    const handleSaveRecord = () => {
@@ -306,9 +323,19 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, onAddRe
                                  </div>
                               </div>
                            </div>
-                           <span className={`font-bold ${record.type === 'Income' ? 'text-emerald-600' : 'text-rose-600'}`}>
-                              {record.type === 'Income' ? '+' : '-'} {formatCurrency(record.amount)}
-                           </span>
+                           <div className="flex items-center gap-4">
+                              <span className={`font-bold ${record.type === 'Income' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                 {record.type === 'Income' ? '+' : '-'} {formatCurrency(record.amount)}
+                              </span>
+                              <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                 <button onClick={() => handleEditRecord(record)} className="text-slate-400 hover:text-blue-600 p-1">
+                                    <Building2 size={16} />
+                                 </button>
+                                 <button onClick={() => onDeleteRecord(record.id)} className="text-slate-400 hover:text-red-600 p-1">
+                                    <X size={16} />
+                                 </button>
+                              </div>
+                           </div>
                         </div>
                      ))}
                   </div>
@@ -525,6 +552,100 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, onAddRe
                         className="w-full bg-blue-800 hover:bg-blue-700 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue-900/10"
                      >
                         Confirmar Despesa
+                     </button>
+                  </div>
+               </div>
+            </div>
+         )}
+
+
+         {/* --- EDIT RECORD MODAL --- */}
+         {showEditModal && editingRecord && (
+            <div className="fixed inset-0 bg-blue-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+               <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden">
+                  <div className="p-4 bg-blue-900 text-white flex justify-between items-center">
+                     <h3 className="font-bold flex items-center gap-2">
+                        <DollarSign size={20} className="text-orange-400" /> Editar Lançamento
+                     </h3>
+                     <button onClick={() => setShowEditModal(false)}><X size={20} /></button>
+                  </div>
+
+                  <div className="p-6 space-y-4">
+                     <div>
+                        <label className="block text-sm font-bold text-slate-700 mb-1">Unidade</label>
+                        <div className="flex gap-2">
+                           <button
+                              onClick={() => setEditingRecord({ ...editingRecord, branch: Branch.MATRIZ })}
+                              className={`flex-1 py-2 rounded-lg border font-medium text-sm flex items-center justify-center gap-2 ${editingRecord.branch === Branch.MATRIZ ? 'bg-blue-50 border-blue-500 text-blue-700' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                           >
+                              <Building2 size={16} /> Matriz
+                           </button>
+                           <button
+                              onClick={() => setEditingRecord({ ...editingRecord, branch: Branch.FILIAL })}
+                              className={`flex-1 py-2 rounded-lg border font-medium text-sm flex items-center justify-center gap-2 ${editingRecord.branch === Branch.FILIAL ? 'bg-orange-50 border-orange-500 text-orange-700' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                           >
+                              <Building2 size={16} /> Filial
+                           </button>
+                        </div>
+                     </div>
+
+                     <div>
+                        <label className="block text-sm font-bold text-slate-700 mb-1">Descrição</label>
+                        <input
+                           type="text"
+                           className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white text-slate-900 font-medium"
+                           value={editingRecord.description}
+                           onChange={(e) => setEditingRecord({ ...editingRecord, description: e.target.value })}
+                        />
+                     </div>
+
+                     <div className="grid grid-cols-2 gap-4">
+                        <div>
+                           <label className="block text-sm font-bold text-slate-700 mb-1">Valor</label>
+                           <div className="relative">
+                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold">R$</span>
+                              <input
+                                 type="number"
+                                 className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 font-bold text-lg bg-white text-slate-900 text-right"
+                                 value={editingRecord.amount}
+                                 onChange={(e) => setEditingRecord({ ...editingRecord, amount: Number(e.target.value) })}
+                              />
+                           </div>
+                        </div>
+                        <div>
+                           <label className="block text-sm font-bold text-slate-700 mb-1">Data</label>
+                           <input
+                              type="date"
+                              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white text-slate-900 font-medium h-[46px]"
+                              value={editingRecord.date}
+                              onChange={(e) => setEditingRecord({ ...editingRecord, date: e.target.value })}
+                           />
+                        </div>
+                     </div>
+
+                     <div>
+                        <label className="block text-sm font-bold text-slate-700 mb-1">Categoria</label>
+                        <select
+                           className="w-full px-4 py-2 border border-slate-300 rounded-lg bg-white text-slate-900 font-medium"
+                           value={editingRecord.category}
+                           onChange={(e) => setEditingRecord({ ...editingRecord, category: e.target.value })}
+                        >
+                           <option value="Fornecedores">Fornecedores</option>
+                           <option value="Manutenção">Manutenção</option>
+                           <option value="Utilidades">Utilidades (Luz/Água)</option>
+                           <option value="Pessoal">Pessoal / Salários</option>
+                           <option value="Impostos">Impostos</option>
+                           <option value="Aluguel">Aluguel</option>
+                           <option value="Equipamentos">Equipamentos</option>
+                           <option value="Outros">Outros</option>
+                        </select>
+                     </div>
+
+                     <button
+                        onClick={handleUpdateRecordSave}
+                        className="w-full bg-blue-800 hover:bg-blue-700 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue-900/10"
+                     >
+                        Salvar Alterações
                      </button>
                   </div>
                </div>
