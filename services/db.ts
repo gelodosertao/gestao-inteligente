@@ -183,12 +183,29 @@ export const dbFinancials = {
     const { data, error } = await supabase.from('financials').select('*').order('date', { ascending: false });
     if (error) throw error;
 
-    return data || [];
+    return (data || []).map((row: any) => ({
+      id: row.id,
+      date: row.date,
+      description: row.description,
+      amount: row.amount,
+      type: row.type,
+      category: row.category,
+      branch: row.branch as Branch
+    }));
   },
 
   async addBatch(records: FinancialRecord[]) {
     if (records.length === 0) return;
-    const { error } = await supabase.from('financials').insert(records);
+    const rows = records.map(r => ({
+      id: r.id,
+      date: r.date,
+      description: r.description,
+      amount: r.amount,
+      type: r.type,
+      category: r.category,
+      branch: r.branch
+    }));
+    const { error } = await supabase.from('financials').insert(rows);
     if (error) throw error;
   }
 };
