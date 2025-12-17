@@ -305,7 +305,7 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, onAddRe
                   </div>
                   <div className="divide-y divide-slate-100 max-h-[400px] overflow-y-auto">
                      {filteredRecords.map(record => (
-                        <div key={record.id} className="p-4 flex justify-between items-center hover:bg-slate-50 transition-colors">
+                        <div key={record.id} className="p-4 flex justify-between items-center hover:bg-slate-50 transition-colors group">
                            <div className="flex items-center gap-4">
                               <div className={`w-10 h-10 rounded-full flex items-center justify-center ${record.type === 'Income' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
                                  {record.type === 'Income' ? <ArrowUpCircle size={20} /> : <ArrowDownCircle size={20} />}
