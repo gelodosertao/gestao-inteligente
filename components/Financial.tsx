@@ -29,8 +29,15 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, onAddRe
    const [installments, setInstallments] = useState(2); // Default to 2 if recurring
 
    // --- FILTERING ---
-   const filteredRecords = records.filter(r => selectedBranch === 'ALL' || r.branch === selectedBranch);
-   const filteredSales = sales.filter(s => selectedBranch === 'ALL' || s.branch === selectedBranch);
+   const filterByDate = (dateString: string) => {
+      if (dateRange === 'ALL_TIME') return true;
+      const date = new Date(dateString);
+      const now = new Date();
+      return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+   };
+
+   const filteredRecords = records.filter(r => (selectedBranch === 'ALL' || r.branch === selectedBranch) && filterByDate(r.date));
+   const filteredSales = sales.filter(s => (selectedBranch === 'ALL' || s.branch === selectedBranch) && filterByDate(s.date));
 
    // --- DRE CALCULATIONS ---
    const calculateDRE = () => {
@@ -210,6 +217,11 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, onAddRe
                >
                   <Plus size={18} /> Lançar Despesa
                </button>
+
+               <div className="bg-white p-1 rounded-lg border border-slate-200 flex">
+                  <button onClick={() => setDateRange('THIS_MONTH')} className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${dateRange === 'THIS_MONTH' ? 'bg-slate-800 text-white' : 'text-slate-500 hover:bg-slate-50'}`}>Este Mês</button>
+                  <button onClick={() => setDateRange('ALL_TIME')} className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${dateRange === 'ALL_TIME' ? 'bg-slate-800 text-white' : 'text-slate-500 hover:bg-slate-50'}`}>Tudo</button>
+               </div>
             </div>
          </div>
 
