@@ -9,6 +9,7 @@ import Settings from './components/Settings';
 import Login from './components/Login';
 import Customers from './components/Customers';
 import Pricing from './components/Pricing';
+import OnlineMenu from './components/OnlineMenu';
 import { ViewState, User, Product, Sale, FinancialRecord, Branch, Customer } from './types';
 import { MOCK_PRODUCTS, MOCK_SALES, MOCK_FINANCIALS } from './constants';
 import { dbProducts, dbSales, dbFinancials, dbCustomers } from './services/db';
@@ -30,6 +31,12 @@ const App: React.FC = () => {
 
   // --- INITIAL DATA FETCH ---
   useEffect(() => {
+    // Check for public menu access via URL
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('menu') === 'true') {
+      setCurrentView('ONLINE_MENU');
+    }
+
     if (currentUser) {
       loadDataFromCloud();
     }
@@ -172,8 +179,6 @@ const App: React.FC = () => {
     }
   };
 
-
-
   const handleImportCustomers = async (newCustomers: Customer[]) => {
     setCustomers(prev => [...prev, ...newCustomers]);
     try {
@@ -243,6 +248,11 @@ const App: React.FC = () => {
   };
 
   const renderContent = () => {
+    // Special case for Online Menu (Public)
+    if (currentView === 'ONLINE_MENU') {
+      return <OnlineMenu onBack={() => setCurrentView('DASHBOARD')} />;
+    }
+
     if (isLoading) {
       return (
         <div className="h-full flex flex-col items-center justify-center text-slate-500 gap-4">
@@ -295,13 +305,20 @@ const App: React.FC = () => {
       case 'SETTINGS':
         if (!currentUser) return null;
         return <Settings currentUser={currentUser} onResetData={handleResetData} />;
+      case 'ONLINE_MENU':
+        return <OnlineMenu onBack={() => setCurrentView('DASHBOARD')} />;
       default:
         return <Dashboard products={products} sales={sales} financials={financials} customers={customers} />;
     }
   };
 
+  // If viewing Online Menu, bypass login
+  if (currentView === 'ONLINE_MENU') {
+    return <OnlineMenu onBack={() => setCurrentView('DASHBOARD')} />;
+  }
+
   if (!currentUser) {
-    return <Login onLogin={handleLogin} />;
+    return <Login onLogin={handleLogin} onOpenMenu={() => setCurrentView('ONLINE_MENU')} />;
   }
 
   return (

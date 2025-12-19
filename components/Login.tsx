@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
-import { Lock, Mail, ArrowRight, Loader2, Sun, Snowflake, UserPlus, ArrowLeft, User as UserIcon } from 'lucide-react';
+import { Lock, Mail, ArrowRight, Loader2, Sun, Snowflake, UserPlus, ArrowLeft, User as UserIcon, Store } from 'lucide-react';
 import { User, Role } from '../types';
 import { dbUsers } from '../services/db';
 
 interface LoginProps {
   onLogin: (user: User) => void;
+  onOpenMenu: () => void;
 }
 
-const Login: React.FC<LoginProps> = ({ onLogin }) => {
+const Login: React.FC<LoginProps> = ({ onLogin, onOpenMenu }) => {
   const [isRegistering, setIsRegistering] = useState(false);
 
   // Login State
@@ -167,15 +168,25 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 {loading ? <Loader2 className="animate-spin" /> : <>Entrar <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" /></>}
               </button>
 
-              <div className="pt-4 border-t border-slate-100 text-center">
-                <p className="text-slate-500 text-sm mb-3">Primeiro acesso?</p>
+              <div className="pt-4 border-t border-slate-100 text-center space-y-3">
                 <button
                   type="button"
-                  onClick={() => setIsRegistering(true)}
-                  className="w-full bg-slate-50 hover:bg-slate-100 text-blue-700 border border-slate-200 py-2 rounded-xl font-bold transition-all flex items-center justify-center gap-2"
+                  onClick={onOpenMenu}
+                  className="w-full bg-orange-50 hover:bg-orange-100 text-orange-700 border border-orange-200 py-2 rounded-xl font-bold transition-all flex items-center justify-center gap-2"
                 >
-                  <UserPlus size={18} /> Cadastrar Novo Usuário
+                  <Store size={18} /> Acessar Cardápio Digital
                 </button>
+
+                <div>
+                  <p className="text-slate-500 text-sm mb-2">Primeiro acesso?</p>
+                  <button
+                    type="button"
+                    onClick={() => setIsRegistering(true)}
+                    className="w-full bg-slate-50 hover:bg-slate-100 text-blue-700 border border-slate-200 py-2 rounded-xl font-bold transition-all flex items-center justify-center gap-2"
+                  >
+                    <UserPlus size={18} /> Cadastrar Novo Usuário
+                  </button>
+                </div>
               </div>
             </form>
           )}
