@@ -497,7 +497,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                               onClick={() => { setSelectedBranch(Branch.MATRIZ); setCart([]); setIsWholesale(true); }}
                               className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg font-bold transition-all text-xs md:text-base ${selectedBranch === Branch.MATRIZ ? 'bg-white text-blue-700 shadow-md' : 'text-slate-500 hover:text-slate-700'}`}
                            >
-                              <Factory size={16} /> Atacado (Matriz)
+                              <Factory size={16} /> Matriz
                            </button>
                         </div>
 
@@ -555,7 +555,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                      <div className="flex-1 bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col overflow-hidden min-h-[400px]">
                         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-3">
                            <h3 className="font-bold text-slate-700 text-sm md:text-base shrink-0">
-                              {selectedBranch === Branch.MATRIZ ? 'Catálogo Atacado' : 'Catálogo Varejo'}
+                              {selectedBranch === Branch.MATRIZ ? 'Catálogo Matriz' : 'Catálogo Varejo'}
                            </h3>
                            <div className="relative w-full md:w-auto">
                               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -635,8 +635,8 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                      <div className={`p-4 text-white flex justify-between items-center gap-2 ${selectedBranch === Branch.MATRIZ ? 'bg-blue-800' : 'bg-orange-500'}`}>
                         <div className="flex items-center gap-2 shrink-0">
                            <ShoppingCart size={20} className="text-white" />
-                           <span className="font-bold hidden md:inline">Caixa: {selectedBranch === Branch.MATRIZ ? 'ATACADO' : 'VAREJO'}</span>
-                           <span className="font-bold md:hidden">{selectedBranch === Branch.MATRIZ ? 'ATACADO' : 'VAREJO'}</span>
+                           <span className="font-bold hidden md:inline">Caixa: {selectedBranch === Branch.MATRIZ ? 'MATRIZ' : 'VAREJO'}</span>
+                           <span className="font-bold md:hidden">{selectedBranch === Branch.MATRIZ ? 'MATRIZ' : 'VAREJO'}</span>
                         </div>
 
                         {/* Customer Autocomplete */}
