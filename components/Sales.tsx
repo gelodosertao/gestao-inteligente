@@ -48,6 +48,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
    const [invoiceStep, setInvoiceStep] = useState<'FORM' | 'PROCESSING' | 'SUCCESS'>('FORM');
    const [cpf, setCpf] = useState('');
    const [lastCompletedSale, setLastCompletedSale] = useState<Sale | null>(null); // For printing POS receipt
+   const [saleToDownload, setSaleToDownload] = useState<Sale | null>(null); // For downloading history receipt
 
    // --- POS (PDV) STATE ---
    const [selectedBranch, setSelectedBranch] = useState<Branch>(Branch.FILIAL); // Default to Retail/Filial
@@ -344,29 +345,63 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
       }
    };
 
+   // Effect to handle download when saleToDownload is set
+   React.useEffect(() => {
+      if (saleToDownload) {
+         const download = async () => {
+            // Wait for render
+            await new Promise(resolve => setTimeout(resolve, 100));
+
+            const receiptElement = document.getElementById('printable-receipt-content');
+            if (!receiptElement) {
+               setSaleToDownload(null);
+               return;
+            }
+
+            try {
+               const canvas = await html2canvas(receiptElement, {
+                  scale: 2,
+                  backgroundColor: '#ffffff'
+               });
+               const image = canvas.toDataURL("image/jpeg", 0.9);
+               const link = document.createElement('a');
+               link.href = image;
+               link.download = `Cupom-${saleToDownload.id}.jpg`;
+               link.click();
+            } catch (e) {
+               console.error("Erro ao gerar imagem do cupom", e);
+               alert("Erro ao baixar o cupom.");
+            } finally {
+               setSaleToDownload(null);
+            }
+         };
+         download();
+      }
+   }, [saleToDownload]);
+
    return (
       <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 relative h-full">
-         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <div className="flex items-center gap-3">
-               <button onClick={onBack} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
+         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+            <div className="flex items-center gap-3 w-full md:w-auto">
+               <button onClick={onBack} className="p-2 hover:bg-slate-200 rounded-full transition-colors shrink-0">
                   <ArrowLeft size={24} className="text-slate-600" />
                </button>
                <div>
                   <h2 className="text-2xl font-bold text-slate-800">Vendas & PDV</h2>
-                  <p className="text-slate-500">
-                     {activeTab === 'History' ? 'Gerencie vendas e emita Notas Fiscais (NFC-e).' : 'Frente de Caixa - Operador: João Pedro'}
+                  <p className="text-slate-500 text-xs md:text-sm">
+                     {activeTab === 'History' ? 'Gerencie vendas e emita Notas.' : 'Frente de Caixa'}
                   </p>
                </div>
             </div>
-            <div className="bg-slate-200 p-1 rounded-lg flex text-sm font-medium">
+            <div className="bg-slate-200 p-1 rounded-lg flex text-sm font-medium w-full md:w-auto">
                <button
-                  className={`px-4 py-1.5 rounded-md transition-all ${activeTab === 'History' ? 'bg-white text-blue-900 shadow-sm font-bold' : 'text-slate-500 hover:text-slate-700'}`}
+                  className={`flex-1 md:flex-none px-4 py-2 rounded-md transition-all ${activeTab === 'History' ? 'bg-white text-blue-900 shadow-sm font-bold' : 'text-slate-500 hover:text-slate-700'}`}
                   onClick={() => setActiveTab('History')}
                >
                   Histórico
                </button>
                <button
-                  className={`px-4 py-1.5 rounded-md transition-all ${activeTab === 'POS' ? 'bg-white text-orange-600 shadow-sm font-bold' : 'text-slate-500 hover:text-slate-700'}`}
+                  className={`flex-1 md:flex-none px-4 py-2 rounded-md transition-all ${activeTab === 'POS' ? 'bg-white text-orange-600 shadow-sm font-bold' : 'text-slate-500 hover:text-slate-700'}`}
                   onClick={() => setActiveTab('POS')}
                >
                   Nova Venda (PDV)
@@ -412,8 +447,11 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                                  <FileText size={12} /> Emitir Nota
                               </button>
                            ) : (
-                              <button className="text-xs text-slate-400 font-medium hover:text-slate-600 flex items-center gap-1 cursor-pointer">
-                                 <Printer size={12} /> Imprimir DANFE
+                              <button
+                                 onClick={() => setSaleToDownload(sale)}
+                                 className="text-xs text-slate-400 font-medium hover:text-slate-600 flex items-center gap-1 cursor-pointer"
+                              >
+                                 <Download size={12} /> Baixar DANFE
                               </button>
                            )}
                            {currentUser.role === 'ADMIN' && (
@@ -515,18 +553,18 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
 
                      {/* Product Grid */}
                      <div className="flex-1 bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col overflow-hidden min-h-[400px]">
-                        <div className="flex justify-between items-center mb-4">
-                           <h3 className="font-bold text-slate-700 text-sm md:text-base">
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-3">
+                           <h3 className="font-bold text-slate-700 text-sm md:text-base shrink-0">
                               {selectedBranch === Branch.MATRIZ ? 'Catálogo Atacado' : 'Catálogo Varejo'}
                            </h3>
-                           <div className="relative w-1/2 md:w-auto">
-                              <Search size={14} className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400" />
+                           <div className="relative w-full md:w-auto">
+                              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                               <input
                                  type="text"
-                                 placeholder="Buscar..."
+                                 placeholder="Buscar produto..."
                                  value={posSearchTerm}
                                  onChange={(e) => setPosSearchTerm(e.target.value)}
-                                 className="w-full pl-7 pr-3 py-1 text-sm border border-slate-200 rounded-lg bg-slate-50 focus:outline-none focus:ring-1 focus:ring-orange-500"
+                                 className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-orange-500 transition-all"
                               />
                            </div>
                         </div>
@@ -547,7 +585,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                                  <button
                                     key={product.id}
                                     onClick={() => handleProductClick(product)}
-                                    className="flex flex-col items-start justify-between p-3 rounded-2xl border border-slate-100 bg-white shadow-sm hover:shadow-md hover:border-orange-200 transition-all group relative h-36 w-full text-left"
+                                    className="flex flex-col items-start justify-between p-3 rounded-2xl border border-slate-100 bg-white shadow-sm hover:shadow-md hover:border-orange-200 transition-all group relative min-h-[160px] w-full text-left"
                                     disabled={stock <= 0}
                                  >
                                     <div className="w-full flex justify-between items-start mb-2">
@@ -1213,19 +1251,19 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
             )
          }
 
-         {/* --- HIDDEN THERMAL RECEIPT (Visible only on Print) --- */}
-         <div id="printable-receipt" className="hidden">
-            {(lastCompletedSale || selectedSaleForInvoice) && (
-               <div className="p-2 text-xs font-mono">
+         {/* --- HIDDEN THERMAL RECEIPT (Visible only on Print or Download) --- */}
+         <div id="printable-receipt" className={saleToDownload ? "fixed top-0 left-0 z-[-1] opacity-0" : "hidden"}>
+            {(lastCompletedSale || selectedSaleForInvoice || saleToDownload) && (
+               <div id="printable-receipt-content" className="p-4 bg-white w-[300px] text-xs font-mono">
                   <div className="text-center mb-2 border-b border-black pb-2">
                      <h1 className="font-bold text-sm uppercase">Gelo do Sertão</h1>
                      <p>CNPJ: 00.000.000/0001-00</p>
-                     <p>{(lastCompletedSale || selectedSaleForInvoice)?.branch}</p>
-                     <p>Cliente: {(lastCompletedSale || selectedSaleForInvoice)?.customerName}</p>
-                     <p>{(lastCompletedSale || selectedSaleForInvoice)?.date}</p>
+                     <p>{(lastCompletedSale || selectedSaleForInvoice || saleToDownload)?.branch}</p>
+                     <p>Cliente: {(lastCompletedSale || selectedSaleForInvoice || saleToDownload)?.customerName}</p>
+                     <p>{(lastCompletedSale || selectedSaleForInvoice || saleToDownload)?.date}</p>
                   </div>
                   <div className="mb-2">
-                     {(lastCompletedSale || selectedSaleForInvoice)?.items.map((item, i) => (
+                     {(lastCompletedSale || selectedSaleForInvoice || saleToDownload)?.items.map((item, i) => (
                         <div key={i} className="flex justify-between">
                            <span>{item.quantity}x {item.productName.substring(0, 15)}</span>
                            <span>{formatCurrency(item.quantity * item.priceAtSale)}</span>
@@ -1234,7 +1272,14 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                   </div>
                   <div className="border-t border-black pt-1 flex justify-between font-bold">
                      <span>TOTAL</span>
-                     <span>{formatCurrency((lastCompletedSale || selectedSaleForInvoice)?.total || 0)}</span>
+                     <span>{formatCurrency((lastCompletedSale || selectedSaleForInvoice || saleToDownload)?.total || 0)}</span>
+                  </div>
+                  <div className="text-center mt-4 pt-2 border-t border-black">
+                     <p className="font-bold">CUPOM FISCAL</p>
+                     <p>Nº {(lastCompletedSale || selectedSaleForInvoice || saleToDownload)?.id.padStart(6, '0')}</p>
+                     <div className="w-20 h-20 bg-white border border-black mx-auto mt-2 flex items-center justify-center text-[8px]">
+                        [QR CODE]
+                     </div>
                   </div>
                   <div className="mt-4 text-center text-[10px]">
                      <p>Obrigado pela preferência!</p>
