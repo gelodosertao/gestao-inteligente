@@ -1,4 +1,5 @@
 export enum Category {
+  WATER = 'Água',
   BEER = 'Cerveja',
   ENERGY_DRINK = 'Energético',
   ICE_BAR = 'Gelo Barra',
