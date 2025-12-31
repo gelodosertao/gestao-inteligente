@@ -122,30 +122,49 @@ const App: React.FC = () => {
     });
     setProducts(updatedProductsList);
 
-    const newFinancial: FinancialRecord = {
-      id: `f-${Date.now()}`,
-      date: newSale.date,
-      description: `Venda #${newSale.id} - ${newSale.customerName}`,
-      amount: newSale.total,
-      type: 'Income',
-      category: 'Vendas'
-    };
-    setFinancials(prev => [newFinancial, ...prev]);
+    // Only add to financials if Completed
+    if (newSale.status === 'Completed') {
+      const newFinancial: FinancialRecord = {
+        id: `f-${Date.now()}`,
+        date: newSale.date,
+        description: `Venda #${newSale.id} - ${newSale.customerName}`,
+        amount: newSale.total,
+        type: 'Income',
+        category: 'Vendas',
+        branch: newSale.branch
+      };
+      setFinancials(prev => [newFinancial, ...prev]);
 
-    try {
-      await dbSales.add(newSale);
-      await dbFinancials.addBatch([newFinancial]);
+      try {
+        await dbSales.add(newSale);
+        await dbFinancials.addBatch([newFinancial]);
 
-      for (const item of newSale.items) {
-        const product = updatedProductsList.find(p => p.id === item.productId);
-        if (product) {
-          await dbProducts.update(product);
+        for (const item of newSale.items) {
+          const product = updatedProductsList.find(p => p.id === item.productId);
+          if (product) {
+            await dbProducts.update(product);
+          }
         }
+      } catch (e) {
+        console.error("Erro ao sincronizar venda com banco:", e);
+        alert("A venda foi registrada localmente mas houve erro ao salvar na nuvem.");
       }
-    } catch (e) {
-      console.error("Erro ao sincronizar venda com banco:", e);
-      alert("A venda foi registrada localmente mas houve erro ao salvar na nuvem.");
+    } else {
+      // If Pending, just save sale and update stock (stock is reserved even if pending? Usually yes)
+      try {
+        await dbSales.add(newSale);
+        for (const item of newSale.items) {
+          const product = updatedProductsList.find(p => p.id === item.productId);
+          if (product) {
+            await dbProducts.update(product);
+          }
+        }
+      } catch (e) {
+        console.error("Erro ao sincronizar venda pendente:", e);
+      }
     }
+
+
   };
 
   const handleAddFinancialRecord = async (newRecords: FinancialRecord[]) => {

@@ -83,11 +83,14 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
    const [cashReceived, setCashReceived] = useState<string>('');
    const [saleDate, setSaleDate] = useState<string>(new Date().toISOString().split('T')[0]);
    const [discount, setDiscount] = useState<string>(''); // Discount in R$
+   const [isPendingSale, setIsPendingSale] = useState(false);
 
    // Helper for currency
    const formatCurrency = (value: number) => {
       return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
    };
+
+
 
    // Filter products for POS quick select
    // Logic: If Atacado (Matriz), SHOW ONLY ICE PRODUCTS.
@@ -241,6 +244,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
       setCheckoutStep('METHOD');
       setSelectedPaymentMethod(null);
       setCashReceived('');
+      setIsPendingSale(false);
       setSaleDate(new Date().toISOString().split('T')[0]); // Reset to today
       setShowPaymentModal(true);
    };
@@ -266,9 +270,9 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
             customerName: selectedCustomer ? selectedCustomer.name : (selectedBranch === Branch.MATRIZ ? 'Cliente Atacado' : 'Consumidor Final'),
             total: cartTotal,
             branch: selectedBranch,
-            status: 'Completed',
+            status: isPendingSale ? 'Pending' : 'Completed',
             paymentMethod: selectedPaymentMethod || 'Cash',
-            hasInvoice: true, // Auto emit NFC-e
+            hasInvoice: !isPendingSale, // Auto emit NFC-e only if completed
             items: cart.map(c => ({
                productId: c.product.id,
                productName: c.product.name,
@@ -434,6 +438,9 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                      <div className="mt-4 md:mt-0 flex flex-col items-end gap-2 w-full md:w-auto">
                         <span className="font-bold text-lg text-slate-800">{formatCurrency(sale.total)}</span>
                         <div className="flex gap-2 flex-wrap justify-end">
+                           <span className={`px-2 py-0.5 rounded text-xs font-bold border flex items-center gap-1 ${sale.status === 'Completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : sale.status === 'Pending' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
+                              {sale.status === 'Completed' ? 'Concluído' : sale.status === 'Pending' ? 'Pendente' : 'Cancelado'}
+                           </span>
                            <span className={`px-2 py-0.5 rounded text-xs font-bold border flex items-center gap-1 ${sale.hasInvoice ? 'bg-green-50 text-green-700 border-green-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
                               {sale.hasInvoice ? <CheckCircle size={10} /> : <Clock size={10} />}
                               {sale.hasInvoice ? 'NF-e Emitida' : 'Sem NF-e'}
@@ -941,8 +948,21 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                                  </div>
                               )}
 
+                              <div className="mb-6 flex items-center gap-3 p-3 bg-yellow-50 border border-yellow-100 rounded-lg">
+                                 <input
+                                    type="checkbox"
+                                    id="pendingPayment"
+                                    className="w-5 h-5 text-orange-600 rounded focus:ring-orange-500 border-gray-300"
+                                    checked={isPendingSale}
+                                    onChange={(e) => setIsPendingSale(e.target.checked)}
+                                 />
+                                 <label htmlFor="pendingPayment" className="text-sm font-bold text-slate-700 cursor-pointer select-none">
+                                    Marcar como Pendente (Fiado / A Receber)
+                                 </label>
+                              </div>
+
                               <button
-                                 disabled={!selectedPaymentMethod || (selectedPaymentMethod === 'Cash' && (!cashReceived || parseFloat(cashReceived) < cartTotal))}
+                                 disabled={(!isPendingSale && !selectedPaymentMethod) || (selectedPaymentMethod === 'Cash' && !isPendingSale && (!cashReceived || parseFloat(cashReceived) < cartTotal))}
                                  onClick={processPayment}
                                  className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white py-4 rounded-xl font-bold text-lg shadow-lg shadow-blue-900/20 transition-all"
                               >
@@ -1147,6 +1167,18 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                                  value={editingSale.date}
                                  onChange={(e) => setEditingSale({ ...editingSale, date: e.target.value })}
                               />
+                           </div>
+                           <div>
+                              <label className="block text-sm font-bold text-slate-700 mb-1">Status</label>
+                              <select
+                                 className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                                 value={editingSale.status}
+                                 onChange={(e) => setEditingSale({ ...editingSale, status: e.target.value as any })}
+                              >
+                                 <option value="Completed">Concluído</option>
+                                 <option value="Pending">Pendente</option>
+                                 <option value="Cancelled">Cancelado</option>
+                              </select>
                            </div>
                            <div>
                               <label className="block text-sm font-bold text-slate-700 mb-1">Método de Pagamento</label>

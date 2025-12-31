@@ -44,14 +44,16 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
 
   // Current Month Data
   const currentMonthSales = filteredSales.filter(s => isSameMonth(s.date, currentMonth, currentYear));
-  const currentMonthRevenue = currentMonthSales.reduce((acc, curr) => acc + curr.total, 0);
+  const currentMonthRevenue = currentMonthSales.filter(s => s.status === 'Completed').reduce((acc, curr) => acc + curr.total, 0);
+  const currentMonthPending = currentMonthSales.filter(s => s.status === 'Pending').reduce((acc, curr) => acc + curr.total, 0);
   const currentMonthExpenses = filteredFinancials.filter(f => f.type === 'Expense' && isSameMonth(f.date, currentMonth, currentYear)).reduce((acc, curr) => acc + curr.amount, 0);
   const currentMonthProfit = currentMonthRevenue - currentMonthExpenses;
 
   // Last Month Data (for trends)
   // Note: We use the SAME filter for branch to get accurate trends for the selected view
   const lastMonthSales = sales.filter(s => (selectedBranch === 'ALL' || s.branch === selectedBranch) && isSameMonth(s.date, lastMonth, lastMonthYear));
-  const lastMonthRevenue = lastMonthSales.reduce((acc, curr) => acc + curr.total, 0);
+  const lastMonthRevenue = lastMonthSales.filter(s => s.status === 'Completed').reduce((acc, curr) => acc + curr.total, 0);
+  const lastMonthPending = lastMonthSales.filter(s => s.status === 'Pending').reduce((acc, curr) => acc + curr.total, 0);
   const lastMonthExpenses = financials.filter(f => (selectedBranch === 'ALL' || f.branch === selectedBranch) && f.type === 'Expense' && isSameMonth(f.date, lastMonth, lastMonthYear)).reduce((acc, curr) => acc + curr.amount, 0);
   const lastMonthProfit = lastMonthRevenue - lastMonthExpenses;
 
@@ -63,6 +65,7 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
   };
 
   const revenueTrend = calculateTrend(currentMonthRevenue, lastMonthRevenue);
+  const pendingTrend = calculateTrend(currentMonthPending, lastMonthPending);
   const expenseTrend = calculateTrend(currentMonthExpenses, lastMonthExpenses);
   const profitTrend = calculateTrend(currentMonthProfit, lastMonthProfit);
   const salesCountTrend = calculateTrend(currentMonthSales.length, lastMonthSales.length);
@@ -187,13 +190,20 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <Card
           title="Receita (Mês)"
           value={formatCurrency(currentMonthRevenue)}
           icon={<TrendingUp />}
           trend={revenueTrend}
           color="bg-blue-600"
+        />
+        <Card
+          title="A Receber (Fiado)"
+          value={formatCurrency(currentMonthPending)}
+          icon={<AlertTriangle />}
+          trend={pendingTrend}
+          color="bg-yellow-500"
         />
         <Card
           title="Despesas (Mês)"
@@ -301,148 +311,150 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
       </div>
 
       {/* Power BI Modal Simulation */}
-      {showPowerBI && (
-        <div className="fixed inset-0 bg-blue-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-slate-50 w-full max-w-6xl h-[90vh] rounded-xl shadow-2xl overflow-hidden flex flex-col">
-            <div className="bg-[#f2c811] p-4 flex justify-between items-center text-slate-900">
-              <div className="flex items-center gap-3">
-                <div className="bg-black/10 p-2 rounded">
-                  <TrendingUp size={24} />
+      {
+        showPowerBI && (
+          <div className="fixed inset-0 bg-blue-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+            <div className="bg-slate-50 w-full max-w-6xl h-[90vh] rounded-xl shadow-2xl overflow-hidden flex flex-col">
+              <div className="bg-[#f2c811] p-4 flex justify-between items-center text-slate-900">
+                <div className="flex items-center gap-3">
+                  <div className="bg-black/10 p-2 rounded">
+                    <TrendingUp size={24} />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-lg leading-tight">Gelo do Sertão - BI Corporativo</h3>
+                    <p className="text-xs font-medium opacity-80">Atualizado: Agora mesmo</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-bold text-lg leading-tight">Gelo do Sertão - BI Corporativo</h3>
-                  <p className="text-xs font-medium opacity-80">Atualizado: Agora mesmo</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowPowerBI(false)}
-                className="p-2 hover:bg-black/10 rounded-full transition-colors"
-              >
-                <X size={24} />
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-6 bg-slate-100">
-              {/* Fake BI Controls */}
-              <div className="flex flex-wrap gap-3 mb-6 bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
                 <button
-                  onClick={() => setDateRange('THIS_MONTH')}
-                  className={`flex items-center gap-2 text-sm px-3 py-1.5 rounded transition-colors ${dateRange === 'THIS_MONTH' ? 'bg-orange-100 text-orange-700 font-bold border border-orange-200' : 'text-slate-600 bg-slate-50 border border-slate-200 hover:bg-slate-100'}`}
+                  onClick={() => setShowPowerBI(false)}
+                  className="p-2 hover:bg-black/10 rounded-full transition-colors"
                 >
-                  <Calendar size={16} /> Este Mês
-                </button>
-                <button
-                  onClick={() => setDateRange('LAST_MONTH')}
-                  className={`flex items-center gap-2 text-sm px-3 py-1.5 rounded transition-colors ${dateRange === 'LAST_MONTH' ? 'bg-orange-100 text-orange-700 font-bold border border-orange-200' : 'text-slate-600 bg-slate-50 border border-slate-200 hover:bg-slate-100'}`}
-                >
-                  <Calendar size={16} /> Mês Passado
-                </button>
-                <button
-                  onClick={() => setDateRange('YEAR')}
-                  className={`flex items-center gap-2 text-sm px-3 py-1.5 rounded transition-colors ${dateRange === 'YEAR' ? 'bg-orange-100 text-orange-700 font-bold border border-orange-200' : 'text-slate-600 bg-slate-50 border border-slate-200 hover:bg-slate-100'}`}
-                >
-                  <Calendar size={16} /> Este Ano
-                </button>
-                <div className="flex-1" />
-                <button className="flex items-center gap-2 text-sm text-slate-600 hover:text-orange-600">
-                  <Download size={16} /> Exportar PDF
+                  <X size={24} />
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                <div className="bg-white p-5 rounded-lg shadow-sm border border-slate-200">
-                  <p className="text-sm text-slate-500">Previsão de Vendas (Próx. Mês)</p>
-                  <p className="text-2xl font-bold text-blue-800">{formatCurrency(salesForecast)}</p>
-                  <p className="text-xs text-green-600 mt-1 flex items-center gap-1"><ArrowUpRight size={12} /> +5% vs mês anterior</p>
+              <div className="flex-1 overflow-y-auto p-6 bg-slate-100">
+                {/* Fake BI Controls */}
+                <div className="flex flex-wrap gap-3 mb-6 bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
+                  <button
+                    onClick={() => setDateRange('THIS_MONTH')}
+                    className={`flex items-center gap-2 text-sm px-3 py-1.5 rounded transition-colors ${dateRange === 'THIS_MONTH' ? 'bg-orange-100 text-orange-700 font-bold border border-orange-200' : 'text-slate-600 bg-slate-50 border border-slate-200 hover:bg-slate-100'}`}
+                  >
+                    <Calendar size={16} /> Este Mês
+                  </button>
+                  <button
+                    onClick={() => setDateRange('LAST_MONTH')}
+                    className={`flex items-center gap-2 text-sm px-3 py-1.5 rounded transition-colors ${dateRange === 'LAST_MONTH' ? 'bg-orange-100 text-orange-700 font-bold border border-orange-200' : 'text-slate-600 bg-slate-50 border border-slate-200 hover:bg-slate-100'}`}
+                  >
+                    <Calendar size={16} /> Mês Passado
+                  </button>
+                  <button
+                    onClick={() => setDateRange('YEAR')}
+                    className={`flex items-center gap-2 text-sm px-3 py-1.5 rounded transition-colors ${dateRange === 'YEAR' ? 'bg-orange-100 text-orange-700 font-bold border border-orange-200' : 'text-slate-600 bg-slate-50 border border-slate-200 hover:bg-slate-100'}`}
+                  >
+                    <Calendar size={16} /> Este Ano
+                  </button>
+                  <div className="flex-1" />
+                  <button className="flex items-center gap-2 text-sm text-slate-600 hover:text-orange-600">
+                    <Download size={16} /> Exportar PDF
+                  </button>
                 </div>
-                <div className="bg-white p-5 rounded-lg shadow-sm border border-slate-200">
-                  <p className="text-sm text-slate-500">Ticket Médio</p>
-                  <p className="text-2xl font-bold text-slate-800">{formatCurrency(avgTicket)}</p>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                  <div className="bg-white p-5 rounded-lg shadow-sm border border-slate-200">
+                    <p className="text-sm text-slate-500">Previsão de Vendas (Próx. Mês)</p>
+                    <p className="text-2xl font-bold text-blue-800">{formatCurrency(salesForecast)}</p>
+                    <p className="text-xs text-green-600 mt-1 flex items-center gap-1"><ArrowUpRight size={12} /> +5% vs mês anterior</p>
+                  </div>
+                  <div className="bg-white p-5 rounded-lg shadow-sm border border-slate-200">
+                    <p className="text-sm text-slate-500">Ticket Médio</p>
+                    <p className="text-2xl font-bold text-slate-800">{formatCurrency(avgTicket)}</p>
+                  </div>
+                  <div className="bg-white p-5 rounded-lg shadow-sm border border-slate-200">
+                    <p className="text-sm text-slate-500">Taxa de Conversão</p>
+                    <p className="text-2xl font-bold text-slate-800">{conversionRate}%</p>
+                  </div>
                 </div>
-                <div className="bg-white p-5 rounded-lg shadow-sm border border-slate-200">
-                  <p className="text-sm text-slate-500">Taxa de Conversão</p>
-                  <p className="text-2xl font-bold text-slate-800">{conversionRate}%</p>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200">
+                    <h4 className="font-bold text-slate-700 mb-4">Sazonalidade de Vendas (Anual)</h4>
+                    <div className="h-80">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={seasonalityData}>
+                          <defs>
+                            <linearGradient id="colorVendas" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#f97316" stopOpacity={0.8} />
+                              <stop offset="95%" stopColor="#f97316" stopOpacity={0} />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                          <XAxis dataKey="month" fontSize={12} tickLine={false} />
+                          <YAxis fontSize={12} tickLine={false} />
+                          <RechartsTooltip formatter={(value: number) => formatCurrency(value)} />
+                          <Area type="monotone" dataKey="vendas" stroke="#f97316" fillOpacity={1} fill="url(#colorVendas)" />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+
+                  <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200">
+                    <h4 className="font-bold text-slate-700 mb-4">Margem por Categoria</h4>
+                    <div className="h-80 flex items-center justify-center">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart layout="vertical" data={marginData}>
+                          <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                          <XAxis type="number" unit="%" />
+                          <YAxis dataKey="name" type="category" width={100} />
+                          <RechartsTooltip />
+                          <Bar dataKey="margem" fill="#1e40af" radius={[0, 4, 4, 0]} barSize={20} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Customer Analytics Row */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+                  <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200">
+                    <h4 className="font-bold text-slate-700 mb-4">Clientes por Ramo de Atividade</h4>
+                    <div className="h-80">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart layout="vertical" data={customersBySegment}>
+                          <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                          <XAxis type="number" />
+                          <YAxis dataKey="name" type="category" width={120} fontSize={11} />
+                          <RechartsTooltip />
+                          <Bar dataKey="value" fill="#8884d8" radius={[0, 4, 4, 0]} barSize={20} name="Clientes" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+
+                  <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200">
+                    <h4 className="font-bold text-slate-700 mb-4">Top 10 Cidades</h4>
+                    <div className="h-80">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={customersByCity}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                          <XAxis dataKey="name" fontSize={11} interval={0} angle={-45} textAnchor="end" height={60} />
+                          <YAxis />
+                          <RechartsTooltip />
+                          <Bar dataKey="value" fill="#82ca9d" radius={[4, 4, 0, 0]} name="Clientes" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
                 </div>
               </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200">
-                  <h4 className="font-bold text-slate-700 mb-4">Sazonalidade de Vendas (Anual)</h4>
-                  <div className="h-80">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={seasonalityData}>
-                        <defs>
-                          <linearGradient id="colorVendas" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#f97316" stopOpacity={0.8} />
-                            <stop offset="95%" stopColor="#f97316" stopOpacity={0} />
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                        <XAxis dataKey="month" fontSize={12} tickLine={false} />
-                        <YAxis fontSize={12} tickLine={false} />
-                        <RechartsTooltip formatter={(value: number) => formatCurrency(value)} />
-                        <Area type="monotone" dataKey="vendas" stroke="#f97316" fillOpacity={1} fill="url(#colorVendas)" />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-
-                <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200">
-                  <h4 className="font-bold text-slate-700 mb-4">Margem por Categoria</h4>
-                  <div className="h-80 flex items-center justify-center">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart layout="vertical" data={marginData}>
-                        <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                        <XAxis type="number" unit="%" />
-                        <YAxis dataKey="name" type="category" width={100} />
-                        <RechartsTooltip />
-                        <Bar dataKey="margem" fill="#1e40af" radius={[0, 4, 4, 0]} barSize={20} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
+              <div className="bg-slate-50 border-t border-slate-200 p-2 flex justify-center text-xs text-slate-400">
+                Power BI Embedded Simulation • Gelo do Sertão © 2023
               </div>
-
-              {/* Customer Analytics Row */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-                <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200">
-                  <h4 className="font-bold text-slate-700 mb-4">Clientes por Ramo de Atividade</h4>
-                  <div className="h-80">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart layout="vertical" data={customersBySegment}>
-                        <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                        <XAxis type="number" />
-                        <YAxis dataKey="name" type="category" width={120} fontSize={11} />
-                        <RechartsTooltip />
-                        <Bar dataKey="value" fill="#8884d8" radius={[0, 4, 4, 0]} barSize={20} name="Clientes" />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-
-                <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200">
-                  <h4 className="font-bold text-slate-700 mb-4">Top 10 Cidades</h4>
-                  <div className="h-80">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={customersByCity}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                        <XAxis dataKey="name" fontSize={11} interval={0} angle={-45} textAnchor="end" height={60} />
-                        <YAxis />
-                        <RechartsTooltip />
-                        <Bar dataKey="value" fill="#82ca9d" radius={[4, 4, 0, 0]} name="Clientes" />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="bg-slate-50 border-t border-slate-200 p-2 flex justify-center text-xs text-slate-400">
-              Power BI Embedded Simulation • Gelo do Sertão © 2023
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        )
+      }
+    </div >
   );
 };
 
