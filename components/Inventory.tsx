@@ -181,7 +181,9 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
       stockMatriz: Number(newProductData.stockMatriz || 0),
       stockFilial: Number(newProductData.stockFilial || 0),
       unit: newProductData.unit || 'un',
-      minStock: Number(newProductData.minStock || 10)
+      minStock: Number(newProductData.minStock || 10),
+      packSize: newProductData.packSize ? Number(newProductData.packSize) : undefined,
+      pricePack: newProductData.pricePack ? Number(newProductData.pricePack) : undefined
     };
 
     if (isEditing) {
@@ -700,6 +702,30 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
                       <input type="number" className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg bg-white text-slate-900 font-bold"
                         value={newProductData.priceMatriz || ''} onChange={e => setNewProductData({ ...newProductData, priceMatriz: Number(e.target.value) })}
                       />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Configuração de Fardo (Opcional) */}
+                <div className="pt-4 border-t border-slate-200">
+                  <h4 className="text-xs font-bold text-slate-500 uppercase mb-2">Venda em Fardo (Opcional)</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Qtd. no Fardo</label>
+                      <input type="number" className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-white text-slate-900"
+                        placeholder="Ex: 12"
+                        value={newProductData.packSize || ''} onChange={e => setNewProductData({ ...newProductData, packSize: Number(e.target.value) })}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Preço do Fardo</label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-sm">R$</span>
+                        <input type="number" className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg bg-white text-slate-900 font-bold"
+                          placeholder="0.00"
+                          value={newProductData.pricePack || ''} onChange={e => setNewProductData({ ...newProductData, pricePack: Number(e.target.value) })}
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>

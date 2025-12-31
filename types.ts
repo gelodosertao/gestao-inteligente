@@ -30,6 +30,8 @@ export interface Product {
   stockFilial: number;
   unit: string; // kg, un, pack
   minStock: number;
+  packSize?: number; // Quantidade no fardo
+  pricePack?: number; // Preço do fardo
 }
 
 export interface Sale {

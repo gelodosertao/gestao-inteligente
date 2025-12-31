@@ -87,7 +87,9 @@ export const dbProducts = {
       stockMatriz: row.stock_matriz,
       stockFilial: row.stock_filial,
       unit: row.unit,
-      minStock: row.min_stock
+      minStock: row.min_stock,
+      packSize: row.pack_size,
+      pricePack: row.price_pack
     }));
   },
 
@@ -102,7 +104,9 @@ export const dbProducts = {
       stock_matriz: product.stockMatriz,
       stock_filial: product.stockFilial,
       unit: product.unit,
-      min_stock: product.minStock
+      min_stock: product.minStock,
+      pack_size: product.packSize,
+      price_pack: product.pricePack
     }]);
     if (error) throw error;
   },
@@ -117,7 +121,9 @@ export const dbProducts = {
       stock_matriz: product.stockMatriz,
       stock_filial: product.stockFilial,
       unit: product.unit,
-      min_stock: product.minStock
+      min_stock: product.minStock,
+      pack_size: product.packSize,
+      price_pack: product.pricePack
     }).eq('id', product.id);
     if (error) throw error;
   },

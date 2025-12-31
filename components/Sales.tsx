@@ -20,6 +20,7 @@ interface CartItem {
    product: Product;
    quantity: number;
    negotiatedPrice?: number; // Added for wholesale price override
+   isPack?: boolean; // Indicates if the item is a pack (fardo)
 }
 
 type PaymentMethod = 'Pix' | 'Credit' | 'Debit' | 'Cash';
@@ -75,6 +76,9 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
    const [negotiatedPrice, setNegotiatedPrice] = useState<string>('');
    const [negotiatedQty, setNegotiatedQty] = useState<number>(1);
 
+   // --- PACK SELECTION STATE ---
+   const [showPackSelectionModal, setShowPackSelectionModal] = useState(false);
+
    // --- POS CHECKOUT STATE ---
    const [showPaymentModal, setShowPaymentModal] = useState(false);
    const [checkoutStep, setCheckoutStep] = useState<'METHOD' | 'PROCESSING' | 'RECEIPT'>('METHOD');
@@ -111,6 +115,10 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
       // If has negotiated price, use it (regardless of branch)
       if (item.negotiatedPrice !== undefined) {
          return item.negotiatedPrice;
+      }
+      // If is Pack, use Pack Price
+      if (item.isPack && item.product.pricePack) {
+         return item.product.pricePack;
       }
       // If Matriz OR Wholesale Mode enabled in Filial -> Use Wholesale Price
       if (selectedBranch === Branch.MATRIZ || isWholesale) {
@@ -150,6 +158,9 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
          setNegotiatedPrice(defaultPrice.toString());
          setNegotiatedQty(1);
          setShowPriceModal(true);
+      } else if (product.packSize && product.pricePack) {
+         setPendingProduct(product);
+         setShowPackSelectionModal(true);
       } else {
          // Normal add to cart (Non-Ice products)
          addToCart(product);
@@ -177,47 +188,50 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
       setNegotiatedQty(0);
    };
 
-   const addToCart = (product: Product, qty = 1, customPrice?: number) => {
+   const addToCart = (product: Product, qty = 1, customPrice?: number, isPack = false) => {
       const currentStock = getProductStock(product);
+      const stockDeduction = isPack && product.packSize ? qty * product.packSize : qty;
 
       setCart(prev => {
-         const existing = prev.find(item => item.product.id === product.id && item.negotiatedPrice === customPrice);
+         const existing = prev.find(item => item.product.id === product.id && item.negotiatedPrice === customPrice && item.isPack === isPack);
 
          // Check stock limit for existing item
          if (existing) {
-            if (existing.quantity + qty > currentStock) {
+            const currentDeduction = isPack && product.packSize ? existing.quantity * product.packSize : existing.quantity;
+            if (currentDeduction + stockDeduction > currentStock) {
                alert(`Estoque insuficiente na ${selectedBranch}!`);
                return prev;
             }
             return prev.map(item =>
-               item.product.id === product.id && item.negotiatedPrice === customPrice
+               item.product.id === product.id && item.negotiatedPrice === customPrice && item.isPack === isPack
                   ? { ...item, quantity: item.quantity + qty }
                   : item
             );
          }
 
          // Check stock limit for new item
-         if (currentStock < qty) {
+         if (currentStock < stockDeduction) {
             alert(`Produto sem estoque na ${selectedBranch}!`);
             return prev;
          }
-         return [...prev, { product, quantity: qty, negotiatedPrice: customPrice }];
+         return [...prev, { product, quantity: qty, negotiatedPrice: customPrice, isPack }];
       });
       setBarcodeInput(''); // Clear scanner input
    };
 
-   const removeFromCart = (productId: string, pricePoint?: number) => {
-      setCart(prev => prev.filter(item => !(item.product.id === productId && item.negotiatedPrice === pricePoint)));
+   const removeFromCart = (productId: string, pricePoint?: number, isPack?: boolean) => {
+      setCart(prev => prev.filter(item => !(item.product.id === productId && item.negotiatedPrice === pricePoint && item.isPack === isPack)));
    };
 
-   const updateQuantity = (productId: string, delta: number, pricePoint?: number) => {
+   const updateQuantity = (productId: string, delta: number, pricePoint?: number, isPack?: boolean) => {
       setCart(prev => prev.map(item => {
-         if (item.product.id === productId && item.negotiatedPrice === pricePoint) {
+         if (item.product.id === productId && item.negotiatedPrice === pricePoint && item.isPack === isPack) {
             const newQty = item.quantity + delta;
             const product = item.product;
             const currentStock = getProductStock(product);
+            const stockDeduction = isPack && product.packSize ? newQty * product.packSize : newQty;
 
-            if (newQty > currentStock) {
+            if (stockDeduction > currentStock) {
                alert("Limite de estoque atingido!");
                return item;
             }
@@ -275,9 +289,9 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
             hasInvoice: !isPendingSale, // Auto emit NFC-e only if completed
             items: cart.map(c => ({
                productId: c.product.id,
-               productName: c.product.name,
-               quantity: c.quantity,
-               priceAtSale: getProductPrice(c)
+               productName: c.isPack ? `${c.product.name} (Fardo c/${c.product.packSize})` : c.product.name,
+               quantity: c.isPack && c.product.packSize ? c.quantity * c.product.packSize : c.quantity,
+               priceAtSale: c.isPack && c.product.packSize ? (getProductPrice(c) / c.product.packSize) : getProductPrice(c)
             }))
          };
 
@@ -724,14 +738,15 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                                     <p className="text-xs text-slate-500">
                                        {item.quantity} x {formatCurrency(getProductPrice(item))}
                                        {item.negotiatedPrice && <span className="text-blue-600 font-bold ml-1">(Neg)</span>}
+                                       {item.isPack && <span className="text-purple-600 font-bold ml-1">(Fardo c/{item.product.packSize})</span>}
                                     </p>
                                  </div>
                                  <div className="flex items-center gap-3">
                                     <span className="font-bold text-slate-700 text-sm">{formatCurrency(item.quantity * getProductPrice(item))}</span>
                                     <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-0.5">
-                                       <button onClick={() => updateQuantity(item.product.id, -1, item.negotiatedPrice)} className="p-1 hover:bg-white rounded text-slate-600"><Minus size={12} /></button>
-                                       <button onClick={() => removeFromCart(item.product.id, item.negotiatedPrice)} className="p-1 hover:bg-rose-100 text-rose-500 rounded"><Trash2 size={12} /></button>
-                                       <button onClick={() => updateQuantity(item.product.id, 1, item.negotiatedPrice)} className="p-1 hover:bg-white rounded text-slate-600"><Plus size={12} /></button>
+                                       <button onClick={() => updateQuantity(item.product.id, -1, item.negotiatedPrice, item.isPack)} className="p-1 hover:bg-white rounded text-slate-600"><Minus size={12} /></button>
+                                       <button onClick={() => removeFromCart(item.product.id, item.negotiatedPrice, item.isPack)} className="p-1 hover:bg-rose-100 text-rose-500 rounded"><Trash2 size={12} /></button>
+                                       <button onClick={() => updateQuantity(item.product.id, 1, item.negotiatedPrice, item.isPack)} className="p-1 hover:bg-white rounded text-slate-600"><Plus size={12} /></button>
                                     </div>
                                  </div>
                               </div>
@@ -799,6 +814,58 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
             </div>
          )
          }
+
+         {/* --- PACK SELECTION MODAL --- */}
+         {showPackSelectionModal && pendingProduct && (
+            <div className="fixed inset-0 bg-blue-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+               <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
+                  <div className="p-4 bg-purple-600 text-white flex justify-between items-center">
+                     <h3 className="font-bold flex items-center gap-2">
+                        <Store size={20} /> Selecione a Unidade
+                     </h3>
+                     <button onClick={() => { setShowPackSelectionModal(false); setPendingProduct(null); }}><X size={20} /></button>
+                  </div>
+                  <div className="p-6 space-y-4">
+                     <div className="text-center mb-4">
+                        <h4 className="font-bold text-lg text-slate-800">{pendingProduct.name}</h4>
+                        <p className="text-sm text-slate-500">Como deseja vender este item?</p>
+                     </div>
+
+                     <div className="grid grid-cols-2 gap-4">
+                        <button
+                           onClick={() => {
+                              addToCart(pendingProduct, 1, undefined, false);
+                              setShowPackSelectionModal(false);
+                              setPendingProduct(null);
+                           }}
+                           className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-slate-100 hover:border-blue-500 hover:bg-blue-50 transition-all group"
+                        >
+                           <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+                              <span className="font-bold text-xs">{pendingProduct.unit}</span>
+                           </div>
+                           <span className="font-bold text-slate-700">Unidade</span>
+                           <span className="text-lg font-bold text-blue-600">{formatCurrency(selectedBranch === Branch.FILIAL ? pendingProduct.priceFilial : pendingProduct.priceMatriz)}</span>
+                        </button>
+
+                        <button
+                           onClick={() => {
+                              addToCart(pendingProduct, 1, undefined, true);
+                              setShowPackSelectionModal(false);
+                              setPendingProduct(null);
+                           }}
+                           className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-slate-100 hover:border-purple-500 hover:bg-purple-50 transition-all group"
+                        >
+                           <div className="w-12 h-12 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+                              <Store size={20} />
+                           </div>
+                           <span className="font-bold text-slate-700">Fardo ({pendingProduct.packSize}un)</span>
+                           <span className="text-lg font-bold text-purple-600">{formatCurrency(pendingProduct.pricePack || 0)}</span>
+                        </button>
+                     </div>
+                  </div>
+               </div>
+            </div>
+         )}
 
          {/* --- WHOLESALE PRICE NEGOTIATION MODAL --- */}
          {
