@@ -334,12 +334,12 @@ const App: React.FC = () => {
       case 'SETTINGS':
         if (!currentUser) return null;
         return <Settings currentUser={currentUser} onResetData={handleResetData} />;
-      case 'ONLINE_MENU':
-        return <OnlineMenu onBack={() => setCurrentView('DASHBOARD')} />;
       default:
         return <Dashboard products={products} sales={sales} financials={financials} customers={customers} />;
     }
   };
+
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   // If viewing Online Menu, bypass login
   if (currentView === 'ONLINE_MENU') {
@@ -357,9 +357,11 @@ const App: React.FC = () => {
         setView={setCurrentView}
         currentUser={currentUser}
         onLogout={handleLogout}
+        isCollapsed={isSidebarCollapsed}
+        toggleSidebar={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
       />
 
-      <main className="flex-1 md:ml-20 lg:ml-64 p-4 lg:p-8 transition-all duration-300 mb-20 md:mb-0">
+      <main className={`flex-1 transition-all duration-300 mb-20 md:mb-0 p-4 lg:p-8 ${isSidebarCollapsed ? 'md:ml-20' : 'md:ml-20 lg:ml-64'}`}>
         <div className="max-w-7xl mx-auto h-full">
           {renderContent()}
         </div>

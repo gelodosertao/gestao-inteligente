@@ -778,7 +778,7 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
                           {Object.values(Category).map(c => <option key={c} value={c}>{c}</option>)}
                         </select>
                       </td>
-                      <td className="p-2 border text-center font-bold">{item.stockMatriz}</td>
+                      <td className="p-2 border text-center font-bold">{item.stockFilial}</td>
                       <td className="p-2 border text-slate-500">{formatCurrency(item.cost || 0)}</td>
                       <td className="p-2 border">
                         <input

@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Package, ShoppingCart, DollarSign, Sparkles, Settings, LogOut, Sun, Users, Calculator } from 'lucide-react';
+import { LayoutDashboard, Package, ShoppingCart, DollarSign, Sparkles, Settings, LogOut, Sun, Users, Calculator, ChevronLeft, ChevronRight } from 'lucide-react';
 import { ViewState, User } from '../types';
 
 interface AppSidebarProps {
@@ -7,9 +7,11 @@ interface AppSidebarProps {
   setView: (view: ViewState) => void;
   currentUser: User;
   onLogout: () => void;
+  isCollapsed: boolean;
+  toggleSidebar: () => void;
 }
 
-const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, setView, currentUser, onLogout }) => {
+const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, setView, currentUser, onLogout, isCollapsed, toggleSidebar }) => {
   // Define menu structure based on roles
   const allMenuItems = [
     { id: 'DASHBOARD', label: 'Dashboard', icon: LayoutDashboard, roles: ['ADMIN', 'OPERATOR'] },
@@ -26,8 +28,8 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, setView, currentUs
   return (
     <>
       {/* DESKTOP SIDEBAR */}
-      <div className="hidden md:flex w-20 lg:w-64 bg-blue-900 text-white flex-col h-screen fixed left-0 top-0 z-50 transition-all duration-300 shadow-xl border-r border-blue-800">
-        <div className="p-4 flex flex-col items-center justify-center border-b border-blue-800 h-28 relative overflow-hidden">
+      <div className={`hidden md:flex flex-col h-screen fixed left-0 top-0 z-50 transition-all duration-300 shadow-xl border-r border-blue-800 bg-blue-900 text-white ${isCollapsed ? 'w-20' : 'w-20 lg:w-64'}`}>
+        <div className="p-4 flex flex-col items-center justify-center border-b border-blue-800 h-28 relative overflow-hidden shrink-0">
           {/* Logo Image */}
           <div className="relative z-10 flex flex-col items-center select-none">
             <img src="/logo.png" alt="Gelo do Sertão" className="h-16 w-auto object-contain drop-shadow-md" />
@@ -35,9 +37,18 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, setView, currentUs
           <div className="absolute -right-4 -top-4 text-orange-500 opacity-10 rotate-12">
             <Sun size={80} />
           </div>
+
+          {/* Toggle Button (Desktop Only) */}
+          <button
+            onClick={toggleSidebar}
+            className="hidden lg:flex absolute bottom-2 right-2 text-blue-300 hover:text-white bg-blue-950/50 p-1 rounded-full transition-colors"
+            title={isCollapsed ? "Expandir Menu" : "Recolher Menu"}
+          >
+            {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+          </button>
         </div>
 
-        <nav className="flex-1 py-6 px-2 lg:px-4 space-y-2 overflow-y-auto">
+        <nav className="flex-1 py-6 px-2 lg:px-4 space-y-2 overflow-y-auto overflow-x-hidden">
           {visibleItems.map((item) => {
             const isActive = currentView === item.id;
             return (
@@ -50,28 +61,30 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, setView, currentUs
                     : 'text-blue-200 hover:bg-blue-800 hover:text-white'
                   }
                 `}
+                title={isCollapsed ? item.label : ''}
               >
-                <item.icon size={20} className={`${isActive ? 'text-white' : 'text-blue-300 group-hover:text-white'}`} />
-                <span className="hidden lg:block font-medium">{item.label}</span>
-                {isActive && <div className="hidden lg:block absolute right-3 w-1.5 h-1.5 rounded-full bg-white animate-pulse" />}
+                <item.icon size={20} className={`shrink-0 ${isActive ? 'text-white' : 'text-blue-300 group-hover:text-white'}`} />
+                <span className={`hidden font-medium whitespace-nowrap ${!isCollapsed ? 'lg:block' : ''}`}>{item.label}</span>
+                {isActive && <div className={`hidden absolute right-3 w-1.5 h-1.5 rounded-full bg-white animate-pulse ${!isCollapsed ? 'lg:block' : ''}`} />}
               </button>
             );
           })}
         </nav>
 
-        <div className="p-4 border-t border-blue-800 space-y-2 bg-blue-950/30">
+        <div className="p-4 border-t border-blue-800 space-y-2 bg-blue-950/30 shrink-0">
           {currentUser.role === 'ADMIN' && (
             <button
               onClick={() => setView('SETTINGS')}
               className={`w-full flex items-center justify-center lg:justify-start gap-3 p-2 rounded-lg transition-colors ${currentView === 'SETTINGS' ? 'bg-blue-800 text-orange-400' : 'text-blue-300 hover:text-white hover:bg-blue-800'}`}
+              title={isCollapsed ? "Configurações" : ''}
             >
-              <Settings size={20} />
-              <span className="hidden lg:block text-sm font-medium">Configurações</span>
+              <Settings size={20} className="shrink-0" />
+              <span className={`hidden text-sm font-medium whitespace-nowrap ${!isCollapsed ? 'lg:block' : ''}`}>Configurações</span>
             </button>
           )}
 
-          <div className="hidden lg:flex items-center gap-3 pt-2">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-orange-400 to-orange-600 flex items-center justify-center font-bold text-white shadow-sm border-2 border-blue-800">
+          <div className={`hidden items-center gap-3 pt-2 ${!isCollapsed ? 'lg:flex' : ''}`}>
+            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-orange-400 to-orange-600 flex items-center justify-center font-bold text-white shadow-sm border-2 border-blue-800 shrink-0">
               {currentUser.avatarInitials}
             </div>
             <div className="flex-1 overflow-hidden">
@@ -83,8 +96,8 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, setView, currentUs
             </button>
           </div>
 
-          <div className="lg:hidden flex justify-center pt-2">
-            <button onClick={onLogout} className="text-blue-300 hover:text-rose-400">
+          <div className={`flex justify-center pt-2 ${!isCollapsed ? 'lg:hidden' : ''}`}>
+            <button onClick={onLogout} className="text-blue-300 hover:text-rose-400" title="Sair">
               <LogOut size={20} />
             </button>
           </div>
