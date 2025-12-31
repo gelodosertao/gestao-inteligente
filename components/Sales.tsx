@@ -878,7 +878,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                         {checkoutStep !== 'RECEIPT' && <button onClick={() => setShowPaymentModal(false)}><X size={20} /></button>}
                      </div>
 
-                     <div className="p-6">
+                     <div className="p-6 overflow-y-auto flex-1">
                         {checkoutStep === 'METHOD' && (
                            <>
                               <div className="text-center mb-6">
