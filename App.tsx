@@ -96,6 +96,16 @@ const App: React.FC = () => {
     }
   };
 
+  const handleDeleteProduct = async (productId: string) => {
+    setProducts(prev => prev.filter(p => p.id !== productId));
+    try {
+      await dbProducts.delete(productId);
+    } catch (e) {
+      console.error(e);
+      alert("Erro ao excluir produto no banco.");
+    }
+  };
+
   const handleAddSale = async (newSale: Sale) => {
     setSales(prev => [newSale, ...prev]);
 

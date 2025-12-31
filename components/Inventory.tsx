@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Product, Branch, Category, Sale, FinancialRecord } from '../types';
-import { Search, Plus, ArrowRightLeft, Filter, Save, X, Truck, AlertTriangle, Upload, FileText, ArrowLeft, AlertOctagon, Edit, Calculator, DollarSign, TrendingUp } from 'lucide-react';
+import { Search, Plus, ArrowRightLeft, Filter, Save, X, Truck, AlertTriangle, Upload, FileText, ArrowLeft, AlertOctagon, Edit, Calculator, DollarSign, TrendingUp, Trash2 } from 'lucide-react';
 
 interface InventoryProps {
   products: Product[];
@@ -8,10 +8,11 @@ interface InventoryProps {
   financials: FinancialRecord[];
   onUpdateProduct: (product: Product) => void;
   onAddProduct: (product: Product) => void;
+  onDeleteProduct: (productId: string) => void;
   onBack: () => void;
 }
 
-const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUpdateProduct, onAddProduct, onBack }) => {
+const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUpdateProduct, onAddProduct, onDeleteProduct, onBack }) => {
   const [filter, setFilter] = useState('');
 
   // Modal States
@@ -395,6 +396,17 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
                         className="text-slate-400 hover:text-blue-600 text-sm font-medium transition-colors flex items-center gap-1"
                       >
                         <Edit size={16} /> Editar
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (confirm(`Tem certeza que deseja excluir o produto "${product.name}"?`)) {
+                            onDeleteProduct(product.id);
+                          }
+                        }}
+                        className="text-slate-400 hover:text-red-600 text-sm font-medium transition-colors flex items-center gap-1 ml-2"
+                        title="Excluir Produto"
+                      >
+                        <Trash2 size={16} />
                       </button>
                     </td>
                   </tr>
