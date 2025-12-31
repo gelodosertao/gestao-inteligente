@@ -586,7 +586,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                            </div>
                         )}
 
-                        <div className="overflow-y-auto grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-3 pr-2">
+                        <div className="flex-1 overflow-y-auto grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-3 pr-2 content-start">
                            {filteredPosProducts.map(product => {
                               const stock = getProductStock(product);
                               const isWholesaleIce = product.category.includes('Gelo');
@@ -962,7 +962,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                               </div>
 
                               <button
-                                 disabled={(!isPendingSale && !selectedPaymentMethod) || (selectedPaymentMethod === 'Cash' && !isPendingSale && (!cashReceived || parseFloat(cashReceived) < cartTotal))}
+                                 disabled={(!isPendingSale && !selectedPaymentMethod) || (selectedPaymentMethod === 'Cash' && !isPendingSale && cashReceived !== '' && parseFloat(cashReceived) < cartTotal)}
                                  onClick={processPayment}
                                  className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white py-4 rounded-xl font-bold text-lg shadow-lg shadow-blue-900/20 transition-all"
                               >
