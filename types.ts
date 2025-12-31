@@ -1,11 +1,16 @@
 export enum Category {
+  BEER = 'Cerveja',
+  ENERGY_DRINK = 'Energético',
+  ICE_BAR = 'Gelo Barra',
   ICE_CUBE = 'Gelo Cubo',
   ICE_FLAKE = 'Gelo Escama',
-  ICE_BAR = 'Gelo Barra',
   ICE_FLAVOR = 'Gelo Sabor',
-  BEVERAGE_ALCOHOL = 'Bebida Alcoólica',
-  BEVERAGE_NON_ALCOHOL = 'Bebida Não Alcoólica',
-  OTHER = 'Outros'
+  GIN = 'Gin',
+  LIQUEUR = 'Licor',
+  OTHER = 'Outros',
+  SODA = 'Refrigerante',
+  VODKA = 'Vodka',
+  WHISKY = 'Whisky'
 }
 
 export enum Branch {

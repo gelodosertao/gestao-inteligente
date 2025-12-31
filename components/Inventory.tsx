@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { Product, Branch, Category } from '../types';
-import { Search, Plus, ArrowRightLeft, Filter, Save, X, Truck, AlertTriangle, Upload, FileText, ArrowLeft } from 'lucide-react';
+import { Product, Branch, Category, Sale, FinancialRecord } from '../types';
+import { Search, Plus, ArrowRightLeft, Filter, Save, X, Truck, AlertTriangle, Upload, FileText, ArrowLeft, AlertOctagon, Edit, Calculator, DollarSign, TrendingUp } from 'lucide-react';
 
 interface InventoryProps {
   products: Product[];
+  sales: Sale[];
+  financials: FinancialRecord[];
   onUpdateProduct: (product: Product) => void;
   onAddProduct: (product: Product) => void;
   onBack: () => void;
 }
 
-const Inventory: React.FC<InventoryProps> = ({ products, onUpdateProduct, onAddProduct, onBack }) => {
+const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUpdateProduct, onAddProduct, onBack }) => {
   const [filter, setFilter] = useState('');
 
   // Modal States
@@ -23,14 +25,65 @@ const Inventory: React.FC<InventoryProps> = ({ products, onUpdateProduct, onAddP
 
   // Form States
   const [transferQty, setTransferQty] = useState(0);
-  const [adjustQtyMatriz, setAdjustQtyMatriz] = useState(0);
-  const [adjustQtyFilial, setAdjustQtyFilial] = useState(0);
+
+  const [isEditing, setIsEditing] = useState(false);
+
+  // Loss Registration State
+  const [showLossModal, setShowLossModal] = useState(false);
+  const [lossData, setLossData] = useState({
+    branch: Branch.FILIAL,
+    quantity: 1,
+    reason: 'Quebra/Dano'
+  });
 
   // New Product Form
   const [newProductData, setNewProductData] = useState<Partial<Product>>({
     category: Category.ICE_CUBE,
     unit: 'un'
   });
+
+  // Pricing Calculator State
+  const [taxRate, setTaxRate] = useState(4);
+  const [cardFee, setCardFee] = useState(2);
+  const [fixedCostRate, setFixedCostRate] = useState(10);
+  const [desiredMargin, setDesiredMargin] = useState(20);
+
+  const calculateFinancialMetrics = () => {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const recentSales = sales.filter(s => new Date(s.date) >= thirtyDaysAgo);
+    const recentFinancials = financials.filter(f => new Date(f.date) >= thirtyDaysAgo && f.type === 'Expense');
+
+    const totalRevenue = recentSales.reduce((sum, s) => sum + s.total, 0);
+    const totalExpenses = recentFinancials.reduce((sum, f) => sum + f.amount, 0);
+
+    if (totalRevenue > 0) {
+      // Assume expenses in DB are mostly Fixed Costs (Overhead)
+      const expenseRate = (totalExpenses / totalRevenue) * 100;
+      setFixedCostRate(Math.round(expenseRate));
+      alert(`Dados carregados dos últimos 30 dias:\nReceita: R$ ${totalRevenue.toFixed(2)}\nDespesas: R$ ${totalExpenses.toFixed(2)}\n\nTaxa de Custos Fixos Sugerida: ${Math.round(expenseRate)}%`);
+    } else {
+      alert("Sem dados de vendas suficientes nos últimos 30 dias para calcular.");
+    }
+  };
+
+  // Auto-calculate price when factors change
+  useEffect(() => {
+    if (newProductData.cost) {
+      const totalDeductions = taxRate + cardFee + fixedCostRate + desiredMargin;
+      if (totalDeductions < 100) {
+        const divisor = 1 - (totalDeductions / 100);
+        const suggestedPrice = newProductData.cost / divisor;
+
+        // Update both prices for now, or maybe just suggest?
+        // Let's NOT auto-update the fields, but show a suggestion or have a button "Aplicar Sugestão".
+        // Or better, update the fields if they are empty?
+        // The user wants to EDIT.
+      }
+    }
+  }, [newProductData.cost, taxRate, cardFee, fixedCostRate, desiredMargin]);
+
 
   const formatCurrency = (value: number) => {
     return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -51,11 +104,23 @@ const Inventory: React.FC<InventoryProps> = ({ products, onUpdateProduct, onAddP
     }
   };
 
-  const handleOpenAdjust = (product: Product) => {
+  const handleOpenEdit = (product: Product) => {
     setSelectedProduct(product);
-    setAdjustQtyMatriz(product.stockMatriz);
-    setAdjustQtyFilial(product.stockFilial);
-    setShowAdjustModal(true);
+    setNewProductData({
+      ...product
+    });
+    setIsEditing(true);
+    setShowNewProductModal(true);
+  };
+
+  const handleOpenLoss = (product: Product) => {
+    setSelectedProduct(product);
+    setLossData({
+      branch: Branch.FILIAL,
+      quantity: 1,
+      reason: 'Quebra/Dano'
+    });
+    setShowLossModal(true);
   };
 
   const executeTransfer = () => {
@@ -74,24 +139,39 @@ const Inventory: React.FC<InventoryProps> = ({ products, onUpdateProduct, onAddP
     setShowTransferModal(false);
   };
 
-  const executeAdjust = () => {
+
+
+  const executeLoss = () => {
     if (!selectedProduct) return;
+
+    if (lossData.quantity <= 0) {
+      alert("A quantidade deve ser maior que zero.");
+      return;
+    }
+
+    const currentStock = lossData.branch === Branch.MATRIZ ? selectedProduct.stockMatriz : selectedProduct.stockFilial;
+
+    if (lossData.quantity > currentStock) {
+      alert(`Quantidade de perda maior que o estoque atual na ${lossData.branch}.`);
+      return;
+    }
 
     const updatedProduct = {
       ...selectedProduct,
-      stockMatriz: Number(adjustQtyMatriz),
-      stockFilial: Number(adjustQtyFilial)
+      stockMatriz: lossData.branch === Branch.MATRIZ ? selectedProduct.stockMatriz - lossData.quantity : selectedProduct.stockMatriz,
+      stockFilial: lossData.branch === Branch.FILIAL ? selectedProduct.stockFilial - lossData.quantity : selectedProduct.stockFilial
     };
 
     onUpdateProduct(updatedProduct);
-    setShowAdjustModal(false);
+    setShowLossModal(false);
+    alert(`Perda de ${lossData.quantity} itens registrada com sucesso.`);
   };
 
   const executeNewProduct = () => {
     if (!newProductData.name || !newProductData.priceFilial) return;
 
-    const newProduct: Product = {
-      id: Date.now().toString(),
+    const productToSave: Product = {
+      id: isEditing && selectedProduct ? selectedProduct.id : Date.now().toString(),
       name: newProductData.name,
       category: newProductData.category as Category,
       priceMatriz: Number(newProductData.priceMatriz || 0),
@@ -103,9 +183,16 @@ const Inventory: React.FC<InventoryProps> = ({ products, onUpdateProduct, onAddP
       minStock: Number(newProductData.minStock || 10)
     };
 
-    onAddProduct(newProduct);
+    if (isEditing) {
+      onUpdateProduct(productToSave);
+    } else {
+      onAddProduct(productToSave);
+    }
+
     setShowNewProductModal(false);
     setNewProductData({ category: Category.ICE_CUBE, unit: 'un' });
+    setIsEditing(false);
+    setSelectedProduct(null);
   };
 
   // --- XML IMPORT FUNCTIONS ---
@@ -214,7 +301,11 @@ const Inventory: React.FC<InventoryProps> = ({ products, onUpdateProduct, onAddP
             <ArrowRightLeft size={18} /> Transferir (Matriz {'->'} Filial)
           </button>
           <button
-            onClick={() => setShowNewProductModal(true)}
+            onClick={() => {
+              setIsEditing(false);
+              setNewProductData({ category: Category.ICE_CUBE, unit: 'un' });
+              setShowNewProductModal(true);
+            }}
             className="bg-orange-500 hover:bg-orange-400 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 shadow-lg shadow-orange-900/20 transition-colors"
           >
             <Plus size={18} /> Novo Produto
@@ -291,12 +382,19 @@ const Inventory: React.FC<InventoryProps> = ({ products, onUpdateProduct, onAddP
                         <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold">Normal</span>
                       )}
                     </td>
-                    <td className="p-4 text-right">
+                    <td className="p-4 text-right flex justify-end gap-2">
                       <button
-                        onClick={() => handleOpenAdjust(product)}
-                        className="text-slate-400 hover:text-blue-600 text-sm font-medium transition-colors"
+                        onClick={() => handleOpenLoss(product)}
+                        className="text-red-400 hover:text-red-600 text-sm font-medium transition-colors flex items-center gap-1"
+                        title="Registrar Perda"
                       >
-                        Ajustar
+                        <AlertOctagon size={16} />
+                      </button>
+                      <button
+                        onClick={() => handleOpenEdit(product)}
+                        className="text-slate-400 hover:text-blue-600 text-sm font-medium transition-colors flex items-center gap-1"
+                      >
+                        <Edit size={16} /> Editar
                       </button>
                     </td>
                   </tr>
@@ -372,51 +470,90 @@ const Inventory: React.FC<InventoryProps> = ({ products, onUpdateProduct, onAddP
         </div>
       )}
 
-      {/* --- MODAL DE AJUSTE MANUAL --- */}
-      {showAdjustModal && selectedProduct && (
-        <div className="fixed inset-0 bg-blue-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+      {/* --- MODAL DE REGISTRO DE PERDAS --- */}
+      {showLossModal && selectedProduct && (
+        <div className="fixed inset-0 bg-red-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
           <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
-            <div className="p-4 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
-              <h3 className="font-bold text-slate-800">Ajuste Manual de Estoque</h3>
-              <button onClick={() => setShowAdjustModal(false)} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
+            <div className="p-4 bg-red-600 text-white flex justify-between items-center">
+              <h3 className="font-bold flex items-center gap-2">
+                <AlertOctagon size={20} /> Registrar Perda de Estoque
+              </h3>
+              <button onClick={() => setShowLossModal(false)}><X size={20} /></button>
             </div>
             <div className="p-6 space-y-4">
-              <div className="mb-4">
+              <div className="mb-2">
                 <p className="font-bold text-lg text-slate-800">{selectedProduct.name}</p>
-                <p className="text-sm text-slate-500">Correção de quebras ou contagem.</p>
+                <p className="text-sm text-slate-500">O estoque será deduzido automaticamente.</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-1">Local da Perda</label>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setLossData({ ...lossData, branch: Branch.MATRIZ })}
+                    className={`flex-1 py-2 rounded-lg border font-medium transition-all ${lossData.branch === Branch.MATRIZ ? 'bg-blue-50 border-blue-500 text-blue-700' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}
+                  >
+                    Matriz
+                  </button>
+                  <button
+                    onClick={() => setLossData({ ...lossData, branch: Branch.FILIAL })}
+                    className={`flex-1 py-2 rounded-lg border font-medium transition-all ${lossData.branch === Branch.FILIAL ? 'bg-orange-50 border-orange-500 text-orange-700' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}
+                  >
+                    Filial
+                  </button>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 mb-1 uppercase">Matriz</label>
+                  <label className="block text-sm font-bold text-slate-700 mb-1">Quantidade</label>
                   <input
                     type="number"
-                    value={adjustQtyMatriz}
-                    onChange={(e) => setAdjustQtyMatriz(Number(e.target.value))}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg font-mono text-lg font-bold text-blue-600 bg-white"
+                    min="1"
+                    value={lossData.quantity}
+                    onChange={(e) => setLossData({ ...lossData, quantity: Number(e.target.value) })}
+                    className="w-full px-4 py-2 border border-slate-200 rounded-lg font-bold text-lg text-slate-900 focus:ring-2 focus:ring-red-500 outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 mb-1 uppercase">Filial</label>
-                  <input
-                    type="number"
-                    value={adjustQtyFilial}
-                    onChange={(e) => setAdjustQtyFilial(Number(e.target.value))}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg font-mono text-lg font-bold text-orange-600 bg-white"
-                  />
+                  <label className="block text-sm font-bold text-slate-700 mb-1">Motivo</label>
+                  <select
+                    value={lossData.reason}
+                    onChange={(e) => setLossData({ ...lossData, reason: e.target.value })}
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-lg bg-white text-slate-900 focus:ring-2 focus:ring-red-500 outline-none"
+                  >
+                    <option>Quebra/Dano</option>
+                    <option>Validade/Vencido</option>
+                    <option>Roubo/Furto</option>
+                    <option>Consumo Interno</option>
+                    <option>Ajuste de Inventário</option>
+                    <option>Outros</option>
+                  </select>
                 </div>
               </div>
 
+              <div className="bg-red-50 p-3 rounded-lg border border-red-100 text-xs text-red-800">
+                <strong>Atenção:</strong> Esta ação reduzirá o estoque atual de
+                <strong className="ml-1">
+                  {lossData.branch === Branch.MATRIZ ? selectedProduct.stockMatriz : selectedProduct.stockFilial}
+                </strong> para
+                <strong className="ml-1">
+                  {(lossData.branch === Branch.MATRIZ ? selectedProduct.stockMatriz : selectedProduct.stockFilial) - lossData.quantity}
+                </strong>.
+              </div>
+
               <button
-                onClick={executeAdjust}
-                className="w-full bg-slate-800 hover:bg-slate-700 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 mt-2"
+                onClick={executeLoss}
+                className="w-full bg-red-600 hover:bg-red-700 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-red-900/20"
               >
-                <Save size={18} /> Salvar Alterações
+                Confirmar Perda
               </button>
             </div>
           </div>
         </div>
       )}
+
+
 
       {/* --- MODAL NOVO PRODUTO --- */}
       {showNewProductModal && (
@@ -424,7 +561,8 @@ const Inventory: React.FC<InventoryProps> = ({ products, onUpdateProduct, onAddP
           <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden">
             <div className="p-4 bg-orange-500 text-white flex justify-between items-center">
               <h3 className="font-bold flex items-center gap-2">
-                <Plus size={20} /> Cadastrar Novo Produto
+                {isEditing ? <Edit size={20} /> : <Plus size={20} />}
+                {isEditing ? 'Editar Produto' : 'Cadastrar Novo Produto'}
               </h3>
               <button onClick={() => setShowNewProductModal(false)}><X size={20} /></button>
             </div>
@@ -460,48 +598,111 @@ const Inventory: React.FC<InventoryProps> = ({ products, onUpdateProduct, onAddP
                 </div>
               </div>
 
-              <div className="p-3 bg-slate-50 border border-slate-100 rounded-lg space-y-3">
-                <h4 className="text-xs font-bold text-slate-500 uppercase">Precificação</h4>
-                <div className="grid grid-cols-2 gap-4">
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-4">
+                <div className="flex justify-between items-center">
+                  <h4 className="text-sm font-bold text-slate-700 uppercase flex items-center gap-2">
+                    <Calculator size={16} className="text-blue-600" /> Precificação Inteligente
+                  </h4>
+                  <button
+                    onClick={calculateFinancialMetrics}
+                    className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200 transition-colors font-medium"
+                    title="Basear em despesas lançadas (últimos 30 dias)"
+                  >
+                    Carregar Dados Financeiros
+                  </button>
+                </div>
+
+                {/* Custo Base */}
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1">Custo do Produto (CMV)</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-sm">R$</span>
+                    <input type="number" className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg bg-white text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none"
+                      value={newProductData.cost || ''} onChange={e => setNewProductData({ ...newProductData, cost: Number(e.target.value) })}
+                      placeholder="0.00"
+                    />
+                  </div>
+                </div>
+
+                {/* Calculadora de Taxas */}
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div>
+                    <label className="block text-slate-500 mb-1">Impostos + Taxas (%)</label>
+                    <div className="flex gap-2">
+                      <input type="number" className="w-full px-2 py-1 border border-slate-200 rounded"
+                        value={taxRate} onChange={e => setTaxRate(Number(e.target.value))} title="Impostos" placeholder="Imp." />
+                      <input type="number" className="w-full px-2 py-1 border border-slate-200 rounded"
+                        value={cardFee} onChange={e => setCardFee(Number(e.target.value))} title="Taxas Cartão" placeholder="Cartão" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-slate-500 mb-1">Custos Fixos + Margem (%)</label>
+                    <div className="flex gap-2">
+                      <input type="number" className="w-full px-2 py-1 border border-slate-200 rounded text-purple-700 font-medium"
+                        value={fixedCostRate} onChange={e => setFixedCostRate(Number(e.target.value))} title="Custos Fixos (Rateio)" placeholder="Fixo" />
+                      <input type="number" className="w-full px-2 py-1 border border-slate-200 rounded text-emerald-700 font-bold"
+                        value={desiredMargin} onChange={e => setDesiredMargin(Number(e.target.value))} title="Margem de Lucro" placeholder="Lucro" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Sugestão de Preço */}
+                {(newProductData.cost || 0) > 0 && (
+                  <div className="bg-blue-50 p-3 rounded-lg border border-blue-100">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-xs text-blue-800 font-medium">Preço Sugerido (Varejo):</span>
+                      <span className="text-lg font-bold text-blue-900">
+                        {formatCurrency((newProductData.cost || 0) / (1 - ((taxRate + cardFee + fixedCostRate + desiredMargin) / 100)))}
+                      </span>
+                    </div>
+                    <div className="w-full bg-blue-200 h-1.5 rounded-full overflow-hidden flex">
+                      <div className="bg-slate-400 h-full" style={{ width: `${((newProductData.cost || 0) / ((newProductData.cost || 0) / (1 - ((taxRate + cardFee + fixedCostRate + desiredMargin) / 100)))) * 100}%` }} title="Custo"></div>
+                      <div className="bg-red-400 h-full" style={{ width: `${taxRate + cardFee}%` }} title="Impostos/Taxas"></div>
+                      <div className="bg-purple-400 h-full" style={{ width: `${fixedCostRate}%` }} title="Custos Fixos"></div>
+                      <div className="bg-emerald-500 h-full flex-1" title="Lucro"></div>
+                    </div>
+                    <div className="flex justify-between text-[10px] text-slate-500 mt-1 px-1">
+                      <span>Custo</span>
+                      <span>Var.</span>
+                      <span>Fixo</span>
+                      <span>Lucro</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Preços Finais */}
+                <div className="grid grid-cols-2 gap-4 pt-2 border-t border-slate-200">
                   <div>
                     <label className="block text-sm font-bold text-slate-700 mb-1">Preço Varejo (Filial)</label>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-sm">R$</span>
-                      <input type="number" className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg bg-white text-slate-900 font-bold"
+                      <input type="number" className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg bg-white text-slate-900 font-bold text-lg"
                         value={newProductData.priceFilial || ''} onChange={e => setNewProductData({ ...newProductData, priceFilial: Number(e.target.value) })}
                       />
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-1">Preço Base (Atacado)</label>
+                    <label className="block text-sm font-bold text-slate-700 mb-1">Preço Atacado (Matriz)</label>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-sm">R$</span>
-                      <input type="number" className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg bg-white text-slate-900 font-bold"
+                      <input type="number" className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg bg-white text-slate-900 font-bold"
                         value={newProductData.priceMatriz || ''} onChange={e => setNewProductData({ ...newProductData, priceMatriz: Number(e.target.value) })}
                       />
                     </div>
                   </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Custo de Produção/Compra</label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-sm">R$</span>
-                    <input type="number" className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg bg-white text-slate-900"
-                      value={newProductData.cost || ''} onChange={e => setNewProductData({ ...newProductData, cost: Number(e.target.value) })}
-                    />
-                  </div>
-                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-lg">
+
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 mb-1">ESTOQUE INICIAL MATRIZ</label>
+                  <label className="block text-xs font-bold text-slate-500 mb-1">{isEditing ? 'ESTOQUE ATUAL MATRIZ' : 'ESTOQUE INICIAL MATRIZ'}</label>
                   <input type="number" className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-white text-slate-900 font-bold text-blue-700"
                     value={newProductData.stockMatriz || 0} onChange={e => setNewProductData({ ...newProductData, stockMatriz: Number(e.target.value) })}
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 mb-1">ESTOQUE INICIAL FILIAL</label>
+                  <label className="block text-xs font-bold text-slate-500 mb-1">{isEditing ? 'ESTOQUE ATUAL FILIAL' : 'ESTOQUE INICIAL FILIAL'}</label>
                   <input type="number" className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-white text-slate-900 font-bold text-orange-700"
                     value={newProductData.stockFilial || 0} onChange={e => setNewProductData({ ...newProductData, stockFilial: Number(e.target.value) })}
                   />
@@ -512,7 +713,7 @@ const Inventory: React.FC<InventoryProps> = ({ products, onUpdateProduct, onAddP
                 onClick={executeNewProduct}
                 className="w-full bg-blue-800 hover:bg-blue-700 text-white py-3 rounded-xl font-bold shadow-lg shadow-blue-900/20"
               >
-                Salvar Produto
+                {isEditing ? 'Salvar Alterações' : 'Salvar Produto'}
               </button>
             </div>
           </div>

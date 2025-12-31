@@ -82,6 +82,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
 
    const [cashReceived, setCashReceived] = useState<string>('');
    const [saleDate, setSaleDate] = useState<string>(new Date().toISOString().split('T')[0]);
+   const [discount, setDiscount] = useState<string>(''); // Discount in R$
 
    // Helper for currency
    const formatCurrency = (value: number) => {
@@ -119,7 +120,9 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
       return selectedBranch === Branch.FILIAL ? product.stockFilial : product.stockMatriz;
    };
 
-   const cartTotal = cart.reduce((acc, item) => acc + (getProductPrice(item) * item.quantity), 0);
+   const subtotal = cart.reduce((acc, item) => acc + (getProductPrice(item) * item.quantity), 0);
+   const discountValue = parseFloat(discount) || 0;
+   const cartTotal = Math.max(0, subtotal - discountValue);
    const changeAmount = selectedPaymentMethod === 'Cash' && cashReceived ? Math.max(0, parseFloat(cashReceived) - cartTotal) : 0;
 
    // --- POS FUNCTIONS ---
@@ -285,6 +288,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
    const finishSale = () => {
       setShowPaymentModal(false);
       setCart([]);
+      setDiscount('');
       setActiveTab('History');
    };
 
@@ -730,7 +734,22 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
 
                      {/* Cart Totals & Checkout */}
                      <div className="p-4 bg-white border-t border-slate-200 shadow-[0_-5px_15px_rgba(0,0,0,0.05)]">
-                        <div className="space-y-1 mb-3">
+                        <div className="space-y-2 mb-3">
+                           <div className="flex justify-between text-sm text-slate-500">
+                              <span>Subtotal</span>
+                              <span>{formatCurrency(subtotal)}</span>
+                           </div>
+                           <div className="flex justify-between items-center text-sm text-slate-500">
+                              <span>Desconto (R$)</span>
+                              <input
+                                 type="number"
+                                 value={discount}
+                                 onChange={(e) => setDiscount(e.target.value)}
+                                 placeholder="0,00"
+                                 className="w-20 text-right border border-slate-200 rounded px-2 py-1 text-sm focus:outline-none focus:border-blue-500"
+                              />
+                           </div>
+                           <div className="border-t border-slate-100 my-2"></div>
                            <div className="flex justify-between text-xl font-bold text-slate-800 pt-2">
                               <span>Total</span>
                               <span className="text-blue-600">{formatCurrency(cartTotal)}</span>
