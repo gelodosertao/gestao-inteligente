@@ -563,7 +563,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                      </div>
 
                      {/* Product Grid */}
-                     <div className="flex-1 bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col overflow-hidden min-h-[400px]">
+                     <div className="flex-1 bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col overflow-hidden min-h-0">
                         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-3">
                            <h3 className="font-bold text-slate-700 text-sm md:text-base shrink-0">
                               {selectedBranch === Branch.MATRIZ ? 'Catálogo Matriz' : 'Catálogo Varejo'}
