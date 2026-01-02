@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { Product, Sale, FinancialRecord, Category, Branch, User, Role, Customer, StockMovement } from '../types';
+import { Product, Sale, FinancialRecord, Category, Branch, User, Role, Customer, StockMovement, StoreSettings } from '../types';
 
 // --- USERS & AUTH ---
 
@@ -91,7 +91,8 @@ export const dbProducts = {
       packSize: row.pack_size,
       pricePack: row.price_pack,
       isStockControlled: row.is_stock_controlled,
-      comboItems: row.combo_items
+      comboItems: row.combo_items,
+      image: row.image
     }));
   },
 
@@ -110,7 +111,8 @@ export const dbProducts = {
       pack_size: product.packSize,
       price_pack: product.pricePack,
       is_stock_controlled: product.isStockControlled,
-      combo_items: product.comboItems
+      combo_items: product.comboItems,
+      image: product.image
     }]);
     if (error) throw error;
   },
@@ -129,13 +131,50 @@ export const dbProducts = {
       pack_size: product.packSize,
       price_pack: product.pricePack,
       is_stock_controlled: product.isStockControlled,
-      combo_items: product.comboItems
+      combo_items: product.comboItems,
+      image: product.image
     }).eq('id', product.id);
     if (error) throw error;
   },
 
   async delete(id: string) {
     const { error } = await supabase.from('products').delete().eq('id', id);
+    if (error) throw error;
+  }
+};
+
+// --- STORE SETTINGS ---
+export const dbSettings = {
+  async get(): Promise<StoreSettings | null> {
+    const { data, error } = await supabase.from('store_settings').select('*').single();
+    if (error && error.code !== 'PGRST116') throw error; // PGRST116 is "Row not found"
+    if (!data) return null;
+
+    return {
+      id: data.id,
+      storeName: data.store_name,
+      phone: data.phone,
+      address: data.address,
+      coverImage: data.cover_image,
+      backgroundImage: data.background_image,
+      logoImage: data.logo_image,
+      openingHours: data.opening_hours,
+      primaryColor: data.primary_color
+    };
+  },
+
+  async save(settings: StoreSettings) {
+    const { error } = await supabase.from('store_settings').upsert({
+      id: settings.id,
+      store_name: settings.storeName,
+      phone: settings.phone,
+      address: settings.address,
+      cover_image: settings.coverImage,
+      background_image: settings.backgroundImage,
+      logo_image: settings.logoImage,
+      opening_hours: settings.openingHours,
+      primary_color: settings.primaryColor
+    });
     if (error) throw error;
   }
 };

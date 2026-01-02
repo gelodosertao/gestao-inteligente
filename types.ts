@@ -35,6 +35,19 @@ export interface Product {
   pricePack?: number; // Preço do fardo
   isStockControlled?: boolean; // Se false, não controla estoque (ex: Drinks feitos na hora)
   comboItems?: { productId: string; quantity: number }[]; // Se preenchido, é um Combo
+  image?: string; // URL da imagem do produto
+}
+
+export interface StoreSettings {
+  id: string; // usually 'default'
+  storeName: string;
+  phone: string;
+  address: string;
+  coverImage?: string;
+  backgroundImage?: string;
+  logoImage?: string;
+  openingHours: string; // e.g. "Seg-Sex: 08h-18h"
+  primaryColor?: string; // Hex code
 }
 
 export interface Sale {
@@ -78,7 +91,7 @@ export interface User {
   avatarInitials: string;
 }
 
-export type ViewState = 'DASHBOARD' | 'INVENTORY' | 'SALES' | 'FINANCIAL' | 'AI_INSIGHTS' | 'SETTINGS' | 'CUSTOMERS' | 'PRICING' | 'ONLINE_MENU';
+export type ViewState = 'DASHBOARD' | 'INVENTORY' | 'SALES' | 'FINANCIAL' | 'AI_INSIGHTS' | 'SETTINGS' | 'CUSTOMERS' | 'PRICING' | 'ONLINE_MENU' | 'MENU_CONFIG';
 
 export interface Customer {
   id: string;

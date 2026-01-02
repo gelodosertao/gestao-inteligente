@@ -205,7 +205,9 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
       packSize: newProductData.packSize ? Number(newProductData.packSize) : undefined,
       pricePack: newProductData.pricePack ? Number(newProductData.pricePack) : undefined,
       isStockControlled: newProductData.isStockControlled !== false, // Default true
-      comboItems: newProductData.comboItems
+
+      comboItems: newProductData.comboItems,
+      image: newProductData.image
     };
 
     if (isEditing) {
@@ -748,9 +750,19 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
                         <option value="sc">Saco (sc)</option>
                         <option value="lt">Litro (l)</option>
                         <option value="gf">Garrafa (gf)</option>
+                        <option value="lt">Lata (lt)</option>
                       </select>
                     </div>
                   </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">URL da Imagem (Opcional)</label>
+                    <input type="text" className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-white text-slate-900"
+                      placeholder="https://exemplo.com/imagem.jpg"
+                      value={newProductData.image || ''} onChange={e => setNewProductData({ ...newProductData, image: e.target.value })}
+                    />
+                  </div>
+
 
                   <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-4">
                     <div className="flex justify-between items-center">
@@ -896,8 +908,8 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
                 {isEditing ? 'Salvar Alterações' : 'Salvar Produto'}
               </button>
             </div>
-          </div>
-        </div>
+          </div >
+        </div >
       )
       }
       {/* --- MODAL DE IMPORTAÇÃO XML --- */}

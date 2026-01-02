@@ -1,19 +1,20 @@
 import React, { useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
-import { TrendingUp, Users, AlertTriangle, ArrowUpRight, X, Filter, Download, Calendar, DollarSign, ArrowDownCircle } from 'lucide-react';
-import { Product, Sale, FinancialRecord, Customer, Branch } from '../types';
+import { TrendingUp, Users, AlertTriangle, ArrowUpRight, X, Filter, Download, Calendar, DollarSign, ArrowDownCircle, Globe } from 'lucide-react';
+import { Product, Sale, FinancialRecord, Customer, Branch, ViewState } from '../types';
 
 interface DashboardProps {
   products: Product[];
   sales: Sale[];
   financials: FinancialRecord[];
   customers: Customer[];
+  onNavigate?: (view: ViewState) => void;
 }
 
 // Updated Colors: Blue (Primary), Orange (Secondary/Highlight)
 const COLORS = ['#f97316', '#1e40af', '#3b82f6', '#fb923c'];
 
-const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, customers }) => {
+const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, customers, onNavigate }) => {
   const [showPowerBI, setShowPowerBI] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState<'ALL' | Branch>('ALL');
 
@@ -166,6 +167,14 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
           <p className="text-slate-500">Acompanhe o desempenho da Gelo do Sertão em tempo real.</p>
         </div>
         <div className="flex gap-2 mt-4 md:mt-0">
+          {onNavigate && (
+            <button
+              onClick={() => onNavigate('MENU_CONFIG')}
+              className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-1.5 rounded-md text-sm font-medium transition-all shadow-sm flex items-center gap-2"
+            >
+              <Globe size={16} /> Configurar Site
+            </button>
+          )}
           <div className="bg-white p-1 rounded-lg border border-slate-200 flex">
             <button
               onClick={() => setSelectedBranch('ALL')}
