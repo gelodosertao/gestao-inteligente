@@ -246,7 +246,7 @@ const OnlineMenu: React.FC<OnlineMenuProps> = () => {
             }}
         >
             {/* Overlay for readability if background exists */}
-            {settings?.backgroundImage && <div className="absolute inset-0 bg-white/90 fixed z-0 pointer-events-none" />}
+            {settings?.backgroundImage && <div className="absolute inset-0 bg-white/30 fixed z-0 pointer-events-none" />}
 
             <div className="relative z-10">
                 {/* Toast Notification */}
