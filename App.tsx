@@ -81,9 +81,9 @@ const App: React.FC = () => {
     setProducts(prev => prev.map(p => p.id === updatedProduct.id ? updatedProduct : p));
     try {
       await dbProducts.update(updatedProduct);
-    } catch (e) {
+    } catch (e: any) {
       console.error("Failed to update product in DB", e);
-      alert("Erro ao salvar alteração no banco de dados.");
+      alert(`Erro ao salvar alteração no banco de dados: ${e.message || e}`);
     }
   };
 
@@ -91,9 +91,9 @@ const App: React.FC = () => {
     setProducts(prev => [...prev, newProduct]);
     try {
       await dbProducts.add(newProduct);
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      alert("Erro ao criar produto no banco.");
+      alert(`Erro ao criar produto no banco: ${e.message || e}`);
     }
   };
 

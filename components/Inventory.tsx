@@ -206,8 +206,8 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
       pricePack: newProductData.pricePack ? Number(newProductData.pricePack) : undefined,
       isStockControlled: newProductData.isStockControlled !== false, // Default true
 
-      comboItems: newProductData.comboItems,
-      image: newProductData.image
+      comboItems: newProductData.comboItems && newProductData.comboItems.length > 0 ? newProductData.comboItems : undefined,
+      image: newProductData.image || null
     };
 
     if (isEditing) {
