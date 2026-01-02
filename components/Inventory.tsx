@@ -203,7 +203,9 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
       unit: newProductData.unit || 'un',
       minStock: Number(newProductData.minStock || 10),
       packSize: newProductData.packSize ? Number(newProductData.packSize) : undefined,
-      pricePack: newProductData.pricePack ? Number(newProductData.pricePack) : undefined
+      pricePack: newProductData.pricePack ? Number(newProductData.pricePack) : undefined,
+      isStockControlled: newProductData.isStockControlled !== false, // Default true
+      comboItems: newProductData.comboItems
     };
 
     if (isEditing) {
@@ -401,10 +403,10 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
                     <td className="p-4 font-medium text-orange-700">{formatCurrency(product.priceFilial)}</td>
                     <td className="p-4 font-medium text-blue-700">{formatCurrency(product.priceMatriz)}</td>
                     <td className="p-4 text-center bg-blue-50/20 border-l border-slate-200 font-medium text-slate-700">
-                      {product.stockMatriz} <span className="text-xs text-slate-400">{product.unit}</span>
+                      {product.comboItems ? <span className="text-xs font-bold text-purple-600">COMBO</span> : product.isStockControlled === false ? <span className="text-xl">∞</span> : <span>{product.stockMatriz} <span className="text-xs text-slate-400">{product.unit}</span></span>}
                     </td>
                     <td className="p-4 text-center bg-orange-50/20 border-l border-slate-200 font-medium text-slate-700">
-                      {product.stockFilial} <span className="text-xs text-slate-400">{product.unit}</span>
+                      {product.comboItems ? <span className="text-xs font-bold text-purple-600">COMBO</span> : product.isStockControlled === false ? <span className="text-xl">∞</span> : <span>{product.stockFilial} <span className="text-xs text-slate-400">{product.unit}</span></span>}
                     </td>
                     <td className="p-4 text-center">
                       {isLow ? (
@@ -612,170 +614,280 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
             </div>
 
             <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Nome do Produto</label>
-                <input type="text" className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-white text-slate-900"
-                  value={newProductData.name || ''} onChange={e => setNewProductData({ ...newProductData, name: e.target.value })}
+              {/* Checkbox for Stock Control */}
+              <div className="flex items-center gap-2 bg-purple-50 p-3 rounded-lg border border-purple-100">
+                <input
+                  type="checkbox"
+                  id="stockControl"
+                  className="w-5 h-5 text-purple-600 rounded focus:ring-purple-500"
+                  checked={newProductData.isStockControlled === false}
+                  onChange={(e) => setNewProductData({ ...newProductData, isStockControlled: !e.target.checked })}
                 />
+                <label htmlFor="stockControl" className="text-sm font-bold text-purple-800 cursor-pointer">
+                  Produto feito na hora (Não controlar estoque)
+                </label>
+                <p className="text-xs text-purple-600 ml-2">(Ex: Drinks, Coquetéis)</p>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Categoria</label>
-                  <select className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-white text-slate-900"
-                    value={newProductData.category} onChange={e => setNewProductData({ ...newProductData, category: e.target.value as Category })}
-                  >
-                    {Object.values(Category).map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Unidade</label>
-                  <select className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-white text-slate-900"
-                    value={newProductData.unit} onChange={e => setNewProductData({ ...newProductData, unit: e.target.value })}
-                  >
-                    <option value="un">Unidade</option>
-                    <option value="kg">Quilo (kg)</option>
-                    <option value="sc">Saco (sc)</option>
-                    <option value="lt">Litro (l)</option>
-                    <option value="gf">Garrafa (gf)</option>
-                  </select>
-                </div>
+              {/* Product Type Selector (Simple vs Combo) */}
+              <div className="flex gap-2 bg-slate-100 p-1 rounded-lg">
+                <button
+                  onClick={() => setNewProductData({ ...newProductData, comboItems: undefined })}
+                  className={`flex-1 py-2 text-sm font-bold rounded-md transition-all ${!newProductData.comboItems ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  Produto Simples
+                </button>
+                <button
+                  onClick={() => setNewProductData({ ...newProductData, comboItems: [] })}
+                  className={`flex-1 py-2 text-sm font-bold rounded-md transition-all ${newProductData.comboItems ? 'bg-white text-purple-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  Combo Promocional
+                </button>
               </div>
 
-              <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-4">
-                <div className="flex justify-between items-center">
-                  <h4 className="text-sm font-bold text-slate-700 uppercase flex items-center gap-2">
-                    <Calculator size={16} className="text-blue-600" /> Precificação Inteligente
+              {newProductData.comboItems ? (
+                // --- COMBO BUILDER ---
+                <div className="space-y-4 bg-purple-50 p-4 rounded-xl border border-purple-100">
+                  <h4 className="font-bold text-purple-800 flex items-center gap-2">
+                    <Plus size={16} /> Composição do Combo
                   </h4>
-                  <button
-                    onClick={calculateFinancialMetrics}
-                    className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200 transition-colors font-medium"
-                    title="Basear em despesas lançadas (últimos 30 dias)"
-                  >
-                    Carregar Dados Financeiros
-                  </button>
-                </div>
+                  <p className="text-xs text-purple-600">Adicione os produtos que compõem este combo. O estoque será descontado individualmente de cada item.</p>
 
-                {/* Custo Base */}
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-1">Custo do Produto (CMV)</label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-sm">R$</span>
-                    <input type="number" className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg bg-white text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none"
-                      value={newProductData.cost || ''} onChange={e => setNewProductData({ ...newProductData, cost: Number(e.target.value) })}
-                      placeholder="0.00"
+                  <div className="space-y-2">
+                    {newProductData.comboItems.map((item, index) => {
+                      const prod = products.find(p => p.id === item.productId);
+                      return (
+                        <div key={index} className="flex items-center gap-2 bg-white p-2 rounded-lg border border-purple-100">
+                          <span className="flex-1 font-medium text-sm text-slate-700">{prod?.name || 'Produto Removido'}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-slate-500">Qtd:</span>
+                            <input
+                              type="number"
+                              min="1"
+                              className="w-16 px-2 py-1 border border-slate-200 rounded text-center font-bold"
+                              value={item.quantity}
+                              onChange={(e) => {
+                                const newItems = [...(newProductData.comboItems || [])];
+                                newItems[index].quantity = Number(e.target.value);
+                                setNewProductData({ ...newProductData, comboItems: newItems });
+                              }}
+                            />
+                          </div>
+                          <button
+                            onClick={() => {
+                              const newItems = newProductData.comboItems?.filter((_, i) => i !== index);
+                              setNewProductData({ ...newProductData, comboItems: newItems });
+                            }}
+                            className="text-red-400 hover:text-red-600 p-1"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="flex gap-2">
+                    <select
+                      className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                      id="combo-product-select"
+                    >
+                      <option value="">Selecione um produto...</option>
+                      {products.filter(p => !p.comboItems).map(p => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={() => {
+                        const select = document.getElementById('combo-product-select') as HTMLSelectElement;
+                        const pid = select.value;
+                        if (!pid) return;
+                        const exists = newProductData.comboItems?.find(i => i.productId === pid);
+                        if (exists) {
+                          alert("Produto já adicionado ao combo.");
+                          return;
+                        }
+                        setNewProductData({
+                          ...newProductData,
+                          comboItems: [...(newProductData.comboItems || []), { productId: pid, quantity: 1 }]
+                        });
+                        select.value = "";
+                      }}
+                      className="bg-purple-600 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-purple-700"
+                    >
+                      Adicionar
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                // --- SIMPLE PRODUCT FIELDS ---
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Nome do Produto</label>
+                    <input type="text" className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-white text-slate-900"
+                      value={newProductData.name || ''} onChange={e => setNewProductData({ ...newProductData, name: e.target.value })}
                     />
                   </div>
-                </div>
 
-                {/* Calculadora de Taxas */}
-                <div className="grid grid-cols-2 gap-3 text-xs">
-                  <div>
-                    <label className="block text-slate-500 mb-1">Impostos + Taxas (%)</label>
-                    <div className="flex gap-2">
-                      <input type="number" className="w-full px-2 py-1 border border-slate-200 rounded"
-                        value={taxRate} onChange={e => setTaxRate(Number(e.target.value))} title="Impostos" placeholder="Imp." />
-                      <input type="number" className="w-full px-2 py-1 border border-slate-200 rounded"
-                        value={cardFee} onChange={e => setCardFee(Number(e.target.value))} title="Taxas Cartão" placeholder="Cartão" />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-slate-500 mb-1">Custos Fixos + Margem (%)</label>
-                    <div className="flex gap-2">
-                      <input type="number" className="w-full px-2 py-1 border border-slate-200 rounded text-purple-700 font-medium"
-                        value={fixedCostRate} onChange={e => setFixedCostRate(Number(e.target.value))} title="Custos Fixos (Rateio)" placeholder="Fixo" />
-                      <input type="number" className="w-full px-2 py-1 border border-slate-200 rounded text-emerald-700 font-bold"
-                        value={desiredMargin} onChange={e => setDesiredMargin(Number(e.target.value))} title="Margem de Lucro" placeholder="Lucro" />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Sugestão de Preço */}
-                {(newProductData.cost || 0) > 0 && (
-                  <div className="bg-blue-50 p-3 rounded-lg border border-blue-100">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-xs text-blue-800 font-medium">Preço Sugerido (Varejo):</span>
-                      <span className="text-lg font-bold text-blue-900">
-                        {formatCurrency((newProductData.cost || 0) / (1 - ((taxRate + cardFee + fixedCostRate + desiredMargin) / 100)))}
-                      </span>
-                    </div>
-                    <div className="w-full bg-blue-200 h-1.5 rounded-full overflow-hidden flex">
-                      <div className="bg-slate-400 h-full" style={{ width: `${((newProductData.cost || 0) / ((newProductData.cost || 0) / (1 - ((taxRate + cardFee + fixedCostRate + desiredMargin) / 100)))) * 100}%` }} title="Custo"></div>
-                      <div className="bg-red-400 h-full" style={{ width: `${taxRate + cardFee}%` }} title="Impostos/Taxas"></div>
-                      <div className="bg-purple-400 h-full" style={{ width: `${fixedCostRate}%` }} title="Custos Fixos"></div>
-                      <div className="bg-emerald-500 h-full flex-1" title="Lucro"></div>
-                    </div>
-                    <div className="flex justify-between text-[10px] text-slate-500 mt-1 px-1">
-                      <span>Custo</span>
-                      <span>Var.</span>
-                      <span>Fixo</span>
-                      <span>Lucro</span>
-                    </div>
-                  </div>
-                )}
-
-                {/* Preços Finais */}
-                <div className="grid grid-cols-2 gap-4 pt-2 border-t border-slate-200">
-                  <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-1">Preço Varejo (Filial)</label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-sm">R$</span>
-                      <input type="number" className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg bg-white text-slate-900 font-bold text-lg"
-                        value={newProductData.priceFilial || ''} onChange={e => setNewProductData({ ...newProductData, priceFilial: Number(e.target.value) })}
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-1">Preço Atacado (Matriz)</label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-sm">R$</span>
-                      <input type="number" className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg bg-white text-slate-900 font-bold"
-                        value={newProductData.priceMatriz || ''} onChange={e => setNewProductData({ ...newProductData, priceMatriz: Number(e.target.value) })}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Configuração de Fardo (Opcional) */}
-                <div className="pt-4 border-t border-slate-200">
-                  <h4 className="text-xs font-bold text-slate-500 uppercase mb-2">Venda em Fardo (Opcional)</h4>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Qtd. no Fardo</label>
-                      <input type="number" className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-white text-slate-900"
-                        placeholder="Ex: 12"
-                        value={newProductData.packSize || ''} onChange={e => setNewProductData({ ...newProductData, packSize: Number(e.target.value) })}
-                      />
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Categoria</label>
+                      <select className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-white text-slate-900"
+                        value={newProductData.category} onChange={e => setNewProductData({ ...newProductData, category: e.target.value as Category })}
+                      >
+                        {Object.values(Category).map(c => <option key={c} value={c}>{c}</option>)}
+                      </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Preço do Fardo</label>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Unidade</label>
+                      <select className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-white text-slate-900"
+                        value={newProductData.unit} onChange={e => setNewProductData({ ...newProductData, unit: e.target.value })}
+                      >
+                        <option value="un">Unidade</option>
+                        <option value="kg">Quilo (kg)</option>
+                        <option value="sc">Saco (sc)</option>
+                        <option value="lt">Litro (l)</option>
+                        <option value="gf">Garrafa (gf)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-4">
+                    <div className="flex justify-between items-center">
+                      <h4 className="text-sm font-bold text-slate-700 uppercase flex items-center gap-2">
+                        <Calculator size={16} className="text-blue-600" /> Precificação Inteligente
+                      </h4>
+                      <button
+                        onClick={calculateFinancialMetrics}
+                        className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200 transition-colors font-medium"
+                        title="Basear em despesas lançadas (últimos 30 dias)"
+                      >
+                        Carregar Dados Financeiros
+                      </button>
+                    </div>
+
+                    {/* Custo Base */}
+                    <div>
+                      <label className="block text-sm font-bold text-slate-700 mb-1">Custo do Produto (CMV)</label>
                       <div className="relative">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-sm">R$</span>
-                        <input type="number" className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg bg-white text-slate-900 font-bold"
+                        <input type="number" className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg bg-white text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none"
+                          value={newProductData.cost || ''} onChange={e => setNewProductData({ ...newProductData, cost: Number(e.target.value) })}
                           placeholder="0.00"
-                          value={newProductData.pricePack || ''} onChange={e => setNewProductData({ ...newProductData, pricePack: Number(e.target.value) })}
                         />
                       </div>
                     </div>
+
+                    {/* Calculadora de Taxas */}
+                    <div className="grid grid-cols-2 gap-3 text-xs">
+                      <div>
+                        <label className="block text-slate-500 mb-1">Impostos + Taxas (%)</label>
+                        <div className="flex gap-2">
+                          <input type="number" className="w-full px-2 py-1 border border-slate-200 rounded"
+                            value={taxRate} onChange={e => setTaxRate(Number(e.target.value))} title="Impostos" placeholder="Imp." />
+                          <input type="number" className="w-full px-2 py-1 border border-slate-200 rounded"
+                            value={cardFee} onChange={e => setCardFee(Number(e.target.value))} title="Taxas Cartão" placeholder="Cartão" />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-slate-500 mb-1">Custos Fixos + Margem (%)</label>
+                        <div className="flex gap-2">
+                          <input type="number" className="w-full px-2 py-1 border border-slate-200 rounded text-purple-700 font-medium"
+                            value={fixedCostRate} onChange={e => setFixedCostRate(Number(e.target.value))} title="Custos Fixos (Rateio)" placeholder="Fixo" />
+                          <input type="number" className="w-full px-2 py-1 border border-slate-200 rounded text-emerald-700 font-bold"
+                            value={desiredMargin} onChange={e => setDesiredMargin(Number(e.target.value))} title="Margem de Lucro" placeholder="Lucro" />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Sugestão de Preço */}
+                    {(newProductData.cost || 0) > 0 && (
+                      <div className="bg-blue-50 p-3 rounded-lg border border-blue-100">
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="text-xs text-blue-800 font-medium">Preço Sugerido (Varejo):</span>
+                          <span className="text-lg font-bold text-blue-900">
+                            {formatCurrency((newProductData.cost || 0) / (1 - ((taxRate + cardFee + fixedCostRate + desiredMargin) / 100)))}
+                          </span>
+                        </div>
+                        <div className="w-full bg-blue-200 h-1.5 rounded-full overflow-hidden flex">
+                          <div className="bg-slate-400 h-full" style={{ width: `${((newProductData.cost || 0) / ((newProductData.cost || 0) / (1 - ((taxRate + cardFee + fixedCostRate + desiredMargin) / 100)))) * 100}%` }} title="Custo"></div>
+                          <div className="bg-red-400 h-full" style={{ width: `${taxRate + cardFee}%` }} title="Impostos/Taxas"></div>
+                          <div className="bg-purple-400 h-full" style={{ width: `${fixedCostRate}%` }} title="Custos Fixos"></div>
+                          <div className="bg-emerald-500 h-full flex-1" title="Lucro"></div>
+                        </div>
+                        <div className="flex justify-between text-[10px] text-slate-500 mt-1 px-1">
+                          <span>Custo</span>
+                          <span>Var.</span>
+                          <span>Fixo</span>
+                          <span>Lucro</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Preços Finais */}
+                    <div className="grid grid-cols-2 gap-4 pt-2 border-t border-slate-200">
+                      <div>
+                        <label className="block text-sm font-bold text-slate-700 mb-1">Preço Varejo (Filial)</label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-sm">R$</span>
+                          <input type="number" className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg bg-white text-slate-900 font-bold text-lg"
+                            value={newProductData.priceFilial || ''} onChange={e => setNewProductData({ ...newProductData, priceFilial: Number(e.target.value) })}
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-bold text-slate-700 mb-1">Preço Atacado (Matriz)</label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-sm">R$</span>
+                          <input type="number" className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg bg-white text-slate-900 font-bold"
+                            value={newProductData.priceMatriz || ''} onChange={e => setNewProductData({ ...newProductData, priceMatriz: Number(e.target.value) })}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Configuração de Fardo (Opcional) */}
+                    <div className="pt-4 border-t border-slate-200">
+                      <h4 className="text-xs font-bold text-slate-500 uppercase mb-2">Venda em Fardo (Opcional)</h4>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-slate-700 mb-1">Qtd. no Fardo</label>
+                          <input type="number" className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-white text-slate-900"
+                            placeholder="Ex: 12"
+                            value={newProductData.packSize || ''} onChange={e => setNewProductData({ ...newProductData, packSize: Number(e.target.value) })}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-slate-700 mb-1">Preço do Fardo</label>
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-sm">R$</span>
+                            <input type="number" className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg bg-white text-slate-900 font-bold"
+                              placeholder="0.00"
+                              value={newProductData.pricePack || ''} onChange={e => setNewProductData({ ...newProductData, pricePack: Number(e.target.value) })}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
 
-              <div className="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-lg">
+                  <div className="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-lg">
 
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 mb-1">{isEditing ? 'ESTOQUE ATUAL MATRIZ' : 'ESTOQUE INICIAL MATRIZ'}</label>
-                  <input type="number" className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-white text-slate-900 font-bold text-blue-700"
-                    value={newProductData.stockMatriz || 0} onChange={e => setNewProductData({ ...newProductData, stockMatriz: Number(e.target.value) })}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 mb-1">{isEditing ? 'ESTOQUE ATUAL FILIAL' : 'ESTOQUE INICIAL FILIAL'}</label>
-                  <input type="number" className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-white text-slate-900 font-bold text-orange-700"
-                    value={newProductData.stockFilial || 0} onChange={e => setNewProductData({ ...newProductData, stockFilial: Number(e.target.value) })}
-                  />
-                </div>
-              </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 mb-1">{isEditing ? 'ESTOQUE ATUAL MATRIZ' : 'ESTOQUE INICIAL MATRIZ'}</label>
+                      <input type="number" className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-white text-slate-900 font-bold text-blue-700"
+                        value={newProductData.stockMatriz || 0} onChange={e => setNewProductData({ ...newProductData, stockMatriz: Number(e.target.value) })}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 mb-1">{isEditing ? 'ESTOQUE ATUAL FILIAL' : 'ESTOQUE INICIAL FILIAL'}</label>
+                      <input type="number" className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-white text-slate-900 font-bold text-orange-700"
+                        value={newProductData.stockFilial || 0} onChange={e => setNewProductData({ ...newProductData, stockFilial: Number(e.target.value) })}
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
 
               <button
                 onClick={executeNewProduct}
@@ -786,232 +898,237 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
             </div>
           </div>
         </div>
-      )}
+      )
+      }
       {/* --- MODAL DE IMPORTAÇÃO XML --- */}
-      {showImportModal && (
-        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white w-full max-w-5xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="p-4 bg-slate-800 text-white flex justify-between items-center">
-              <h3 className="font-bold flex items-center gap-2">
-                <FileText size={20} className="text-green-400" /> Confirmar Importação de NFe
-              </h3>
-              <button onClick={() => setShowImportModal(false)}><X size={20} /></button>
-            </div>
+      {
+        showImportModal && (
+          <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+            <div className="bg-white w-full max-w-5xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+              <div className="p-4 bg-slate-800 text-white flex justify-between items-center">
+                <h3 className="font-bold flex items-center gap-2">
+                  <FileText size={20} className="text-green-400" /> Confirmar Importação de NFe
+                </h3>
+                <button onClick={() => setShowImportModal(false)}><X size={20} /></button>
+              </div>
 
-            <div className="p-4 bg-blue-50 border-b border-blue-100 text-sm text-blue-800">
-              Confira os dados abaixo. Os produtos serão adicionados ao estoque da <strong>Filial</strong>.
-            </div>
+              <div className="p-4 bg-blue-50 border-b border-blue-100 text-sm text-blue-800">
+                Confira os dados abaixo. Os produtos serão adicionados ao estoque da <strong>Filial</strong>.
+              </div>
 
-            <div className="flex-1 overflow-auto p-4">
-              <table className="w-full text-left border-collapse text-sm">
-                <thead>
-                  <tr className="bg-slate-100 text-slate-600">
-                    <th className="p-2 border">Nome do Produto</th>
-                    <th className="p-2 border w-32">Categoria</th>
-                    <th className="p-2 border w-20">Qtd</th>
-                    <th className="p-2 border w-20">Custo</th>
-                    <th className="p-2 border w-24">Venda (Matriz)</th>
-                    <th className="p-2 border w-24">Venda (Filial)</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {importedProducts.map((item, idx) => (
-                    <tr key={idx} className="hover:bg-slate-50">
-                      <td className="p-2 border">
-                        <input
-                          type="text"
-                          value={item.name}
-                          onChange={(e) => updateImportedItem(idx, 'name', e.target.value)}
-                          className="w-full bg-transparent outline-none font-medium"
-                        />
-                      </td>
-                      <td className="p-2 border">
-                        <select
-                          value={item.category}
-                          onChange={(e) => updateImportedItem(idx, 'category', e.target.value)}
-                          className="w-full bg-transparent outline-none"
-                        >
-                          {Object.values(Category).map(c => <option key={c} value={c}>{c}</option>)}
-                        </select>
-                      </td>
-                      <td className="p-2 border text-center font-bold">{item.stockFilial}</td>
-                      <td className="p-2 border text-slate-500">{formatCurrency(item.cost || 0)}</td>
-                      <td className="p-2 border">
-                        <input
-                          type="number"
-                          value={item.priceMatriz}
-                          onChange={(e) => updateImportedItem(idx, 'priceMatriz', parseFloat(e.target.value))}
-                          className="w-full bg-white border border-slate-200 rounded px-1 text-blue-700 font-bold"
-                        />
-                      </td>
-                      <td className="p-2 border">
-                        <input
-                          type="number"
-                          value={item.priceFilial}
-                          onChange={(e) => updateImportedItem(idx, 'priceFilial', parseFloat(e.target.value))}
-                          className="w-full bg-white border border-slate-200 rounded px-1 text-orange-700 font-bold"
-                        />
-                      </td>
+              <div className="flex-1 overflow-auto p-4">
+                <table className="w-full text-left border-collapse text-sm">
+                  <thead>
+                    <tr className="bg-slate-100 text-slate-600">
+                      <th className="p-2 border">Nome do Produto</th>
+                      <th className="p-2 border w-32">Categoria</th>
+                      <th className="p-2 border w-20">Qtd</th>
+                      <th className="p-2 border w-20">Custo</th>
+                      <th className="p-2 border w-24">Venda (Matriz)</th>
+                      <th className="p-2 border w-24">Venda (Filial)</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {importedProducts.map((item, idx) => (
+                      <tr key={idx} className="hover:bg-slate-50">
+                        <td className="p-2 border">
+                          <input
+                            type="text"
+                            value={item.name}
+                            onChange={(e) => updateImportedItem(idx, 'name', e.target.value)}
+                            className="w-full bg-transparent outline-none font-medium"
+                          />
+                        </td>
+                        <td className="p-2 border">
+                          <select
+                            value={item.category}
+                            onChange={(e) => updateImportedItem(idx, 'category', e.target.value)}
+                            className="w-full bg-transparent outline-none"
+                          >
+                            {Object.values(Category).map(c => <option key={c} value={c}>{c}</option>)}
+                          </select>
+                        </td>
+                        <td className="p-2 border text-center font-bold">{item.stockFilial}</td>
+                        <td className="p-2 border text-slate-500">{formatCurrency(item.cost || 0)}</td>
+                        <td className="p-2 border">
+                          <input
+                            type="number"
+                            value={item.priceMatriz}
+                            onChange={(e) => updateImportedItem(idx, 'priceMatriz', parseFloat(e.target.value))}
+                            className="w-full bg-white border border-slate-200 rounded px-1 text-blue-700 font-bold"
+                          />
+                        </td>
+                        <td className="p-2 border">
+                          <input
+                            type="number"
+                            value={item.priceFilial}
+                            onChange={(e) => updateImportedItem(idx, 'priceFilial', parseFloat(e.target.value))}
+                            className="w-full bg-white border border-slate-200 rounded px-1 text-orange-700 font-bold"
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
 
-            <div className="p-4 border-t border-slate-200 bg-slate-50 flex justify-end gap-3">
-              <button onClick={() => setShowImportModal(false)} className="px-4 py-2 text-slate-600 font-bold hover:bg-slate-200 rounded-lg">Cancelar</button>
-              <button onClick={confirmImport} className="px-6 py-2 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 shadow-lg shadow-green-900/20">
-                Confirmar Importação
-              </button>
+              <div className="p-4 border-t border-slate-200 bg-slate-50 flex justify-end gap-3">
+                <button onClick={() => setShowImportModal(false)} className="px-4 py-2 text-slate-600 font-bold hover:bg-slate-200 rounded-lg">Cancelar</button>
+                <button onClick={confirmImport} className="px-6 py-2 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 shadow-lg shadow-green-900/20">
+                  Confirmar Importação
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
       {/* --- MODAL DE RELATÓRIOS --- */}
-      {showReportModal && (
-        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white w-full max-w-6xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="p-4 bg-purple-800 text-white flex justify-between items-center">
-              <h3 className="font-bold flex items-center gap-2">
-                <BarChart3 size={20} className="text-purple-300" /> Relatório de Estoque e Vendas
-              </h3>
-              <button onClick={() => setShowReportModal(false)}><X size={20} /></button>
-            </div>
-
-            <div className="flex-1 overflow-auto p-6 bg-slate-50">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                {/* Card 1: Valor em Estoque */}
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                  <h4 className="text-sm font-bold text-slate-500 uppercase mb-2">Valor Total em Estoque (Custo)</h4>
-                  <div className="text-3xl font-bold text-slate-800">
-                    {formatCurrency(products.reduce((acc, p) => acc + (p.cost * (p.stockMatriz + p.stockFilial)), 0))}
-                  </div>
-                  <div className="mt-2 text-xs text-slate-400 flex justify-between">
-                    <span>Matriz: {formatCurrency(products.reduce((acc, p) => acc + (p.cost * p.stockMatriz), 0))}</span>
-                    <span>Filial: {formatCurrency(products.reduce((acc, p) => acc + (p.cost * p.stockFilial), 0))}</span>
-                  </div>
-                </div>
-
-                {/* Card 2: Valor de Venda Potencial */}
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                  <h4 className="text-sm font-bold text-slate-500 uppercase mb-2">Potencial de Venda (Estimado)</h4>
-                  <div className="text-3xl font-bold text-emerald-600">
-                    {formatCurrency(products.reduce((acc, p) => acc + (p.priceFilial * p.stockFilial) + (p.priceMatriz * p.stockMatriz), 0))}
-                  </div>
-                  <p className="text-xs text-slate-400 mt-2">Baseado nos preços atuais de varejo e atacado.</p>
-                </div>
-
-                {/* Card 3: Itens Abaixo do Mínimo */}
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                  <h4 className="text-sm font-bold text-slate-500 uppercase mb-2">Alertas de Estoque</h4>
-                  <div className="text-3xl font-bold text-red-600">
-                    {products.filter(p => p.stockMatriz < p.minStock || p.stockFilial < p.minStock).length}
-                  </div>
-                  <p className="text-xs text-slate-400 mt-2">Produtos precisando de reposição.</p>
-                </div>
+      {
+        showReportModal && (
+          <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+            <div className="bg-white w-full max-w-6xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+              <div className="p-4 bg-purple-800 text-white flex justify-between items-center">
+                <h3 className="font-bold flex items-center gap-2">
+                  <BarChart3 size={20} className="text-purple-300" /> Relatório de Estoque e Vendas
+                </h3>
+                <button onClick={() => setShowReportModal(false)}><X size={20} /></button>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Tabela: Mais Vendidos (ABC) */}
-                <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                  <div className="p-4 border-b border-slate-100 bg-slate-50">
-                    <h4 className="font-bold text-slate-700 flex items-center gap-2">
-                      <TrendingUp size={18} className="text-blue-500" /> Produtos Mais Vendidos (Top 10)
-                    </h4>
+              <div className="flex-1 overflow-auto p-6 bg-slate-50">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                  {/* Card 1: Valor em Estoque */}
+                  <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                    <h4 className="text-sm font-bold text-slate-500 uppercase mb-2">Valor Total em Estoque (Custo)</h4>
+                    <div className="text-3xl font-bold text-slate-800">
+                      {formatCurrency(products.reduce((acc, p) => acc + (p.cost * (p.stockMatriz + p.stockFilial)), 0))}
+                    </div>
+                    <div className="mt-2 text-xs text-slate-400 flex justify-between">
+                      <span>Matriz: {formatCurrency(products.reduce((acc, p) => acc + (p.cost * p.stockMatriz), 0))}</span>
+                      <span>Filial: {formatCurrency(products.reduce((acc, p) => acc + (p.cost * p.stockFilial), 0))}</span>
+                    </div>
                   </div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm">
-                      <thead className="bg-slate-50 text-slate-500">
-                        <tr>
-                          <th className="p-3 font-semibold">Produto</th>
-                          <th className="p-3 font-semibold text-right">Qtd. Vendida</th>
-                          <th className="p-3 font-semibold text-right">Receita Gerada</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {(() => {
-                          // Calculate sales per product
-                          const productSales: Record<string, { name: string, qty: number, revenue: number }> = {};
-                          sales.forEach(sale => {
-                            sale.items.forEach(item => {
-                              if (!productSales[item.productId]) {
-                                productSales[item.productId] = { name: item.productName, qty: 0, revenue: 0 };
-                              }
-                              productSales[item.productId].qty += item.quantity;
-                              productSales[item.productId].revenue += (item.quantity * item.priceAtSale);
-                            });
-                          });
 
-                          return Object.values(productSales)
-                            .sort((a, b) => b.qty - a.qty)
-                            .slice(0, 10)
-                            .map((item, idx) => (
-                              <tr key={idx} className="hover:bg-slate-50">
-                                <td className="p-3 font-medium text-slate-700">{item.name}</td>
-                                <td className="p-3 text-right font-bold text-blue-600">{item.qty}</td>
-                                <td className="p-3 text-right text-emerald-600">{formatCurrency(item.revenue)}</td>
-                              </tr>
-                            ));
-                        })()}
-                      </tbody>
-                    </table>
+                  {/* Card 2: Valor de Venda Potencial */}
+                  <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                    <h4 className="text-sm font-bold text-slate-500 uppercase mb-2">Potencial de Venda (Estimado)</h4>
+                    <div className="text-3xl font-bold text-emerald-600">
+                      {formatCurrency(products.reduce((acc, p) => acc + (p.priceFilial * p.stockFilial) + (p.priceMatriz * p.stockMatriz), 0))}
+                    </div>
+                    <p className="text-xs text-slate-400 mt-2">Baseado nos preços atuais de varejo e atacado.</p>
+                  </div>
+
+                  {/* Card 3: Itens Abaixo do Mínimo */}
+                  <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                    <h4 className="text-sm font-bold text-slate-500 uppercase mb-2">Alertas de Estoque</h4>
+                    <div className="text-3xl font-bold text-red-600">
+                      {products.filter(p => p.stockMatriz < p.minStock || p.stockFilial < p.minStock).length}
+                    </div>
+                    <p className="text-xs text-slate-400 mt-2">Produtos precisando de reposição.</p>
                   </div>
                 </div>
 
-                {/* Tabela: Sugestão de Reposição */}
-                <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                  <div className="p-4 border-b border-slate-100 bg-slate-50">
-                    <h4 className="font-bold text-slate-700 flex items-center gap-2">
-                      <AlertTriangle size={18} className="text-orange-500" /> Sugestão de Reposição
-                    </h4>
-                  </div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm">
-                      <thead className="bg-slate-50 text-slate-500">
-                        <tr>
-                          <th className="p-3 font-semibold">Produto</th>
-                          <th className="p-3 font-semibold text-center">Matriz</th>
-                          <th className="p-3 font-semibold text-center">Filial</th>
-                          <th className="p-3 font-semibold text-center">Mínimo</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {products
-                          .filter(p => p.stockMatriz < p.minStock || p.stockFilial < p.minStock)
-                          .map((p) => (
-                            <tr key={p.id} className="hover:bg-slate-50">
-                              <td className="p-3 font-medium text-slate-700">{p.name}</td>
-                              <td className={`p-3 text-center font-bold ${p.stockMatriz < p.minStock ? 'text-red-600' : 'text-slate-600'}`}>
-                                {p.stockMatriz}
-                              </td>
-                              <td className={`p-3 text-center font-bold ${p.stockFilial < p.minStock ? 'text-red-600' : 'text-slate-600'}`}>
-                                {p.stockFilial}
-                              </td>
-                              <td className="p-3 text-center text-slate-400">{p.minStock}</td>
-                            </tr>
-                          ))}
-                        {products.filter(p => p.stockMatriz < p.minStock || p.stockFilial < p.minStock).length === 0 && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Tabela: Mais Vendidos (ABC) */}
+                  <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div className="p-4 border-b border-slate-100 bg-slate-50">
+                      <h4 className="font-bold text-slate-700 flex items-center gap-2">
+                        <TrendingUp size={18} className="text-blue-500" /> Produtos Mais Vendidos (Top 10)
+                      </h4>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-sm">
+                        <thead className="bg-slate-50 text-slate-500">
                           <tr>
-                            <td colSpan={4} className="p-6 text-center text-slate-400">
-                              Nenhum produto com estoque baixo.
-                            </td>
+                            <th className="p-3 font-semibold">Produto</th>
+                            <th className="p-3 font-semibold text-right">Qtd. Vendida</th>
+                            <th className="p-3 font-semibold text-right">Receita Gerada</th>
                           </tr>
-                        )}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {(() => {
+                            // Calculate sales per product
+                            const productSales: Record<string, { name: string, qty: number, revenue: number }> = {};
+                            sales.forEach(sale => {
+                              sale.items.forEach(item => {
+                                if (!productSales[item.productId]) {
+                                  productSales[item.productId] = { name: item.productName, qty: 0, revenue: 0 };
+                                }
+                                productSales[item.productId].qty += item.quantity;
+                                productSales[item.productId].revenue += (item.quantity * item.priceAtSale);
+                              });
+                            });
+
+                            return Object.values(productSales)
+                              .sort((a, b) => b.qty - a.qty)
+                              .slice(0, 10)
+                              .map((item, idx) => (
+                                <tr key={idx} className="hover:bg-slate-50">
+                                  <td className="p-3 font-medium text-slate-700">{item.name}</td>
+                                  <td className="p-3 text-right font-bold text-blue-600">{item.qty}</td>
+                                  <td className="p-3 text-right text-emerald-600">{formatCurrency(item.revenue)}</td>
+                                </tr>
+                              ));
+                          })()}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* Tabela: Sugestão de Reposição */}
+                  <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div className="p-4 border-b border-slate-100 bg-slate-50">
+                      <h4 className="font-bold text-slate-700 flex items-center gap-2">
+                        <AlertTriangle size={18} className="text-orange-500" /> Sugestão de Reposição
+                      </h4>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-sm">
+                        <thead className="bg-slate-50 text-slate-500">
+                          <tr>
+                            <th className="p-3 font-semibold">Produto</th>
+                            <th className="p-3 font-semibold text-center">Matriz</th>
+                            <th className="p-3 font-semibold text-center">Filial</th>
+                            <th className="p-3 font-semibold text-center">Mínimo</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {products
+                            .filter(p => p.stockMatriz < p.minStock || p.stockFilial < p.minStock)
+                            .map((p) => (
+                              <tr key={p.id} className="hover:bg-slate-50">
+                                <td className="p-3 font-medium text-slate-700">{p.name}</td>
+                                <td className={`p-3 text-center font-bold ${p.stockMatriz < p.minStock ? 'text-red-600' : 'text-slate-600'}`}>
+                                  {p.stockMatriz}
+                                </td>
+                                <td className={`p-3 text-center font-bold ${p.stockFilial < p.minStock ? 'text-red-600' : 'text-slate-600'}`}>
+                                  {p.stockFilial}
+                                </td>
+                                <td className="p-3 text-center text-slate-400">{p.minStock}</td>
+                              </tr>
+                            ))}
+                          {products.filter(p => p.stockMatriz < p.minStock || p.stockFilial < p.minStock).length === 0 && (
+                            <tr>
+                              <td colSpan={4} className="p-6 text-center text-slate-400">
+                                Nenhum produto com estoque baixo.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="mt-6 bg-blue-50 p-4 rounded-xl border border-blue-100 text-sm text-blue-800">
-                <strong>Nota:</strong> O histórico detalhado de perdas começou a ser gravado agora. Relatórios de perdas aparecerão aqui assim que houver dados suficientes.
+                <div className="mt-6 bg-blue-50 p-4 rounded-xl border border-blue-100 text-sm text-blue-800">
+                  <strong>Nota:</strong> O histórico detalhado de perdas começou a ser gravado agora. Relatórios de perdas aparecerão aqui assim que houver dados suficientes.
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        )
+      }
+    </div >
   );
 };
 

@@ -89,7 +89,9 @@ export const dbProducts = {
       unit: row.unit,
       minStock: row.min_stock,
       packSize: row.pack_size,
-      pricePack: row.price_pack
+      pricePack: row.price_pack,
+      isStockControlled: row.is_stock_controlled,
+      comboItems: row.combo_items
     }));
   },
 
@@ -106,7 +108,9 @@ export const dbProducts = {
       unit: product.unit,
       min_stock: product.minStock,
       pack_size: product.packSize,
-      price_pack: product.pricePack
+      price_pack: product.pricePack,
+      is_stock_controlled: product.isStockControlled,
+      combo_items: product.comboItems
     }]);
     if (error) throw error;
   },
@@ -123,7 +127,9 @@ export const dbProducts = {
       unit: product.unit,
       min_stock: product.minStock,
       pack_size: product.packSize,
-      price_pack: product.pricePack
+      price_pack: product.pricePack,
+      is_stock_controlled: product.isStockControlled,
+      combo_items: product.comboItems
     }).eq('id', product.id);
     if (error) throw error;
   },

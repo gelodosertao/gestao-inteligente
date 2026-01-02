@@ -11,7 +11,8 @@ export enum Category {
   OTHER = 'Outros',
   SODA = 'Refrigerante',
   VODKA = 'Vodka',
-  WHISKY = 'Whisky'
+  WHISKY = 'Whisky',
+  DRINK = 'Drinks/Coquetéis'
 }
 
 export enum Branch {
@@ -32,6 +33,8 @@ export interface Product {
   minStock: number;
   packSize?: number; // Quantidade no fardo
   pricePack?: number; // Preço do fardo
+  isStockControlled?: boolean; // Se false, não controla estoque (ex: Drinks feitos na hora)
+  comboItems?: { productId: string; quantity: number }[]; // Se preenchido, é um Combo
 }
 
 export interface Sale {

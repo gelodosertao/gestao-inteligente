@@ -47,7 +47,7 @@ const OnlineMenu: React.FC<OnlineMenuProps> = () => {
     const loadProducts = async () => {
         try {
             const allProducts = await dbProducts.getAll();
-            const availableProducts = allProducts.filter(p => p.stockFilial > 0);
+            const availableProducts = allProducts.filter(p => p.stockFilial > 0 || p.isStockControlled === false || (p.comboItems && p.comboItems.length > 0));
             setProducts(availableProducts);
         } catch (error) {
             console.error("Erro ao carregar produtos:", error);
@@ -71,28 +71,57 @@ const OnlineMenu: React.FC<OnlineMenuProps> = () => {
     const addToCart = (product: Product) => {
         setCart(prev => {
             const existing = prev.find(item => item.product.id === product.id);
-            if (existing) {
-                if (existing.quantity >= product.stockFilial) {
-                    setToastMessage("Limite de estoque atingido!");
-                    return prev;
+            const totalQty = (existing ? existing.quantity : 0) + 1;
+
+            // Check Combo Stock
+            if (product.comboItems && product.comboItems.length > 0) {
+                for (const component of product.comboItems) {
+                    const compProd = products.find(p => p.id === component.productId);
+                    if (compProd) {
+                        const required = component.quantity * totalQty;
+                        if (required > compProd.stockFilial) {
+                            setToastMessage(`Estoque insuficiente: ${compProd.name}`);
+                            return prev;
+                        }
+                    }
                 }
+            } else if (product.isStockControlled !== false && totalQty > product.stockFilial) {
+                setToastMessage("Limite de estoque atingido!");
+                return prev;
+            }
+
+            if (existing) {
                 setToastMessage("Item adicionado!");
                 return prev.map(item => item.product.id === product.id ? { ...item, quantity: item.quantity + 1 } : item);
             }
             setToastMessage("Item adicionado à sacola!");
             return [...prev, { product, quantity: 1 }];
         });
-        // Removed setIsCartOpen(true) to prevent auto-opening
     };
 
     const updateQuantity = (productId: string, delta: number) => {
         setCart(prev => prev.map(item => {
             if (item.product.id === productId) {
                 const newQty = item.quantity + delta;
-                if (newQty > item.product.stockFilial) {
-                    setToastMessage("Limite de estoque atingido!");
-                    return item;
+
+                if (delta > 0) { // Only check if increasing
+                    if (item.product.comboItems && item.product.comboItems.length > 0) {
+                        for (const component of item.product.comboItems) {
+                            const compProd = products.find(p => p.id === component.productId);
+                            if (compProd) {
+                                const required = component.quantity * newQty;
+                                if (required > compProd.stockFilial) {
+                                    setToastMessage(`Estoque insuficiente: ${compProd.name}`);
+                                    return item;
+                                }
+                            }
+                        }
+                    } else if (item.product.isStockControlled !== false && newQty > item.product.stockFilial) {
+                        setToastMessage("Limite de estoque atingido!");
+                        return item;
+                    }
                 }
+
                 return newQty > 0 ? { ...item, quantity: newQty } : item;
             }
             return item;
@@ -138,12 +167,29 @@ const OnlineMenu: React.FC<OnlineMenuProps> = () => {
 
             await dbSales.add(newSale);
 
-            for (const item of cart) {
-                const updatedProduct = {
-                    ...item.product,
-                    stockFilial: item.product.stockFilial - item.quantity
-                };
-                await dbProducts.update(updatedProduct);
+            // Calculate total quantity sold for each product (handling Combos)
+            const soldQuantities: Record<string, number> = {};
+            cart.forEach(item => {
+                if (item.product.comboItems && item.product.comboItems.length > 0) {
+                    item.product.comboItems.forEach(component => {
+                        soldQuantities[component.productId] = (soldQuantities[component.productId] || 0) + (component.quantity * item.quantity);
+                    });
+                } else {
+                    soldQuantities[item.product.id] = (soldQuantities[item.product.id] || 0) + item.quantity;
+                }
+            });
+
+            // Update stocks in DB
+            const allProducts = await dbProducts.getAll(); // Fetch fresh data to be safe
+            for (const [prodId, qty] of Object.entries(soldQuantities)) {
+                const product = allProducts.find(p => p.id === prodId);
+                if (product && product.isStockControlled !== false) {
+                    const updatedProduct = {
+                        ...product,
+                        stockFilial: Math.max(0, product.stockFilial - qty)
+                    };
+                    await dbProducts.update(updatedProduct);
+                }
             }
 
             const itemsList = cart.map(i => `• ${i.quantity}x ${i.product.name} (R$ ${i.product.priceFilial.toFixed(2)})`).join('%0A');

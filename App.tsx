@@ -109,13 +109,29 @@ const App: React.FC = () => {
   const handleAddSale = async (newSale: Sale) => {
     setSales(prev => [newSale, ...prev]);
 
+    // Calculate total quantity sold for each product (handling Combos)
+    const soldQuantities: Record<string, number> = {};
+
+    newSale.items.forEach(item => {
+      const product = products.find(p => p.id === item.productId);
+      if (product?.comboItems && product.comboItems.length > 0) {
+        // It's a Combo: deduct stock from components
+        product.comboItems.forEach(component => {
+          soldQuantities[component.productId] = (soldQuantities[component.productId] || 0) + (component.quantity * item.quantity);
+        });
+      } else {
+        // Simple Product: deduct directly
+        soldQuantities[item.productId] = (soldQuantities[item.productId] || 0) + item.quantity;
+      }
+    });
+
     const updatedProductsList = products.map(prod => {
-      const soldItem = newSale.items.find(item => item.productId === prod.id);
-      if (soldItem) {
+      const qtySold = soldQuantities[prod.id];
+      if (qtySold) {
         if (newSale.branch === Branch.FILIAL) {
-          return { ...prod, stockFilial: Math.max(0, prod.stockFilial - soldItem.quantity) };
+          return { ...prod, stockFilial: Math.max(0, prod.stockFilial - qtySold) };
         } else {
-          return { ...prod, stockMatriz: Math.max(0, prod.stockMatriz - soldItem.quantity) };
+          return { ...prod, stockMatriz: Math.max(0, prod.stockMatriz - qtySold) };
         }
       }
       return prod;
@@ -139,8 +155,8 @@ const App: React.FC = () => {
         await dbSales.add(newSale);
         await dbFinancials.addBatch([newFinancial]);
 
-        for (const item of newSale.items) {
-          const product = updatedProductsList.find(p => p.id === item.productId);
+        for (const prodId of Object.keys(soldQuantities)) {
+          const product = updatedProductsList.find(p => p.id === prodId);
           if (product) {
             await dbProducts.update(product);
           }
@@ -153,8 +169,8 @@ const App: React.FC = () => {
       // If Pending, just save sale and update stock (stock is reserved even if pending? Usually yes)
       try {
         await dbSales.add(newSale);
-        for (const item of newSale.items) {
-          const product = updatedProductsList.find(p => p.id === item.productId);
+        for (const prodId of Object.keys(soldQuantities)) {
+          const product = updatedProductsList.find(p => p.id === prodId);
           if (product) {
             await dbProducts.update(product);
           }
@@ -250,10 +266,54 @@ const App: React.FC = () => {
   };
 
   const handleDeleteSale = async (saleId: string) => {
-    if (!confirm("Tem certeza que deseja excluir esta venda? O estoque NÃO será revertido automaticamente.")) return;
+    const saleToDelete = sales.find(s => s.id === saleId);
+    if (!saleToDelete) return;
+
+    if (!confirm("Tem certeza que deseja excluir esta venda? O estoque será devolvido automaticamente.")) return;
+
+    // Calculate stock to return
+    const returnedQuantities: Record<string, number> = {};
+
+    saleToDelete.items.forEach(item => {
+      const product = products.find(p => p.id === item.productId);
+      if (product?.comboItems && product.comboItems.length > 0) {
+        // It's a Combo: return stock to components
+        product.comboItems.forEach(component => {
+          returnedQuantities[component.productId] = (returnedQuantities[component.productId] || 0) + (component.quantity * item.quantity);
+        });
+      } else {
+        // Simple Product: return directly
+        returnedQuantities[item.productId] = (returnedQuantities[item.productId] || 0) + item.quantity;
+      }
+    });
+
+    // Update local products state
+    const updatedProductsList = products.map(prod => {
+      const qtyReturned = returnedQuantities[prod.id];
+      if (qtyReturned) {
+        if (saleToDelete.branch === Branch.FILIAL) {
+          return { ...prod, stockFilial: prod.stockFilial + qtyReturned };
+        } else {
+          return { ...prod, stockMatriz: prod.stockMatriz + qtyReturned };
+        }
+      }
+      return prod;
+    });
+    setProducts(updatedProductsList);
+
+    // Update local sales state
     setSales(prev => prev.filter(s => s.id !== saleId));
+
     try {
       await dbSales.delete(saleId);
+
+      // Update products in DB
+      for (const prodId of Object.keys(returnedQuantities)) {
+        const product = updatedProductsList.find(p => p.id === prodId);
+        if (product) {
+          await dbProducts.update(product);
+        }
+      }
     } catch (e) {
       console.error(e);
       alert("Erro ao excluir venda no banco.");

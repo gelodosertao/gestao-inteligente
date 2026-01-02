@@ -195,25 +195,35 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
 
       setCart(prev => {
          const existing = prev.find(item => item.product.id === product.id && item.negotiatedPrice === customPrice && item.isPack === isPack);
+         const totalQty = (existing ? existing.quantity : 0) + qty;
+         const totalDeduction = isPack && product.packSize ? totalQty * product.packSize : totalQty;
 
-         // Check stock limit for existing item
-         if (existing) {
-            const currentDeduction = isPack && product.packSize ? existing.quantity * product.packSize : existing.quantity;
-            if (currentDeduction + stockDeduction > currentStock) {
-               alert(`Estoque insuficiente na ${selectedBranch}!`);
-               return prev;
+         // Check Combo Stock
+         if (product.comboItems && product.comboItems.length > 0) {
+            for (const component of product.comboItems) {
+               const compProd = products.find(p => p.id === component.productId);
+               if (compProd) {
+                  const compStock = getProductStock(compProd);
+                  const required = component.quantity * totalDeduction;
+                  if (required > compStock) {
+                     alert(`Estoque insuficiente do componente: ${compProd.name} (Necessário: ${required}, Disponível: ${compStock})`);
+                     return prev;
+                  }
+               }
             }
+         }
+         // Check Simple Product Stock
+         else if (product.isStockControlled !== false && currentStock < totalDeduction) {
+            alert(`Produto sem estoque na ${selectedBranch}!`);
+            return prev;
+         }
+
+         if (existing) {
             return prev.map(item =>
                item.product.id === product.id && item.negotiatedPrice === customPrice && item.isPack === isPack
                   ? { ...item, quantity: item.quantity + qty }
                   : item
             );
-         }
-
-         // Check stock limit for new item
-         if (currentStock < stockDeduction) {
-            alert(`Produto sem estoque na ${selectedBranch}!`);
-            return prev;
          }
          return [...prev, { product, quantity: qty, negotiatedPrice: customPrice, isPack }];
       });
@@ -232,9 +242,23 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
             const currentStock = getProductStock(product);
             const stockDeduction = isPack && product.packSize ? newQty * product.packSize : newQty;
 
-            if (stockDeduction > currentStock) {
-               alert("Limite de estoque atingido!");
-               return item;
+            if (newQty > item.quantity) { // Only check if increasing
+               if (product.comboItems && product.comboItems.length > 0) {
+                  for (const component of product.comboItems) {
+                     const compProd = products.find(p => p.id === component.productId);
+                     if (compProd) {
+                        const compStock = getProductStock(compProd);
+                        const required = component.quantity * stockDeduction;
+                        if (required > compStock) {
+                           alert(`Estoque insuficiente do componente: ${compProd.name}`);
+                           return item;
+                        }
+                     }
+                  }
+               } else if (product.isStockControlled !== false && stockDeduction > currentStock) {
+                  alert("Limite de estoque atingido!");
+                  return item;
+               }
             }
 
             return newQty > 0 ? { ...item, quantity: newQty } : item;
@@ -612,14 +636,14 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                                     key={product.id}
                                     onClick={() => handleProductClick(product)}
                                     className="flex flex-col items-start justify-between p-3 rounded-2xl border border-slate-100 bg-white shadow-sm hover:shadow-md hover:border-orange-200 transition-all group relative min-h-[160px] w-full text-left"
-                                    disabled={stock <= 0}
+                                    disabled={!product.comboItems && product.isStockControlled !== false && stock <= 0}
                                  >
                                     <div className="w-full flex justify-between items-start mb-2">
                                        <div className="w-8 h-8 bg-orange-50 rounded-full flex items-center justify-center text-orange-600 font-bold text-[10px] border border-orange-100">
                                           {product.unit}
                                        </div>
-                                       <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${stock < product.minStock ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-500'}`}>
-                                          Est: {stock}
+                                       <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${product.comboItems ? 'bg-purple-100 text-purple-600' : product.isStockControlled === false ? 'bg-purple-100 text-purple-600' : stock < product.minStock ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-500'}`}>
+                                          {product.comboItems ? 'COMBO' : product.isStockControlled === false ? '∞' : `Est: ${stock}`}
                                        </span>
                                     </div>
 
