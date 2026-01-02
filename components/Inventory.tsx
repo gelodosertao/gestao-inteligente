@@ -757,9 +757,61 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
                       }}
                       className="bg-purple-600 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-purple-700"
                     >
-                      Adicionar
                     </button>
                   </div>
+
+                  {/* --- COMBO PRICING CALCULATOR --- */}
+                  <div className="bg-white p-3 rounded-lg border border-purple-200 mt-2">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm font-bold text-slate-600">Soma dos Produtos (Varejo):</span>
+                      <span className="text-lg font-bold text-slate-800">
+                        {formatCurrency(newProductData.comboItems.reduce((acc, item) => {
+                          const p = products.find(prod => prod.id === item.productId);
+                          return acc + ((p?.priceFilial || 0) * item.quantity);
+                        }, 0))}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm font-bold text-slate-600">Custo Total (CMV):</span>
+                      <span className="text-sm font-bold text-slate-500">
+                        {formatCurrency(newProductData.comboItems.reduce((acc, item) => {
+                          const p = products.find(prod => prod.id === item.productId);
+                          return acc + ((p?.cost || 0) * item.quantity);
+                        }, 0))}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2 mt-3 pt-3 border-t border-slate-100">
+                      <label className="text-sm font-bold text-red-500">Desconto do Combo:</label>
+                      <div className="relative flex-1">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-sm">R$</span>
+                        <input
+                          type="number"
+                          className="w-full pl-9 pr-4 py-2 border border-red-200 rounded-lg text-red-600 font-bold"
+                          placeholder="0.00"
+                          onChange={(e) => {
+                            const discount = Number(e.target.value);
+                            const basePrice = newProductData.comboItems?.reduce((acc, item) => {
+                              const p = products.find(prod => prod.id === item.productId);
+                              return acc + ((p?.priceFilial || 0) * item.quantity);
+                            }, 0) || 0;
+
+                            const totalCost = newProductData.comboItems?.reduce((acc, item) => {
+                              const p = products.find(prod => prod.id === item.productId);
+                              return acc + ((p?.cost || 0) * item.quantity);
+                            }, 0) || 0;
+
+                            setNewProductData(prev => ({
+                              ...prev,
+                              priceFilial: Math.max(0, basePrice - discount),
+                              cost: totalCost // Auto-update cost based on components
+                            }));
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
                 </div>
               ) : (
                 // --- STOCK FIELDS (SIMPLE ONLY) ---
