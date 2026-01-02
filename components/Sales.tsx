@@ -3,6 +3,7 @@ import { Sale, Branch, Product, Customer, User } from '../types';
 import { invoiceService } from '../services/invoiceService';
 import { ShoppingCart, FileText, CheckCircle, Clock, X, Printer, Send, ScanBarcode, Search, Trash2, Plus, Minus, CreditCard, Banknote, QrCode, Bluetooth, ArrowRight, Store, Factory, Calculator, User as UserIcon, UserPlus, Edit, Save, ArrowLeft, Download } from 'lucide-react';
 import html2canvas from 'html2canvas';
+import { getTodayDate } from '../services/utils';
 
 interface SalesProps {
    sales: Sale[];
@@ -85,7 +86,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
    const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod | null>(null);
 
    const [cashReceived, setCashReceived] = useState<string>('');
-   const [saleDate, setSaleDate] = useState<string>(new Date().toISOString().split('T')[0]);
+   const [saleDate, setSaleDate] = useState<string>(getTodayDate());
    const [discount, setDiscount] = useState<string>(''); // Discount in R$
    const [isPendingSale, setIsPendingSale] = useState(false);
 
@@ -259,7 +260,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
       setSelectedPaymentMethod(null);
       setCashReceived('');
       setIsPendingSale(false);
-      setSaleDate(new Date().toISOString().split('T')[0]); // Reset to today
+      setSaleDate(getTodayDate()); // Reset to today
       setShowPaymentModal(true);
    };
 

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Product, Branch, Category, Sale, FinancialRecord } from '../types';
-import { Search, Plus, ArrowRightLeft, Filter, Save, X, Truck, AlertTriangle, Upload, FileText, ArrowLeft, AlertOctagon, Edit, Calculator, DollarSign, TrendingUp, Trash2 } from 'lucide-react';
+import { Search, Plus, ArrowRightLeft, Filter, Save, X, Truck, AlertTriangle, Upload, FileText, ArrowLeft, AlertOctagon, Edit, Calculator, DollarSign, TrendingUp, Trash2, PieChart, BarChart3 } from 'lucide-react';
+import { dbStockMovements } from '../services/db';
+import { getTodayDate } from '../services/utils';
 
 interface InventoryProps {
   products: Product[];
@@ -20,6 +22,7 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
   const [showAdjustModal, setShowAdjustModal] = useState(false);
   const [showNewProductModal, setShowNewProductModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
   const [importedProducts, setImportedProducts] = useState<Partial<Product>[]>([]);
 
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -164,6 +167,23 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
     };
 
     onUpdateProduct(updatedProduct);
+
+    // Record Loss in DB
+    try {
+      dbStockMovements.add({
+        id: crypto.randomUUID(),
+        date: getTodayDate(),
+        productId: selectedProduct.id,
+        productName: selectedProduct.name,
+        quantity: lossData.quantity,
+        type: 'LOSS',
+        reason: lossData.reason,
+        branch: lossData.branch
+      });
+    } catch (err) {
+      console.error("Erro ao salvar perda no histórico", err);
+    }
+
     setShowLossModal(false);
     alert(`Perda de ${lossData.quantity} itens registrada com sucesso.`);
   };
@@ -317,6 +337,12 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
             <Upload size={18} /> Importar XML
             <input type="file" accept=".xml" className="hidden" onChange={handleFileUpload} />
           </label>
+          <button
+            onClick={() => setShowReportModal(true)}
+            className="bg-purple-700 hover:bg-purple-600 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 shadow-lg shadow-purple-900/10 transition-colors"
+          >
+            <PieChart size={18} /> Relatórios
+          </button>
         </div>
       </div>
 
@@ -333,8 +359,12 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
               onChange={(e) => setFilter(e.target.value)}
             />
           </div>
-          <button className="p-2 text-slate-500 hover:bg-slate-50 rounded-lg border border-slate-200">
-            <Filter size={18} />
+          <button
+            onClick={() => setFilter('')}
+            className="p-2 text-slate-500 hover:bg-slate-50 rounded-lg border border-slate-200"
+            title="Limpar Filtro"
+          >
+            {filter ? <X size={18} /> : <Filter size={18} />}
           </button>
         </div>
 
@@ -833,6 +863,150 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
               <button onClick={confirmImport} className="px-6 py-2 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 shadow-lg shadow-green-900/20">
                 Confirmar Importação
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- MODAL DE RELATÓRIOS --- */}
+      {showReportModal && (
+        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-6xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="p-4 bg-purple-800 text-white flex justify-between items-center">
+              <h3 className="font-bold flex items-center gap-2">
+                <BarChart3 size={20} className="text-purple-300" /> Relatório de Estoque e Vendas
+              </h3>
+              <button onClick={() => setShowReportModal(false)}><X size={20} /></button>
+            </div>
+
+            <div className="flex-1 overflow-auto p-6 bg-slate-50">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                {/* Card 1: Valor em Estoque */}
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                  <h4 className="text-sm font-bold text-slate-500 uppercase mb-2">Valor Total em Estoque (Custo)</h4>
+                  <div className="text-3xl font-bold text-slate-800">
+                    {formatCurrency(products.reduce((acc, p) => acc + (p.cost * (p.stockMatriz + p.stockFilial)), 0))}
+                  </div>
+                  <div className="mt-2 text-xs text-slate-400 flex justify-between">
+                    <span>Matriz: {formatCurrency(products.reduce((acc, p) => acc + (p.cost * p.stockMatriz), 0))}</span>
+                    <span>Filial: {formatCurrency(products.reduce((acc, p) => acc + (p.cost * p.stockFilial), 0))}</span>
+                  </div>
+                </div>
+
+                {/* Card 2: Valor de Venda Potencial */}
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                  <h4 className="text-sm font-bold text-slate-500 uppercase mb-2">Potencial de Venda (Estimado)</h4>
+                  <div className="text-3xl font-bold text-emerald-600">
+                    {formatCurrency(products.reduce((acc, p) => acc + (p.priceFilial * p.stockFilial) + (p.priceMatriz * p.stockMatriz), 0))}
+                  </div>
+                  <p className="text-xs text-slate-400 mt-2">Baseado nos preços atuais de varejo e atacado.</p>
+                </div>
+
+                {/* Card 3: Itens Abaixo do Mínimo */}
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                  <h4 className="text-sm font-bold text-slate-500 uppercase mb-2">Alertas de Estoque</h4>
+                  <div className="text-3xl font-bold text-red-600">
+                    {products.filter(p => p.stockMatriz < p.minStock || p.stockFilial < p.minStock).length}
+                  </div>
+                  <p className="text-xs text-slate-400 mt-2">Produtos precisando de reposição.</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Tabela: Mais Vendidos (ABC) */}
+                <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                  <div className="p-4 border-b border-slate-100 bg-slate-50">
+                    <h4 className="font-bold text-slate-700 flex items-center gap-2">
+                      <TrendingUp size={18} className="text-blue-500" /> Produtos Mais Vendidos (Top 10)
+                    </h4>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                      <thead className="bg-slate-50 text-slate-500">
+                        <tr>
+                          <th className="p-3 font-semibold">Produto</th>
+                          <th className="p-3 font-semibold text-right">Qtd. Vendida</th>
+                          <th className="p-3 font-semibold text-right">Receita Gerada</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {(() => {
+                          // Calculate sales per product
+                          const productSales: Record<string, { name: string, qty: number, revenue: number }> = {};
+                          sales.forEach(sale => {
+                            sale.items.forEach(item => {
+                              if (!productSales[item.productId]) {
+                                productSales[item.productId] = { name: item.productName, qty: 0, revenue: 0 };
+                              }
+                              productSales[item.productId].qty += item.quantity;
+                              productSales[item.productId].revenue += (item.quantity * item.priceAtSale);
+                            });
+                          });
+
+                          return Object.values(productSales)
+                            .sort((a, b) => b.qty - a.qty)
+                            .slice(0, 10)
+                            .map((item, idx) => (
+                              <tr key={idx} className="hover:bg-slate-50">
+                                <td className="p-3 font-medium text-slate-700">{item.name}</td>
+                                <td className="p-3 text-right font-bold text-blue-600">{item.qty}</td>
+                                <td className="p-3 text-right text-emerald-600">{formatCurrency(item.revenue)}</td>
+                              </tr>
+                            ));
+                        })()}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Tabela: Sugestão de Reposição */}
+                <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                  <div className="p-4 border-b border-slate-100 bg-slate-50">
+                    <h4 className="font-bold text-slate-700 flex items-center gap-2">
+                      <AlertTriangle size={18} className="text-orange-500" /> Sugestão de Reposição
+                    </h4>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                      <thead className="bg-slate-50 text-slate-500">
+                        <tr>
+                          <th className="p-3 font-semibold">Produto</th>
+                          <th className="p-3 font-semibold text-center">Matriz</th>
+                          <th className="p-3 font-semibold text-center">Filial</th>
+                          <th className="p-3 font-semibold text-center">Mínimo</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {products
+                          .filter(p => p.stockMatriz < p.minStock || p.stockFilial < p.minStock)
+                          .map((p) => (
+                            <tr key={p.id} className="hover:bg-slate-50">
+                              <td className="p-3 font-medium text-slate-700">{p.name}</td>
+                              <td className={`p-3 text-center font-bold ${p.stockMatriz < p.minStock ? 'text-red-600' : 'text-slate-600'}`}>
+                                {p.stockMatriz}
+                              </td>
+                              <td className={`p-3 text-center font-bold ${p.stockFilial < p.minStock ? 'text-red-600' : 'text-slate-600'}`}>
+                                {p.stockFilial}
+                              </td>
+                              <td className="p-3 text-center text-slate-400">{p.minStock}</td>
+                            </tr>
+                          ))}
+                        {products.filter(p => p.stockMatriz < p.minStock || p.stockFilial < p.minStock).length === 0 && (
+                          <tr>
+                            <td colSpan={4} className="p-6 text-center text-slate-400">
+                              Nenhum produto com estoque baixo.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-6 bg-blue-50 p-4 rounded-xl border border-blue-100 text-sm text-blue-800">
+                <strong>Nota:</strong> O histórico detalhado de perdas começou a ser gravado agora. Relatórios de perdas aparecerão aqui assim que houver dados suficientes.
+              </div>
             </div>
           </div>
         </div>

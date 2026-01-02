@@ -89,3 +89,14 @@ export interface Customer {
   state?: string;
   branch?: Branch;
 }
+
+export interface StockMovement {
+  id: string;
+  date: string;
+  productId: string;
+  productName: string;
+  quantity: number;
+  type: 'LOSS' | 'ADJUSTMENT' | 'TRANSFER_OUT' | 'TRANSFER_IN';
+  reason: string;
+  branch: Branch;
+}

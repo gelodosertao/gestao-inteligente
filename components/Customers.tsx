@@ -406,7 +406,7 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
                                             )}
                                         </td>
                                         <td className="px-6 py-3">{customer.phone || '-'}</td>
-                                        <td className="px-6 py-3">{customer.city || '-'}</td>
+                                        <td className="px-6 py-3 font-bold text-blue-800 bg-blue-50/30">{customer.city || '-'}</td>
                                         <td className="px-6 py-3">{customer.state || '-'}</td>
                                         <td className="px-6 py-3 text-right flex justify-end gap-2">
                                             {currentUser.role === 'ADMIN' && (
@@ -523,30 +523,53 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
                             </div>
 
                             <div>
-                                <label className="block text-sm font-bold text-slate-700 mb-1">Endereço</label>
+                                <label className="block text-sm font-bold text-slate-700 mb-1">Endereço Completo</label>
                                 <div className="flex gap-2 mb-2">
                                     <input
                                         type="text"
-                                        className="w-32 px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-                                        placeholder="CEP"
+                                        className="w-32 px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm"
+                                        placeholder="CEP (Opcional)"
                                         value={cepInput}
                                         onChange={(e) => setCepInput(e.target.value)}
                                         maxLength={9}
                                     />
                                     <button
                                         onClick={() => fetchAddress(false)}
-                                        className="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-2 rounded-lg font-bold text-sm transition-colors"
+                                        className="bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-2 rounded-lg font-bold text-xs transition-colors"
                                     >
-                                        Buscar
+                                        Buscar CEP
                                     </button>
                                 </div>
                                 <input
                                     type="text"
-                                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 mb-3"
                                     value={newCustomer.address || ''}
                                     onChange={(e) => setNewCustomer({ ...newCustomer, address: e.target.value })}
-                                    placeholder="Rua, Bairro, Cidade - UF"
+                                    placeholder="Rua, Número, Bairro"
                                 />
+                                <div className="grid grid-cols-3 gap-4">
+                                    <div className="col-span-2">
+                                        <label className="block text-xs font-bold text-slate-500 mb-1">Cidade</label>
+                                        <input
+                                            type="text"
+                                            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                                            value={newCustomer.city || ''}
+                                            onChange={(e) => setNewCustomer({ ...newCustomer, city: e.target.value })}
+                                            placeholder="Cidade"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-500 mb-1">Estado (UF)</label>
+                                        <input
+                                            type="text"
+                                            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 uppercase"
+                                            value={newCustomer.state || ''}
+                                            onChange={(e) => setNewCustomer({ ...newCustomer, state: e.target.value })}
+                                            placeholder="UF"
+                                            maxLength={2}
+                                        />
+                                    </div>
+                                </div>
                             </div>
 
                             <button
@@ -645,30 +668,53 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
                             </div>
 
                             <div>
-                                <label className="block text-sm font-bold text-slate-700 mb-1">Endereço</label>
+                                <label className="block text-sm font-bold text-slate-700 mb-1">Endereço Completo</label>
                                 <div className="flex gap-2 mb-2">
                                     <input
                                         type="text"
-                                        className="w-32 px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-                                        placeholder="CEP"
+                                        className="w-32 px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm"
+                                        placeholder="CEP (Opcional)"
                                         value={cepInput}
                                         onChange={(e) => setCepInput(e.target.value)}
                                         maxLength={9}
                                     />
                                     <button
                                         onClick={() => fetchAddress(true)}
-                                        className="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-2 rounded-lg font-bold text-sm transition-colors"
+                                        className="bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-2 rounded-lg font-bold text-xs transition-colors"
                                     >
-                                        Buscar
+                                        Buscar CEP
                                     </button>
                                 </div>
                                 <input
                                     type="text"
-                                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 mb-3"
                                     value={editingCustomer.address || ''}
                                     onChange={(e) => setEditingCustomer({ ...editingCustomer, address: e.target.value })}
-                                    placeholder="Rua, Bairro, Cidade - UF"
+                                    placeholder="Rua, Número, Bairro"
                                 />
+                                <div className="grid grid-cols-3 gap-4">
+                                    <div className="col-span-2">
+                                        <label className="block text-xs font-bold text-slate-500 mb-1">Cidade</label>
+                                        <input
+                                            type="text"
+                                            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                                            value={editingCustomer.city || ''}
+                                            onChange={(e) => setEditingCustomer({ ...editingCustomer, city: e.target.value })}
+                                            placeholder="Cidade"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-500 mb-1">Estado (UF)</label>
+                                        <input
+                                            type="text"
+                                            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 uppercase"
+                                            value={editingCustomer.state || ''}
+                                            onChange={(e) => setEditingCustomer({ ...editingCustomer, state: e.target.value })}
+                                            placeholder="UF"
+                                            maxLength={2}
+                                        />
+                                    </div>
+                                </div>
                             </div>
 
                             <button

@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { Product, Sale, FinancialRecord, Category, Branch, User, Role, Customer } from '../types';
+import { Product, Sale, FinancialRecord, Category, Branch, User, Role, Customer, StockMovement } from '../types';
 
 // --- USERS & AUTH ---
 
@@ -293,6 +293,39 @@ export const dbCustomers = {
 
   async delete(id: string) {
     const { error } = await supabase.from('customers').delete().eq('id', id);
+    if (error) throw error;
+  }
+};
+
+// --- STOCK MOVEMENTS ---
+export const dbStockMovements = {
+  async getAll(): Promise<StockMovement[]> {
+    const { data, error } = await supabase.from('stock_movements').select('*').order('date', { ascending: false });
+    if (error) throw error;
+
+    return (data || []).map((row: any) => ({
+      id: row.id,
+      date: row.date,
+      productId: row.product_id,
+      productName: row.product_name,
+      quantity: row.quantity,
+      type: row.type,
+      reason: row.reason,
+      branch: row.branch as Branch
+    }));
+  },
+
+  async add(movement: StockMovement) {
+    const { error } = await supabase.from('stock_movements').insert([{
+      id: movement.id,
+      date: movement.date,
+      product_id: movement.productId,
+      product_name: movement.productName,
+      quantity: movement.quantity,
+      type: movement.type,
+      reason: movement.reason,
+      branch: movement.branch
+    }]);
     if (error) throw error;
   }
 };

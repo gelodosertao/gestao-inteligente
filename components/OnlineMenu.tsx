@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Product, Sale, Branch } from '../types';
 import { ShoppingCart, Plus, Minus, Trash2, Send, MapPin, CreditCard, User, Store, X, Search, CheckCircle } from 'lucide-react';
 import { dbProducts, dbSales } from '../services/db';
+import { getTodayDate } from '../services/utils';
 
 interface CartItem {
     product: Product;
@@ -120,7 +121,7 @@ const OnlineMenu: React.FC<OnlineMenuProps> = () => {
         try {
             const newSale: Sale = {
                 id: `ord-${Date.now()}`,
-                date: new Date().toISOString().split('T')[0],
+                date: getTodayDate(),
                 customerName: `${customerName} (Online)`,
                 total: cartTotal,
                 branch: Branch.FILIAL,

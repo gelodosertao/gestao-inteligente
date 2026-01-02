@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { FinancialRecord, Branch, Sale, Product } from '../types';
 import { ArrowUpCircle, ArrowDownCircle, X, Plus, Calendar, DollarSign, Repeat, ArrowLeft, Building2, BarChart3, LineChart } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts';
+import { getTodayDate } from '../services/utils';
 
 interface FinancialProps {
    records: FinancialRecord[];
@@ -23,7 +24,7 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, onAddRe
    // Form State - Defaulted to Expense, removed logic to switch to Income in UI
    const [newRecord, setNewRecord] = useState<Partial<FinancialRecord>>({
       type: 'Expense',
-      date: new Date().toISOString().split('T')[0],
+      date: getTodayDate(),
       category: 'Fornecedores',
       branch: Branch.MATRIZ
    });
@@ -202,7 +203,7 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, onAddRe
       onAddRecord(recordsToAdd);
       setShowAddModal(false);
       // Reset form
-      setNewRecord({ type: 'Expense', date: new Date().toISOString().split('T')[0], category: 'Fornecedores', description: '', amount: 0, branch: Branch.MATRIZ });
+      setNewRecord({ type: 'Expense', date: getTodayDate(), category: 'Fornecedores', description: '', amount: 0, branch: Branch.MATRIZ });
       setIsRecurring(false);
       setInstallments(2);
    };
