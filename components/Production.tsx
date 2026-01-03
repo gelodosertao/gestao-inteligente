@@ -100,9 +100,11 @@ const Production: React.FC<ProductionProps> = ({ products, currentUser, onUpdate
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div className="flex items-center gap-3">
-                    <button onClick={onBack} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
-                        <ArrowLeft size={24} className="text-slate-600" />
-                    </button>
+                    {currentUser.role !== 'FACTORY' && (
+                        <button onClick={onBack} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
+                            <ArrowLeft size={24} className="text-slate-600" />
+                        </button>
+                    )}
                     <div>
                         <h2 className="text-2xl font-bold text-slate-800">Controle de Produção</h2>
                         <p className="text-slate-500">Registre a produção diária da fábrica.</p>
@@ -220,8 +222,8 @@ const Production: React.FC<ProductionProps> = ({ products, currentUser, onUpdate
                                         <td className="px-6 py-4 font-bold text-blue-600">+{record.quantity}</td>
                                         <td className="px-6 py-4">
                                             <span className={`px-2 py-1 rounded-full text-xs font-bold ${record.shift === 'Manhã' ? 'bg-yellow-100 text-yellow-700' :
-                                                    record.shift === 'Tarde' ? 'bg-orange-100 text-orange-700' :
-                                                        'bg-indigo-100 text-indigo-700'
+                                                record.shift === 'Tarde' ? 'bg-orange-100 text-orange-700' :
+                                                    'bg-indigo-100 text-indigo-700'
                                                 }`}>
                                                 {record.shift}
                                             </span>

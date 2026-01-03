@@ -68,6 +68,30 @@ export const dbUsers = {
       role: newUser.role,
       avatarInitials: newUser.avatar_initials
     };
+  },
+
+  async getAll(): Promise<User[]> {
+    const { data, error } = await supabase.from('app_users').select('*');
+    if (error) throw error;
+
+    return (data || []).map((row: any) => ({
+      id: row.id,
+      name: row.name,
+      email: row.email,
+      role: row.role as Role,
+      avatarInitials: row.avatar_initials
+    }));
+  },
+
+  async updatePassword(userId: string, newPassword: string): Promise<void> {
+    const hashedPassword = await hashPassword(newPassword);
+    const { error } = await supabase.from('app_users').update({ password: hashedPassword }).eq('id', userId);
+    if (error) throw error;
+  },
+
+  async delete(userId: string): Promise<void> {
+    const { error } = await supabase.from('app_users').delete().eq('id', userId);
+    if (error) throw error;
   }
 };
 

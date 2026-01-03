@@ -433,9 +433,11 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
       <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 relative h-full">
          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
             <div className="flex items-center gap-3 w-full md:w-auto">
-               <button onClick={onBack} className="p-2 hover:bg-slate-200 rounded-full transition-colors shrink-0">
-                  <ArrowLeft size={24} className="text-slate-600" />
-               </button>
+               {currentUser.role !== 'OPERATOR' && (
+                  <button onClick={onBack} className="p-2 hover:bg-slate-200 rounded-full transition-colors shrink-0">
+                     <ArrowLeft size={24} className="text-slate-600" />
+                  </button>
+               )}
                <div>
                   <h2 className="text-2xl font-bold text-slate-800">Vendas & PDV</h2>
                   <p className="text-slate-500 text-xs md:text-sm">

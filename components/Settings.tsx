@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User, Role } from '../types';
+import { dbUsers } from '../services/db';
 import { Save, Shield, Globe, Users, Key, FileBadge, CheckCircle, CreditCard, QrCode, Smartphone, Server, Database, Download, Cloud, Trash2, X, Plus } from 'lucide-react';
 import { MOCK_PRODUCTS, MOCK_SALES, MOCK_FINANCIALS } from '../constants';
 import { getTodayDate } from '../services/utils';
@@ -15,8 +16,58 @@ const Settings: React.FC<SettingsProps> = ({ currentUser, onResetData }) => {
    const [successMsg, setSuccessMsg] = useState('');
 
    // User Management State
+   const [users, setUsers] = useState<User[]>([]);
    const [showUserModal, setShowUserModal] = useState(false);
    const [newUser, setNewUser] = useState({ name: '', email: '', role: 'OPERATOR' as Role, password: '' });
+
+   // Password Change State
+   const [showPasswordModal, setShowPasswordModal] = useState(false);
+   const [passwordData, setPasswordData] = useState({ userId: '', newPassword: '' });
+
+   useEffect(() => {
+      if (activeTab === 'USERS') {
+         loadUsers();
+      }
+   }, [activeTab]);
+
+   const loadUsers = async () => {
+      try {
+         const data = await dbUsers.getAll();
+         setUsers(data);
+      } catch (error) {
+         console.error("Erro ao carregar usuários:", error);
+      }
+   };
+
+   const handleDeleteUser = async (userId: string) => {
+      if (!confirm("Tem certeza que deseja excluir este usuário?")) return;
+
+      try {
+         await dbUsers.delete(userId);
+         setSuccessMsg("Usuário excluído com sucesso!");
+         loadUsers();
+         setTimeout(() => setSuccessMsg(''), 3000);
+      } catch (error: any) {
+         alert("Erro ao excluir usuário: " + error.message);
+      }
+   };
+
+   const handleUpdatePassword = async () => {
+      if (passwordData.newPassword.length < 6) {
+         alert("A senha deve ter no mínimo 6 caracteres.");
+         return;
+      }
+
+      try {
+         await dbUsers.updatePassword(passwordData.userId, passwordData.newPassword);
+         setSuccessMsg("Senha atualizada com sucesso!");
+         setShowPasswordModal(false);
+         setPasswordData({ userId: '', newPassword: '' });
+         setTimeout(() => setSuccessMsg(''), 3000);
+      } catch (error: any) {
+         alert("Erro ao atualizar senha: " + error.message);
+      }
+   };
 
    // SEFAZ Integration State
    const [environment, setEnvironment] = useState<'HOMOLOGATION' | 'PRODUCTION'>('HOMOLOGATION');
@@ -31,15 +82,24 @@ const Settings: React.FC<SettingsProps> = ({ currentUser, onResetData }) => {
       }, 1500);
    };
 
-   const handleAddUser = () => {
+   const handleAddUser = async () => {
+      if (!newUser.name || !newUser.email || !newUser.password) {
+         alert("Preencha todos os campos.");
+         return;
+      }
       setLoading(true);
-      setTimeout(() => {
-         setLoading(false);
-         setShowUserModal(false);
+      try {
+         await dbUsers.register(newUser);
          setSuccessMsg('Usuário cadastrado com sucesso!');
-         setTimeout(() => setSuccessMsg(''), 3000);
+         setShowUserModal(false);
          setNewUser({ name: '', email: '', role: 'OPERATOR', password: '' });
-      }, 1000);
+         loadUsers(); // Refresh list
+         setTimeout(() => setSuccessMsg(''), 3000);
+      } catch (error: any) {
+         alert(error.message || "Erro ao criar usuário.");
+      } finally {
+         setLoading(false);
+      }
    };
 
    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -316,21 +376,51 @@ const Settings: React.FC<SettingsProps> = ({ currentUser, onResetData }) => {
                                  <th className="p-4">Email</th>
                                  <th className="p-4">Perfil</th>
                                  <th className="p-4 text-right">Status</th>
+                                 <th className="p-4 text-right">Ações</th>
                               </tr>
                            </thead>
                            <tbody className="divide-y divide-slate-100 text-sm">
-                              <tr>
-                                 <td className="p-4 font-bold text-slate-800">João Pedro</td>
-                                 <td className="p-4 text-slate-600">admin@gelodosertao.com</td>
-                                 <td className="p-4"><span className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs font-bold">ADMINISTRADOR</span></td>
-                                 <td className="p-4 text-right"><span className="text-green-600 font-bold">Ativo</span></td>
-                              </tr>
-                              <tr>
-                                 <td className="p-4 font-bold text-slate-800">Operador Caixa</td>
-                                 <td className="p-4 text-slate-600">caixa@gelodosertao.com</td>
-                                 <td className="p-4"><span className="bg-orange-100 text-orange-700 px-2 py-1 rounded text-xs font-bold">OPERADOR</span></td>
-                                 <td className="p-4 text-right"><span className="text-green-600 font-bold">Ativo</span></td>
-                              </tr>
+                              {users.map(user => (
+                                 <tr key={user.id}>
+                                    <td className="p-4 font-bold text-slate-800">{user.name}</td>
+                                    <td className="p-4 text-slate-600">{user.email}</td>
+                                    <td className="p-4">
+                                       <span className={`px-2 py-1 rounded text-xs font-bold ${user.role === 'ADMIN' ? 'bg-blue-100 text-blue-700' :
+                                          user.role === 'FACTORY' ? 'bg-purple-100 text-purple-700' :
+                                             'bg-orange-100 text-orange-700'
+                                          }`}>
+                                          {user.role === 'ADMIN' ? 'ADMINISTRADOR' : user.role === 'FACTORY' ? 'FÁBRICA' : 'OPERATOR'}
+                                       </span>
+                                    </td>
+                                    <td className="p-4 text-right"><span className="text-green-600 font-bold">Ativo</span></td>
+                                    <td className="p-4 text-right flex justify-end gap-2">
+                                       <button
+                                          onClick={() => {
+                                             setPasswordData({ userId: user.id, newPassword: '' });
+                                             setShowPasswordModal(true);
+                                          }}
+                                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                          title="Alterar Senha"
+                                       >
+                                          <Key size={18} />
+                                       </button>
+                                       {user.id !== currentUser.id && (
+                                          <button
+                                             onClick={() => handleDeleteUser(user.id)}
+                                             className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                                             title="Excluir Usuário"
+                                          >
+                                             <Trash2 size={18} />
+                                          </button>
+                                       )}
+                                    </td>
+                                 </tr>
+                              ))}
+                              {users.length === 0 && (
+                                 <tr>
+                                    <td colSpan={4} className="p-8 text-center text-slate-500">Nenhum usuário encontrado.</td>
+                                 </tr>
+                              )}
                            </tbody>
                         </table>
                      </div>
@@ -475,6 +565,7 @@ const Settings: React.FC<SettingsProps> = ({ currentUser, onResetData }) => {
                            onChange={(e) => setNewUser({ ...newUser, role: e.target.value as Role })}
                         >
                            <option value="OPERATOR">Operador (PDV/Estoque)</option>
+                           <option value="FACTORY">Fábrica (Produção)</option>
                            <option value="ADMIN">Administrador (Total)</option>
                         </select>
                      </div>
@@ -495,6 +586,42 @@ const Settings: React.FC<SettingsProps> = ({ currentUser, onResetData }) => {
                            className="w-full bg-blue-800 hover:bg-blue-700 text-white py-3 rounded-xl font-bold shadow-lg shadow-blue-900/20"
                         >
                            Criar Conta
+                        </button>
+                     </div>
+                  </div>
+               </div>
+            </div>
+         )}
+
+         {/* MODAL ALTERAR SENHA */}
+         {showPasswordModal && (
+            <div className="fixed inset-0 bg-blue-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+               <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
+                  <div className="p-4 bg-blue-600 text-white flex justify-between items-center">
+                     <h3 className="font-bold flex items-center gap-2">
+                        <Key size={20} /> Alterar Senha
+                     </h3>
+                     <button onClick={() => setShowPasswordModal(false)}><X size={20} /></button>
+                  </div>
+
+                  <div className="p-6 space-y-4">
+                     <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Nova Senha</label>
+                        <input
+                           type="password"
+                           className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-white text-slate-900"
+                           value={passwordData.newPassword}
+                           onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                           placeholder="Mínimo 6 caracteres"
+                        />
+                     </div>
+
+                     <div className="pt-2">
+                        <button
+                           onClick={handleUpdatePassword}
+                           className="w-full bg-blue-800 hover:bg-blue-700 text-white py-3 rounded-xl font-bold shadow-lg shadow-blue-900/20"
+                        >
+                           Atualizar Senha
                         </button>
                      </div>
                   </div>
