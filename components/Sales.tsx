@@ -61,6 +61,9 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
    const [posSearchTerm, setPosSearchTerm] = useState('');
    const barcodeInputRef = useRef<HTMLInputElement>(null);
 
+   // --- HISTORY SEARCH STATE ---
+   const [historySearchTerm, setHistorySearchTerm] = useState('');
+
    // --- MOBILE RESPONSIVE STATE ---
    const [showMobileCart, setShowMobileCart] = useState(false);
 
@@ -459,7 +462,23 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
          {activeTab === 'History' ? (
             // --- HISTORY VIEW ---
             <div className="grid gap-4 pb-20 md:pb-0">
-               {sales.map(sale => (
+               {/* History Search Bar */}
+               <div className="relative mb-2">
+                  <Search size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                     type="text"
+                     placeholder="Pesquisar venda por cliente, ID ou valor..."
+                     value={historySearchTerm}
+                     onChange={(e) => setHistorySearchTerm(e.target.value)}
+                     className="w-full pl-12 pr-4 py-3 border border-slate-200 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                  />
+               </div>
+
+               {sales.filter(sale =>
+                  sale.customerName.toLowerCase().includes(historySearchTerm.toLowerCase()) ||
+                  sale.id.includes(historySearchTerm) ||
+                  sale.total.toString().includes(historySearchTerm)
+               ).map(sale => (
                   <div key={sale.id} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center hover:border-blue-200 transition-colors">
                      <div className="flex gap-4 items-center">
                         <div className={`p-3 rounded-full ${sale.branch === Branch.MATRIZ ? 'bg-blue-100 text-blue-600' : 'bg-orange-100 text-orange-600'}`}>

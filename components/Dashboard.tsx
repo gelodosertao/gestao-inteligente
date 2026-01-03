@@ -441,15 +441,25 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
                   </div>
 
                   <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200">
-                    <h4 className="font-bold text-slate-700 mb-4">Top 10 Cidades</h4>
+                    <h4 className="font-bold text-slate-700 mb-4">Top 5 Clientes (Receita)</h4>
                     <div className="h-80">
                       <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={customersByCity}>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                          <XAxis dataKey="name" fontSize={11} interval={0} angle={-45} textAnchor="end" height={60} />
-                          <YAxis />
-                          <RechartsTooltip />
-                          <Bar dataKey="value" fill="#82ca9d" radius={[4, 4, 0, 0]} name="Clientes" />
+                        <BarChart layout="vertical" data={
+                          filteredSalesForBI.reduce((acc: any[], curr) => {
+                            const name = curr.customerName || 'Consumidor Final';
+                            const found = acc.find(a => a.name === name);
+                            if (found) found.value += curr.total;
+                            else acc.push({ name, value: curr.total });
+                            return acc;
+                          }, [])
+                            .sort((a, b) => b.value - a.value)
+                            .slice(0, 5)
+                        }>
+                          <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                          <XAxis type="number" tickFormatter={(val) => `R$${val}`} />
+                          <YAxis dataKey="name" type="category" width={120} fontSize={11} />
+                          <RechartsTooltip formatter={(value: number) => formatCurrency(value)} />
+                          <Bar dataKey="value" fill="#10b981" radius={[0, 4, 4, 0]} barSize={20} name="Total Comprado" />
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
