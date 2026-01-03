@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
-import { TrendingUp, Users, AlertTriangle, ArrowUpRight, X, Filter, Download, Calendar, DollarSign, ArrowDownCircle, Globe } from 'lucide-react';
+import { TrendingUp, Users, AlertTriangle, ArrowUpRight, X, Filter, Download, Calendar, DollarSign, ArrowDownCircle, Globe, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Product, Sale, FinancialRecord, Customer, Branch, ViewState } from '../types';
 
 interface DashboardProps {
@@ -18,6 +18,52 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
   const [showPowerBI, setShowPowerBI] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState<'ALL' | Branch>('ALL');
 
+  // --- DATE FILTERING ---
+  const [period, setPeriod] = useState<'DAY' | 'WEEK' | 'MONTH'>('MONTH');
+  const [currentDate, setCurrentDate] = useState(new Date());
+
+  const getPeriodDates = (date: Date, type: 'DAY' | 'WEEK' | 'MONTH') => {
+    const start = new Date(date);
+    const end = new Date(date);
+
+    if (type === 'DAY') {
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+    } else if (type === 'WEEK') {
+      const day = start.getDay(); // 0 (Sun) to 6 (Sat)
+      const diff = start.getDate() - day; // set to Sunday
+      start.setDate(diff);
+      start.setHours(0, 0, 0, 0);
+
+      end.setDate(diff + 6);
+      end.setHours(23, 59, 59, 999);
+    } else {
+      start.setDate(1);
+      start.setHours(0, 0, 0, 0);
+      end.setMonth(end.getMonth() + 1);
+      end.setDate(0);
+      end.setHours(23, 59, 59, 999);
+    }
+    return { start, end };
+  };
+
+  const navigatePeriod = (direction: 'prev' | 'next') => {
+    const newDate = new Date(currentDate);
+    if (period === 'DAY') newDate.setDate(newDate.getDate() + (direction === 'next' ? 1 : -1));
+    if (period === 'WEEK') newDate.setDate(newDate.getDate() + (direction === 'next' ? 7 : -7));
+    if (period === 'MONTH') newDate.setMonth(newDate.getMonth() + (direction === 'next' ? 1 : -1));
+    setCurrentDate(newDate);
+  };
+
+  const formatPeriodLabel = () => {
+    if (period === 'DAY') return currentDate.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'long' });
+    if (period === 'WEEK') {
+      const { start, end } = getPeriodDates(currentDate, 'WEEK');
+      return `${start.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} à ${end.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}`;
+    }
+    return currentDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  };
+
   // State for Power BI Filters
   const [dateRange, setDateRange] = useState('THIS_MONTH'); // 'THIS_MONTH', 'LAST_MONTH', 'YEAR'
 
@@ -31,7 +77,25 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
   const filteredFinancials = financials.filter(f => selectedBranch === 'ALL' || f.branch === selectedBranch);
   const filteredCustomers = customers.filter(c => selectedBranch === 'ALL' || c.branch === selectedBranch);
 
-  // --- CALCULATIONS (Monthly Logic) ---
+  // --- CALCULATIONS (Dynamic Period Logic) ---
+  const { start: periodStart, end: periodEnd } = getPeriodDates(currentDate, period);
+
+  // Previous Period for Trend
+  const prevDate = new Date(currentDate);
+  if (period === 'DAY') prevDate.setDate(prevDate.getDate() - 1);
+  if (period === 'WEEK') prevDate.setDate(prevDate.getDate() - 7);
+  if (period === 'MONTH') prevDate.setMonth(prevDate.getMonth() - 1);
+
+  const { start: prevStart, end: prevEnd } = getPeriodDates(prevDate, period);
+
+  const isInRange = (dateStr: string, start: Date, end: Date) => {
+    // Fix timezone offset issue by treating string as local
+    const [y, m, d] = dateStr.split('T')[0].split('-').map(Number);
+    const checkDate = new Date(y, m - 1, d, 12, 0, 0); // Noon to avoid timezone shifts
+    return checkDate >= start && checkDate <= end;
+  };
+
+  // --- LEGACY / BI VARIABLES (Restored for Power BI Section) ---
   const now = new Date();
   const currentMonth = now.getMonth();
   const currentYear = now.getFullYear();
@@ -43,20 +107,26 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
     return d.getMonth() === month && d.getFullYear() === year;
   };
 
-  // Current Month Data
+  // Current Month Data (Legacy for BI)
   const currentMonthSales = filteredSales.filter(s => isSameMonth(s.date, currentMonth, currentYear));
   const currentMonthRevenue = currentMonthSales.filter(s => s.status === 'Completed').reduce((acc, curr) => acc + curr.total, 0);
   const currentMonthPending = currentMonthSales.filter(s => s.status === 'Pending').reduce((acc, curr) => acc + curr.total, 0);
   const currentMonthExpenses = filteredFinancials.filter(f => f.type === 'Expense' && isSameMonth(f.date, currentMonth, currentYear)).reduce((acc, curr) => acc + curr.amount, 0);
   const currentMonthProfit = currentMonthRevenue - currentMonthExpenses;
 
-  // Last Month Data (for trends)
-  // Note: We use the SAME filter for branch to get accurate trends for the selected view
-  const lastMonthSales = sales.filter(s => (selectedBranch === 'ALL' || s.branch === selectedBranch) && isSameMonth(s.date, lastMonth, lastMonthYear));
-  const lastMonthRevenue = lastMonthSales.filter(s => s.status === 'Completed').reduce((acc, curr) => acc + curr.total, 0);
-  const lastMonthPending = lastMonthSales.filter(s => s.status === 'Pending').reduce((acc, curr) => acc + curr.total, 0);
-  const lastMonthExpenses = financials.filter(f => (selectedBranch === 'ALL' || f.branch === selectedBranch) && f.type === 'Expense' && isSameMonth(f.date, lastMonth, lastMonthYear)).reduce((acc, curr) => acc + curr.amount, 0);
-  const lastMonthProfit = lastMonthRevenue - lastMonthExpenses;
+  // Current Period Data
+  const currentPeriodSales = filteredSales.filter(s => isInRange(s.date, periodStart, periodEnd));
+  const currentPeriodRevenue = currentPeriodSales.filter(s => s.status === 'Completed').reduce((acc, curr) => acc + curr.total, 0);
+  const currentPeriodPending = currentPeriodSales.filter(s => s.status === 'Pending').reduce((acc, curr) => acc + curr.total, 0);
+  const currentPeriodExpenses = filteredFinancials.filter(f => f.type === 'Expense' && isInRange(f.date, periodStart, periodEnd)).reduce((acc, curr) => acc + curr.amount, 0);
+  const currentPeriodProfit = currentPeriodRevenue - currentPeriodExpenses;
+
+  // Previous Period Data (for trends)
+  const prevPeriodSalesRaw = sales.filter(s => (selectedBranch === 'ALL' || s.branch === selectedBranch) && isInRange(s.date, prevStart, prevEnd));
+  const prevPeriodRevenue = prevPeriodSalesRaw.filter(s => s.status === 'Completed').reduce((acc, curr) => acc + curr.total, 0);
+  const prevPeriodPending = prevPeriodSalesRaw.filter(s => s.status === 'Pending').reduce((acc, curr) => acc + curr.total, 0);
+  const prevPeriodExpenses = financials.filter(f => (selectedBranch === 'ALL' || f.branch === selectedBranch) && f.type === 'Expense' && isInRange(f.date, prevStart, prevEnd)).reduce((acc, curr) => acc + curr.amount, 0);
+  const prevPeriodProfit = prevPeriodRevenue - prevPeriodExpenses;
 
   // Trends
   const calculateTrend = (current: number, previous: number) => {
@@ -65,11 +135,11 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
     return `${diff > 0 ? '+' : ''}${diff.toFixed(1)}%`;
   };
 
-  const revenueTrend = calculateTrend(currentMonthRevenue, lastMonthRevenue);
-  const pendingTrend = calculateTrend(currentMonthPending, lastMonthPending);
-  const expenseTrend = calculateTrend(currentMonthExpenses, lastMonthExpenses);
-  const profitTrend = calculateTrend(currentMonthProfit, lastMonthProfit);
-  const salesCountTrend = calculateTrend(currentMonthSales.length, lastMonthSales.length);
+  const revenueTrend = calculateTrend(currentPeriodRevenue, prevPeriodRevenue);
+  const pendingTrend = calculateTrend(currentPeriodPending, prevPeriodPending);
+  const expenseTrend = calculateTrend(currentPeriodExpenses, prevPeriodExpenses);
+  const profitTrend = calculateTrend(currentPeriodProfit, prevPeriodProfit);
+  const salesCountTrend = calculateTrend(currentPeriodSales.length, prevPeriodSalesRaw.length);
 
   // Stock Data - Dynamic based on Branch
   const lowStockCount = products.filter(p => {
@@ -161,36 +231,44 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 relative">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
+      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
         <div>
           <h2 className="text-2xl font-bold text-slate-800">Visão Geral</h2>
           <p className="text-slate-500">Acompanhe o desempenho da Gelo do Sertão em tempo real.</p>
         </div>
-        <div className="flex gap-2 mt-4 md:mt-0">
-          {onNavigate && (
-            <button
-              onClick={() => onNavigate('MENU_CONFIG')}
-              className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-1.5 rounded-md text-sm font-medium transition-all shadow-sm flex items-center gap-2"
-            >
-              <Globe size={16} /> Configurar Site
-            </button>
-          )}
-          <div className="bg-white p-1 rounded-lg border border-slate-200 flex">
+
+        <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
+          {/* Date Navigation */}
+          <div className="bg-white p-1 rounded-lg border border-slate-200 flex items-center justify-between md:justify-start">
+            <button onClick={() => navigatePeriod('prev')} className="p-1.5 hover:bg-slate-100 rounded text-slate-500"><ChevronLeft size={18} /></button>
+            <span className="px-2 text-sm font-bold text-slate-700 min-w-[120px] text-center capitalize">{formatPeriodLabel()}</span>
+            <button onClick={() => navigatePeriod('next')} className="p-1.5 hover:bg-slate-100 rounded text-slate-500"><ChevronRight size={18} /></button>
+          </div>
+
+          {/* Period Selector */}
+          <div className="bg-white p-1 rounded-lg border border-slate-200 flex justify-center">
+            <button onClick={() => setPeriod('DAY')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${period === 'DAY' ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}>Dia</button>
+            <button onClick={() => setPeriod('WEEK')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${period === 'WEEK' ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}>Semana</button>
+            <button onClick={() => setPeriod('MONTH')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${period === 'MONTH' ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}>Mês</button>
+          </div>
+
+          {/* Branch Selector */}
+          <div className="bg-white p-1 rounded-lg border border-slate-200 flex justify-center">
             <button
               onClick={() => setSelectedBranch('ALL')}
-              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${selectedBranch === 'ALL' ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${selectedBranch === 'ALL' ? 'bg-blue-900 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}
             >
               Geral
             </button>
             <button
               onClick={() => setSelectedBranch(Branch.MATRIZ)}
-              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${selectedBranch === Branch.MATRIZ ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${selectedBranch === Branch.MATRIZ ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}
             >
               Matriz
             </button>
             <button
               onClick={() => setSelectedBranch(Branch.FILIAL)}
-              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${selectedBranch === Branch.FILIAL ? 'bg-orange-500 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${selectedBranch === Branch.FILIAL ? 'bg-orange-500 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}
             >
               Filial
             </button>
@@ -201,36 +279,36 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <Card
-          title="Receita (Mês)"
-          value={formatCurrency(currentMonthRevenue)}
+          title="Receita"
+          value={formatCurrency(currentPeriodRevenue)}
           icon={<TrendingUp />}
           trend={revenueTrend}
           color="bg-blue-600"
         />
         <Card
           title="A Receber (Fiado)"
-          value={formatCurrency(currentMonthPending)}
+          value={formatCurrency(currentPeriodPending)}
           icon={<AlertTriangle />}
           trend={pendingTrend}
           color="bg-yellow-500"
         />
         <Card
-          title="Despesas (Mês)"
-          value={formatCurrency(currentMonthExpenses)}
+          title="Despesas"
+          value={formatCurrency(currentPeriodExpenses)}
           icon={<ArrowDownCircle />}
           trend={expenseTrend}
           color="bg-rose-500"
         />
         <Card
-          title="Lucro Líquido (Mês)"
-          value={formatCurrency(currentMonthProfit)}
+          title="Lucro Líquido"
+          value={formatCurrency(currentPeriodProfit)}
           icon={<DollarSignIcon />}
           trend={profitTrend}
           color="bg-emerald-500"
         />
         <Card
-          title="Vendas (Mês)"
-          value={currentMonthSales.length.toString()}
+          title="Vendas"
+          value={currentPeriodSales.length.toString()}
           icon={<Users />}
           trend={salesCountTrend}
           color="bg-orange-500"
@@ -260,7 +338,19 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
           <h3 className="font-semibold text-slate-700 mb-4">Evolução de Vendas</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={revenueData}>
+              <LineChart data={currentPeriodSales
+                .map(s => ({
+                  date: period === 'DAY'
+                    ? (s.date.includes('T') ? s.date.split('T')[1].slice(0, 5) : '00:00')
+                    : s.date.slice(5, 10), // HH:MM for Day, MM-DD for others
+                  amount: s.total
+                })).reduce((acc: any[], curr) => {
+                  const found = acc.find(a => a.date === curr.date);
+                  if (found) found.amount += curr.amount;
+                  else acc.push(curr);
+                  return acc;
+                }, []).sort((a, b) => a.date.localeCompare(b.date))
+              }>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                 <XAxis dataKey="date" stroke="#64748b" fontSize={12} tickLine={false} />
                 <YAxis stroke="#64748b" fontSize={12} tickLine={false} />
