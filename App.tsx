@@ -328,7 +328,13 @@ const App: React.FC = () => {
 
   const handleLogin = (user: User) => {
     setCurrentUser(user);
-    setCurrentView('DASHBOARD');
+    if (user.role === 'FACTORY') {
+      setCurrentView('PRODUCTION');
+    } else if (user.role === 'OPERATOR') {
+      setCurrentView('SALES');
+    } else {
+      setCurrentView('DASHBOARD');
+    }
   };
 
   const handleLogout = () => {

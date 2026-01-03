@@ -14,7 +14,7 @@ interface AppSidebarProps {
 const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, setView, currentUser, onLogout, isCollapsed, toggleSidebar }) => {
   // Define menu structure based on roles
   const allMenuItems = [
-    { id: 'DASHBOARD', label: 'Dashboard', icon: LayoutDashboard, roles: ['ADMIN', 'OPERATOR'] },
+    { id: 'DASHBOARD', label: 'Dashboard', icon: LayoutDashboard, roles: ['ADMIN'] },
     { id: 'INVENTORY', label: 'Estoque', icon: Package, roles: ['ADMIN', 'OPERATOR'] },
     { id: 'PRODUCTION', label: 'Produção', icon: Factory, roles: ['ADMIN', 'FACTORY'] },
     { id: 'SALES', label: 'Vendas', icon: ShoppingCart, roles: ['ADMIN', 'OPERATOR'] },
