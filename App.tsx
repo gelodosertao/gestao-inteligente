@@ -11,6 +11,7 @@ import Customers from './components/Customers';
 import Pricing from './components/Pricing';
 import OnlineMenu from './components/OnlineMenu';
 import MenuConfig from './components/MenuConfig';
+import Production from './components/Production';
 import { ViewState, User, Product, Sale, FinancialRecord, Branch, Customer } from './types';
 import { MOCK_PRODUCTS, MOCK_SALES, MOCK_FINANCIALS } from './constants';
 import { dbProducts, dbSales, dbFinancials, dbCustomers } from './services/db';
@@ -392,8 +393,13 @@ const App: React.FC = () => {
         return <Financial records={financials} sales={sales} products={products} onAddRecord={handleAddFinancialRecord} onUpdateRecord={handleUpdateFinancialRecord} onDeleteRecord={handleDeleteFinancialRecord} onBack={() => setCurrentView('DASHBOARD')} />;
       case 'AI_INSIGHTS':
         return <AIAssistant products={products} sales={sales} financials={financials} onBack={() => setCurrentView('DASHBOARD')} />;
+
+      // ... imports
+
       case 'MENU_CONFIG':
         return <MenuConfig onBack={() => setCurrentView('DASHBOARD')} />;
+      case 'PRODUCTION':
+        return <Production products={products} currentUser={currentUser} onUpdateProduct={handleUpdateProduct} onBack={() => setCurrentView('DASHBOARD')} />;
       case 'SETTINGS':
         if (!currentUser) return null;
         return <Settings currentUser={currentUser} onResetData={handleResetData} />;

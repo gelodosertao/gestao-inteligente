@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Package, ShoppingCart, DollarSign, Sparkles, Settings, LogOut, Sun, Users, Calculator, ChevronLeft, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, Package, ShoppingCart, DollarSign, Sparkles, Settings, LogOut, Sun, Users, Calculator, ChevronLeft, ChevronRight, Factory } from 'lucide-react';
 import { ViewState, User } from '../types';
 
 interface AppSidebarProps {
@@ -16,6 +16,7 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, setView, currentUs
   const allMenuItems = [
     { id: 'DASHBOARD', label: 'Dashboard', icon: LayoutDashboard, roles: ['ADMIN', 'OPERATOR'] },
     { id: 'INVENTORY', label: 'Estoque', icon: Package, roles: ['ADMIN', 'OPERATOR'] },
+    { id: 'PRODUCTION', label: 'Produção', icon: Factory, roles: ['ADMIN', 'OPERATOR'] },
     { id: 'SALES', label: 'Vendas', icon: ShoppingCart, roles: ['ADMIN', 'OPERATOR'] },
     { id: 'CUSTOMERS', label: 'Clientes', icon: Users, roles: ['ADMIN', 'OPERATOR'] },
     { id: 'PRICING', label: 'Precificação', icon: Calculator, roles: ['ADMIN'] },

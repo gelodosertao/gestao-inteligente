@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { Product, Sale, FinancialRecord, Category, Branch, User, Role, Customer, StockMovement, StoreSettings } from '../types';
+import { Product, StoreSettings, Sale, FinancialRecord, Customer, StockMovement, Branch, Category, ProductionRecord, Shift, User, Role } from '../types';
 
 // --- USERS & AUTH ---
 
@@ -370,6 +370,39 @@ export const dbStockMovements = {
       type: movement.type,
       reason: movement.reason,
       branch: movement.branch
+    }]);
+    if (error) throw error;
+  }
+};
+
+// --- PRODUCTION LOGS ---
+export const dbProduction = {
+  async getAll(): Promise<ProductionRecord[]> {
+    const { data, error } = await supabase.from('production_logs').select('*').order('date', { ascending: false });
+    if (error) throw error;
+
+    return (data || []).map((row: any) => ({
+      id: row.id,
+      date: row.date,
+      productId: row.product_id,
+      productName: row.product_name,
+      quantity: row.quantity,
+      shift: row.shift as Shift,
+      responsible: row.responsible,
+      notes: row.notes
+    }));
+  },
+
+  async add(record: ProductionRecord) {
+    const { error } = await supabase.from('production_logs').insert([{
+      id: record.id,
+      date: record.date,
+      product_id: record.productId,
+      product_name: record.productName,
+      quantity: record.quantity,
+      shift: record.shift,
+      responsible: record.responsible,
+      notes: record.notes
     }]);
     if (error) throw error;
   }

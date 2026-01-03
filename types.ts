@@ -91,7 +91,7 @@ export interface User {
   avatarInitials: string;
 }
 
-export type ViewState = 'DASHBOARD' | 'INVENTORY' | 'SALES' | 'FINANCIAL' | 'AI_INSIGHTS' | 'SETTINGS' | 'CUSTOMERS' | 'PRICING' | 'ONLINE_MENU' | 'MENU_CONFIG';
+export type ViewState = 'DASHBOARD' | 'INVENTORY' | 'SALES' | 'FINANCIAL' | 'AI_INSIGHTS' | 'SETTINGS' | 'CUSTOMERS' | 'PRICING' | 'ONLINE_MENU' | 'MENU_CONFIG' | 'PRODUCTION';
 
 export interface Customer {
   id: string;
@@ -115,4 +115,17 @@ export interface StockMovement {
   type: 'LOSS' | 'ADJUSTMENT' | 'TRANSFER_OUT' | 'TRANSFER_IN';
   reason: string;
   branch: Branch;
+}
+
+export type Shift = 'Manhã' | 'Tarde' | 'Noite' | 'Madrugada';
+
+export interface ProductionRecord {
+  id: string;
+  date: string;
+  productId: string;
+  productName: string;
+  quantity: number;
+  shift: Shift;
+  responsible: string;
+  notes?: string;
 }
