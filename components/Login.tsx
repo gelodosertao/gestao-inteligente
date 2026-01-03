@@ -131,6 +131,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onOpenMenu }) => {
                 <label className="block text-sm font-medium text-slate-700 mb-1">Perfil</label>
                 <select value={regRole} onChange={(e) => setRegRole(e.target.value as Role)} className="w-full px-4 py-2 border border-slate-200 rounded-xl outline-none focus:border-orange-500 bg-white">
                   <option value="OPERATOR">Operador (Caixa/Estoque)</option>
+                  <option value="FACTORY">Fábrica (Produção)</option>
                   <option value="ADMIN">Administrador (Sócio)</option>
                 </select>
               </div>

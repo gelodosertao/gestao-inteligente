@@ -16,7 +16,7 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, setView, currentUs
   const allMenuItems = [
     { id: 'DASHBOARD', label: 'Dashboard', icon: LayoutDashboard, roles: ['ADMIN', 'OPERATOR'] },
     { id: 'INVENTORY', label: 'Estoque', icon: Package, roles: ['ADMIN', 'OPERATOR'] },
-    { id: 'PRODUCTION', label: 'Produção', icon: Factory, roles: ['ADMIN', 'OPERATOR'] },
+    { id: 'PRODUCTION', label: 'Produção', icon: Factory, roles: ['ADMIN', 'FACTORY'] },
     { id: 'SALES', label: 'Vendas', icon: ShoppingCart, roles: ['ADMIN', 'OPERATOR'] },
     { id: 'CUSTOMERS', label: 'Clientes', icon: Users, roles: ['ADMIN', 'OPERATOR'] },
     { id: 'PRICING', label: 'Precificação', icon: Calculator, roles: ['ADMIN'] },
@@ -90,7 +90,9 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, setView, currentUs
             </div>
             <div className="flex-1 overflow-hidden">
               <p className="text-sm font-semibold truncate text-white">{currentUser.name}</p>
-              <p className="text-[10px] text-blue-300 uppercase tracking-wider">{currentUser.role === 'ADMIN' ? 'Sócio Admin' : 'Operador'}</p>
+              <p className="text-[10px] text-blue-300 uppercase tracking-wider">
+                {currentUser.role === 'ADMIN' ? 'Sócio Admin' : currentUser.role === 'FACTORY' ? 'Fábrica' : 'Operador'}
+              </p>
             </div>
             <button onClick={onLogout} className="text-blue-300 hover:text-rose-400 transition-colors p-1" title="Sair">
               <LogOut size={18} />

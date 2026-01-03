@@ -81,7 +81,7 @@ export interface FinancialRecord {
   branch?: Branch;
 }
 
-export type Role = 'ADMIN' | 'OPERATOR';
+export type Role = 'ADMIN' | 'OPERATOR' | 'FACTORY';
 
 export interface User {
   id: string;
