@@ -19,7 +19,7 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, setView, currentUs
     { id: 'PRODUCTION', label: 'Produção', icon: Factory, roles: ['ADMIN', 'FACTORY'] },
     { id: 'SALES', label: 'Vendas', icon: ShoppingCart, roles: ['ADMIN', 'OPERATOR'] },
     { id: 'CUSTOMERS', label: 'Clientes', icon: Users, roles: ['ADMIN', 'OPERATOR'] },
-    { id: 'PRICING', label: 'Custos', icon: DollarSign, roles: ['ADMIN'] },
+    { id: 'PRICING', label: 'Custos', icon: Calculator, roles: ['ADMIN'] },
     { id: 'FINANCIAL', label: 'Financeiro', icon: DollarSign, roles: ['ADMIN'] },
     { id: 'AI_INSIGHTS', label: 'IA', icon: Sparkles, roles: ['ADMIN', 'OPERATOR'] },
   ];
