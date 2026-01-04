@@ -62,7 +62,7 @@ const Production: React.FC<ProductionProps> = ({ products, currentUser, onUpdate
             // 1. Save Production Record
             await dbProduction.add(newRecord);
 
-            // 2. Update Product Stock (Matriz)
+            // 2. Update Product Stock (Matriz) - Finished Good
             const updatedProduct = {
                 ...product,
                 stockMatriz: product.stockMatriz + Number(quantity)
@@ -70,9 +70,9 @@ const Production: React.FC<ProductionProps> = ({ products, currentUser, onUpdate
             await dbProducts.update(updatedProduct);
             onUpdateProduct(updatedProduct);
 
-            // 3. Register Stock Movement
+            // 3. Register Stock Movement (Finished Good)
             await dbStockMovements.add({
-                id: Date.now().toString() + '-mov',
+                id: Date.now().toString() + '-mov-in',
                 date: new Date().toISOString(),
                 productId: product.id,
                 productName: product.name,
@@ -82,7 +82,37 @@ const Production: React.FC<ProductionProps> = ({ products, currentUser, onUpdate
                 branch: Branch.MATRIZ
             });
 
-            alert("Produção registrada com sucesso!");
+            // 4. Deduct Raw Materials (Recipe)
+            if (product.recipe && product.recipe.length > 0) {
+                for (const item of product.recipe) {
+                    const ingredient = products.find(p => p.id === item.ingredientId);
+                    if (ingredient) {
+                        const totalRequired = item.quantity * Number(quantity);
+
+                        // Update Ingredient Stock
+                        const updatedIngredient = {
+                            ...ingredient,
+                            stockMatriz: ingredient.stockMatriz - totalRequired
+                        };
+                        await dbProducts.update(updatedIngredient);
+                        onUpdateProduct(updatedIngredient); // Update local state if needed
+
+                        // Register Ingredient Movement
+                        await dbStockMovements.add({
+                            id: Date.now().toString() + `-mov-out-${ingredient.id}`,
+                            date: new Date().toISOString(),
+                            productId: ingredient.id,
+                            productName: ingredient.name,
+                            quantity: totalRequired,
+                            type: 'TRANSFER_OUT', // Saída por Uso/Produção
+                            reason: `Insumo para Produção de ${product.name} (Lote: ${quantity})`,
+                            branch: Branch.MATRIZ
+                        });
+                    }
+                }
+            }
+
+            alert("Produção registrada com sucesso! Estoque atualizado.");
             setShowForm(false);
             setQuantity('');
             setNotes('');

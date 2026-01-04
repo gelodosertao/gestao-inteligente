@@ -12,7 +12,8 @@ export enum Category {
   SODA = 'Refrigerante',
   VODKA = 'Vodka',
   WHISKY = 'Whisky',
-  DRINK = 'Drinks/Coquetéis'
+  DRINK = 'Drinks/Coquetéis',
+  RAW_MATERIAL = 'Insumo (Matéria-prima)'
 }
 
 export enum Branch {
@@ -36,6 +37,10 @@ export interface Product {
   isStockControlled?: boolean; // Se false, não controla estoque (ex: Drinks feitos na hora)
   comboItems?: { productId: string; quantity: number }[]; // Se preenchido, é um Combo
   image?: string; // URL da imagem do produto
+
+  // Production / Recipe
+  recipe?: { ingredientId: string; quantity: number }[]; // Insumos gastos por unidade produzida
+  operationalCost?: number; // Custo operacional extra por unidade (energia, mão de obra rateada)
 }
 
 export interface StoreSettings {
