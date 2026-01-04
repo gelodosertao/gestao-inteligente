@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Product, Branch, Category, Sale, FinancialRecord } from '../types';
+import { Product, Branch, Category, Sale, FinancialRecord, StockMovement } from '../types';
 import { Search, Plus, ArrowRightLeft, Filter, Save, X, Truck, AlertTriangle, Upload, FileText, ArrowLeft, AlertOctagon, Edit, Calculator, DollarSign, TrendingUp, Trash2, PieChart, BarChart3 } from 'lucide-react';
 import { dbStockMovements } from '../services/db';
 import { getTodayDate } from '../services/utils';
@@ -48,6 +48,20 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
 
   // Pricing Calculator State
   const [taxRate, setTaxRate] = useState(4);
+
+  // Report State
+  const [stockMovements, setStockMovements] = useState<StockMovement[]>([]);
+  const [loadingMovements, setLoadingMovements] = useState(false);
+
+  useEffect(() => {
+    if (showReportModal) {
+      setLoadingMovements(true);
+      dbStockMovements.getAll()
+        .then(data => setStockMovements(data))
+        .catch(err => console.error("Erro ao carregar movimentos", err))
+        .finally(() => setLoadingMovements(false));
+    }
+  }, [showReportModal]);
   const [cardFee, setCardFee] = useState(2);
   const [fixedCostRate, setFixedCostRate] = useState(10);
   const [desiredMargin, setDesiredMargin] = useState(20);
@@ -1185,8 +1199,43 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
                   </div>
                 </div>
 
-                <div className="mt-6 bg-blue-50 p-4 rounded-xl border border-blue-100 text-sm text-blue-800">
-                  <strong>Nota:</strong> O histórico detalhado de perdas começou a ser gravado agora. Relatórios de perdas aparecerão aqui assim que houver dados suficientes.
+                {/* Relatório de Perdas */}
+                <div className="mt-6 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                  <div className="p-4 border-b border-slate-100 bg-red-50">
+                    <h4 className="font-bold text-red-800 flex items-center gap-2">
+                      <AlertOctagon size={18} /> Relatório de Perdas e Danos
+                    </h4>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                      <thead className="bg-slate-50 text-slate-500">
+                        <tr>
+                          <th className="p-3 font-semibold">Data</th>
+                          <th className="p-3 font-semibold">Produto</th>
+                          <th className="p-3 font-semibold text-center">Qtd.</th>
+                          <th className="p-3 font-semibold">Motivo</th>
+                          <th className="p-3 font-semibold">Local</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {loadingMovements ? (
+                          <tr><td colSpan={5} className="p-4 text-center">Carregando...</td></tr>
+                        ) : stockMovements.filter(m => m.type === 'LOSS').length === 0 ? (
+                          <tr><td colSpan={5} className="p-4 text-center text-slate-400">Nenhuma perda registrada.</td></tr>
+                        ) : (
+                          stockMovements.filter(m => m.type === 'LOSS').map(m => (
+                            <tr key={m.id} className="hover:bg-slate-50">
+                              <td className="p-3 text-slate-600">{new Date(m.date).toLocaleDateString()}</td>
+                              <td className="p-3 font-medium text-slate-800">{m.productName}</td>
+                              <td className="p-3 text-center font-bold text-red-600">-{m.quantity}</td>
+                              <td className="p-3 text-slate-600">{m.reason}</td>
+                              <td className="p-3 text-slate-500 text-xs">{m.branch}</td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
             </div>
