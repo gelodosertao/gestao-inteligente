@@ -189,7 +189,10 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
   };
 
   const executeNewProduct = () => {
-    if (!newProductData.name || !newProductData.priceFilial) return;
+    if (!newProductData.name || newProductData.priceFilial === undefined) {
+      alert("Nome e Preço de Venda (Filial) são obrigatórios. Se for insumo, coloque 0.");
+      return;
+    }
 
     const productToSave: Product = {
       id: isEditing && selectedProduct ? selectedProduct.id : Date.now().toString(),
