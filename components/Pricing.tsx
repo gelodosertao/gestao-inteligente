@@ -14,6 +14,7 @@ const Pricing: React.FC<PricingProps> = ({ products, onUpdateProduct, onBack }) 
     // Recipe State
     const [recipeItems, setRecipeItems] = useState<{ ingredientId: string; quantity: number }[]>([]);
     const [operationalCost, setOperationalCost] = useState<number>(0);
+    const [batchSize, setBatchSize] = useState<number>(1); // Default to 1 unit
 
     // Helper to get product details
     const getProduct = (id: string) => products.find(p => p.id === id);
@@ -21,16 +22,18 @@ const Pricing: React.FC<PricingProps> = ({ products, onUpdateProduct, onBack }) 
 
     // Filter Raw Materials
     const rawMaterials = products.filter(p => p.category === Category.RAW_MATERIAL);
-    const manufacturedProducts = products.filter(p => p.category.includes('Gelo')); // Assuming 'Gelo' are the manufactured ones
+    const manufacturedProducts = products.filter(p => p.category.includes('Gelo'));
 
     // Load existing recipe when product is selected
     useEffect(() => {
         if (selectedProduct) {
             setRecipeItems(selectedProduct.recipe || []);
             setOperationalCost(selectedProduct.operationalCost || 0);
+            setBatchSize(selectedProduct.recipeBatchSize || 1);
         } else {
             setRecipeItems([]);
             setOperationalCost(0);
+            setBatchSize(1);
         }
     }, [selectedProductId, products]);
 
@@ -50,12 +53,16 @@ const Pricing: React.FC<PricingProps> = ({ products, onUpdateProduct, onBack }) 
         setRecipeItems(newItems);
     };
 
-    const calculateTotalCost = () => {
-        const materialCost = recipeItems.reduce((acc, item) => {
+    const calculateTotalBatchCost = () => {
+        return recipeItems.reduce((acc, item) => {
             const ingredient = getProduct(item.ingredientId);
             return acc + (ingredient ? (ingredient.cost * item.quantity) : 0);
         }, 0);
-        return materialCost + operationalCost;
+    };
+
+    const calculateUnitCost = () => {
+        const batchCost = calculateTotalBatchCost();
+        return (batchCost / (batchSize || 1)) + operationalCost;
     };
 
     const handleSave = () => {
@@ -67,8 +74,9 @@ const Pricing: React.FC<PricingProps> = ({ products, onUpdateProduct, onBack }) 
         const updatedProduct: Product = {
             ...selectedProduct,
             recipe: validRecipe,
+            recipeBatchSize: batchSize,
             operationalCost: operationalCost,
-            cost: calculateTotalCost() // Update the main cost field with the calculated production cost
+            cost: calculateUnitCost() // Update the main cost field with the calculated unit cost
         };
 
         onUpdateProduct(updatedProduct);
@@ -119,7 +127,7 @@ const Pricing: React.FC<PricingProps> = ({ products, onUpdateProduct, onBack }) 
                     <div className={`bg-white p-6 rounded-2xl shadow-sm border border-slate-200 transition-opacity ${!selectedProduct ? 'opacity-50 pointer-events-none' : ''}`}>
                         <div className="flex justify-between items-center mb-4">
                             <h3 className="font-bold text-slate-700 flex items-center gap-2">
-                                <Package size={20} className="text-emerald-600" /> 2. Insumos (Receita por Unidade)
+                                <Package size={20} className="text-emerald-600" /> 2. Receita do Lote
                             </h3>
                             <button
                                 onClick={handleAddIngredient}
@@ -127,6 +135,23 @@ const Pricing: React.FC<PricingProps> = ({ products, onUpdateProduct, onBack }) 
                             >
                                 <Plus size={16} /> Adicionar Insumo
                             </button>
+                        </div>
+
+                        <div className="mb-6 bg-blue-50 p-4 rounded-xl border border-blue-100">
+                            <label className="block text-sm font-bold text-blue-800 mb-1">Tamanho do Lote de Referência</label>
+                            <div className="flex items-center gap-2">
+                                <input
+                                    type="number"
+                                    className="w-32 px-4 py-2 border border-blue-200 rounded-lg font-bold text-blue-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    value={batchSize}
+                                    onChange={(e) => setBatchSize(Number(e.target.value))}
+                                    min={1}
+                                />
+                                <span className="text-blue-600 font-medium">unidades produzidas</span>
+                            </div>
+                            <p className="text-xs text-blue-500 mt-1">
+                                Ex: "Para produzir <b>{batchSize}</b> unidades, eu gasto..."
+                            </p>
                         </div>
 
                         {recipeItems.length === 0 ? (
@@ -155,7 +180,7 @@ const Pricing: React.FC<PricingProps> = ({ products, onUpdateProduct, onBack }) 
                                                 </select>
                                             </div>
                                             <div className="w-full md:w-32">
-                                                <label className="text-xs font-bold text-slate-500 mb-1 block">Qtd.</label>
+                                                <label className="text-xs font-bold text-slate-500 mb-1 block">Qtd. Total</label>
                                                 <input
                                                     type="number"
                                                     className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
@@ -165,7 +190,7 @@ const Pricing: React.FC<PricingProps> = ({ products, onUpdateProduct, onBack }) 
                                                 />
                                             </div>
                                             <div className="w-full md:w-32 bg-white px-3 py-2 rounded-lg border border-slate-200 text-right">
-                                                <span className="text-xs text-slate-400 block">Custo</span>
+                                                <span className="text-xs text-slate-400 block">Custo Lote</span>
                                                 <span className="font-bold text-slate-700">{formatCurrency(cost)}</span>
                                             </div>
                                             <button
@@ -179,11 +204,6 @@ const Pricing: React.FC<PricingProps> = ({ products, onUpdateProduct, onBack }) 
                                 })}
                             </div>
                         )}
-                        {rawMaterials.length === 0 && (
-                            <p className="text-xs text-orange-600 mt-3">
-                                Dica: Cadastre produtos com a categoria "Insumo" no Estoque para aparecerem aqui.
-                            </p>
-                        )}
                     </div>
 
                     {/* 3. Operational Costs */}
@@ -193,7 +213,7 @@ const Pricing: React.FC<PricingProps> = ({ products, onUpdateProduct, onBack }) 
                         </h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-sm font-bold text-slate-700 mb-1">Custo Extra (Mão de obra, Energia, etc)</label>
+                                <label className="block text-sm font-bold text-slate-700 mb-1">Custo Extra Unitário</label>
                                 <div className="relative">
                                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">R$</span>
                                     <input
@@ -203,7 +223,7 @@ const Pricing: React.FC<PricingProps> = ({ products, onUpdateProduct, onBack }) 
                                         onChange={(e) => setOperationalCost(Number(e.target.value))}
                                     />
                                 </div>
-                                <p className="text-xs text-slate-400 mt-1">Rateio de custos fixos por unidade produzida.</p>
+                                <p className="text-xs text-slate-400 mt-1">Energia, Mão de obra, etc (por unidade produzida).</p>
                             </div>
                         </div>
                     </div>
@@ -221,15 +241,23 @@ const Pricing: React.FC<PricingProps> = ({ products, onUpdateProduct, onBack }) 
                                 <span>Produto</span>
                                 <span className="font-medium text-white">{selectedProduct?.name}</span>
                             </div>
+                            <div className="flex justify-between items-center text-slate-300 text-sm">
+                                <span>Lote Referência</span>
+                                <span className="font-medium text-white">{batchSize} un</span>
+                            </div>
 
                             <div className="border-t border-slate-700 my-2"></div>
 
                             <div className="flex justify-between items-center text-emerald-400">
-                                <span>Insumos</span>
-                                <span>{formatCurrency(calculateTotalCost() - operationalCost)}</span>
+                                <span>Custo Insumos (Lote)</span>
+                                <span>{formatCurrency(calculateTotalBatchCost())}</span>
+                            </div>
+                            <div className="flex justify-between items-center text-emerald-400">
+                                <span>Custo Insumos (Unit.)</span>
+                                <span>{formatCurrency(calculateTotalBatchCost() / (batchSize || 1))}</span>
                             </div>
                             <div className="flex justify-between items-center text-purple-400">
-                                <span>Operacional</span>
+                                <span>Operacional (Unit.)</span>
                                 <span>{formatCurrency(operationalCost)}</span>
                             </div>
 
@@ -237,7 +265,7 @@ const Pricing: React.FC<PricingProps> = ({ products, onUpdateProduct, onBack }) 
 
                             <div className="flex justify-between items-center text-white font-bold text-lg">
                                 <span>Custo Total Unitário</span>
-                                <span>{formatCurrency(calculateTotalCost())}</span>
+                                <span>{formatCurrency(calculateUnitCost())}</span>
                             </div>
                         </div>
 
@@ -249,8 +277,8 @@ const Pricing: React.FC<PricingProps> = ({ products, onUpdateProduct, onBack }) 
                             </div>
                             <div className="flex justify-between text-sm">
                                 <span>Lucro Bruto</span>
-                                <span className={`font-bold ${(selectedProduct?.priceMatriz || 0) - calculateTotalCost() > 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                                    {formatCurrency((selectedProduct?.priceMatriz || 0) - calculateTotalCost())}
+                                <span className={`font-bold ${(selectedProduct?.priceMatriz || 0) - calculateUnitCost() > 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                    {formatCurrency((selectedProduct?.priceMatriz || 0) - calculateUnitCost())}
                                 </span>
                             </div>
                         </div>

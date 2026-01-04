@@ -84,10 +84,14 @@ const Production: React.FC<ProductionProps> = ({ products, currentUser, onUpdate
 
             // 4. Deduct Raw Materials (Recipe)
             if (product.recipe && product.recipe.length > 0) {
+                const batchSize = product.recipeBatchSize || 1;
+
                 for (const item of product.recipe) {
                     const ingredient = products.find(p => p.id === item.ingredientId);
                     if (ingredient) {
-                        const totalRequired = item.quantity * Number(quantity);
+                        // Calculate required quantity based on Batch Size
+                        // Formula: (Produced Qty / Batch Size) * Ingredient Qty in Recipe
+                        const totalRequired = (Number(quantity) / batchSize) * item.quantity;
 
                         // Update Ingredient Stock
                         const updatedIngredient = {

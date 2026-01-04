@@ -40,6 +40,7 @@ export interface Product {
 
   // Production / Recipe
   recipe?: { ingredientId: string; quantity: number }[]; // Insumos gastos por unidade produzida
+  recipeBatchSize?: number; // Tamanho do lote de referência para a receita (ex: 888 unidades)
   operationalCost?: number; // Custo operacional extra por unidade (energia, mão de obra rateada)
 }
 

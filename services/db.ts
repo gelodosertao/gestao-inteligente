@@ -118,6 +118,7 @@ export const dbProducts = {
       comboItems: row.combo_items,
       image: row.image,
       recipe: row.recipe,
+      recipeBatchSize: row.recipe_batch_size,
       operationalCost: row.operational_cost
     }));
   },
@@ -140,6 +141,7 @@ export const dbProducts = {
       combo_items: product.comboItems,
       image: product.image,
       recipe: product.recipe,
+      recipe_batch_size: product.recipeBatchSize,
       operational_cost: product.operationalCost
     }]);
     if (error) throw error;
@@ -162,6 +164,7 @@ export const dbProducts = {
       combo_items: product.comboItems,
       image: product.image,
       recipe: product.recipe,
+      recipe_batch_size: product.recipeBatchSize,
       operational_cost: product.operationalCost
     }).eq('id', product.id);
     if (error) throw error;
