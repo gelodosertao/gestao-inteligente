@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Product, Branch, Category, Sale, FinancialRecord, StockMovement } from '../types';
-import { Search, Plus, ArrowRightLeft, Filter, Save, X, Truck, AlertTriangle, Upload, FileText, ArrowLeft, AlertOctagon, Edit, Calculator, DollarSign, TrendingUp, Trash2, PieChart, BarChart3 } from 'lucide-react';
-import { dbStockMovements } from '../services/db';
+import { Product, Branch, Category, Sale, FinancialRecord, StockMovement, CategoryItem } from '../types';
+import { Search, Plus, ArrowRightLeft, Filter, Save, X, Truck, AlertTriangle, Upload, FileText, ArrowLeft, AlertOctagon, Edit, Calculator, DollarSign, TrendingUp, Trash2, PieChart, BarChart3, ScrollText } from 'lucide-react';
+import { dbStockMovements, dbCategories } from '../services/db';
 import { getTodayDate } from '../services/utils';
 
 interface InventoryProps {
@@ -11,10 +11,11 @@ interface InventoryProps {
   onUpdateProduct: (product: Product) => void;
   onAddProduct: (product: Product) => void;
   onDeleteProduct: (productId: string) => void;
+  onOpenPricing: (productId: string) => void;
   onBack: () => void;
 }
 
-const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUpdateProduct, onAddProduct, onDeleteProduct, onBack }) => {
+const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUpdateProduct, onAddProduct, onDeleteProduct, onOpenPricing, onBack }) => {
   const [filter, setFilter] = useState('');
 
   // Modal States
@@ -23,7 +24,10 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
   const [showNewProductModal, setShowNewProductModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [importedProducts, setImportedProducts] = useState<Partial<Product>[]>([]);
+  const [categories, setCategories] = useState<CategoryItem[]>([]);
+  const [newCategoryName, setNewCategoryName] = useState('');
 
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
@@ -42,7 +46,7 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
 
   // New Product Form
   const [newProductData, setNewProductData] = useState<Partial<Product>>({
-    category: Category.ICE_CUBE,
+    category: 'Gelo Cubo',
     unit: 'un'
   });
 
@@ -62,6 +66,38 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
         .finally(() => setLoadingMovements(false));
     }
   }, [showReportModal]);
+
+  useEffect(() => {
+    loadCategories();
+  }, []);
+
+  const loadCategories = () => {
+    dbCategories.getAll('PRODUCT')
+      .then(setCategories)
+      .catch(err => console.error("Erro ao carregar categorias", err));
+  };
+
+  const handleAddCategory = async () => {
+    if (!newCategoryName.trim()) return;
+    try {
+      await dbCategories.add({ name: newCategoryName, type: 'PRODUCT' });
+      setNewCategoryName('');
+      loadCategories();
+    } catch (error) {
+      console.error("Erro ao adicionar categoria", error);
+      alert("Erro ao adicionar categoria. Verifique se já existe.");
+    }
+  };
+
+  const handleDeleteCategory = async (id: string) => {
+    if (!confirm("Tem certeza que deseja excluir esta categoria?")) return;
+    try {
+      await dbCategories.delete(id);
+      loadCategories();
+    } catch (error) {
+      console.error("Erro ao excluir categoria", error);
+    }
+  };
   const [cardFee, setCardFee] = useState(2);
   const [fixedCostRate, setFixedCostRate] = useState(10);
   const [desiredMargin, setDesiredMargin] = useState(20);
@@ -211,7 +247,7 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
     const productToSave: Product = {
       id: isEditing && selectedProduct ? selectedProduct.id : Date.now().toString(),
       name: newProductData.name,
-      category: newProductData.category as Category,
+      category: newProductData.category || 'Outros',
       priceMatriz: Number(newProductData.priceMatriz || 0),
       priceFilial: Number(newProductData.priceFilial),
       cost: Number(newProductData.cost || 0),
@@ -234,7 +270,7 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
     }
 
     setShowNewProductModal(false);
-    setNewProductData({ category: Category.ICE_CUBE, unit: 'un' });
+    setNewProductData({ category: 'Gelo Cubo', unit: 'un' });
     setIsEditing(false);
     setSelectedProduct(null);
   };
@@ -272,7 +308,7 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
           newItems.push({
             id: code, // Use NFe code as ID initially
             name: name,
-            category: Category.OTHER, // Default category
+            category: 'Outros', // Default category
             priceMatriz: cost * 1.5, // Suggested Markup
             priceFilial: cost * 2.0, // Suggested Markup
             cost: cost,
@@ -303,7 +339,7 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
       const newProduct: Product = {
         id: p.id || Date.now().toString(),
         name: p.name || 'Novo Produto',
-        category: p.category as Category,
+        category: p.category || 'Outros',
         priceMatriz: p.priceMatriz || 0,
         priceFilial: p.priceFilial || 0,
         cost: p.cost || 0,
@@ -347,7 +383,7 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
           <button
             onClick={() => {
               setIsEditing(false);
-              setNewProductData({ category: Category.ICE_CUBE, unit: 'un' });
+              setNewProductData({ category: 'Gelo Cubo', unit: 'un' });
               setShowNewProductModal(true);
             }}
             className="bg-orange-500 hover:bg-orange-400 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 shadow-lg shadow-orange-900/20 transition-colors"
@@ -358,6 +394,12 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
             <Upload size={18} /> Importar XML
             <input type="file" accept=".xml" className="hidden" onChange={handleFileUpload} />
           </label>
+          <button
+            onClick={() => setShowCategoryModal(true)}
+            className="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 shadow-lg shadow-slate-900/10 transition-colors"
+          >
+            <Filter size={18} /> Categorias
+          </button>
           <button
             onClick={() => setShowReportModal(true)}
             className="bg-purple-700 hover:bg-purple-600 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 shadow-lg shadow-purple-900/10 transition-colors"
@@ -437,6 +479,13 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
                       )}
                     </td>
                     <td className="p-4 text-right flex justify-end gap-2">
+                      <button
+                        onClick={() => onOpenPricing(product.id)}
+                        className="text-emerald-500 hover:text-emerald-700 text-sm font-medium transition-colors flex items-center gap-1"
+                        title="Definir Receita"
+                      >
+                        <ScrollText size={16} /> Receita
+                      </button>
                       <button
                         onClick={() => handleOpenLoss(product)}
                         className="text-red-400 hover:text-red-600 text-sm font-medium transition-colors flex items-center gap-1"
@@ -676,9 +725,9 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Categoria</label>
                   <select className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-white text-slate-900"
-                    value={newProductData.category} onChange={e => setNewProductData({ ...newProductData, category: e.target.value as Category })}
+                    value={newProductData.category} onChange={e => setNewProductData({ ...newProductData, category: e.target.value })}
                   >
-                    {Object.values(Category).map(c => <option key={c} value={c}>{c}</option>)}
+                    {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                   </select>
                 </div>
                 <div>
@@ -1242,7 +1291,57 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
           </div>
         )
       }
-    </div >
+      {/* --- MODAL GERENCIAR CATEGORIAS --- */}
+      {showCategoryModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
+            <div className="p-4 bg-slate-800 text-white flex justify-between items-center">
+              <h3 className="font-bold flex items-center gap-2">
+                <Filter size={20} className="text-orange-400" /> Gerenciar Categorias
+              </h3>
+              <button onClick={() => setShowCategoryModal(false)}><X size={20} /></button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Nova Categoria..."
+                  className="flex-1 px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                />
+                <button
+                  onClick={handleAddCategory}
+                  className="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-lg font-bold"
+                >
+                  <Plus size={20} />
+                </button>
+              </div>
+
+              <div className="max-h-[300px] overflow-y-auto border border-slate-100 rounded-lg">
+                <table className="w-full text-left">
+                  <tbody className="divide-y divide-slate-100">
+                    {categories.map((cat) => (
+                      <tr key={cat.id} className="hover:bg-slate-50 group">
+                        <td className="p-3 text-slate-700 font-medium">{cat.name}</td>
+                        <td className="p-3 text-right">
+                          <button
+                            onClick={() => handleDeleteCategory(cat.id)}
+                            className="text-slate-400 hover:text-red-600 p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
 

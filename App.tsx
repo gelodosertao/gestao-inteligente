@@ -31,6 +31,8 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [dbError, setDbError] = useState<string | null>(null);
 
+  const [pricingProductId, setPricingProductId] = useState<string | null>(null);
+
   // --- INITIAL DATA FETCH ---
   useEffect(() => {
     // Check for public menu access via URL
@@ -387,13 +389,13 @@ const App: React.FC = () => {
       case 'DASHBOARD':
         return <Dashboard products={products} sales={sales} financials={financials} customers={customers} onNavigate={setCurrentView} />;
       case 'INVENTORY':
-        return <Inventory products={products} sales={sales} financials={financials} onUpdateProduct={handleUpdateProduct} onAddProduct={handleAddProduct} onDeleteProduct={handleDeleteProduct} onBack={() => setCurrentView('DASHBOARD')} />;
+        return <Inventory products={products} sales={sales} financials={financials} onUpdateProduct={handleUpdateProduct} onAddProduct={handleAddProduct} onDeleteProduct={handleDeleteProduct} onOpenPricing={(id) => { setPricingProductId(id); setCurrentView('PRICING'); }} onBack={() => setCurrentView('DASHBOARD')} />;
       case 'SALES':
         return <Sales sales={sales} products={products} customers={customers} onAddSale={handleAddSale} onAddCustomer={handleAddCustomer} currentUser={currentUser} onUpdateSale={handleUpdateSale} onDeleteSale={handleDeleteSale} onBack={() => setCurrentView('DASHBOARD')} />;
       case 'CUSTOMERS':
         return <Customers customers={customers} onAddCustomer={handleAddCustomer} onImportCustomers={handleImportCustomers} currentUser={currentUser} onUpdateCustomer={handleUpdateCustomer} onDeleteCustomer={handleDeleteCustomer} onBack={() => setCurrentView('DASHBOARD')} />;
       case 'PRICING':
-        return <Pricing products={products} onUpdateProduct={handleUpdateProduct} onBack={() => setCurrentView('DASHBOARD')} />;
+        return <Pricing products={products} initialProductId={pricingProductId} onUpdateProduct={handleUpdateProduct} onBack={() => setCurrentView('DASHBOARD')} />;
       case 'FINANCIAL':
         if (currentUser?.role !== 'ADMIN') return <Dashboard products={products} sales={sales} financials={financials} customers={customers} onNavigate={setCurrentView} />;
         return <Financial records={financials} sales={sales} products={products} onAddRecord={handleAddFinancialRecord} onUpdateRecord={handleUpdateFinancialRecord} onDeleteRecord={handleDeleteFinancialRecord} onBack={() => setCurrentView('DASHBOARD')} />;

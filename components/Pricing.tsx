@@ -4,12 +4,13 @@ import { ArrowLeft, Save, Package, Plus, Trash2, DollarSign, Factory } from 'luc
 
 interface PricingProps {
     products: Product[];
+    initialProductId?: string | null;
     onUpdateProduct: (product: Product) => void;
     onBack: () => void;
 }
 
-const Pricing: React.FC<PricingProps> = ({ products, onUpdateProduct, onBack }) => {
-    const [selectedProductId, setSelectedProductId] = useState<string>('');
+const Pricing: React.FC<PricingProps> = ({ products, initialProductId, onUpdateProduct, onBack }) => {
+    const [selectedProductId, setSelectedProductId] = useState<string>(initialProductId || '');
 
     // Recipe State
     const [recipeItems, setRecipeItems] = useState<{ ingredientId: string; quantity: number }[]>([]);

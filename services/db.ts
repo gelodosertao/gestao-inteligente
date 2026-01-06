@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { Product, StoreSettings, Sale, FinancialRecord, Customer, StockMovement, Branch, Category, ProductionRecord, Shift, User, Role } from '../types';
+import { Product, StoreSettings, Sale, FinancialRecord, Customer, StockMovement, Branch, Category, ProductionRecord, Shift, User, Role, CategoryItem } from '../types';
 
 // --- USERS & AUTH ---
 
@@ -95,6 +95,39 @@ export const dbUsers = {
   }
 };
 
+// --- CATEGORIES ---
+export const dbCategories = {
+  async getAll(type?: 'PRODUCT' | 'FINANCIAL'): Promise<CategoryItem[]> {
+    let query = supabase.from('categories').select('*').order('name', { ascending: true });
+
+    if (type) {
+      query = query.eq('type', type);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    return (data || []).map((row: any) => ({
+      id: row.id,
+      name: row.name,
+      type: row.type
+    }));
+  },
+
+  async add(category: Omit<CategoryItem, 'id'>) {
+    const { error } = await supabase.from('categories').insert([{
+      name: category.name,
+      type: category.type
+    }]);
+    if (error) throw error;
+  },
+
+  async delete(id: string) {
+    const { error } = await supabase.from('categories').delete().eq('id', id);
+    if (error) throw error;
+  }
+};
+
 // --- PRODUCTS ---
 export const dbProducts = {
   async getAll(): Promise<Product[]> {
@@ -104,7 +137,7 @@ export const dbProducts = {
     return (data || []).map((row: any) => ({
       id: row.id,
       name: row.name,
-      category: row.category as Category,
+      category: row.category,
       priceMatriz: row.price_matriz,
       priceFilial: row.price_filial,
       cost: row.cost,

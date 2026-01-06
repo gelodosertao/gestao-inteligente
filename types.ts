@@ -15,16 +15,21 @@ export enum Category {
   DRINK = 'Drinks/Coquetéis',
   RAW_MATERIAL = 'Insumo (Matéria-prima)'
 }
-
 export enum Branch {
   MATRIZ = 'Matriz (Fábrica)',
   FILIAL = 'Filial (Adega)'
 }
 
+export interface CategoryItem {
+  id: string;
+  name: string;
+  type: 'PRODUCT' | 'FINANCIAL';
+}
+
 export interface Product {
   id: string;
   name: string;
-  category: Category;
+  category: string;
   priceMatriz: number; // Preço Atacado
   priceFilial: number; // Preço Varejo
   cost: number;

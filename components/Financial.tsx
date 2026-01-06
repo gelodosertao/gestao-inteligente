@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { FinancialRecord, Branch, Sale, Product } from '../types';
-import { ArrowUpCircle, ArrowDownCircle, X, Plus, Calendar, DollarSign, Repeat, ArrowLeft, Building2, BarChart3, LineChart } from 'lucide-react';
+import { FinancialRecord, Branch, Sale, Product, CategoryItem } from '../types';
+import { dbCategories } from '../services/db';
+import { ArrowUpCircle, ArrowDownCircle, X, Plus, Calendar, DollarSign, Repeat, ArrowLeft, Building2, BarChart3, LineChart, Filter, Trash2 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { getTodayDate } from '../services/utils';
 
@@ -30,6 +31,41 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, onAddRe
    });
    const [isRecurring, setIsRecurring] = useState(false);
    const [installments, setInstallments] = useState(2); // Default to 2 if recurring
+   const [categories, setCategories] = useState<CategoryItem[]>([]);
+   const [showCategoryModal, setShowCategoryModal] = useState(false);
+   const [newCategoryName, setNewCategoryName] = useState('');
+
+   React.useEffect(() => {
+      loadCategories();
+   }, []);
+
+   const loadCategories = () => {
+      dbCategories.getAll('FINANCIAL')
+         .then(setCategories)
+         .catch(err => console.error("Erro ao carregar categorias", err));
+   };
+
+   const handleAddCategory = async () => {
+      if (!newCategoryName.trim()) return;
+      try {
+         await dbCategories.add({ name: newCategoryName, type: 'FINANCIAL' });
+         setNewCategoryName('');
+         loadCategories();
+      } catch (error) {
+         console.error("Erro ao adicionar categoria", error);
+         alert("Erro ao adicionar categoria. Verifique se já existe.");
+      }
+   };
+
+   const handleDeleteCategory = async (id: string) => {
+      if (!confirm("Tem certeza que deseja excluir esta categoria?")) return;
+      try {
+         await dbCategories.delete(id);
+         loadCategories();
+      } catch (error) {
+         console.error("Erro ao excluir categoria", error);
+      }
+   };
 
    // --- FILTERING ---
    const filterByDate = (dateString: string) => {
@@ -234,6 +270,13 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, onAddRe
                   className="bg-blue-800 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 shadow-lg shadow-blue-900/10 transition-colors"
                >
                   <Plus size={18} /> Lançar Despesa
+               </button>
+
+               <button
+                  onClick={() => setShowCategoryModal(true)}
+                  className="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 shadow-lg shadow-slate-900/10 transition-colors"
+               >
+                  <Filter size={18} /> Categorias
                </button>
 
                <div className="bg-white p-1 rounded-lg border border-slate-200 flex">
@@ -501,14 +544,7 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, onAddRe
                            value={newRecord.category}
                            onChange={(e) => setNewRecord({ ...newRecord, category: e.target.value })}
                         >
-                           <option value="Fornecedores">Fornecedores</option>
-                           <option value="Manutenção">Manutenção</option>
-                           <option value="Utilidades">Utilidades (Luz/Água)</option>
-                           <option value="Pessoal">Pessoal / Salários</option>
-                           <option value="Impostos">Impostos</option>
-                           <option value="Aluguel">Aluguel</option>
-                           <option value="Equipamentos">Equipamentos</option>
-                           <option value="Outros">Outros</option>
+                           {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                         </select>
                      </div>
 
@@ -631,14 +667,7 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, onAddRe
                            value={editingRecord.category}
                            onChange={(e) => setEditingRecord({ ...editingRecord, category: e.target.value })}
                         >
-                           <option value="Fornecedores">Fornecedores</option>
-                           <option value="Manutenção">Manutenção</option>
-                           <option value="Utilidades">Utilidades (Luz/Água)</option>
-                           <option value="Pessoal">Pessoal / Salários</option>
-                           <option value="Impostos">Impostos</option>
-                           <option value="Aluguel">Aluguel</option>
-                           <option value="Equipamentos">Equipamentos</option>
-                           <option value="Outros">Outros</option>
+                           {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                         </select>
                      </div>
 
@@ -654,6 +683,56 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, onAddRe
          )}
 
 
+         {/* --- MODAL GERENCIAR CATEGORIAS --- */}
+         {showCategoryModal && (
+            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+               <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
+                  <div className="p-4 bg-slate-800 text-white flex justify-between items-center">
+                     <h3 className="font-bold flex items-center gap-2">
+                        <Filter size={20} className="text-orange-400" /> Gerenciar Categorias (Despesas)
+                     </h3>
+                     <button onClick={() => setShowCategoryModal(false)}><X size={20} /></button>
+                  </div>
+                  <div className="p-6 space-y-4">
+                     <div className="flex gap-2">
+                        <input
+                           type="text"
+                           placeholder="Nova Categoria..."
+                           className="flex-1 px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                           value={newCategoryName}
+                           onChange={(e) => setNewCategoryName(e.target.value)}
+                        />
+                        <button
+                           onClick={handleAddCategory}
+                           className="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-lg font-bold"
+                        >
+                           <Plus size={20} />
+                        </button>
+                     </div>
+
+                     <div className="max-h-[300px] overflow-y-auto border border-slate-100 rounded-lg">
+                        <table className="w-full text-left">
+                           <tbody className="divide-y divide-slate-100">
+                              {categories.map((cat) => (
+                                 <tr key={cat.id} className="hover:bg-slate-50 group">
+                                    <td className="p-3 text-slate-700 font-medium">{cat.name}</td>
+                                    <td className="p-3 text-right">
+                                       <button
+                                          onClick={() => handleDeleteCategory(cat.id)}
+                                          className="text-slate-400 hover:text-red-600 p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                                       >
+                                          <Trash2 size={16} />
+                                       </button>
+                                    </td>
+                                 </tr>
+                              ))}
+                           </tbody>
+                        </table>
+                     </div>
+                  </div>
+               </div>
+            </div>
+         )}
       </div>
    );
 };
