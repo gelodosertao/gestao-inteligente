@@ -423,9 +423,9 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
             />
           </div>
           <button
-            onClick={() => setFilter('')}
+            onClick={() => filter ? setFilter('') : setShowCategoryModal(true)}
             className="p-2 text-slate-500 hover:bg-slate-50 rounded-lg border border-slate-200"
-            title="Limpar Filtro"
+            title={filter ? "Limpar Filtro" : "Filtrar por Categoria"}
           >
             {filter ? <X size={18} /> : <Filter size={18} />}
           </button>
@@ -1297,7 +1297,7 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
           <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
             <div className="p-4 bg-slate-800 text-white flex justify-between items-center">
               <h3 className="font-bold flex items-center gap-2">
-                <Filter size={20} className="text-orange-400" /> Gerenciar Categorias
+                <Filter size={20} className="text-orange-400" /> Filtrar / Gerenciar Categorias
               </h3>
               <button onClick={() => setShowCategoryModal(false)}><X size={20} /></button>
             </div>
@@ -1321,12 +1321,19 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
               <div className="max-h-[300px] overflow-y-auto border border-slate-100 rounded-lg">
                 <table className="w-full text-left">
                   <tbody className="divide-y divide-slate-100">
+                    <tr
+                      className="hover:bg-slate-50 cursor-pointer"
+                      onClick={() => { setFilter(''); setShowCategoryModal(false); }}
+                    >
+                      <td className="p-3 text-slate-700 font-bold">Mostrar Todos</td>
+                      <td className="p-3 text-right"></td>
+                    </tr>
                     {categories.map((cat) => (
-                      <tr key={cat.id} className="hover:bg-slate-50 group">
+                      <tr key={cat.id} className="hover:bg-slate-50 group cursor-pointer" onClick={() => { setFilter(cat.name); setShowCategoryModal(false); }}>
                         <td className="p-3 text-slate-700 font-medium">{cat.name}</td>
                         <td className="p-3 text-right">
                           <button
-                            onClick={() => handleDeleteCategory(cat.id)}
+                            onClick={(e) => { e.stopPropagation(); handleDeleteCategory(cat.id); }}
                             className="text-slate-400 hover:text-red-600 p-1 opacity-0 group-hover:opacity-100 transition-opacity"
                           >
                             <Trash2 size={16} />
