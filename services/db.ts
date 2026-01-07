@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { Product, StoreSettings, Sale, FinancialRecord, Customer, StockMovement, Branch, Category, ProductionRecord, Shift, User, Role, CategoryItem } from '../types';
+import { Product, StoreSettings, Sale, FinancialRecord, Customer, StockMovement, Branch, Category, ProductionRecord, Shift, User, Role, CategoryItem, CashClosing } from '../types';
 
 // --- USERS & AUTH ---
 
@@ -470,6 +470,50 @@ export const dbProduction = {
       responsible: record.responsible,
       notes: record.notes
     }]);
+    if (error) throw error;
+  }
+};
+
+// --- CASH CLOSINGS ---
+export const dbCashClosings = {
+  async getAll(): Promise<CashClosing[]> {
+    const { data, error } = await supabase.from('cash_closings').select('*').order('date', { ascending: false });
+    if (error) throw error;
+
+    return (data || []).map((row: any) => ({
+      id: row.id,
+      date: row.date,
+      branch: row.branch as Branch,
+      openingBalance: row.opening_balance,
+      totalIncome: row.total_income,
+      totalExpense: row.total_expense,
+      totalByPaymentMethod: row.total_by_payment_method, // JSONB
+      cashInDrawer: row.cash_in_drawer,
+      difference: row.difference,
+      notes: row.notes,
+      closedBy: row.closed_by
+    }));
+  },
+
+  async add(closing: CashClosing) {
+    const { error } = await supabase.from('cash_closings').insert([{
+      id: closing.id,
+      date: closing.date,
+      branch: closing.branch,
+      opening_balance: closing.openingBalance,
+      total_income: closing.totalIncome,
+      total_expense: closing.totalExpense,
+      total_by_payment_method: closing.totalByPaymentMethod,
+      cash_in_drawer: closing.cashInDrawer,
+      difference: closing.difference,
+      notes: closing.notes,
+      closed_by: closing.closedBy
+    }]);
+    if (error) throw error;
+  },
+
+  async delete(id: string) {
+    const { error } = await supabase.from('cash_closings').delete().eq('id', id);
     if (error) throw error;
   }
 };

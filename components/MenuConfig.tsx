@@ -108,6 +108,35 @@ const MenuConfig: React.FC<MenuConfigProps> = ({ onBack }) => {
                 </div>
             </div>
 
+            {/* Link Section */}
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex flex-col md:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                    <div className="bg-blue-100 p-2 rounded-lg text-blue-600">
+                        <Store size={24} />
+                    </div>
+                    <div>
+                        <h3 className="font-bold text-blue-900">Link do seu Cardápio</h3>
+                        <p className="text-sm text-blue-700">Compartilhe este link com seus clientes.</p>
+                    </div>
+                </div>
+                <div className="flex w-full md:w-auto gap-2">
+                    <input
+                        readOnly
+                        value={`${window.location.origin}${window.location.pathname}?menu=true`}
+                        className="flex-1 md:w-96 px-4 py-2 border border-blue-200 rounded-lg bg-white text-slate-600 text-sm font-mono"
+                    />
+                    <button
+                        onClick={() => {
+                            navigator.clipboard.writeText(`${window.location.origin}${window.location.pathname}?menu=true`);
+                            alert("Link copiado!");
+                        }}
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold text-sm transition-colors whitespace-nowrap"
+                    >
+                        Copiar Link
+                    </button>
+                </div>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Basic Info */}
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 space-y-4">

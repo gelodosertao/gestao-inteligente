@@ -12,9 +12,9 @@ import Pricing from './components/Pricing';
 import OnlineMenu from './components/OnlineMenu';
 import MenuConfig from './components/MenuConfig';
 import Production from './components/Production';
-import { ViewState, User, Product, Sale, FinancialRecord, Branch, Customer } from './types';
+import { ViewState, User, Product, Sale, FinancialRecord, Branch, Customer, CashClosing } from './types';
 import { MOCK_PRODUCTS, MOCK_SALES, MOCK_FINANCIALS } from './constants';
-import { dbProducts, dbSales, dbFinancials, dbCustomers } from './services/db';
+import { dbProducts, dbSales, dbFinancials, dbCustomers, dbCashClosings } from './services/db';
 import { Loader2, AlertCircle } from 'lucide-react';
 
 const App: React.FC = () => {
@@ -26,6 +26,7 @@ const App: React.FC = () => {
   const [sales, setSales] = useState<Sale[]>([]);
   const [financials, setFinancials] = useState<FinancialRecord[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [cashClosings, setCashClosings] = useState<CashClosing[]>([]);
 
   // Loading & Error States
   const [isLoading, setIsLoading] = useState(false);
@@ -51,17 +52,19 @@ const App: React.FC = () => {
     setDbError(null);
     try {
       // Parallel fetch for speed
-      const [p, s, f, c] = await Promise.all([
+      const [p, s, f, c, cc] = await Promise.all([
         dbProducts.getAll(),
         dbSales.getAll(),
         dbFinancials.getAll(),
-        dbCustomers.getAll()
+        dbCustomers.getAll(),
+        dbCashClosings.getAll()
       ]);
 
       setProducts(p.length > 0 ? p : []);
       setSales(s);
       setFinancials(f);
       setCustomers(c);
+      setCashClosings(cc);
 
     } catch (error: any) {
       console.error("Erro ao conectar com Supabase:", error);
@@ -324,6 +327,27 @@ const App: React.FC = () => {
     }
   };
 
+  const handleAddCashClosing = async (newClosing: CashClosing) => {
+    setCashClosings(prev => [newClosing, ...prev]);
+    try {
+      await dbCashClosings.add(newClosing);
+    } catch (e) {
+      console.error(e);
+      alert("Erro ao salvar fechamento de caixa.");
+    }
+  };
+
+  const handleDeleteCashClosing = async (id: string) => {
+    if (!confirm("Tem certeza que deseja excluir este fechamento?")) return;
+    setCashClosings(prev => prev.filter(c => c.id !== id));
+    try {
+      await dbCashClosings.delete(id);
+    } catch (e) {
+      console.error(e);
+      alert("Erro ao excluir fechamento.");
+    }
+  };
+
   const handleResetData = async () => {
     alert("Para resetar o banco de dados Supabase, utilize o editor SQL no painel do Supabase (Comando TRUNCATE).");
   };
@@ -376,7 +400,8 @@ const App: React.FC = () => {
             create table products (id text primary key, name text, category text, price_matriz numeric, price_filial numeric, cost numeric, stock_matriz integer, stock_filial integer, unit text, min_stock integer);<br />
             create table sales (id text primary key, date text, customer_name text, total numeric, branch text, status text, payment_method text, has_invoice boolean, items jsonb);<br />
             create table financials (id text primary key, date text, description text, amount numeric, type text, category text, branch text);<br />
-            create table customers (id text primary key, name text, cpf_cnpj text, email text, phone text, address text, segment text, city text, state text);
+            create table customers (id text primary key, name text, cpf_cnpj text, email text, phone text, address text, segment text, city text, state text);<br />
+            create table cash_closings (id text primary key, date text, branch text, opening_balance numeric, total_income numeric, total_expense numeric, total_by_payment_method jsonb, cash_in_drawer numeric, difference numeric, notes text, closed_by text);
           </div>
           <button onClick={() => loadDataFromCloud()} className="mt-6 bg-red-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-red-700">
             Tentar Conectar Novamente
@@ -398,7 +423,7 @@ const App: React.FC = () => {
         return <Pricing products={products} initialProductId={pricingProductId} onUpdateProduct={handleUpdateProduct} onBack={() => setCurrentView('DASHBOARD')} />;
       case 'FINANCIAL':
         if (currentUser?.role !== 'ADMIN') return <Dashboard products={products} sales={sales} financials={financials} customers={customers} onNavigate={setCurrentView} />;
-        return <Financial records={financials} sales={sales} products={products} onAddRecord={handleAddFinancialRecord} onUpdateRecord={handleUpdateFinancialRecord} onDeleteRecord={handleDeleteFinancialRecord} onBack={() => setCurrentView('DASHBOARD')} />;
+        return <Financial records={financials} sales={sales} products={products} cashClosings={cashClosings} onAddRecord={handleAddFinancialRecord} onUpdateRecord={handleUpdateFinancialRecord} onDeleteRecord={handleDeleteFinancialRecord} onAddCashClosing={handleAddCashClosing} onDeleteCashClosing={handleDeleteCashClosing} currentUser={currentUser} onBack={() => setCurrentView('DASHBOARD')} />;
       case 'AI_INSIGHTS':
         return <AIAssistant products={products} sales={sales} financials={financials} onBack={() => setCurrentView('DASHBOARD')} />;
 

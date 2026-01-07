@@ -140,3 +140,22 @@ export interface ProductionRecord {
   responsible: string;
   notes?: string;
 }
+
+export interface CashClosing {
+  id: string;
+  date: string;
+  branch: Branch;
+  openingBalance: number;
+  totalIncome: number;
+  totalExpense: number;
+  totalByPaymentMethod: {
+    Pix: number;
+    Credit: number;
+    Debit: number;
+    Cash: number;
+  };
+  cashInDrawer: number; // Valor contado
+  difference: number; // Sobra ou Falta
+  notes?: string;
+  closedBy: string; // User name
+}

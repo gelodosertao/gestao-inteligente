@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { FinancialRecord, Branch, Sale, Product, CategoryItem } from '../types';
+import React, { useState, useMemo } from 'react';
+import { FinancialRecord, Branch, Sale, Product, CategoryItem, CashClosing, User } from '../types';
 import { dbCategories } from '../services/db';
-import { ArrowUpCircle, ArrowDownCircle, X, Plus, Calendar, DollarSign, Repeat, ArrowLeft, Building2, BarChart3, LineChart, Filter, Trash2 } from 'lucide-react';
+import { ArrowUpCircle, ArrowDownCircle, X, Plus, Calendar, DollarSign, Repeat, ArrowLeft, Building2, BarChart3, LineChart, Filter, Trash2, Lock, CheckCircle, AlertTriangle } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { getTodayDate } from '../services/utils';
 
@@ -9,18 +9,29 @@ interface FinancialProps {
    records: FinancialRecord[];
    sales: Sale[];
    products: Product[];
+   cashClosings: CashClosing[];
    onAddRecord: (records: FinancialRecord[]) => void;
    onUpdateRecord: (record: FinancialRecord) => void;
    onDeleteRecord: (id: string) => void;
+   onAddCashClosing: (closing: CashClosing) => void;
+   onDeleteCashClosing: (id: string) => void;
+   currentUser: User | null;
    onBack: () => void;
 }
 
-const Financial: React.FC<FinancialProps> = ({ records, sales, products, onAddRecord, onUpdateRecord, onDeleteRecord, onBack }) => {
+const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClosings, onAddRecord, onUpdateRecord, onDeleteRecord, onAddCashClosing, onDeleteCashClosing, currentUser, onBack }) => {
 
    const [showAddModal, setShowAddModal] = useState(false);
-   const [viewMode, setViewMode] = useState<'CASH_FLOW' | 'DRE'>('CASH_FLOW');
+   const [viewMode, setViewMode] = useState<'CASH_FLOW' | 'DRE' | 'CASH_CLOSING'>('CASH_FLOW');
    const [selectedBranch, setSelectedBranch] = useState<'ALL' | Branch>('ALL');
    const [dateRange, setDateRange] = useState('THIS_MONTH'); // Simplified for now
+
+   // Cash Closing State
+   const [closingDate, setClosingDate] = useState(getTodayDate());
+   const [closingBranch, setClosingBranch] = useState<Branch>(Branch.FILIAL);
+   const [openingBalance, setOpeningBalance] = useState<number>(0);
+   const [cashInDrawer, setCashInDrawer] = useState<number>(0);
+   const [closingNotes, setClosingNotes] = useState('');
 
    // Form State - Defaulted to Expense, removed logic to switch to Income in UI
    const [newRecord, setNewRecord] = useState<Partial<FinancialRecord>>({
@@ -77,6 +88,55 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, onAddRe
 
    const filteredRecords = records.filter(r => (selectedBranch === 'ALL' || r.branch === selectedBranch) && filterByDate(r.date));
    const filteredSales = sales.filter(s => (selectedBranch === 'ALL' || s.branch === selectedBranch) && filterByDate(s.date));
+
+   // --- CASH CLOSING CALCULATIONS ---
+   const closingData = useMemo(() => {
+      const daySales = sales.filter(s => s.date === closingDate && s.branch === closingBranch && s.status === 'Completed');
+      const dayExpenses = records.filter(r => r.date === closingDate && r.branch === closingBranch && r.type === 'Expense');
+
+      const totalIncome = daySales.reduce((acc, s) => acc + s.total, 0);
+      const totalExpense = dayExpenses.reduce((acc, r) => acc + r.amount, 0);
+
+      const byMethod = {
+         Pix: daySales.filter(s => s.paymentMethod === 'Pix').reduce((acc, s) => acc + s.total, 0),
+         Credit: daySales.filter(s => s.paymentMethod === 'Credit').reduce((acc, s) => acc + s.total, 0),
+         Debit: daySales.filter(s => s.paymentMethod === 'Debit').reduce((acc, s) => acc + s.total, 0),
+         Cash: daySales.filter(s => s.paymentMethod === 'Cash').reduce((acc, s) => acc + s.total, 0),
+      };
+
+      // Expected Cash in Drawer = Opening + Cash Sales - Expenses (Assuming expenses are paid in cash if not specified, usually safe for small business)
+      const expectedCash = openingBalance + byMethod.Cash - totalExpense;
+      const difference = cashInDrawer - expectedCash;
+
+      return {
+         totalIncome,
+         totalExpense,
+         byMethod,
+         expectedCash,
+         difference
+      };
+   }, [sales, records, closingDate, closingBranch, openingBalance, cashInDrawer]);
+
+   const handleSaveClosing = () => {
+      if (!currentUser) return;
+
+      const newClosing: CashClosing = {
+         id: `cc-${Date.now()}`,
+         date: closingDate,
+         branch: closingBranch,
+         openingBalance,
+         totalIncome: closingData.totalIncome,
+         totalExpense: closingData.totalExpense,
+         totalByPaymentMethod: closingData.byMethod,
+         cashInDrawer,
+         difference: closingData.difference,
+         notes: closingNotes,
+         closedBy: currentUser.name
+      };
+
+      onAddCashClosing(newClosing);
+      alert("Caixa fechado com sucesso!");
+   };
 
    // --- DRE CALCULATIONS ---
    const calculateDRE = () => {
@@ -301,6 +361,12 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, onAddRe
                >
                   <BarChart3 size={18} /> DRE Gerencial
                </button>
+               <button
+                  onClick={() => setViewMode('CASH_CLOSING')}
+                  className={`px-6 py-2 rounded-lg font-bold text-sm flex items-center gap-2 transition-all ${viewMode === 'CASH_CLOSING' ? 'bg-white text-blue-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+               >
+                  <Lock size={18} /> Fechamento de Caixa
+               </button>
             </div>
          </div>
 
@@ -461,6 +527,168 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, onAddRe
                         <span className="text-sm font-medium text-slate-500">
                            Margem Líquida: {dreData.grossRevenue > 0 ? ((dreData.netProfit / dreData.grossRevenue) * 100).toFixed(1) : 0}%
                         </span>
+                     </div>
+                  </div>
+               </div>
+            </div>
+         )}
+
+         {viewMode === 'CASH_CLOSING' && (
+            <div className="space-y-6 animate-in fade-in">
+               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* --- CLOSING FORM --- */}
+                  <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                     <div className="flex items-center gap-2 mb-6 border-b border-slate-100 pb-4">
+                        <Lock className="text-orange-500" size={24} />
+                        <h3 className="text-xl font-bold text-slate-800">Novo Fechamento</h3>
+                     </div>
+
+                     <div className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                           <div>
+                              <label className="block text-sm font-bold text-slate-700 mb-1">Data</label>
+                              <input
+                                 type="date"
+                                 className="w-full px-4 py-2 border border-slate-200 rounded-lg"
+                                 value={closingDate}
+                                 onChange={(e) => setClosingDate(e.target.value)}
+                              />
+                           </div>
+                           <div>
+                              <label className="block text-sm font-bold text-slate-700 mb-1">Unidade</label>
+                              <select
+                                 className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-white"
+                                 value={closingBranch}
+                                 onChange={(e) => setClosingBranch(e.target.value as Branch)}
+                              >
+                                 <option value={Branch.MATRIZ}>Matriz</option>
+                                 <option value={Branch.FILIAL}>Filial</option>
+                              </select>
+                           </div>
+                        </div>
+
+                        <div className="bg-slate-50 p-4 rounded-xl space-y-2 border border-slate-200">
+                           <div className="flex justify-between items-center text-sm">
+                              <span className="text-slate-600">Saldo Inicial (Fundo de Troco)</span>
+                              <input
+                                 type="number"
+                                 className="w-24 px-2 py-1 text-right border border-slate-300 rounded text-slate-700 font-bold"
+                                 value={openingBalance}
+                                 onChange={(e) => setOpeningBalance(Number(e.target.value))}
+                              />
+                           </div>
+                           <div className="flex justify-between items-center text-sm">
+                              <span className="text-emerald-600 font-medium">(+) Vendas em Dinheiro</span>
+                              <span className="font-bold text-emerald-600">{formatCurrency(closingData.byMethod.Cash)}</span>
+                           </div>
+                           <div className="flex justify-between items-center text-sm">
+                              <span className="text-rose-600 font-medium">(-) Despesas Totais</span>
+                              <span className="font-bold text-rose-600">{formatCurrency(closingData.totalExpense)}</span>
+                           </div>
+                           <div className="border-t border-slate-200 my-1"></div>
+                           <div className="flex justify-between items-center font-bold text-slate-800">
+                              <span>(=) Saldo Esperado em Caixa</span>
+                              <span>{formatCurrency(closingData.expectedCash)}</span>
+                           </div>
+                        </div>
+
+                        <div className="space-y-2">
+                           <label className="block text-sm font-bold text-slate-700">Conferência (Valor Contado)</label>
+                           <div className="relative">
+                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold">R$</span>
+                              <input
+                                 type="number"
+                                 className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-orange-500 font-bold text-xl text-slate-900"
+                                 value={cashInDrawer}
+                                 onChange={(e) => setCashInDrawer(Number(e.target.value))}
+                              />
+                           </div>
+                        </div>
+
+                        <div className={`p-4 rounded-xl flex items-center justify-between ${closingData.difference === 0 ? 'bg-emerald-100 text-emerald-800' : closingData.difference > 0 ? 'bg-blue-100 text-blue-800' : 'bg-red-100 text-red-800'}`}>
+                           <span className="font-bold flex items-center gap-2">
+                              {closingData.difference === 0 ? <CheckCircle size={20} /> : <AlertTriangle size={20} />}
+                              Diferença
+                           </span>
+                           <span className="font-bold text-lg">{formatCurrency(closingData.difference)}</span>
+                        </div>
+
+                        <div>
+                           <label className="block text-sm font-bold text-slate-700 mb-1">Observações</label>
+                           <textarea
+                              className="w-full px-4 py-2 border border-slate-200 rounded-lg h-20"
+                              placeholder="Justifique a diferença ou adicione notas..."
+                              value={closingNotes}
+                              onChange={(e) => setClosingNotes(e.target.value)}
+                           />
+                        </div>
+
+                        <button
+                           onClick={handleSaveClosing}
+                           className="w-full bg-slate-800 hover:bg-slate-700 text-white py-3 rounded-xl font-bold shadow-lg shadow-slate-900/20 flex items-center justify-center gap-2"
+                        >
+                           <Lock size={18} /> Confirmar Fechamento
+                        </button>
+                     </div>
+                  </div>
+
+                  {/* --- CLOSING HISTORY --- */}
+                  <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                     <div className="p-4 border-b border-slate-100 bg-slate-50">
+                        <h3 className="font-bold text-slate-700">Histórico de Fechamentos</h3>
+                     </div>
+                     <div className="divide-y divide-slate-100 max-h-[600px] overflow-y-auto">
+                        {cashClosings.length === 0 ? (
+                           <div className="p-8 text-center text-slate-400">Nenhum fechamento registrado.</div>
+                        ) : (
+                           cashClosings.map(closing => (
+                              <div key={closing.id} className="p-4 hover:bg-slate-50 transition-colors group">
+                                 <div className="flex justify-between items-start mb-2">
+                                    <div>
+                                       <p className="font-bold text-slate-800 flex items-center gap-2">
+                                          {new Date(closing.date).toLocaleDateString()}
+                                          <span className={`text-[10px] px-1.5 py-0.5 rounded border ${closing.branch === Branch.MATRIZ ? 'bg-blue-50 text-blue-700 border-blue-100' : 'bg-orange-50 text-orange-700 border-orange-100'}`}>
+                                             {closing.branch === Branch.MATRIZ ? 'Matriz' : 'Filial'}
+                                          </span>
+                                       </p>
+                                       <p className="text-xs text-slate-500">Feito por: {closing.closedBy}</p>
+                                    </div>
+                                    <button
+                                       onClick={() => onDeleteCashClosing(closing.id)}
+                                       className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                                    >
+                                       <Trash2 size={16} />
+                                    </button>
+                                 </div>
+
+                                 <div className="grid grid-cols-2 gap-2 text-sm mb-2">
+                                    <div className="flex justify-between">
+                                       <span className="text-slate-500">Vendas Totais:</span>
+                                       <span className="font-medium text-emerald-600">{formatCurrency(closing.totalIncome)}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                       <span className="text-slate-500">Despesas:</span>
+                                       <span className="font-medium text-rose-600">{formatCurrency(closing.totalExpense)}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                       <span className="text-slate-500">Em Caixa (Contado):</span>
+                                       <span className="font-bold text-slate-800">{formatCurrency(closing.cashInDrawer)}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                       <span className="text-slate-500">Diferença:</span>
+                                       <span className={`font-bold ${closing.difference === 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                          {formatCurrency(closing.difference)}
+                                       </span>
+                                    </div>
+                                 </div>
+                                 {closing.notes && (
+                                    <div className="text-xs text-slate-500 bg-slate-50 p-2 rounded border border-slate-100 italic">
+                                       "{closing.notes}"
+                                    </div>
+                                 )}
+                              </div>
+                           ))
+                        )}
                      </div>
                   </div>
                </div>
