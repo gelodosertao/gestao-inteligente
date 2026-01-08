@@ -100,7 +100,16 @@ export const dbUsers = {
       .eq('id', session.user.id)
       .single();
 
-    if (!profile) return null;
+    if (!profile) {
+      // Fallback if profile is missing in app_users but exists in Auth
+      return {
+        id: session.user.id,
+        name: session.user.user_metadata.name || 'Usuário',
+        email: session.user.email || '',
+        role: 'OPERATOR', // Default role
+        avatarInitials: 'US'
+      };
+    }
 
     return {
       id: profile.id,

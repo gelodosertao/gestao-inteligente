@@ -34,6 +34,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onOpenMenu }) => {
       const user = await dbUsers.login(email, password);
       onLogin(user);
     } catch (err: any) {
+      console.error("Login error:", err);
       setError(err.message || 'Falha ao conectar. Verifique internet ou credenciais.');
       setLoading(false);
     }
