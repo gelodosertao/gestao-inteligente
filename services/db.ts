@@ -91,33 +91,38 @@ export const dbUsers = {
   },
 
   async getCurrentUser(): Promise<User | null> {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.user) return null;
+    try {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (error || !session?.user) return null;
 
-    const { data: profile } = await supabase
-      .from('app_users')
-      .select('*')
-      .eq('id', session.user.id)
-      .single();
+      const { data: profile } = await supabase
+        .from('app_users')
+        .select('*')
+        .eq('id', session.user.id)
+        .single();
 
-    if (!profile) {
-      // Fallback if profile is missing in app_users but exists in Auth
+      if (!profile) {
+        // Fallback if profile is missing in app_users but exists in Auth
+        return {
+          id: session.user.id,
+          name: session.user.user_metadata.name || 'Usuário',
+          email: session.user.email || '',
+          role: 'OPERATOR', // Default role
+          avatarInitials: 'US'
+        };
+      }
+
       return {
-        id: session.user.id,
-        name: session.user.user_metadata.name || 'Usuário',
-        email: session.user.email || '',
-        role: 'OPERATOR', // Default role
-        avatarInitials: 'US'
+        id: profile.id,
+        name: profile.name,
+        email: profile.email,
+        role: profile.role as Role,
+        avatarInitials: profile.avatar_initials
       };
+    } catch (e) {
+      console.error("Error getting current user:", e);
+      return null;
     }
-
-    return {
-      id: profile.id,
-      name: profile.name,
-      email: profile.email,
-      role: profile.role as Role,
-      avatarInitials: profile.avatar_initials
-    };
   },
 
   async getAll(): Promise<User[]> {
