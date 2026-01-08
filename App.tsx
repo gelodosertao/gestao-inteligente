@@ -47,21 +47,6 @@ const App: React.FC = () => {
     dbUsers.getCurrentUser().then(user => {
       if (user) setCurrentUser(user);
     });
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session) {
-        const user = await dbUsers.getCurrentUser();
-        setCurrentUser(user);
-      } else if (event === 'SIGNED_OUT') {
-        setCurrentUser(null);
-        setProducts([]);
-        setSales([]);
-        setFinancials([]);
-      }
-    });
-
-    return () => subscription.unsubscribe();
   }, []);
 
   useEffect(() => {

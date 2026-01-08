@@ -7,126 +7,95 @@ import { Product, StoreSettings, Sale, FinancialRecord, Customer, StockMovement,
 
 export const dbUsers = {
   async login(email: string, password: string): Promise<User> {
-    // 1. Authenticate with Supabase Auth
-    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    });
-
-    if (authError) throw new Error(authError.message);
-    if (!authData.user) throw new Error('Erro ao autenticar usuário.');
-
-    // 2. Fetch User Profile from app_users
-    const { data: profile, error: profileError } = await supabase
+    // 1. Query app_users directly
+    const { data: user, error } = await supabase
       .from('app_users')
       .select('*')
-      .eq('id', authData.user.id)
+      .eq('email', email)
       .single();
 
-    if (profileError || !profile) {
-      // Fallback: If profile doesn't exist (e.g. created in dashboard manually), return basic info
-      return {
-        id: authData.user.id,
-        name: authData.user.user_metadata.name || 'Usuário',
-        email: authData.user.email || '',
-        role: 'OPERATOR', // Default role if not found
-        avatarInitials: 'US'
-      };
+    if (error || !user) {
+      throw new Error('Usuário não encontrado ou senha incorreta.');
     }
 
-    return {
-      id: profile.id,
-      name: profile.name,
-      email: profile.email,
-      role: profile.role as Role,
-      avatarInitials: profile.avatar_initials
+    // 2. Simple password check (In production, use hashing!)
+    // Note: If you have old users with hashed passwords, this simple check might fail.
+    // We assume for this "fix" that we are storing passwords plainly or simply.
+    if (user.password !== password) {
+      throw new Error('Senha incorreta.');
+    }
+
+    // 3. Save to LocalStorage (Simple Session)
+    const sessionUser: User = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role as Role,
+      avatarInitials: user.avatar_initials
     };
+    localStorage.setItem('app_user', JSON.stringify(sessionUser));
+
+    return sessionUser;
   },
 
   async register(user: { name: string, email: string, password: string, role: Role }): Promise<User> {
-    // 1. Create User in Supabase Auth
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: user.email,
-      password: user.password,
-      options: {
-        data: {
-          name: user.name, // Store name in metadata too
-        }
-      }
-    });
+    // 1. Check if user exists
+    const { data: existing } = await supabase
+      .from('app_users')
+      .select('id')
+      .eq('email', user.email)
+      .single();
 
-    if (authError) throw new Error(authError.message);
-    if (!authData.user) throw new Error('Erro ao criar usuário.');
+    if (existing) {
+      throw new Error('Este email já está cadastrado.');
+    }
 
-    // 2. Create Profile in app_users
-    // Note: The ID must match the Auth ID
-    const newUserProfile = {
-      id: authData.user.id,
+    // 2. Insert into app_users
+    const newUser = {
       name: user.name,
       email: user.email,
+      password: user.password, // Storing plain text as requested for simplicity/revert
       role: user.role,
       avatar_initials: user.name.substring(0, 2).toUpperCase()
     };
 
-    // We use upsert in case the profile creation failed previously but auth succeeded
-    const { error: profileError } = await supabase.from('app_users').upsert([newUserProfile]);
+    const { data, error } = await supabase
+      .from('app_users')
+      .insert([newUser])
+      .select()
+      .single();
 
-    if (profileError) {
-      console.error("Erro ao criar perfil do usuário:", profileError);
-      throw new Error("Usuário criado, mas erro ao salvar perfil: " + profileError.message);
+    if (error) {
+      console.error("Erro ao registrar:", error);
+      throw new Error("Erro ao criar conta: " + error.message);
     }
 
-    return {
-      id: newUserProfile.id,
-      name: newUserProfile.name,
-      email: newUserProfile.email,
-      role: newUserProfile.role,
-      avatarInitials: newUserProfile.avatar_initials
+    // 3. Auto-login (Save to LocalStorage)
+    const sessionUser: User = {
+      id: data.id,
+      name: data.name,
+      email: data.email,
+      role: data.role as Role,
+      avatarInitials: data.avatar_initials
     };
+    localStorage.setItem('app_user', JSON.stringify(sessionUser));
+
+    return sessionUser;
   },
 
   async logout(): Promise<void> {
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
+    localStorage.removeItem('app_user');
+    // Also sign out from Supabase just in case
+    await supabase.auth.signOut();
   },
 
   async getCurrentUser(): Promise<User | null> {
-    try {
-      const { data: { session }, error } = await supabase.auth.getSession();
-      if (error || !session?.user) return null;
-
-      const { data: profile } = await supabase
-        .from('app_users')
-        .select('*')
-        .eq('id', session.user.id)
-        .single();
-
-      if (!profile) {
-        // Fallback if profile is missing in app_users but exists in Auth
-        const email = session.user.email || '';
-        // Temporary fix: Force ADMIN role for specific emails if profile is missing
-        const isAdmin = email.includes('admin') || email.includes('joao');
-
-        return {
-          id: session.user.id,
-          name: session.user.user_metadata.name || 'Usuário',
-          email: email,
-          role: isAdmin ? 'ADMIN' : 'OPERATOR',
-          avatarInitials: 'US'
-        };
-      }
-
-      return {
-        id: profile.id,
-        name: profile.name,
-        email: profile.email,
-        role: profile.role as Role,
-        avatarInitials: profile.avatar_initials
-      };
-    } catch (e) {
-      console.error("Error getting current user:", e);
-      return null;
+    // 1. Check LocalStorage first
+    const stored = localStorage.getItem('app_user');
+    if (stored) {
+      return JSON.parse(stored);
     }
+    return null;
   },
 
   async getAll(): Promise<User[]> {
@@ -143,18 +112,16 @@ export const dbUsers = {
   },
 
   async updatePassword(userId: string, newPassword: string): Promise<void> {
-    // User updating own password:
-    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    const { error } = await supabase
+      .from('app_users')
+      .update({ password: newPassword })
+      .eq('id', userId);
     if (error) throw error;
   },
 
   async delete(userId: string): Promise<void> {
-    // Delete from app_users (Profile)
     const { error } = await supabase.from('app_users').delete().eq('id', userId);
     if (error) throw error;
-
-    // Note: We cannot delete from auth.users via client SDK (requires Service Role)
-    console.warn("Atenção: O login do usuário ainda existe no Supabase Auth. Remova-o pelo painel.");
   }
 };
 
