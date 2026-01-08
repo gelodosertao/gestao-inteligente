@@ -14,7 +14,8 @@ import MenuConfig from './components/MenuConfig';
 import Production from './components/Production';
 import { ViewState, User, Product, Sale, FinancialRecord, Branch, Customer, CashClosing } from './types';
 import { MOCK_PRODUCTS, MOCK_SALES, MOCK_FINANCIALS } from './constants';
-import { dbProducts, dbSales, dbFinancials, dbCustomers, dbCashClosings } from './services/db';
+import { dbProducts, dbSales, dbFinancials, dbCustomers, dbCashClosings, dbUsers } from './services/db';
+import { supabase } from './services/supabase';
 import { Loader2, AlertCircle } from 'lucide-react';
 
 const App: React.FC = () => {
@@ -34,7 +35,7 @@ const App: React.FC = () => {
 
   const [pricingProductId, setPricingProductId] = useState<string | null>(null);
 
-  // --- INITIAL DATA FETCH ---
+  // --- AUTH & INITIAL DATA ---
   useEffect(() => {
     // Check for public menu access via URL
     const params = new URLSearchParams(window.location.search);
@@ -42,6 +43,28 @@ const App: React.FC = () => {
       setCurrentView('ONLINE_MENU');
     }
 
+    // Check for active session on load
+    dbUsers.getCurrentUser().then(user => {
+      if (user) setCurrentUser(user);
+    });
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session) {
+        const user = await dbUsers.getCurrentUser();
+        setCurrentUser(user);
+      } else if (event === 'SIGNED_OUT') {
+        setCurrentUser(null);
+        setProducts([]);
+        setSales([]);
+        setFinancials([]);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
     if (currentUser) {
       loadDataFromCloud();
     }
@@ -363,7 +386,8 @@ const App: React.FC = () => {
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await dbUsers.logout();
     setCurrentUser(null);
     setProducts([]);
     setSales([]);

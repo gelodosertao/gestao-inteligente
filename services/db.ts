@@ -3,70 +3,111 @@ import { Product, StoreSettings, Sale, FinancialRecord, Customer, StockMovement,
 
 // --- USERS & AUTH ---
 
-async function hashPassword(password: string): Promise<string> {
-  const msgBuffer = new TextEncoder().encode(password);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-  return hashHex;
-}
+// --- USERS & AUTH ---
 
 export const dbUsers = {
   async login(email: string, password: string): Promise<User> {
-    const { data, error } = await supabase
+    // 1. Authenticate with Supabase Auth
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
+
+    if (authError) throw new Error(authError.message);
+    if (!authData.user) throw new Error('Erro ao autenticar usuário.');
+
+    // 2. Fetch User Profile from app_users
+    const { data: profile, error: profileError } = await supabase
       .from('app_users')
       .select('*')
-      .eq('email', email)
+      .eq('id', authData.user.id)
       .single();
 
-    if (error || !data) {
-      throw new Error('Usuário não encontrado. Verifique o e-mail.');
-    }
-
-    const hashedPassword = await hashPassword(password);
-
-    // Check if password matches (hashed)
-    if (data.password !== hashedPassword) {
-      // Fallback for legacy plain text passwords (optional, for transition)
-      if (data.password !== password) {
-        throw new Error('Senha incorreta.');
-      }
+    if (profileError || !profile) {
+      // Fallback: If profile doesn't exist (e.g. created in dashboard manually), return basic info
+      return {
+        id: authData.user.id,
+        name: authData.user.user_metadata.name || 'Usuário',
+        email: authData.user.email || '',
+        role: 'OPERATOR', // Default role if not found
+        avatarInitials: 'US'
+      };
     }
 
     return {
-      id: data.id,
-      name: data.name,
-      email: data.email,
-      role: data.role as Role,
-      avatarInitials: data.avatar_initials
+      id: profile.id,
+      name: profile.name,
+      email: profile.email,
+      role: profile.role as Role,
+      avatarInitials: profile.avatar_initials
     };
   },
 
   async register(user: { name: string, email: string, password: string, role: Role }): Promise<User> {
-    const hashedPassword = await hashPassword(user.password);
+    // 1. Create User in Supabase Auth
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email: user.email,
+      password: user.password,
+      options: {
+        data: {
+          name: user.name, // Store name in metadata too
+        }
+      }
+    });
 
-    const newUser = {
-      id: crypto.randomUUID(), // Gera ID único
+    if (authError) throw new Error(authError.message);
+    if (!authData.user) throw new Error('Erro ao criar usuário.');
+
+    // 2. Create Profile in app_users
+    // Note: The ID must match the Auth ID
+    const newUserProfile = {
+      id: authData.user.id,
       name: user.name,
       email: user.email,
-      password: hashedPassword,
       role: user.role,
       avatar_initials: user.name.substring(0, 2).toUpperCase()
     };
 
-    const { error } = await supabase.from('app_users').insert([newUser]);
+    // We use upsert in case the profile creation failed previously but auth succeeded
+    const { error: profileError } = await supabase.from('app_users').upsert([newUserProfile]);
 
-    if (error) {
-      if (error.message.includes('duplicate')) throw new Error('E-mail já cadastrado.');
-      throw error;
+    if (profileError) {
+      console.error("Erro ao criar perfil do usuário:", profileError);
+      throw new Error("Usuário criado, mas erro ao salvar perfil: " + profileError.message);
     }
 
     return {
-      id: newUser.id,
-      name: newUser.name,
-      email: newUser.email,
-      role: newUser.role,
-      avatarInitials: newUser.avatar_initials
+      id: newUserProfile.id,
+      name: newUserProfile.name,
+      email: newUserProfile.email,
+      role: newUserProfile.role,
+      avatarInitials: newUserProfile.avatar_initials
+    };
+  },
+
+  async logout(): Promise<void> {
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
+  },
+
+  async getCurrentUser(): Promise<User | null> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) return null;
+
+    const { data: profile } = await supabase
+      .from('app_users')
+      .select('*')
+      .eq('id', session.user.id)
+      .single();
+
+    if (!profile) return null;
+
+    return {
+      id: profile.id,
+      name: profile.name,
+      email: profile.email,
+      role: profile.role as Role,
+      avatarInitials: profile.avatar_initials
     };
   },
 
@@ -84,14 +125,18 @@ export const dbUsers = {
   },
 
   async updatePassword(userId: string, newPassword: string): Promise<void> {
-    const hashedPassword = await hashPassword(newPassword);
-    const { error } = await supabase.from('app_users').update({ password: hashedPassword }).eq('id', userId);
+    // User updating own password:
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
     if (error) throw error;
   },
 
   async delete(userId: string): Promise<void> {
+    // Delete from app_users (Profile)
     const { error } = await supabase.from('app_users').delete().eq('id', userId);
     if (error) throw error;
+
+    // Note: We cannot delete from auth.users via client SDK (requires Service Role)
+    console.warn("Atenção: O login do usuário ainda existe no Supabase Auth. Remova-o pelo painel.");
   }
 };
 
