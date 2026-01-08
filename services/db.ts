@@ -103,11 +103,15 @@ export const dbUsers = {
 
       if (!profile) {
         // Fallback if profile is missing in app_users but exists in Auth
+        const email = session.user.email || '';
+        // Temporary fix: Force ADMIN role for specific emails if profile is missing
+        const isAdmin = email.includes('admin') || email.includes('joao');
+
         return {
           id: session.user.id,
           name: session.user.user_metadata.name || 'Usuário',
-          email: session.user.email || '',
-          role: 'OPERATOR', // Default role
+          email: email,
+          role: isAdmin ? 'ADMIN' : 'OPERATOR',
           avatarInitials: 'US'
         };
       }
