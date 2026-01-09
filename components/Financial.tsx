@@ -430,6 +430,11 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
                                           {record.branch === Branch.MATRIZ ? 'Matriz' : 'Filial'}
                                        </span>
                                     )}
+                                    {record.paymentMethod && (
+                                       <span className="text-[10px] px-1.5 py-0.5 rounded border bg-slate-50 text-slate-600 border-slate-200">
+                                          {record.paymentMethod === 'Credit' ? 'Crédito' : record.paymentMethod === 'Debit' ? 'Débito' : record.paymentMethod === 'Cash' ? 'Dinheiro' : record.paymentMethod}
+                                       </span>
+                                    )}
                                  </div>
                               </div>
                            </div>
@@ -567,33 +572,8 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
                            </div>
                         </div>
 
-                        <div className="bg-slate-50 p-4 rounded-xl space-y-2 border border-slate-200">
-                           <div className="flex justify-between items-center text-sm">
-                              <span className="text-slate-600">Saldo Inicial (Fundo de Troco)</span>
-                              <input
-                                 type="number"
-                                 className="w-24 px-2 py-1 text-right border border-slate-300 rounded text-slate-700 font-bold"
-                                 value={openingBalance}
-                                 onChange={(e) => setOpeningBalance(Number(e.target.value))}
-                              />
-                           </div>
-                           <div className="flex justify-between items-center text-sm">
-                              <span className="text-emerald-600 font-medium">(+) Vendas em Dinheiro</span>
-                              <span className="font-bold text-emerald-600">{formatCurrency(closingData.byMethod.Cash)}</span>
-                           </div>
-                           <div className="flex justify-between items-center text-sm">
-                              <span className="text-rose-600 font-medium">(-) Despesas Totais</span>
-                              <span className="font-bold text-rose-600">{formatCurrency(closingData.totalExpense)}</span>
-                           </div>
-                           <div className="border-t border-slate-200 my-1"></div>
-                           <div className="flex justify-between items-center font-bold text-slate-800">
-                              <span>(=) Saldo Esperado em Caixa</span>
-                              <span>{formatCurrency(closingData.expectedCash)}</span>
-                           </div>
-                        </div>
-
                         <div className="space-y-2">
-                           <label className="block text-sm font-bold text-slate-700">Conferência (Valor Contado)</label>
+                           <label className="block text-sm font-bold text-slate-700">Valor em Caixa (Dinheiro)</label>
                            <div className="relative">
                               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold">R$</span>
                               <input
@@ -603,14 +583,7 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
                                  onChange={(e) => setCashInDrawer(Number(e.target.value))}
                               />
                            </div>
-                        </div>
-
-                        <div className={`p-4 rounded-xl flex items-center justify-between ${closingData.difference === 0 ? 'bg-emerald-100 text-emerald-800' : closingData.difference > 0 ? 'bg-blue-100 text-blue-800' : 'bg-red-100 text-red-800'}`}>
-                           <span className="font-bold flex items-center gap-2">
-                              {closingData.difference === 0 ? <CheckCircle size={20} /> : <AlertTriangle size={20} />}
-                              Diferença
-                           </span>
-                           <span className="font-bold text-lg">{formatCurrency(closingData.difference)}</span>
+                           <p className="text-xs text-slate-500">Informe o valor total em dinheiro encontrado na gaveta.</p>
                         </div>
 
                         <div>
@@ -661,25 +634,9 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
                                     </button>
                                  </div>
 
-                                 <div className="grid grid-cols-2 gap-2 text-sm mb-2">
-                                    <div className="flex justify-between">
-                                       <span className="text-slate-500">Vendas Totais:</span>
-                                       <span className="font-medium text-emerald-600">{formatCurrency(closing.totalIncome)}</span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                       <span className="text-slate-500">Despesas:</span>
-                                       <span className="font-medium text-rose-600">{formatCurrency(closing.totalExpense)}</span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                       <span className="text-slate-500">Em Caixa (Contado):</span>
-                                       <span className="font-bold text-slate-800">{formatCurrency(closing.cashInDrawer)}</span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                       <span className="text-slate-500">Diferença:</span>
-                                       <span className={`font-bold ${closing.difference === 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                                          {formatCurrency(closing.difference)}
-                                       </span>
-                                    </div>
+                                 <div className="flex justify-between items-center text-sm mb-2 bg-slate-50 p-3 rounded-lg">
+                                    <span className="font-bold text-slate-700">Valor em Caixa:</span>
+                                    <span className="font-bold text-xl text-slate-900">{formatCurrency(closing.cashInDrawer)}</span>
                                  </div>
                                  {closing.notes && (
                                     <div className="text-xs text-slate-500 bg-slate-50 p-2 rounded border border-slate-100 italic">
@@ -773,6 +730,20 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
                            onChange={(e) => setNewRecord({ ...newRecord, category: e.target.value })}
                         >
                            {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                        </select>
+                     </div>
+
+                     <div>
+                        <label className="block text-sm font-bold text-slate-700 mb-1">Forma de Pagamento</label>
+                        <select
+                           className="w-full px-4 py-2 border border-slate-300 rounded-lg bg-white text-slate-900 font-medium"
+                           value={newRecord.paymentMethod || 'Pix'}
+                           onChange={(e) => setNewRecord({ ...newRecord, paymentMethod: e.target.value as any })}
+                        >
+                           <option value="Pix">Pix</option>
+                           <option value="Cash">Dinheiro</option>
+                           <option value="Credit">Cartão de Crédito</option>
+                           <option value="Debit">Cartão de Débito</option>
                         </select>
                      </div>
 
@@ -896,6 +867,20 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
                            onChange={(e) => setEditingRecord({ ...editingRecord, category: e.target.value })}
                         >
                            {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                        </select>
+                     </div>
+
+                     <div>
+                        <label className="block text-sm font-bold text-slate-700 mb-1">Forma de Pagamento</label>
+                        <select
+                           className="w-full px-4 py-2 border border-slate-300 rounded-lg bg-white text-slate-900 font-medium"
+                           value={editingRecord.paymentMethod || 'Pix'}
+                           onChange={(e) => setEditingRecord({ ...editingRecord, paymentMethod: e.target.value as any })}
+                        >
+                           <option value="Pix">Pix</option>
+                           <option value="Cash">Dinheiro</option>
+                           <option value="Credit">Cartão de Crédito</option>
+                           <option value="Debit">Cartão de Débito</option>
                         </select>
                      </div>
 

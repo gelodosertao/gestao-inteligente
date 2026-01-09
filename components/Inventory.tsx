@@ -12,10 +12,11 @@ interface InventoryProps {
   onAddProduct: (product: Product) => void;
   onDeleteProduct: (productId: string) => void;
   onOpenPricing: (productId: string) => void;
+  onAddFinancialRecord: (records: FinancialRecord[]) => void;
   onBack: () => void;
 }
 
-const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUpdateProduct, onAddProduct, onDeleteProduct, onOpenPricing, onBack }) => {
+const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUpdateProduct, onAddProduct, onDeleteProduct, onOpenPricing, onAddFinancialRecord, onBack }) => {
   const [filter, setFilter] = useState('');
 
   // Modal States
@@ -221,7 +222,7 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
     // Record Loss in DB
     try {
       dbStockMovements.add({
-        id: crypto.randomUUID(),
+        id: `sm-${Date.now()}`,
         date: getTodayDate(),
         productId: selectedProduct.id,
         productName: selectedProduct.name,
@@ -230,8 +231,25 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
         reason: lossData.reason,
         branch: lossData.branch
       });
-    } catch (err) {
+
+      // Create Financial Record for the Loss
+      const lossValue = selectedProduct.cost * lossData.quantity;
+      if (lossValue > 0) {
+        const lossRecord: FinancialRecord = {
+          id: `f-${Date.now()}`,
+          date: getTodayDate(),
+          description: `Perda de Estoque: ${selectedProduct.name} (${lossData.reason})`,
+          amount: lossValue,
+          type: 'Expense',
+          category: 'Perdas e Quebras',
+          branch: lossData.branch
+        };
+        onAddFinancialRecord([lossRecord]);
+      }
+
+    } catch (err: any) {
       console.error("Erro ao salvar perda no histórico", err);
+      alert("Erro ao salvar histórico de perda: " + (err.message || err));
     }
 
     setShowLossModal(false);

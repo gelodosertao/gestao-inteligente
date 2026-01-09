@@ -90,6 +90,7 @@ export interface FinancialRecord {
   type: 'Income' | 'Expense';
   category: string;
   branch?: Branch;
+  paymentMethod?: 'Pix' | 'Credit' | 'Debit' | 'Cash';
 }
 
 export type Role = 'ADMIN' | 'OPERATOR' | 'FACTORY';

@@ -330,6 +330,7 @@ export const dbSales = {
 };
 
 // --- FINANCIALS ---
+// --- FINANCIALS ---
 export const dbFinancials = {
   async getAll(): Promise<FinancialRecord[]> {
     const { data, error } = await supabase.from('financials').select('*').order('date', { ascending: false });
@@ -342,7 +343,8 @@ export const dbFinancials = {
       amount: row.amount,
       type: row.type,
       category: row.category,
-      branch: row.branch as Branch
+      branch: row.branch as Branch,
+      paymentMethod: row.payment_method // Map from DB column
     }));
   },
 
@@ -355,7 +357,8 @@ export const dbFinancials = {
       amount: r.amount,
       type: r.type,
       category: r.category,
-      branch: r.branch
+      branch: r.branch,
+      payment_method: r.paymentMethod // Map to DB column
     }));
     const { error } = await supabase.from('financials').insert(rows);
     if (error) throw error;
@@ -368,7 +371,8 @@ export const dbFinancials = {
       amount: record.amount,
       type: record.type,
       category: record.category,
-      branch: record.branch
+      branch: record.branch,
+      payment_method: record.paymentMethod // Map to DB column
     }).eq('id', record.id);
     if (error) throw error;
   },
