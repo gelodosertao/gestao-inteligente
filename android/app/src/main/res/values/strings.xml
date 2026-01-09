@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Gelo do Sertão</string>
+    <string name="title_activity_main">Gelo do Sertão</string>
+    <string name="package_name">com.gelodosertao.app</string>
+    <string name="custom_url_scheme">com.gelodosertao.app</string>
+</resources>

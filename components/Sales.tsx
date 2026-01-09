@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
-import { Sale, Branch, Product, Customer, User } from '../types';
 import { invoiceService } from '../services/invoiceService';
+import { Sale, Branch, Product, Customer, User } from '../types';
+import { hardwareBridge } from '../services/hardwareBridge';
 import { ShoppingCart, FileText, CheckCircle, Clock, X, Printer, Send, ScanBarcode, Search, Trash2, Plus, Minus, CreditCard, Banknote, QrCode, Bluetooth, ArrowRight, Store, Factory, Calculator, User as UserIcon, UserPlus, Edit, Save, ArrowLeft, Download } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { getTodayDate } from '../services/utils';
@@ -210,7 +211,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                   const compStock = getProductStock(compProd);
                   const required = component.quantity * totalDeduction;
                   if (required > compStock) {
-                     alert(`Estoque insuficiente do componente: ${compProd.name} (Necessário: ${required}, Disponível: ${compStock})`);
+                     alert(`Estoque insuficiente do componente: ${compProd.name}(Necessário: ${required}, Disponível: ${compStock})`);
                      return prev;
                   }
                }
@@ -218,7 +219,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
          }
          // Check Simple Product Stock
          else if (product.isStockControlled !== false && currentStock < totalDeduction) {
-            alert(`Produto sem estoque na ${selectedBranch}!`);
+            alert(`Produto sem estoque na ${selectedBranch} !`);
             return prev;
          }
 
@@ -318,7 +319,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
             hasInvoice: !isPendingSale, // Auto emit NFC-e only if completed
             items: cart.map(c => ({
                productId: c.product.id,
-               productName: c.isPack ? `${c.product.name} (Fardo c/${c.product.packSize})` : c.product.name,
+               productName: c.isPack ? `${c.product.name} (Fardo c / ${c.product.packSize})` : c.product.name,
                quantity: c.isPack && c.product.packSize ? c.quantity * c.product.packSize : c.quantity,
                priceAtSale: c.isPack && c.product.packSize ? (getProductPrice(c) / c.product.packSize) : getProductPrice(c)
             }))
@@ -386,6 +387,15 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
             backgroundColor: '#ffffff'
          });
          const image = canvas.toDataURL("image/jpeg", 0.9);
+
+         // Tenta imprimir via Hardware (Maquininha) primeiro
+         const printedNatively = hardwareBridge.printReceipt(image);
+
+         if (printedNatively) {
+            alert("Enviado para impressora da maquininha!");
+            return;
+         }
+
          const link = document.createElement('a');
          link.href = image;
          link.download = `Cupom-${lastCompletedSale?.id || 'venda'}.jpg`;
@@ -417,7 +427,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                const image = canvas.toDataURL("image/jpeg", 0.9);
                const link = document.createElement('a');
                link.href = image;
-               link.download = `Cupom-${saleToDownload.id}.jpg`;
+               link.download = `Cupom - ${saleToDownload.id}.jpg`;
                link.click();
             } catch (e) {
                console.error("Erro ao gerar imagem do cupom", e);
@@ -448,13 +458,13 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
             </div>
             <div className="bg-slate-200 p-1 rounded-lg flex text-sm font-medium w-full md:w-auto">
                <button
-                  className={`flex-1 md:flex-none px-4 py-2 rounded-md transition-all ${activeTab === 'History' ? 'bg-white text-blue-900 shadow-sm font-bold' : 'text-slate-500 hover:text-slate-700'}`}
+                  className={`flex - 1 md: flex - none px - 4 py - 2 rounded - md transition - all ${activeTab === 'History' ? 'bg-white text-blue-900 shadow-sm font-bold' : 'text-slate-500 hover:text-slate-700'} `}
                   onClick={() => setActiveTab('History')}
                >
                   Histórico
                </button>
                <button
-                  className={`flex-1 md:flex-none px-4 py-2 rounded-md transition-all ${activeTab === 'POS' ? 'bg-white text-orange-600 shadow-sm font-bold' : 'text-slate-500 hover:text-slate-700'}`}
+                  className={`flex - 1 md: flex - none px - 4 py - 2 rounded - md transition - all ${activeTab === 'POS' ? 'bg-white text-orange-600 shadow-sm font-bold' : 'text-slate-500 hover:text-slate-700'} `}
                   onClick={() => setActiveTab('POS')}
                >
                   Nova Venda (PDV)
@@ -500,14 +510,14 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                }).map(sale => (
                   <div key={sale.id} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center hover:border-blue-200 transition-colors">
                      <div className="flex gap-4 items-center">
-                        <div className={`p-3 rounded-full ${sale.branch === Branch.MATRIZ ? 'bg-blue-100 text-blue-600' : 'bg-orange-100 text-orange-600'}`}>
+                        <div className={`p - 3 rounded - full ${sale.branch === Branch.MATRIZ ? 'bg-blue-100 text-blue-600' : 'bg-orange-100 text-orange-600'} `}>
                            {sale.branch === Branch.MATRIZ ? <Factory size={20} /> : <Store size={20} />}
                         </div>
                         <div>
                            <h4 className="font-bold text-slate-800">{sale.customerName}</h4>
-                           <p className="text-sm text-slate-500">{sale.date} • <span className={`font-bold ${sale.branch === Branch.MATRIZ ? 'text-blue-600' : 'text-orange-600'}`}>{sale.branch}</span></p>
+                           <p className="text-sm text-slate-500">{sale.date} • <span className={`font - bold ${sale.branch === Branch.MATRIZ ? 'text-blue-600' : 'text-orange-600'} `}>{sale.branch}</span></p>
                            <div className="text-xs text-slate-400 mt-1">
-                              {sale.items.map(i => `${i.quantity}x ${i.productName}`).join(', ')}
+                              {sale.items.map(i => `${i.quantity}x ${i.productName} `).join(', ')}
                            </div>
                         </div>
                      </div>
@@ -515,10 +525,10 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                      <div className="mt-4 md:mt-0 flex flex-col items-end gap-2 w-full md:w-auto">
                         <span className="font-bold text-lg text-slate-800">{formatCurrency(sale.total)}</span>
                         <div className="flex gap-2 flex-wrap justify-end">
-                           <span className={`px-2 py-0.5 rounded text-xs font-bold border flex items-center gap-1 ${sale.status === 'Completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : sale.status === 'Pending' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
+                           <span className={`px - 2 py - 0.5 rounded text - xs font - bold border flex items - center gap - 1 ${sale.status === 'Completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : sale.status === 'Pending' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : 'bg-red-50 text-red-700 border-red-200'} `}>
                               {sale.status === 'Completed' ? 'Concluído' : sale.status === 'Pending' ? 'Pendente' : 'Cancelado'}
                            </span>
-                           <span className={`px-2 py-0.5 rounded text-xs font-bold border flex items-center gap-1 ${sale.hasInvoice ? 'bg-green-50 text-green-700 border-green-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
+                           <span className={`px - 2 py - 0.5 rounded text - xs font - bold border flex items - center gap - 1 ${sale.hasInvoice ? 'bg-green-50 text-green-700 border-green-200' : 'bg-amber-50 text-amber-700 border-amber-200'} `}>
                               {sale.hasInvoice ? <CheckCircle size={10} /> : <Clock size={10} />}
                               {sale.hasInvoice ? 'NF-e Emitida' : 'Sem NF-e'}
                            </span>
@@ -569,7 +579,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                <div className="flex flex-col lg:grid lg:grid-cols-3 gap-6 h-full">
 
                   {/* Left Column: Product Selection */}
-                  <div className={`lg:col-span-2 flex flex-col gap-4 h-full overflow-hidden ${showMobileCart ? 'hidden lg:flex' : 'flex'}`}>
+                  <div className={`lg: col - span - 2 flex flex - col gap - 4 h - full overflow - hidden ${showMobileCart ? 'hidden lg:flex' : 'flex'} `}>
 
                      {/* Branch Toggle & Scanner */}
                      <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col gap-4">
@@ -577,13 +587,13 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                         <div className="flex bg-slate-100 p-1.5 rounded-xl">
                            <button
                               onClick={() => { setSelectedBranch(Branch.FILIAL); setCart([]); setIsWholesale(false); }}
-                              className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg font-bold transition-all text-xs md:text-base ${selectedBranch === Branch.FILIAL ? 'bg-white text-orange-600 shadow-md' : 'text-slate-500 hover:text-slate-700'}`}
+                              className={`flex - 1 flex items - center justify - center gap - 2 py - 2 rounded - lg font - bold transition - all text - xs md: text - base ${selectedBranch === Branch.FILIAL ? 'bg-white text-orange-600 shadow-md' : 'text-slate-500 hover:text-slate-700'} `}
                            >
                               <Store size={16} /> Filial
                            </button>
                            <button
                               onClick={() => { setSelectedBranch(Branch.MATRIZ); setCart([]); setIsWholesale(true); }}
-                              className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg font-bold transition-all text-xs md:text-base ${selectedBranch === Branch.MATRIZ ? 'bg-white text-blue-700 shadow-md' : 'text-slate-500 hover:text-slate-700'}`}
+                              className={`flex - 1 flex items - center justify - center gap - 2 py - 2 rounded - lg font - bold transition - all text - xs md: text - base ${selectedBranch === Branch.MATRIZ ? 'bg-white text-blue-700 shadow-md' : 'text-slate-500 hover:text-slate-700'} `}
                            >
                               <Factory size={16} /> Matriz
                            </button>
@@ -618,19 +628,19 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                                  onChange={(e) => setBarcodeInput(e.target.value)}
                                  onKeyDown={handleBarcodeSubmit}
                                  placeholder={scannerStatus === 'CONNECTED' ? "Escaneie..." : "Código..."}
-                                 className={`w-full pl-10 pr-4 py-3 rounded-xl border-2 transition-all outline-none ${scannerStatus === 'CONNECTED' ? 'border-green-500 bg-green-50/20' : 'border-slate-200 focus:border-orange-500'}`}
+                                 className={`w - full pl - 10 pr - 4 py - 3 rounded - xl border - 2 transition - all outline - none ${scannerStatus === 'CONNECTED' ? 'border-green-500 bg-green-50/20' : 'border-slate-200 focus:border-orange-500'} `}
                               />
                            </div>
                            <button
                               onClick={handlePairScanner}
                               disabled={scannerStatus === 'CONNECTED'}
-                              className={`flex items-center gap-2 px-4 py-3 rounded-xl font-medium transition-all w-full md:w-auto justify-center
+                              className={`flex items - center gap - 2 px - 4 py - 3 rounded - xl font - medium transition - all w - full md: w - auto justify - center
                         ${scannerStatus === 'CONNECTED'
                                     ? 'bg-green-100 text-green-700 cursor-default'
                                     : scannerStatus === 'CONNECTING'
                                        ? 'bg-amber-100 text-amber-700 animate-pulse'
                                        : 'bg-blue-800 text-white hover:bg-blue-700'
-                                 }`}
+                                 } `}
                            >
                               <Bluetooth size={18} />
                               <span className="md:hidden lg:inline">{scannerStatus === 'CONNECTED' ? 'Pareado' : 'Parear'}</span>
@@ -680,8 +690,8 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                                        <div className="w-8 h-8 bg-orange-50 rounded-full flex items-center justify-center text-orange-600 font-bold text-[10px] border border-orange-100">
                                           {product.unit}
                                        </div>
-                                       <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${product.comboItems ? 'bg-purple-100 text-purple-600' : product.isStockControlled === false ? 'bg-purple-100 text-purple-600' : stock < product.minStock ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-500'}`}>
-                                          {product.comboItems ? 'COMBO' : product.isStockControlled === false ? '∞' : `Est: ${stock}`}
+                                       <span className={`text - [9px] font - bold px - 1.5 py - 0.5 rounded - full ${product.comboItems ? 'bg-purple-100 text-purple-600' : product.isStockControlled === false ? 'bg-purple-100 text-purple-600' : stock < product.minStock ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-500'} `}>
+                                          {product.comboItems ? 'COMBO' : product.isStockControlled === false ? '∞' : `Est: ${stock} `}
                                        </span>
                                     </div>
 
@@ -711,7 +721,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                   </div>
 
                   {/* Right Column: Cart & Checkout */}
-                  <div className={`lg:col-span-1 bg-white rounded-2xl shadow-xl border border-slate-200 flex flex-col overflow-hidden h-full lg:h-full sticky top-0 z-10 ${showMobileCart ? 'flex fixed inset-0 z-50 m-0 rounded-none' : 'hidden lg:flex'}`}>
+                  <div className={`lg: col - span - 1 bg - white rounded - 2xl shadow - xl border border - slate - 200 flex flex - col overflow - hidden h - full lg: h - full sticky top - 0 z - 10 ${showMobileCart ? 'flex fixed inset-0 z-50 m-0 rounded-none' : 'hidden lg:flex'} `}>
 
                      {/* Mobile Back Button */}
                      <div className="lg:hidden bg-slate-100 p-2 flex items-center gap-2">
@@ -720,7 +730,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                         </button>
                         <span className="font-bold text-slate-700">Voltar aos Produtos</span>
                      </div>
-                     <div className={`p-4 text-white flex justify-between items-center gap-2 ${selectedBranch === Branch.MATRIZ ? 'bg-blue-800' : 'bg-orange-500'}`}>
+                     <div className={`p - 4 text - white flex justify - between items - center gap - 2 ${selectedBranch === Branch.MATRIZ ? 'bg-blue-800' : 'bg-orange-500'} `}>
                         <div className="flex items-center gap-2 shrink-0">
                            <ShoppingCart size={20} className="text-white" />
                            <span className="font-bold hidden md:inline">Caixa: {selectedBranch === Branch.MATRIZ ? 'MATRIZ' : 'VAREJO'}</span>
@@ -795,7 +805,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                            </div>
                         ) : (
                            cart.map((item) => (
-                              <div key={`${item.product.id}-${item.negotiatedPrice}`} className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center">
+                              <div key={`${item.product.id} -${item.negotiatedPrice} `} className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center">
                                  <div>
                                     <p className="font-bold text-sm text-slate-800 line-clamp-1">{item.product.name}</p>
                                     <p className="text-xs text-slate-500">
@@ -844,7 +854,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                         <button
                            onClick={initiateCheckout}
                            disabled={cart.length === 0}
-                           className={`w-full text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed ${selectedBranch === Branch.MATRIZ ? 'bg-blue-800 hover:bg-blue-700 shadow-blue-900/20' : 'bg-orange-500 hover:bg-orange-600 shadow-orange-900/20'}`}
+                           className={`w - full text - white py - 3 rounded - xl font - bold flex items - center justify - center gap - 2 shadow - lg transition - all disabled: opacity - 50 disabled: cursor - not - allowed ${selectedBranch === Branch.MATRIZ ? 'bg-blue-800 hover:bg-blue-700 shadow-blue-900/20' : 'bg-orange-500 hover:bg-orange-600 shadow-orange-900/20'} `}
                         >
                            Finalizar (F2)
                         </button>
@@ -1032,7 +1042,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                                     <button
                                        key={method}
                                        onClick={() => setSelectedPaymentMethod(method as PaymentMethod)}
-                                       className={`p-4 rounded-xl border-2 font-bold flex flex-col items-center gap-2 transition-all ${selectedPaymentMethod === method ? 'border-orange-500 bg-orange-50 text-orange-700' : 'border-slate-100 hover:border-slate-300 text-slate-600'}`}
+                                       className={`p - 4 rounded - xl border - 2 font - bold flex flex - col items - center gap - 2 transition - all ${selectedPaymentMethod === method ? 'border-orange-500 bg-orange-50 text-orange-700' : 'border-slate-100 hover:border-slate-300 text-slate-600'} `}
                                     >
                                        {method === 'Pix' && <QrCode size={24} />}
                                        {method === 'Credit' && <CreditCard size={24} />}
@@ -1394,7 +1404,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                                        setSelectedCustomer(customer);
                                        setShowCustomerModal(false);
                                     }}
-                                    className={`w-full text-left p-3 rounded-lg flex justify-between items-center transition-colors ${selectedCustomer?.id === customer.id ? 'bg-blue-50 border border-blue-200' : 'hover:bg-slate-50 border border-transparent'}`}
+                                    className={`w - full text - left p - 3 rounded - lg flex justify - between items - center transition - colors ${selectedCustomer?.id === customer.id ? 'bg-blue-50 border border-blue-200' : 'hover:bg-slate-50 border border-transparent'} `}
                                  >
                                     <div>
                                        <p className="font-bold text-slate-800">{customer.name}</p>
@@ -1464,12 +1474,120 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                   </div>
                   <div className="mt-4 text-center text-[10px]">
                      <p>Obrigado pela preferência!</p>
-                     <p>Volte Sempre</p>
                   </div>
                </div>
             )}
          </div>
-      </div >
+         {/* --- HIDDEN THERMAL RECEIPT (FOR PRINTING) --- */}
+         {lastCompletedSale && (
+            <div id="receipt-content" className="fixed top-0 left-0 -z-50 bg-white p-2 text-black font-mono text-[10px] w-[300px]" style={{ fontFamily: '"Courier New", Courier, monospace' }}>
+               <div className="text-center border-b border-black pb-2 mb-2">
+                  <h2 className="font-bold text-sm uppercase">Gelo do Sertão</h2>
+                  <p>CNPJ: 00.000.000/0001-00</p>
+                  <p>Rua Exemplo, 123 - Centro</p>
+                  <p>Tel: (77) 99999-9999</p>
+               </div>
+
+               <div className="mb-2">
+                  <p><strong>Venda:</strong> #{lastCompletedSale.id}</p>
+                  <p><strong>Data:</strong> {lastCompletedSale.date} {new Date().toLocaleTimeString()}</p>
+                  <p><strong>Cliente:</strong> {lastCompletedSale.customerName}</p>
+               </div>
+
+               <div className="border-b border-black pb-2 mb-2">
+                  <table className="w-full text-left">
+                     <thead>
+                        <tr>
+                           <th className="w-8">Qtd</th>
+                           <th>Item</th>
+                           <th className="text-right">Vl.Tot</th>
+                        </tr>
+                     </thead>
+                     <tbody>
+                        {lastCompletedSale.items.map((item, i) => (
+                           <tr key={i}>
+                              <td>{item.quantity}x</td>
+                              <td className="truncate max-w-[120px]">{item.productName}</td>
+                              <td className="text-right">{formatCurrency(item.quantity * item.priceAtSale)}</td>
+                           </tr>
+                        ))}
+                     </tbody>
+                  </table>
+               </div>
+
+               <div className="text-right mb-4">
+                  <p><strong>Total: {formatCurrency(lastCompletedSale.total)}</strong></p>
+                  <p className="text-[9px]">Pagamento: {lastCompletedSale.paymentMethod === 'Credit' ? 'Crédito' : lastCompletedSale.paymentMethod === 'Debit' ? 'Débito' : lastCompletedSale.paymentMethod === 'Pix' ? 'PIX' : 'Dinheiro'}</p>
+               </div>
+
+               <div className="text-center text-[9px] border-t border-black pt-2">
+                  <p>*** RECIBO NÃO FISCAL ***</p>
+                  <p>Obrigado pela preferência!</p>
+                  <p>Volte Sempre.</p>
+               </div>
+            </div>
+         )}
+
+         {/* --- HIDDEN RECEIPT FOR HISTORY DOWNLOAD --- */}
+         {saleToDownload && (
+            <div id="printable-receipt-content" className="fixed top-0 left-0 -z-50 bg-white p-4 text-black font-mono text-xs w-[350px]" style={{ fontFamily: '"Courier New", Courier, monospace' }}>
+               <div className="text-center border-b-2 border-dashed border-black pb-4 mb-4">
+                  <h2 className="font-bold text-lg uppercase mb-1">Gelo do Sertão</h2>
+                  <p>CNPJ: 00.000.000/0001-00</p>
+                  <p>Rua Exemplo, 123 - Centro</p>
+                  <p>Tel: (77) 99999-9999</p>
+               </div>
+
+               <div className="mb-4 space-y-1">
+                  <div className="flex justify-between">
+                     <span>Venda:</span>
+                     <span className="font-bold">#{saleToDownload.id}</span>
+                  </div>
+                  <div className="flex justify-between">
+                     <span>Data:</span>
+                     <span>{saleToDownload.date}</span>
+                  </div>
+                  <div className="flex justify-between">
+                     <span>Cliente:</span>
+                     <span className="font-bold">{saleToDownload.customerName}</span>
+                  </div>
+               </div>
+
+               <div className="border-b-2 border-dashed border-black pb-4 mb-4">
+                  <table className="w-full text-left">
+                     <thead>
+                        <tr className="uppercase text-[10px]">
+                           <th className="w-10">Qtd</th>
+                           <th>Item</th>
+                           <th className="text-right">Total</th>
+                        </tr>
+                     </thead>
+                     <tbody>
+                        {saleToDownload.items.map((item, i) => (
+                           <tr key={i}>
+                              <td className="align-top py-1">{item.quantity}x</td>
+                              <td className="align-top py-1">{item.productName}</td>
+                              <td className="text-right align-top py-1">{formatCurrency(item.quantity * item.priceAtSale)}</td>
+                           </tr>
+                        ))}
+                     </tbody>
+                  </table>
+               </div>
+
+               <div className="text-right mb-6 space-y-1">
+                  <p className="text-xl font-bold">Total: {formatCurrency(saleToDownload.total)}</p>
+                  <p className="text-xs">Forma de Pagamento: {saleToDownload.paymentMethod}</p>
+               </div>
+
+               <div className="text-center text-[10px] border-t-2 border-dashed border-black pt-4">
+                  <p className="font-bold mb-1">*** RECIBO NÃO FISCAL ***</p>
+                  <p>Obrigado pela preferência!</p>
+                  <p>gestao-inteligente.app</p>
+               </div>
+            </div>
+         )}
+
+      </div>
    );
 };
 
