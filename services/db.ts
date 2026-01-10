@@ -290,7 +290,9 @@ export const dbSales = {
       status: row.status as any,
       paymentMethod: row.payment_method as any,
       hasInvoice: row.has_invoice,
-      items: row.items // JSONB auto-mapped
+      items: row.items, // JSONB auto-mapped
+      cashReceived: row.cash_received,
+      changeAmount: row.change_amount
     }));
   },
 
@@ -304,7 +306,9 @@ export const dbSales = {
       status: sale.status,
       payment_method: sale.paymentMethod,
       has_invoice: sale.hasInvoice,
-      items: sale.items
+      items: sale.items,
+      cash_received: sale.cashReceived,
+      change_amount: sale.changeAmount
     }]);
     if (error) throw error;
   },
@@ -318,7 +322,9 @@ export const dbSales = {
       status: sale.status,
       payment_method: sale.paymentMethod,
       has_invoice: sale.hasInvoice,
-      items: sale.items
+      items: sale.items,
+      cash_received: sale.cashReceived,
+      change_amount: sale.changeAmount
     }).eq('id', sale.id);
     if (error) throw error;
   },

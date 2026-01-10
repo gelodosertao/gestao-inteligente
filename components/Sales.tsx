@@ -14,13 +14,13 @@ interface SalesProps {
    onAddCustomer: (customer: Customer) => void;
    currentUser: User;
    onUpdateSale: (sale: Sale) => void;
-   onDeleteSale: (saleId:string) => void;
+   onDeleteSale: (saleId: string) => void;
    onBack: () => void;
 }
 
 interface CartItem {
    product: Product;
-   quantity:number;
+   quantity: number;
    negotiatedPrice?: number; // Added for wholesale price override
    isPack?: boolean; // Indicates if the item is a pack (fardo)
 }
@@ -96,7 +96,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
    const [isPendingSale, setIsPendingSale] = useState(false);
 
    // Helper for currency
-   const formatCurrency = (value:number) => {
+   const formatCurrency = (value: number) => {
       return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
    };
 
@@ -139,7 +139,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
 
    const subtotal = cart.reduce((acc, item) => acc + (getProductPrice(item) * item.quantity), 0);
    const discountValue = parseFloat(discount) || 0;
-   const cartTotal = Math.max(0, subtotal-discountValue);
+   const cartTotal = Math.max(0, subtotal - discountValue);
    const changeAmount = selectedPaymentMethod === 'Cash' && cashReceived ? Math.max(0, parseFloat(cashReceived) - cartTotal) : 0;
 
    // --- POS FUNCTIONS ---
@@ -226,20 +226,20 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
          if (existing) {
             return prev.map(item =>
                item.product.id === product.id && item.negotiatedPrice === customPrice && item.isPack === isPack
-                  ? { ...item, quantity:item.quantity + qty }
+                  ? { ...item, quantity: item.quantity + qty }
                   : item
             );
          }
-         return [...prev, { product, quantity:qty, negotiatedPrice:customPrice, isPack }];
+         return [...prev, { product, quantity: qty, negotiatedPrice: customPrice, isPack }];
       });
       setBarcodeInput(''); // Clear scanner input
    };
 
-   const removeFromCart = (productId:string, pricePoint?: number, isPack?: boolean) => {
+   const removeFromCart = (productId: string, pricePoint?: number, isPack?: boolean) => {
       setCart(prev => prev.filter(item => !(item.product.id === productId && item.negotiatedPrice === pricePoint && item.isPack === isPack)));
    };
 
-   const updateQuantity = (productId:string, delta:number, pricePoint?: number, isPack?: boolean) => {
+   const updateQuantity = (productId: string, delta: number, pricePoint?: number, isPack?: boolean) => {
       setCart(prev => prev.map(item => {
          if (item.product.id === productId && item.negotiatedPrice === pricePoint && item.isPack === isPack) {
             const newQty = item.quantity + delta;
@@ -266,7 +266,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                }
             }
 
-            return newQty > 0 ? { ...item, quantity:newQty } : item;
+            return newQty > 0 ? { ...item, quantity: newQty } : item;
          }
          return item;
       }));
@@ -310,19 +310,21 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
       setTimeout(() => {
          const newSale: Sale = {
             id: Math.floor(Math.random() * 10000).toString(),
-            date:saleDate, // Use user selected date
-            customerName:selectedCustomer ? selectedCustomer.name : (selectedBranch === Branch.MATRIZ ? 'Cliente Atacado' : 'Consumidor Final'),
-            total:cartTotal,
-            branch:selectedBranch,
-            status:isPendingSale ? 'Pending' : 'Completed',
-            paymentMethod:selectedPaymentMethod || 'Cash',
+            date: saleDate, // Use user selected date
+            customerName: selectedCustomer ? selectedCustomer.name : (selectedBranch === Branch.MATRIZ ? 'Cliente Atacado' : 'Consumidor Final'),
+            total: cartTotal,
+            branch: selectedBranch,
+            status: isPendingSale ? 'Pending' : 'Completed',
+            paymentMethod: selectedPaymentMethod || 'Cash',
             hasInvoice: !isPendingSale, // Auto emit NFC-e only if completed
-            items:cart.map(c => ({
-               productId:c.product.id,
-               productName:c.isPack ? `${c.product.name} (Fardo c / ${c.product.packSize})` : c.product.name,
-               quantity:c.isPack && c.product.packSize ? c.quantity * c.product.packSize : c.quantity,
-               priceAtSale:c.isPack && c.product.packSize ? (getProductPrice(c) / c.product.packSize) : getProductPrice(c)
-            }))
+            items: cart.map(c => ({
+               productId: c.product.id,
+               productName: c.isPack ? `${c.product.name} (Fardo c / ${c.product.packSize})` : c.product.name,
+               quantity: c.isPack && c.product.packSize ? c.quantity * c.product.packSize : c.quantity,
+               priceAtSale: c.isPack && c.product.packSize ? (getProductPrice(c) / c.product.packSize) : getProductPrice(c)
+            })),
+            cashReceived: selectedPaymentMethod === 'Cash' && cashReceived ? parseFloat(cashReceived) : undefined,
+            changeAmount: selectedPaymentMethod === 'Cash' ? changeAmount : undefined
          };
 
          // Call Global Add Sale (updates Stock and Sales History)
@@ -383,7 +385,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
 
       try {
          const canvas = await html2canvas(receiptElement, {
-            scale:2, // Better quality
+            scale: 2, // Better quality
             backgroundColor: '#ffffff'
          });
          const image = canvas.toDataURL("image/jpeg", 0.9);
@@ -421,7 +423,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
 
             try {
                const canvas = await html2canvas(receiptElement, {
-                  scale:2,
+                  scale: 2,
                   backgroundColor: '#ffffff'
                });
                const image = canvas.toDataURL("image/jpeg", 0.9);
@@ -1294,7 +1296,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                               type="text"
                               className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
                               value={editingSale.customerName}
-                              onChange={(e) => setEditingSale({ ...editingSale, customerName:e.target.value })}
+                              onChange={(e) => setEditingSale({ ...editingSale, customerName: e.target.value })}
                            />
                         </div>
 
@@ -1305,7 +1307,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                                  type="date"
                                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
                                  value={editingSale.date}
-                                 onChange={(e) => setEditingSale({ ...editingSale, date:e.target.value })}
+                                 onChange={(e) => setEditingSale({ ...editingSale, date: e.target.value })}
                               />
                            </div>
                            <div>
@@ -1313,7 +1315,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                               <select
                                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
                                  value={editingSale.status}
-                                 onChange={(e) => setEditingSale({ ...editingSale, status:e.target.value as any })}
+                                 onChange={(e) => setEditingSale({ ...editingSale, status: e.target.value as any })}
                               >
                                  <option value="Completed">Concluído</option>
                                  <option value="Pending">Pendente</option>
@@ -1325,7 +1327,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                               <select
                                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
                                  value={editingSale.paymentMethod}
-                                 onChange={(e) => setEditingSale({ ...editingSale, paymentMethod:e.target.value as PaymentMethod })}
+                                 onChange={(e) => setEditingSale({ ...editingSale, paymentMethod: e.target.value as PaymentMethod })}
                               >
                                  <option value="Cash">Dinheiro</option>
                                  <option value="Pix">Pix</option>
@@ -1340,7 +1342,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                            <select
                               className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
                               value={editingSale.status}
-                              onChange={(e) => setEditingSale({ ...editingSale, status:e.target.value as any })}
+                              onChange={(e) => setEditingSale({ ...editingSale, status: e.target.value as any })}
                            >
                               <option value="Completed">Concluída</option>
                               <option value="Pending">Pendente</option>

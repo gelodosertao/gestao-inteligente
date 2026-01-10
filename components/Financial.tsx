@@ -104,6 +104,14 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
          Cash: daySales.filter(s => s.paymentMethod === 'Cash').reduce((acc, s) => acc + s.total, 0),
       };
 
+      const totalCashReceived = daySales
+         .filter(s => s.paymentMethod === 'Cash')
+         .reduce((acc, s) => acc + (s.cashReceived || s.total), 0);
+
+      const totalChangeGiven = daySales
+         .filter(s => s.paymentMethod === 'Cash')
+         .reduce((acc, s) => acc + (s.changeAmount || 0), 0);
+
       // Expected Cash in Drawer = Opening + Cash Sales - Expenses (Assuming expenses are paid in cash if not specified, usually safe for small business)
       const expectedCash = openingBalance + byMethod.Cash - totalExpense;
       const difference = cashInDrawer - expectedCash;
@@ -113,7 +121,9 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
          totalExpense,
          byMethod,
          expectedCash,
-         difference
+         difference,
+         totalCashReceived,
+         totalChangeGiven
       };
    }, [sales, records, closingDate, closingBranch, openingBalance, cashInDrawer]);
 
@@ -584,6 +594,27 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
                               />
                            </div>
                            <p className="text-xs text-slate-500">Informe o valor total em dinheiro encontrado na gaveta.</p>
+                        </div>
+
+                        {/* Summary of Cash Flow for Verification */}
+                        <div className="bg-slate-50 p-4 rounded-xl space-y-2 border border-slate-100">
+                           <h4 className="font-bold text-slate-700 text-sm mb-2">Conferência do Dia (Dinheiro)</h4>
+                           <div className="flex justify-between text-sm">
+                              <span className="text-slate-600">Entrada (Bruto):</span>
+                              <span className="font-bold text-emerald-600">+ {formatCurrency(closingData.totalCashReceived)}</span>
+                           </div>
+                           <div className="flex justify-between text-sm">
+                              <span className="text-slate-600">Saída (Troco):</span>
+                              <span className="font-bold text-rose-600">- {formatCurrency(closingData.totalChangeGiven)}</span>
+                           </div>
+                           <div className="flex justify-between text-sm">
+                              <span className="text-slate-600">Saída (Despesas):</span>
+                              <span className="font-bold text-rose-600">- {formatCurrency(closingData.totalExpense)}</span>
+                           </div>
+                           <div className="border-t border-slate-200 pt-2 flex justify-between text-sm font-bold">
+                              <span className="text-slate-800">Saldo Esperado (s/ Abertura):</span>
+                              <span className="text-blue-600">{formatCurrency(closingData.totalCashReceived - closingData.totalChangeGiven - closingData.totalExpense)}</span>
+                           </div>
                         </div>
 
                         <div>

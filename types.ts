@@ -73,6 +73,8 @@ export interface Sale {
   hasInvoice: boolean; // NF-e emitted
   invoiceKey?: string;
   invoiceUrl?: string;
+  cashReceived?: number; // Valor recebido em dinheiro
+  changeAmount?: number; // Troco devolvido
 }
 
 export interface SaleItem {

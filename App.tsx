@@ -407,7 +407,7 @@ const App: React.FC = () => {
             <br />
             -- Para criar tabelas do zero:<br />
             create table products (id text primary key, name text, category text, price_matriz numeric, price_filial numeric, cost numeric, stock_matriz integer, stock_filial integer, unit text, min_stock integer);<br />
-            create table sales (id text primary key, date text, customer_name text, total numeric, branch text, status text, payment_method text, has_invoice boolean, items jsonb);<br />
+            create table sales (id text primary key, date text, customer_name text, total numeric, branch text, status text, payment_method text, has_invoice boolean, items jsonb, cash_received numeric, change_amount numeric);<br />
             create table financials (id text primary key, date text, description text, amount numeric, type text, category text, branch text);<br />
             create table customers (id text primary key, name text, cpf_cnpj text, email text, phone text, address text, segment text, city text, state text);<br />
             create table cash_closings (id text primary key, date text, branch text, opening_balance numeric, total_income numeric, total_expense numeric, total_by_payment_method jsonb, cash_in_drawer numeric, difference numeric, notes text, closed_by text);
