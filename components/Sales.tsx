@@ -14,13 +14,13 @@ interface SalesProps {
    onAddCustomer: (customer: Customer) => void;
    currentUser: User;
    onUpdateSale: (sale: Sale) => void;
-   onDeleteSale: (saleId: string) => void;
+   onDeleteSale: (saleId:string) => void;
    onBack: () => void;
 }
 
 interface CartItem {
    product: Product;
-   quantity: number;
+   quantity:number;
    negotiatedPrice?: number; // Added for wholesale price override
    isPack?: boolean; // Indicates if the item is a pack (fardo)
 }
@@ -96,7 +96,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
    const [isPendingSale, setIsPendingSale] = useState(false);
 
    // Helper for currency
-   const formatCurrency = (value: number) => {
+   const formatCurrency = (value:number) => {
       return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
    };
 
@@ -139,7 +139,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
 
    const subtotal = cart.reduce((acc, item) => acc + (getProductPrice(item) * item.quantity), 0);
    const discountValue = parseFloat(discount) || 0;
-   const cartTotal = Math.max(0, subtotal - discountValue);
+   const cartTotal = Math.max(0, subtotal-discountValue);
    const changeAmount = selectedPaymentMethod === 'Cash' && cashReceived ? Math.max(0, parseFloat(cashReceived) - cartTotal) : 0;
 
    // --- POS FUNCTIONS ---
@@ -226,20 +226,20 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
          if (existing) {
             return prev.map(item =>
                item.product.id === product.id && item.negotiatedPrice === customPrice && item.isPack === isPack
-                  ? { ...item, quantity: item.quantity + qty }
+                  ? { ...item, quantity:item.quantity + qty }
                   : item
             );
          }
-         return [...prev, { product, quantity: qty, negotiatedPrice: customPrice, isPack }];
+         return [...prev, { product, quantity:qty, negotiatedPrice:customPrice, isPack }];
       });
       setBarcodeInput(''); // Clear scanner input
    };
 
-   const removeFromCart = (productId: string, pricePoint?: number, isPack?: boolean) => {
+   const removeFromCart = (productId:string, pricePoint?: number, isPack?: boolean) => {
       setCart(prev => prev.filter(item => !(item.product.id === productId && item.negotiatedPrice === pricePoint && item.isPack === isPack)));
    };
 
-   const updateQuantity = (productId: string, delta: number, pricePoint?: number, isPack?: boolean) => {
+   const updateQuantity = (productId:string, delta:number, pricePoint?: number, isPack?: boolean) => {
       setCart(prev => prev.map(item => {
          if (item.product.id === productId && item.negotiatedPrice === pricePoint && item.isPack === isPack) {
             const newQty = item.quantity + delta;
@@ -266,7 +266,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                }
             }
 
-            return newQty > 0 ? { ...item, quantity: newQty } : item;
+            return newQty > 0 ? { ...item, quantity:newQty } : item;
          }
          return item;
       }));
@@ -310,18 +310,18 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
       setTimeout(() => {
          const newSale: Sale = {
             id: Math.floor(Math.random() * 10000).toString(),
-            date: saleDate, // Use user selected date
-            customerName: selectedCustomer ? selectedCustomer.name : (selectedBranch === Branch.MATRIZ ? 'Cliente Atacado' : 'Consumidor Final'),
-            total: cartTotal,
-            branch: selectedBranch,
-            status: isPendingSale ? 'Pending' : 'Completed',
-            paymentMethod: selectedPaymentMethod || 'Cash',
+            date:saleDate, // Use user selected date
+            customerName:selectedCustomer ? selectedCustomer.name : (selectedBranch === Branch.MATRIZ ? 'Cliente Atacado' : 'Consumidor Final'),
+            total:cartTotal,
+            branch:selectedBranch,
+            status:isPendingSale ? 'Pending' : 'Completed',
+            paymentMethod:selectedPaymentMethod || 'Cash',
             hasInvoice: !isPendingSale, // Auto emit NFC-e only if completed
-            items: cart.map(c => ({
-               productId: c.product.id,
-               productName: c.isPack ? `${c.product.name} (Fardo c / ${c.product.packSize})` : c.product.name,
-               quantity: c.isPack && c.product.packSize ? c.quantity * c.product.packSize : c.quantity,
-               priceAtSale: c.isPack && c.product.packSize ? (getProductPrice(c) / c.product.packSize) : getProductPrice(c)
+            items:cart.map(c => ({
+               productId:c.product.id,
+               productName:c.isPack ? `${c.product.name} (Fardo c / ${c.product.packSize})` : c.product.name,
+               quantity:c.isPack && c.product.packSize ? c.quantity * c.product.packSize : c.quantity,
+               priceAtSale:c.isPack && c.product.packSize ? (getProductPrice(c) / c.product.packSize) : getProductPrice(c)
             }))
          };
 
@@ -361,7 +361,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
          if (result.success) {
             setInvoiceStep('SUCCESS');
             // TODO: Atualizar a venda no banco de dados com a chave da nota
-            // await dbSales.update({ ...selectedSaleForInvoice, hasInvoice: true, invoiceKey: result.invoiceKey });
+            // await dbSales.update({ ...selectedSaleForInvoice, hasInvoice:true, invoiceKey:result.invoiceKey });
          } else {
             alert("Erro ao emitir nota: " + result.message);
             setInvoiceStep('FORM');
@@ -383,7 +383,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
 
       try {
          const canvas = await html2canvas(receiptElement, {
-            scale: 2, // Better quality
+            scale:2, // Better quality
             backgroundColor: '#ffffff'
          });
          const image = canvas.toDataURL("image/jpeg", 0.9);
@@ -421,7 +421,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
 
             try {
                const canvas = await html2canvas(receiptElement, {
-                  scale: 2,
+                  scale:2,
                   backgroundColor: '#ffffff'
                });
                const image = canvas.toDataURL("image/jpeg", 0.9);
@@ -458,13 +458,13 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
             </div>
             <div className="bg-slate-200 p-1 rounded-lg flex text-sm font-medium w-full md:w-auto">
                <button
-                  className={`flex - 1 md: flex - none px - 4 py - 2 rounded - md transition - all ${activeTab === 'History' ? 'bg-white text-blue-900 shadow-sm font-bold' : 'text-slate-500 hover:text-slate-700'} `}
+                  className={`flex-1 md:flex-none px-4 py-2 rounded-md transition-all ${activeTab === 'History' ? 'bg-white text-blue-900 shadow-sm font-bold' : 'text-slate-500 hover:text-slate-700'} `}
                   onClick={() => setActiveTab('History')}
                >
                   Histórico
                </button>
                <button
-                  className={`flex - 1 md: flex - none px - 4 py - 2 rounded - md transition - all ${activeTab === 'POS' ? 'bg-white text-orange-600 shadow-sm font-bold' : 'text-slate-500 hover:text-slate-700'} `}
+                  className={`flex-1 md:flex-none px-4 py-2 rounded-md transition-all ${activeTab === 'POS' ? 'bg-white text-orange-600 shadow-sm font-bold' : 'text-slate-500 hover:text-slate-700'} `}
                   onClick={() => setActiveTab('POS')}
                >
                   Nova Venda (PDV)
@@ -510,12 +510,12 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                }).map(sale => (
                   <div key={sale.id} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center hover:border-blue-200 transition-colors">
                      <div className="flex gap-4 items-center">
-                        <div className={`p - 3 rounded - full ${sale.branch === Branch.MATRIZ ? 'bg-blue-100 text-blue-600' : 'bg-orange-100 text-orange-600'} `}>
+                        <div className={`p-3 rounded-full ${sale.branch === Branch.MATRIZ ? 'bg-blue-100 text-blue-600' : 'bg-orange-100 text-orange-600'} `}>
                            {sale.branch === Branch.MATRIZ ? <Factory size={20} /> : <Store size={20} />}
                         </div>
                         <div>
                            <h4 className="font-bold text-slate-800">{sale.customerName}</h4>
-                           <p className="text-sm text-slate-500">{sale.date} • <span className={`font - bold ${sale.branch === Branch.MATRIZ ? 'text-blue-600' : 'text-orange-600'} `}>{sale.branch}</span></p>
+                           <p className="text-sm text-slate-500">{sale.date} • <span className={`font-bold ${sale.branch === Branch.MATRIZ ? 'text-blue-600' : 'text-orange-600'} `}>{sale.branch}</span></p>
                            <div className="text-xs text-slate-400 mt-1">
                               {sale.items.map(i => `${i.quantity}x ${i.productName} `).join(', ')}
                            </div>
@@ -525,10 +525,10 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                      <div className="mt-4 md:mt-0 flex flex-col items-end gap-2 w-full md:w-auto">
                         <span className="font-bold text-lg text-slate-800">{formatCurrency(sale.total)}</span>
                         <div className="flex gap-2 flex-wrap justify-end">
-                           <span className={`px - 2 py - 0.5 rounded text - xs font - bold border flex items - center gap - 1 ${sale.status === 'Completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : sale.status === 'Pending' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : 'bg-red-50 text-red-700 border-red-200'} `}>
+                           <span className={`px-2 py-0.5 rounded text-xs font-bold border flex items-center gap-1 ${sale.status === 'Completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : sale.status === 'Pending' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : 'bg-red-50 text-red-700 border-red-200'} `}>
                               {sale.status === 'Completed' ? 'Concluído' : sale.status === 'Pending' ? 'Pendente' : 'Cancelado'}
                            </span>
-                           <span className={`px - 2 py - 0.5 rounded text - xs font - bold border flex items - center gap - 1 ${sale.hasInvoice ? 'bg-green-50 text-green-700 border-green-200' : 'bg-amber-50 text-amber-700 border-amber-200'} `}>
+                           <span className={`px-2 py-0.5 rounded text-xs font-bold border flex items-center gap-1 ${sale.hasInvoice ? 'bg-green-50 text-green-700 border-green-200' : 'bg-amber-50 text-amber-700 border-amber-200'} `}>
                               {sale.hasInvoice ? <CheckCircle size={10} /> : <Clock size={10} />}
                               {sale.hasInvoice ? 'NF-e Emitida' : 'Sem NF-e'}
                            </span>
@@ -579,7 +579,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                <div className="flex flex-col lg:grid lg:grid-cols-3 gap-6 h-full">
 
                   {/* Left Column: Product Selection */}
-                  <div className={`lg: col - span - 2 flex flex - col gap - 4 h - full overflow - hidden ${showMobileCart ? 'hidden lg:flex' : 'flex'} `}>
+                  <div className={`lg:col-span-2 flex flex-col gap-4 h-full overflow-hidden ${showMobileCart ? 'hidden lg:flex' : 'flex'} `}>
 
                      {/* Branch Toggle & Scanner */}
                      <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col gap-4">
@@ -587,13 +587,13 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                         <div className="flex bg-slate-100 p-1.5 rounded-xl">
                            <button
                               onClick={() => { setSelectedBranch(Branch.FILIAL); setCart([]); setIsWholesale(false); }}
-                              className={`flex - 1 flex items - center justify - center gap - 2 py - 2 rounded - lg font - bold transition - all text - xs md: text - base ${selectedBranch === Branch.FILIAL ? 'bg-white text-orange-600 shadow-md' : 'text-slate-500 hover:text-slate-700'} `}
+                              className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg font-bold transition-all text-xs md:text-base ${selectedBranch === Branch.FILIAL ? 'bg-white text-orange-600 shadow-md' : 'text-slate-500 hover:text-slate-700'} `}
                            >
                               <Store size={16} /> Filial
                            </button>
                            <button
                               onClick={() => { setSelectedBranch(Branch.MATRIZ); setCart([]); setIsWholesale(true); }}
-                              className={`flex - 1 flex items - center justify - center gap - 2 py - 2 rounded - lg font - bold transition - all text - xs md: text - base ${selectedBranch === Branch.MATRIZ ? 'bg-white text-blue-700 shadow-md' : 'text-slate-500 hover:text-slate-700'} `}
+                              className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg font-bold transition-all text-xs md:text-base ${selectedBranch === Branch.MATRIZ ? 'bg-white text-blue-700 shadow-md' : 'text-slate-500 hover:text-slate-700'} `}
                            >
                               <Factory size={16} /> Matriz
                            </button>
@@ -628,13 +628,13 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                                  onChange={(e) => setBarcodeInput(e.target.value)}
                                  onKeyDown={handleBarcodeSubmit}
                                  placeholder={scannerStatus === 'CONNECTED' ? "Escaneie..." : "Código..."}
-                                 className={`w - full pl - 10 pr - 4 py - 3 rounded - xl border - 2 transition - all outline - none ${scannerStatus === 'CONNECTED' ? 'border-green-500 bg-green-50/20' : 'border-slate-200 focus:border-orange-500'} `}
+                                 className={`w-full pl-10 pr-4 py-3 rounded-xl border-2 transition-all outline-none ${scannerStatus === 'CONNECTED' ? 'border-green-500 bg-green-50/20' : 'border-slate-200 focus:border-orange-500'} `}
                               />
                            </div>
                            <button
                               onClick={handlePairScanner}
                               disabled={scannerStatus === 'CONNECTED'}
-                              className={`flex items - center gap - 2 px - 4 py - 3 rounded - xl font - medium transition - all w - full md: w - auto justify - center
+                              className={`flex items-center gap-2 px-4 py-3 rounded-xl font-medium transition-all w-full md:w-auto justify-center
                         ${scannerStatus === 'CONNECTED'
                                     ? 'bg-green-100 text-green-700 cursor-default'
                                     : scannerStatus === 'CONNECTING'
@@ -690,7 +690,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                                        <div className="w-8 h-8 bg-orange-50 rounded-full flex items-center justify-center text-orange-600 font-bold text-[10px] border border-orange-100">
                                           {product.unit}
                                        </div>
-                                       <span className={`text - [9px] font - bold px - 1.5 py - 0.5 rounded - full ${product.comboItems ? 'bg-purple-100 text-purple-600' : product.isStockControlled === false ? 'bg-purple-100 text-purple-600' : stock < product.minStock ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-500'} `}>
+                                       <span className={`text - [9px] font-bold px-1.5 py-0.5 rounded-full ${product.comboItems ? 'bg-purple-100 text-purple-600' : product.isStockControlled === false ? 'bg-purple-100 text-purple-600' : stock < product.minStock ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-500'} `}>
                                           {product.comboItems ? 'COMBO' : product.isStockControlled === false ? '∞' : `Est: ${stock} `}
                                        </span>
                                     </div>
@@ -730,7 +730,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                         </button>
                         <span className="font-bold text-slate-700">Voltar aos Produtos</span>
                      </div>
-                     <div className={`p - 4 text - white flex justify - between items - center gap - 2 ${selectedBranch === Branch.MATRIZ ? 'bg-blue-800' : 'bg-orange-500'} `}>
+                     <div className={`p-4 text-white flex justify-between items-center gap-2 ${selectedBranch === Branch.MATRIZ ? 'bg-blue-800' : 'bg-orange-500'} `}>
                         <div className="flex items-center gap-2 shrink-0">
                            <ShoppingCart size={20} className="text-white" />
                            <span className="font-bold hidden md:inline">Caixa: {selectedBranch === Branch.MATRIZ ? 'MATRIZ' : 'VAREJO'}</span>
@@ -854,7 +854,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                         <button
                            onClick={initiateCheckout}
                            disabled={cart.length === 0}
-                           className={`w - full text - white py - 3 rounded - xl font - bold flex items - center justify - center gap - 2 shadow - lg transition - all disabled: opacity - 50 disabled: cursor - not - allowed ${selectedBranch === Branch.MATRIZ ? 'bg-blue-800 hover:bg-blue-700 shadow-blue-900/20' : 'bg-orange-500 hover:bg-orange-600 shadow-orange-900/20'} `}
+                           className={`w-full text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed ${selectedBranch === Branch.MATRIZ ? 'bg-blue-800 hover:bg-blue-700 shadow-blue-900/20' : 'bg-orange-500 hover:bg-orange-600 shadow-orange-900/20'} `}
                         >
                            Finalizar (F2)
                         </button>
@@ -1042,7 +1042,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                                     <button
                                        key={method}
                                        onClick={() => setSelectedPaymentMethod(method as PaymentMethod)}
-                                       className={`p - 4 rounded - xl border - 2 font - bold flex flex - col items - center gap - 2 transition - all ${selectedPaymentMethod === method ? 'border-orange-500 bg-orange-50 text-orange-700' : 'border-slate-100 hover:border-slate-300 text-slate-600'} `}
+                                       className={`p-4 rounded-xl border-2 font-bold flex flex-col items-center gap-2 transition-all ${selectedPaymentMethod === method ? 'border-orange-500 bg-orange-50 text-orange-700' : 'border-slate-100 hover:border-slate-300 text-slate-600'} `}
                                     >
                                        {method === 'Pix' && <QrCode size={24} />}
                                        {method === 'Credit' && <CreditCard size={24} />}
@@ -1254,7 +1254,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                                  <CheckCircle size={32} />
                               </div>
                               <h4 className="text-xl font-bold text-slate-800 mb-1">Nota Autorizada!</h4>
-                              <p className="text-sm text-slate-500 mb-6">Chave: 3523 1000 0000 0000 0000 5500 1000 0000 0100</p>
+                              <p className="text-sm text-slate-500 mb-6">Chave:3523 1000 0000 0000 0000 5500 1000 0000 0100</p>
 
                               <div className="flex gap-3 w-full">
                                  <button onClick={() => window.print()} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-2 rounded-lg font-medium flex items-center justify-center gap-2">
@@ -1294,7 +1294,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                               type="text"
                               className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
                               value={editingSale.customerName}
-                              onChange={(e) => setEditingSale({ ...editingSale, customerName: e.target.value })}
+                              onChange={(e) => setEditingSale({ ...editingSale, customerName:e.target.value })}
                            />
                         </div>
 
@@ -1305,7 +1305,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                                  type="date"
                                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
                                  value={editingSale.date}
-                                 onChange={(e) => setEditingSale({ ...editingSale, date: e.target.value })}
+                                 onChange={(e) => setEditingSale({ ...editingSale, date:e.target.value })}
                               />
                            </div>
                            <div>
@@ -1313,7 +1313,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                               <select
                                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
                                  value={editingSale.status}
-                                 onChange={(e) => setEditingSale({ ...editingSale, status: e.target.value as any })}
+                                 onChange={(e) => setEditingSale({ ...editingSale, status:e.target.value as any })}
                               >
                                  <option value="Completed">Concluído</option>
                                  <option value="Pending">Pendente</option>
@@ -1325,7 +1325,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                               <select
                                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
                                  value={editingSale.paymentMethod}
-                                 onChange={(e) => setEditingSale({ ...editingSale, paymentMethod: e.target.value as PaymentMethod })}
+                                 onChange={(e) => setEditingSale({ ...editingSale, paymentMethod:e.target.value as PaymentMethod })}
                               >
                                  <option value="Cash">Dinheiro</option>
                                  <option value="Pix">Pix</option>
@@ -1340,7 +1340,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                            <select
                               className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
                               value={editingSale.status}
-                              onChange={(e) => setEditingSale({ ...editingSale, status: e.target.value as any })}
+                              onChange={(e) => setEditingSale({ ...editingSale, status:e.target.value as any })}
                            >
                               <option value="Completed">Concluída</option>
                               <option value="Pending">Pendente</option>
@@ -1404,7 +1404,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                                        setSelectedCustomer(customer);
                                        setShowCustomerModal(false);
                                     }}
-                                    className={`w - full text - left p - 3 rounded - lg flex justify - between items - center transition - colors ${selectedCustomer?.id === customer.id ? 'bg-blue-50 border border-blue-200' : 'hover:bg-slate-50 border border-transparent'} `}
+                                    className={`w-full text-left p-3 rounded-lg flex justify-between items-center transition-colors ${selectedCustomer?.id === customer.id ? 'bg-blue-50 border border-blue-200' : 'hover:bg-slate-50 border border-transparent'} `}
                                  >
                                     <div>
                                        <p className="font-bold text-slate-800">{customer.name}</p>
