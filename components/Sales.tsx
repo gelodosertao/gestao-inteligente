@@ -721,7 +721,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                   </div>
 
                   {/* Right Column: Cart & Checkout */}
-                  <div className={`lg: col - span - 1 bg - white rounded - 2xl shadow - xl border border - slate - 200 flex flex - col overflow - hidden h - full lg: h - full sticky top - 0 z - 10 ${showMobileCart ? 'flex fixed inset-0 z-50 m-0 rounded-none' : 'hidden lg:flex'} `}>
+                  <div className={`lg:col-span-1 bg-white rounded-2xl shadow-xl border border-slate-200 flex flex-col overflow-hidden h-full ${showMobileCart ? 'flex fixed inset-0 z-50 m-0 rounded-none' : 'hidden lg:flex'}`}>
 
                      {/* Mobile Back Button */}
                      <div className="lg:hidden bg-slate-100 p-2 flex items-center gap-2">
