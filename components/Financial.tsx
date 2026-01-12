@@ -45,6 +45,22 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
    const [categories, setCategories] = useState<CategoryItem[]>([]);
    const [showCategoryModal, setShowCategoryModal] = useState(false);
    const [newCategoryName, setNewCategoryName] = useState('');
+   const [isAddingInlineCategory, setIsAddingInlineCategory] = useState(false);
+
+   const handleAddInlineCategory = async () => {
+      if (!newCategoryName.trim()) return;
+      try {
+         await dbCategories.add({ name: newCategoryName, type: 'FINANCIAL' });
+         const updatedCats = await dbCategories.getAll('FINANCIAL');
+         setCategories(updatedCats);
+         setNewRecord({ ...newRecord, category: newCategoryName });
+         setNewCategoryName('');
+         setIsAddingInlineCategory(false);
+      } catch (error) {
+         console.error("Erro ao adicionar categoria", error);
+         alert("Erro ao adicionar categoria.");
+      }
+   };
 
    React.useEffect(() => {
       loadCategories();
@@ -755,13 +771,47 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
 
                      <div>
                         <label className="block text-sm font-bold text-slate-700 mb-1">Categoria</label>
-                        <select
-                           className="w-full px-4 py-2 border border-slate-300 rounded-lg bg-white text-slate-900 font-medium"
-                           value={newRecord.category}
-                           onChange={(e) => setNewRecord({ ...newRecord, category: e.target.value })}
-                        >
-                           {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                        </select>
+                        {isAddingInlineCategory ? (
+                           <div className="flex gap-2">
+                              <input
+                                 type="text"
+                                 placeholder="Nova Categoria..."
+                                 className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                                 value={newCategoryName}
+                                 onChange={(e) => setNewCategoryName(e.target.value)}
+                                 autoFocus
+                              />
+                              <button
+                                 onClick={handleAddInlineCategory}
+                                 className="bg-green-600 text-white px-3 rounded-lg hover:bg-green-700"
+                              >
+                                 <CheckCircle size={18} />
+                              </button>
+                              <button
+                                 onClick={() => setIsAddingInlineCategory(false)}
+                                 className="bg-slate-200 text-slate-600 px-3 rounded-lg hover:bg-slate-300"
+                              >
+                                 <X size={18} />
+                              </button>
+                           </div>
+                        ) : (
+                           <div className="flex gap-2">
+                              <select
+                                 className="flex-1 px-4 py-2 border border-slate-300 rounded-lg bg-white text-slate-900 font-medium"
+                                 value={newRecord.category}
+                                 onChange={(e) => setNewRecord({ ...newRecord, category: e.target.value })}
+                              >
+                                 {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                              </select>
+                              <button
+                                 onClick={() => { setIsAddingInlineCategory(true); setNewCategoryName(''); }}
+                                 className="bg-slate-100 border border-slate-300 text-slate-600 px-3 rounded-lg hover:bg-slate-200"
+                                 title="Nova Categoria"
+                              >
+                                 <Plus size={18} />
+                              </button>
+                           </div>
+                        )}
                      </div>
 
                      <div>
