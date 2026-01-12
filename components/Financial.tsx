@@ -284,7 +284,10 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
    };
 
    const handleSaveRecord = () => {
-      if (!newRecord.description || !newRecord.amount || !newRecord.date) return;
+      if (!newRecord.amount || !newRecord.date) return;
+
+      // Default description if empty
+      const description = newRecord.description || 'Sem descrição';
 
       const recordsToAdd: FinancialRecord[] = [];
       const baseDate = new Date(newRecord.date);
@@ -302,7 +305,7 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
             recordsToAdd.push({
                id: `f-${Date.now()}-${i}`,
                date: currentDate.toISOString().split('T')[0],
-               description: `${newRecord.description} (${i + 1}/${installments})`,
+               description: `${description} (${i + 1}/${installments})`,
                amount: amount,
                type: recordType,
                category: newRecord.category || 'Outros',
@@ -314,7 +317,7 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
          recordsToAdd.push({
             id: `f-${Date.now()}`,
             date: newRecord.date,
-            description: newRecord.description,
+            description: description,
             amount: amount,
             type: recordType,
             category: newRecord.category || 'Outros',
