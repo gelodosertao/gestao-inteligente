@@ -410,7 +410,8 @@ const App: React.FC = () => {
             create table sales (id text primary key, date text, customer_name text, total numeric, branch text, status text, payment_method text, has_invoice boolean, items jsonb, cash_received numeric, change_amount numeric);<br />
             create table financials (id text primary key, date text, description text, amount numeric, type text, category text, branch text);<br />
             create table customers (id text primary key, name text, cpf_cnpj text, email text, phone text, address text, segment text, city text, state text);<br />
-            create table cash_closings (id text primary key, date text, branch text, opening_balance numeric, total_income numeric, total_expense numeric, total_by_payment_method jsonb, cash_in_drawer numeric, difference numeric, notes text, closed_by text);
+            create table cash_closings (id text primary key, date text, branch text, opening_balance numeric, total_income numeric, total_expense numeric, total_by_payment_method jsonb, cash_in_drawer numeric, difference numeric, notes text, closed_by text);<br />
+            create table app_users (id uuid default gen_random_uuid() primary key, name text, email text unique, password text, role text, avatar_initials text);
           </div>
           <button onClick={() => loadDataFromCloud()} className="mt-6 bg-red-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-red-700">
             Tentar Conectar Novamente
