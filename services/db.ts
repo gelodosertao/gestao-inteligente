@@ -277,8 +277,8 @@ export const dbSettings = {
 
 // --- SALES ---
 export const dbSales = {
-  async getAll(): Promise<Sale[]> {
-    const { data, error } = await supabase.from('sales').select('*').order('date', { ascending: false });
+  async getAll(limit: number = 1000): Promise<Sale[]> {
+    const { data, error } = await supabase.from('sales').select('*').order('date', { ascending: false }).limit(limit);
     if (error) throw error;
 
     return (data || []).map((row: any) => ({
@@ -336,10 +336,9 @@ export const dbSales = {
 };
 
 // --- FINANCIALS ---
-// --- FINANCIALS ---
 export const dbFinancials = {
-  async getAll(): Promise<FinancialRecord[]> {
-    const { data, error } = await supabase.from('financials').select('*').order('date', { ascending: false });
+  async getAll(limit: number = 1000): Promise<FinancialRecord[]> {
+    const { data, error } = await supabase.from('financials').select('*').order('date', { ascending: false }).limit(limit);
     if (error) throw error;
 
     return (data || []).map((row: any) => ({

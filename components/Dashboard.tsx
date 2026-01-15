@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
 import { TrendingUp, Users, AlertTriangle, ArrowUpRight, X, Filter, Download, Calendar, DollarSign, ArrowDownCircle, Globe, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Product, Sale, FinancialRecord, Customer, Branch, ViewState } from '../types';
@@ -73,9 +73,9 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
   };
 
   // --- FILTERING BY BRANCH ---
-  const filteredSales = sales.filter(s => selectedBranch === 'ALL' || s.branch === selectedBranch);
-  const filteredFinancials = financials.filter(f => selectedBranch === 'ALL' || f.branch === selectedBranch);
-  const filteredCustomers = customers.filter(c => selectedBranch === 'ALL' || c.branch === selectedBranch);
+  const filteredSales = useMemo(() => sales.filter(s => selectedBranch === 'ALL' || s.branch === selectedBranch), [sales, selectedBranch]);
+  const filteredFinancials = useMemo(() => financials.filter(f => selectedBranch === 'ALL' || f.branch === selectedBranch), [financials, selectedBranch]);
+  const filteredCustomers = useMemo(() => customers.filter(c => selectedBranch === 'ALL' || c.branch === selectedBranch), [customers, selectedBranch]);
 
   // --- CALCULATIONS (Dynamic Period Logic) ---
   const { start: periodStart, end: periodEnd } = getPeriodDates(currentDate, period);
@@ -108,25 +108,31 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
   };
 
   // Current Month Data (Legacy for BI)
-  const currentMonthSales = filteredSales.filter(s => isSameMonth(s.date, currentMonth, currentYear));
-  const currentMonthRevenue = currentMonthSales.filter(s => s.status === 'Completed').reduce((acc, curr) => acc + curr.total, 0);
-  const currentMonthPending = currentMonthSales.filter(s => s.status === 'Pending').reduce((acc, curr) => acc + curr.total, 0);
-  const currentMonthExpenses = filteredFinancials.filter(f => f.type === 'Expense' && isSameMonth(f.date, currentMonth, currentYear)).reduce((acc, curr) => acc + curr.amount, 0);
-  const currentMonthProfit = currentMonthRevenue - currentMonthExpenses;
+  const biData = useMemo(() => {
+    const currentMonthSales = filteredSales.filter(s => isSameMonth(s.date, currentMonth, currentYear));
+    const currentMonthRevenue = currentMonthSales.filter(s => s.status === 'Completed').reduce((acc, curr) => acc + curr.total, 0);
+    return { currentMonthRevenue };
+  }, [filteredSales, currentMonth, currentYear]);
 
   // Current Period Data
-  const currentPeriodSales = filteredSales.filter(s => isInRange(s.date, periodStart, periodEnd));
-  const currentPeriodRevenue = currentPeriodSales.filter(s => s.status === 'Completed').reduce((acc, curr) => acc + curr.total, 0);
-  const currentPeriodPending = currentPeriodSales.filter(s => s.status === 'Pending').reduce((acc, curr) => acc + curr.total, 0);
-  const currentPeriodExpenses = filteredFinancials.filter(f => f.type === 'Expense' && isInRange(f.date, periodStart, periodEnd)).reduce((acc, curr) => acc + curr.amount, 0);
-  const currentPeriodProfit = currentPeriodRevenue - currentPeriodExpenses;
+  const periodData = useMemo(() => {
+    const currentPeriodSales = filteredSales.filter(s => isInRange(s.date, periodStart, periodEnd));
+    const currentPeriodRevenue = currentPeriodSales.filter(s => s.status === 'Completed').reduce((acc, curr) => acc + curr.total, 0);
+    const currentPeriodPending = currentPeriodSales.filter(s => s.status === 'Pending').reduce((acc, curr) => acc + curr.total, 0);
+    const currentPeriodExpenses = filteredFinancials.filter(f => f.type === 'Expense' && isInRange(f.date, periodStart, periodEnd)).reduce((acc, curr) => acc + curr.amount, 0);
+    const currentPeriodProfit = currentPeriodRevenue - currentPeriodExpenses;
+    return { currentPeriodSales, currentPeriodRevenue, currentPeriodPending, currentPeriodExpenses, currentPeriodProfit };
+  }, [filteredSales, filteredFinancials, periodStart, periodEnd]);
 
   // Previous Period Data (for trends)
-  const prevPeriodSalesRaw = sales.filter(s => (selectedBranch === 'ALL' || s.branch === selectedBranch) && isInRange(s.date, prevStart, prevEnd));
-  const prevPeriodRevenue = prevPeriodSalesRaw.filter(s => s.status === 'Completed').reduce((acc, curr) => acc + curr.total, 0);
-  const prevPeriodPending = prevPeriodSalesRaw.filter(s => s.status === 'Pending').reduce((acc, curr) => acc + curr.total, 0);
-  const prevPeriodExpenses = financials.filter(f => (selectedBranch === 'ALL' || f.branch === selectedBranch) && f.type === 'Expense' && isInRange(f.date, prevStart, prevEnd)).reduce((acc, curr) => acc + curr.amount, 0);
-  const prevPeriodProfit = prevPeriodRevenue - prevPeriodExpenses;
+  const prevPeriodData = useMemo(() => {
+    const prevPeriodSalesRaw = sales.filter(s => (selectedBranch === 'ALL' || s.branch === selectedBranch) && isInRange(s.date, prevStart, prevEnd));
+    const prevPeriodRevenue = prevPeriodSalesRaw.filter(s => s.status === 'Completed').reduce((acc, curr) => acc + curr.total, 0);
+    const prevPeriodPending = prevPeriodSalesRaw.filter(s => s.status === 'Pending').reduce((acc, curr) => acc + curr.total, 0);
+    const prevPeriodExpenses = financials.filter(f => (selectedBranch === 'ALL' || f.branch === selectedBranch) && f.type === 'Expense' && isInRange(f.date, prevStart, prevEnd)).reduce((acc, curr) => acc + curr.amount, 0);
+    const prevPeriodProfit = prevPeriodRevenue - prevPeriodExpenses;
+    return { prevPeriodSalesRaw, prevPeriodRevenue, prevPeriodPending, prevPeriodExpenses, prevPeriodProfit };
+  }, [sales, financials, selectedBranch, prevStart, prevEnd]);
 
   // Trends
   const calculateTrend = (current: number, previous: number) => {
@@ -135,23 +141,23 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
     return `${diff > 0 ? '+' : ''}${diff.toFixed(1)}%`;
   };
 
-  const revenueTrend = calculateTrend(currentPeriodRevenue, prevPeriodRevenue);
-  const pendingTrend = calculateTrend(currentPeriodPending, prevPeriodPending);
-  const expenseTrend = calculateTrend(currentPeriodExpenses, prevPeriodExpenses);
-  const profitTrend = calculateTrend(currentPeriodProfit, prevPeriodProfit);
-  const salesCountTrend = calculateTrend(currentPeriodSales.length, prevPeriodSalesRaw.length);
+  const revenueTrend = calculateTrend(periodData.currentPeriodRevenue, prevPeriodData.prevPeriodRevenue);
+  const pendingTrend = calculateTrend(periodData.currentPeriodPending, prevPeriodData.prevPeriodPending);
+  const expenseTrend = calculateTrend(periodData.currentPeriodExpenses, prevPeriodData.prevPeriodExpenses);
+  const profitTrend = calculateTrend(periodData.currentPeriodProfit, prevPeriodData.prevPeriodProfit);
+  const salesCountTrend = calculateTrend(periodData.currentPeriodSales.length, prevPeriodData.prevPeriodSalesRaw.length);
 
   // Stock Data - Dynamic based on Branch
-  const lowStockCount = products.filter(p => {
-    if (selectedBranch === 'ALL') return p.stockMatriz < p.minStock || p.stockFilial < p.minStock;
-    if (selectedBranch === Branch.MATRIZ) return p.stockMatriz < p.minStock;
-    if (selectedBranch === Branch.FILIAL) return p.stockFilial < p.minStock;
-    return false;
-  }).length;
+  const stockData = useMemo(() => products.slice(0, 6).map(p => {
+    const item: any = { name: p.name.split(' ')[0] + ' ' + (p.name.split(' ')[1] || '') };
+    if (selectedBranch === 'ALL' || selectedBranch === Branch.MATRIZ) item.Matriz = p.stockMatriz;
+    if (selectedBranch === 'ALL' || selectedBranch === Branch.FILIAL) item.Filial = p.stockFilial;
+    return item;
+  }), [products, selectedBranch]);
 
   // Chart Data Preparation (Filtered by Date Range for Power BI)
   // Default Dashboard shows last 30 days or current month
-  const revenueData = filteredSales
+  const revenueData = useMemo(() => filteredSales
     .filter(s => {
       if (dateRange === 'THIS_MONTH') return isSameMonth(s.date, currentMonth, currentYear);
       if (dateRange === 'LAST_MONTH') return isSameMonth(s.date, lastMonth, lastMonthYear);
@@ -165,39 +171,32 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
       if (found) found.amount += curr.amount;
       else acc.push(curr);
       return acc;
-    }, []).sort((a, b) => a.date.localeCompare(b.date));
+    }, []).sort((a, b) => a.date.localeCompare(b.date)), [filteredSales, dateRange, currentMonth, currentYear, lastMonth, lastMonthYear]);
 
-  const stockData = products.slice(0, 6).map(p => {
-    const item: any = { name: p.name.split(' ')[0] + ' ' + (p.name.split(' ')[1] || '') };
-    if (selectedBranch === 'ALL' || selectedBranch === Branch.MATRIZ) item.Matriz = p.stockMatriz;
-    if (selectedBranch === 'ALL' || selectedBranch === Branch.FILIAL) item.Filial = p.stockFilial;
-    return item;
-  });
-
-  const categoryData = [
+  const categoryData = useMemo(() => [
     { name: 'Gelo', value: filteredSales.filter(s => s.items.some(i => i.productName.includes('Gelo'))).length },
     { name: 'Bebidas', value: filteredSales.filter(s => s.items.some(i => !i.productName.includes('Gelo'))).length },
-  ];
+  ], [filteredSales]);
 
   // Dynamic Calculations for BI
-  const filteredSalesForBI = filteredSales.filter(s => {
+  const filteredSalesForBI = useMemo(() => filteredSales.filter(s => {
     if (dateRange === 'THIS_MONTH') return isSameMonth(s.date, currentMonth, currentYear);
     if (dateRange === 'LAST_MONTH') return isSameMonth(s.date, lastMonth, lastMonthYear);
     return s.date.startsWith(currentYear.toString());
-  });
+  }), [filteredSales, dateRange, currentMonth, currentYear, lastMonth, lastMonthYear]);
 
   const avgTicket = filteredSalesForBI.length > 0 ? filteredSalesForBI.reduce((acc, s) => acc + s.total, 0) / filteredSalesForBI.length : 0;
-  const salesForecast = currentMonthRevenue * 1.1; // Simple +10% forecast
+  const salesForecast = biData.currentMonthRevenue * 1.1; // Simple +10% forecast
   const conversionRate = 18.5; // Static for now
 
   // Seasonality Data (Real Aggregation)
-  const seasonalityData = Array.from({ length: 12 }, (_, i) => {
+  const seasonalityData = useMemo(() => Array.from({ length: 12 }, (_, i) => {
     const monthSales = filteredSales.filter(s => isSameMonth(s.date, i, currentYear)).reduce((acc, s) => acc + s.total, 0);
     return {
       month: new Date(0, i).toLocaleString('pt-BR', { month: 'short' }),
       vendas: monthSales
     };
-  });
+  }), [filteredSales, currentYear]);
 
   const marginData = [
     { name: 'Gelo Sabor', margem: 65 },
@@ -213,21 +212,21 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
     return str.trim().charAt(0).toUpperCase() + str.trim().slice(1).toLowerCase();
   };
 
-  const customersBySegment = filteredCustomers.reduce((acc: any[], curr) => {
+  const customersBySegment = useMemo(() => filteredCustomers.reduce((acc: any[], curr) => {
     const segment = normalizeString(curr.segment || '');
     const found = acc.find(a => a.name === segment);
     if (found) found.value += 1;
     else acc.push({ name: segment, value: 1 });
     return acc;
-  }, []).sort((a, b) => b.value - a.value);
+  }, []).sort((a, b) => b.value - a.value), [filteredCustomers]);
 
-  const customersByCity = filteredCustomers.reduce((acc: any[], curr) => {
+  const customersByCity = useMemo(() => filteredCustomers.reduce((acc: any[], curr) => {
     const city = normalizeString(curr.city || '');
     const found = acc.find(a => a.name === city);
     if (found) found.value += 1;
     else acc.push({ name: city, value: 1 });
     return acc;
-  }, []).sort((a, b) => b.value - a.value).slice(0, 10); // Top 10 cities
+  }, []).sort((a, b) => b.value - a.value).slice(0, 10), [filteredCustomers]); // Top 10 cities
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 relative">

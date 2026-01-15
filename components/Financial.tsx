@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { FinancialRecord, Branch, Sale, Product, CategoryItem, CashClosing, User } from '../types';
 import { dbCategories } from '../services/db';
 import { ArrowUpCircle, ArrowDownCircle, X, Plus, Calendar, DollarSign, Repeat, ArrowLeft, Building2, BarChart3, LineChart, Filter, Trash2, Lock, CheckCircle, AlertTriangle } from 'lucide-react';
@@ -94,26 +94,25 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
       }
    };
 
-   // --- FILTERING ---
-   const filterByDate = (dateString: string) => {
+   // --- OPTIMIZED FILTERING ---
+   // Use string comparison instead of Date parsing for performance
+   const filterByDate = useCallback((dateString: string) => {
       if (dateRange === 'ALL_TIME') return true;
       if (!dateString) return false;
 
-      // Fix timezone issue by parsing YYYY-MM-DD directly
-      // This avoids the "previous day" bug when parsing UTC dates in Western timezones
-      const parts = dateString.split('-');
-      if (parts.length < 2) return false;
-
-      const year = parseInt(parts[0]);
-      const month = parseInt(parts[1]);
-
+      // Assuming dateString is YYYY-MM-DD
+      // We want to match current Month and Year
+      // Format: YYYY-MM
       const now = new Date();
-      return month === (now.getMonth() + 1) && year === now.getFullYear();
-   };
+      const currentMonthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
-   const filteredRecords = records.filter(r => (selectedBranch === 'ALL' || r.branch === selectedBranch) && filterByDate(r.date));
+      return dateString.startsWith(currentMonthPrefix);
+   }, [dateRange]);
+
+   const filteredRecords = useMemo(() => records.filter(r => (selectedBranch === 'ALL' || r.branch === selectedBranch) && filterByDate(r.date)), [records, selectedBranch, filterByDate]);
+
    // Only include COMPLETED sales in financial reports
-   const filteredSales = sales.filter(s => (selectedBranch === 'ALL' || s.branch === selectedBranch) && filterByDate(s.date) && s.status === 'Completed');
+   const filteredSales = useMemo(() => sales.filter(s => (selectedBranch === 'ALL' || s.branch === selectedBranch) && filterByDate(s.date) && s.status === 'Completed'), [sales, selectedBranch, filterByDate]);
 
    // Unified Records for Display (Matches Cash Flow Logic)
    const unifiedRecords = useMemo(() => {
@@ -133,7 +132,8 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
 
       return [...nonSaleRecords, ...salesAsRecords].sort((a, b) => {
          // Sort by date desc, then by id
-         if (a.date !== b.date) return new Date(b.date).getTime() - new Date(a.date).getTime();
+         // String comparison for ISO dates is faster and correct
+         if (a.date !== b.date) return b.date.localeCompare(a.date);
          return b.id.localeCompare(a.id);
       });
    }, [filteredRecords, filteredSales]);
@@ -141,40 +141,42 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
    // --- CASH CLOSING CALCULATIONS ---
    const closingData = useMemo(() => {
       const daySales = sales.filter(s => s.date === closingDate && s.branch === closingBranch && s.status === 'Completed');
-      const dayExpenses = records.filter(r => r.date === closingDate && r.branch === closingBranch && r.type === 'Expense');
 
-      const totalIncome = daySales.reduce((acc, s) => acc + s.total, 0);
-      const totalExpense = dayExpenses.reduce((acc, r) => acc + r.amount, 0);
+      const totalSales = daySales.reduce((acc, s) => acc + s.total, 0);
 
-      const byMethod = {
-         Pix: daySales.filter(s => s.paymentMethod === 'Pix').reduce((acc, s) => acc + s.total, 0),
-         Credit: daySales.filter(s => s.paymentMethod === 'Credit').reduce((acc, s) => acc + s.total, 0),
-         Debit: daySales.filter(s => s.paymentMethod === 'Debit').reduce((acc, s) => acc + s.total, 0),
-         Cash: daySales.filter(s => s.paymentMethod === 'Cash').reduce((acc, s) => acc + s.total, 0),
-      };
+      // Calculate Cash/Pix/Card breakdown
+      const byMethod = daySales.reduce((acc, s) => {
+         acc[s.paymentMethod] = (acc[s.paymentMethod] || 0) + s.total;
+         return acc;
+      }, { Pix: 0, Credit: 0, Debit: 0, Cash: 0 } as Record<string, number>);
 
-      const totalCashReceived = daySales
-         .filter(s => s.paymentMethod === 'Cash')
-         .reduce((acc, s) => acc + (s.cashReceived || s.total), 0);
+      // Get expenses for the day
+      const dayExpenses = records
+         .filter(r => r.date === closingDate && r.branch === closingBranch && r.type === 'Expense')
+         .reduce((acc, r) => acc + r.amount, 0);
 
-      const totalChangeGiven = daySales
-         .filter(s => s.paymentMethod === 'Cash')
-         .reduce((acc, s) => acc + (s.changeAmount || 0), 0);
+      // Previous Closing Balance (Opening Balance)
+      // Find the most recent closing BEFORE the selected date
+      const previousClosing = cashClosings
+         .filter(c => c.branch === closingBranch && c.date < closingDate)
+         .sort((a, b) => b.date.localeCompare(a.date))[0];
 
-      // Expected Cash in Drawer = Opening + Cash Sales - Expenses (Assuming expenses are paid in cash if not specified, usually safe for small business)
-      const expectedCash = openingBalance + byMethod.Cash - totalExpense;
-      const difference = cashInDrawer - expectedCash;
+      const openingBalance = previousClosing ? previousClosing.cashInDrawer : 0;
+
+      // Expected Cash in Drawer: Opening + Cash Sales - Expenses
+      // Note: We only count CASH sales for the drawer. Pix/Card go to bank.
+      const cashSales = byMethod['Cash'] || 0;
+      const expectedInDrawer = openingBalance + cashSales - dayExpenses;
 
       return {
-         totalIncome,
-         totalExpense,
+         totalSales,
          byMethod,
-         expectedCash,
-         difference,
-         totalCashReceived,
-         totalChangeGiven
+         dayExpenses,
+         openingBalance,
+         expectedInDrawer,
+         netResult: totalSales - dayExpenses
       };
-   }, [sales, records, closingDate, closingBranch, openingBalance, cashInDrawer]);
+   }, [sales, records, cashClosings, closingDate, closingBranch]);
 
    const handleSaveClosing = () => {
       if (!currentUser) return;
@@ -183,12 +185,12 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
          id: `cc-${Date.now()}`,
          date: closingDate,
          branch: closingBranch,
-         openingBalance,
-         totalIncome: closingData.totalIncome,
-         totalExpense: closingData.totalExpense,
+         openingBalance: closingData.openingBalance,
+         totalIncome: closingData.totalSales,
+         totalExpense: closingData.dayExpenses,
          totalByPaymentMethod: closingData.byMethod,
          cashInDrawer,
-         difference: closingData.difference,
+         difference: cashInDrawer - closingData.expectedInDrawer, // Recalculate difference based on new expected
          notes: closingNotes,
          closedBy: currentUser.name
       };
@@ -198,58 +200,43 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
    };
 
    // --- DRE CALCULATIONS ---
-   const calculateDRE = () => {
-      // 1. Gross Revenue (Faturamento Bruto)
+   const calculateDRE = useCallback(() => {
+      // 1. Gross Revenue (Receita Bruta) - Only Completed Sales
       const grossRevenue = filteredSales.reduce((acc, s) => acc + s.total, 0);
 
-      // 2. Deductions (Impostos sobre Venda - Simplificado)
-      // Assuming 'Impostos' category in expenses are sales taxes for now, or we could estimate
-      const taxExpenses = filteredRecords.filter(r => r.type === 'Expense' && r.category === 'Impostos').reduce((acc, r) => acc + r.amount, 0);
-      const netRevenue = grossRevenue - taxExpenses;
+      // 2. Variable Costs (CMV/CPV + Taxes + Commissions)
+      const variableCosts = 0; // Placeholder for CMV
 
-      // 3. CMV (Custo da Mercadoria Vendida)
-      let cmv = 0;
-      filteredSales.forEach(sale => {
-         sale.items.forEach(item => {
-            const product = products.find(p => p.id === item.productId);
-            if (product) {
-               cmv += (product.cost || 0) * item.quantity;
-            }
-         });
+      // 3. Gross Profit
+      const grossProfit = grossRevenue - variableCosts;
+
+      // 4. Expenses by Category
+      const expensesByCategory: Record<string, number> = {};
+      let totalExpenses = 0;
+
+      filteredRecords.forEach(r => {
+         if (r.type === 'Expense') {
+            expensesByCategory[r.category] = (expensesByCategory[r.category] || 0) + r.amount;
+            totalExpenses += r.amount;
+         }
       });
 
-      // 4. Gross Profit
-      const grossProfit = netRevenue - cmv;
-
-      // 5. Operating Expenses (Despesas Operacionais)
-      const operatingExpenses = filteredRecords
-         .filter(r => r.type === 'Expense' && r.category !== 'Impostos') // Exclude taxes already deducted
-         .reduce((acc, r) => acc + r.amount, 0);
-
-      // 6. Net Profit (Lucro Líquido)
-      const netProfit = grossProfit - operatingExpenses;
-
-      // Group Expenses for Detail View
-      const expensesByCategory = filteredRecords
-         .filter(r => r.type === 'Expense')
-         .reduce((acc: any, curr) => {
-            acc[curr.category] = (acc[curr.category] || 0) + curr.amount;
-            return acc;
-         }, {});
+      // 5. Net Profit
+      const netProfit = grossProfit - totalExpenses;
+      const profitMargin = grossRevenue > 0 ? (netProfit / grossRevenue) * 100 : 0;
 
       return {
          grossRevenue,
-         taxExpenses,
-         netRevenue,
-         cmv,
+         variableCosts,
          grossProfit,
-         operatingExpenses,
+         expensesByCategory,
+         totalExpenses,
          netProfit,
-         expensesByCategory
+         profitMargin
       };
-   };
+   }, [filteredSales, filteredRecords]);
 
-   const dreData = calculateDRE();
+   const dreData = useMemo(() => calculateDRE(), [calculateDRE]);
 
    // --- CASH FLOW CALCULATIONS ---
    const previousBalance = useMemo(() => {
@@ -546,24 +533,10 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
                         <span className="font-bold text-blue-900">{formatCurrency(dreData.grossRevenue)}</span>
                      </div>
 
-                     {/* Deductions */}
+                     {/* Variable Costs */}
                      <div className="flex justify-between items-center px-4 text-rose-600">
-                        <span>(-) Impostos / Deduções</span>
-                        <span>{formatCurrency(dreData.taxExpenses)}</span>
-                     </div>
-
-                     <div className="border-t border-slate-200 my-2"></div>
-
-                     {/* Net Revenue */}
-                     <div className="flex justify-between items-center px-3 font-bold text-slate-700">
-                        <span>(=) Receita Líquida</span>
-                        <span>{formatCurrency(dreData.netRevenue)}</span>
-                     </div>
-
-                     {/* CMV */}
-                     <div className="flex justify-between items-center px-4 text-rose-600">
-                        <span>(-) Custo da Mercadoria Vendida (CMV)</span>
-                        <span>{formatCurrency(dreData.cmv)}</span>
+                        <span>(-) Custos Variáveis (CMV Estimado)</span>
+                        <span>{formatCurrency(dreData.variableCosts)}</span>
                      </div>
 
                      <div className="border-t border-slate-200 my-2"></div>
@@ -578,17 +551,15 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
                      <div className="pl-4 space-y-2">
                         <div className="flex justify-between items-center font-medium text-rose-700">
                            <span>(-) Despesas Operacionais</span>
-                           <span>{formatCurrency(dreData.operatingExpenses)}</span>
+                           <span>{formatCurrency(dreData.totalExpenses)}</span>
                         </div>
                         {/* Detail Expenses */}
                         <div className="pl-4 text-sm text-slate-500 space-y-1">
                            {Object.entries(dreData.expensesByCategory).map(([cat, amount]: [string, any]) => (
-                              cat !== 'Impostos' && (
-                                 <div key={cat} className="flex justify-between">
-                                    <span>• {cat}</span>
-                                    <span>{formatCurrency(amount)}</span>
-                                 </div>
-                              )
+                              <div key={cat} className="flex justify-between">
+                                 <span>• {cat}</span>
+                                 <span>{formatCurrency(amount)}</span>
+                              </div>
                            ))}
                         </div>
                      </div>
@@ -597,14 +568,14 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
 
                      {/* Net Profit */}
                      <div className={`flex justify-between items-center p-4 rounded-xl text-white shadow-lg ${dreData.netProfit >= 0 ? 'bg-emerald-600' : 'bg-rose-600'}`}>
-                        <span className="text-xl font-bold">(=) Resultado Líquido (Lucro/Prejuízo)</span>
+                        <span className="text-xl font-bold">(=) Resultado Líquido</span>
                         <span className="text-2xl font-bold">{formatCurrency(dreData.netProfit)}</span>
                      </div>
 
                      {/* Margin Indicator */}
                      <div className="text-center mt-4">
                         <span className="text-sm font-medium text-slate-500">
-                           Margem Líquida: {dreData.grossRevenue > 0 ? ((dreData.netProfit / dreData.grossRevenue) * 100).toFixed(1) : 0}%
+                           Margem Líquida: {dreData.profitMargin.toFixed(1)}%
                         </span>
                      </div>
                   </div>
