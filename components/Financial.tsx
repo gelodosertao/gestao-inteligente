@@ -323,8 +323,8 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
 
    return (
       <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 relative">
-         <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
-            <div className="flex items-center gap-3 w-full md:w-auto">
+         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+            <div className="flex items-center gap-3 w-full lg:w-auto">
                <button onClick={onBack} className="p-2 hover:bg-slate-200 rounded-full transition-colors shrink-0">
                   <ArrowLeft size={24} className="text-slate-600" />
                </button>
@@ -334,7 +334,7 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
                </div>
             </div>
 
-            <div className="flex flex-col md:flex-row gap-2 w-full xl:w-auto overflow-x-auto pb-2 md:pb-0">
+            <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
                {/* Branch Selector */}
                <div className="bg-white p-1 rounded-lg border border-slate-200 flex shrink-0">
                   <button onClick={() => setSelectedBranch('ALL')} className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${selectedBranch === 'ALL' ? 'bg-slate-800 text-white' : 'text-slate-500 hover:bg-slate-50'}`}>Geral</button>
