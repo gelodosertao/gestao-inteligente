@@ -675,7 +675,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                            </div>
                         )}
 
-                        <div className="flex-1 overflow-y-auto grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-3 pr-2 content-start">
+                        <div className="flex-1 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pr-2 content-start">
                            {filteredPosProducts.map(product => {
                               const stock = getProductStock(product);
                               const isWholesaleIce = product.category.includes('Gelo');

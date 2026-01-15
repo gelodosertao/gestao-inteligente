@@ -115,6 +115,29 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
    // Only include COMPLETED sales in financial reports
    const filteredSales = sales.filter(s => (selectedBranch === 'ALL' || s.branch === selectedBranch) && filterByDate(s.date) && s.status === 'Completed');
 
+   // Unified Records for Display (Matches Cash Flow Logic)
+   const unifiedRecords = useMemo(() => {
+      // Exclude only auto-generated Sales Income. Keep Expenses even if category is 'Vendas'.
+      const nonSaleRecords = filteredRecords.filter(r => !(r.category === 'Vendas' && r.type === 'Income'));
+
+      const salesAsRecords: FinancialRecord[] = filteredSales.map(sale => ({
+         id: `sale-${sale.id}`,
+         date: sale.date,
+         description: `Venda #${sale.id.slice(0, 8)} - ${sale.customerName}`,
+         amount: sale.total,
+         type: 'Income',
+         category: 'Vendas',
+         branch: sale.branch,
+         paymentMethod: sale.paymentMethod
+      }));
+
+      return [...nonSaleRecords, ...salesAsRecords].sort((a, b) => {
+         // Sort by date desc, then by id
+         if (a.date !== b.date) return new Date(b.date).getTime() - new Date(a.date).getTime();
+         return b.id.localeCompare(a.id);
+      });
+   }, [filteredRecords, filteredSales]);
+
    // --- CASH CLOSING CALCULATIONS ---
    const closingData = useMemo(() => {
       const daySales = sales.filter(s => s.date === closingDate && s.branch === closingBranch && s.status === 'Completed');
@@ -229,6 +252,42 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
    const dreData = calculateDRE();
 
    // --- CASH FLOW CALCULATIONS ---
+   const previousBalance = useMemo(() => {
+      if (dateRange === 'ALL_TIME') return 0;
+
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      const currentMonth = now.getMonth() + 1;
+
+      const isBeforeCurrentMonth = (dateString: string) => {
+         if (!dateString) return false;
+         const parts = dateString.split('-'); // YYYY-MM-DD
+         if (parts.length < 2) return false;
+         const year = parseInt(parts[0]);
+         const month = parseInt(parts[1]);
+
+         if (year < currentYear) return true;
+         if (year === currentYear && month < currentMonth) return true;
+         return false;
+      };
+
+      const prevSales = sales.filter(s => (selectedBranch === 'ALL' || s.branch === selectedBranch) && isBeforeCurrentMonth(s.date) && s.status === 'Completed');
+      const prevRecords = records.filter(r => (selectedBranch === 'ALL' || r.branch === selectedBranch) && isBeforeCurrentMonth(r.date));
+
+      const salesIncome = prevSales.reduce((acc, s) => acc + s.total, 0);
+
+      let recordsIncome = 0;
+      let recordsExpense = 0;
+
+      prevRecords.forEach(r => {
+         if (r.category === 'Vendas' && r.type === 'Income') return; // Skip auto-sales
+         if (r.type === 'Income') recordsIncome += r.amount;
+         else recordsExpense += r.amount;
+      });
+
+      return (salesIncome + recordsIncome) - recordsExpense;
+   }, [sales, records, dateRange, selectedBranch]);
+
    const calculateCashFlow = () => {
       // Combine Sales (Income) and Records (Income/Expense)
       const dailyMap = new Map<string, { income: number, expense: number, balance: number }>();
@@ -243,6 +302,10 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
 
       // Process Financial Records
       filteredRecords.forEach(record => {
+         // Skip 'Vendas' category ONLY if it's an Income (auto-generated from Sales)
+         // This allows Expenses categorized as 'Vendas' (e.g. commissions) to be counted
+         if (record.category === 'Vendas' && record.type === 'Income') return;
+
          const date = record.date;
          const current = dailyMap.get(date) || { income: 0, expense: 0, balance: 0 };
          if (record.type === 'Income') {
@@ -255,14 +318,14 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
 
       // Convert to Array and Sort
       const sortedDates = Array.from(dailyMap.keys()).sort();
-      let runningBalance = 0;
+      let runningBalance = previousBalance;
 
       return sortedDates.map(date => {
          const data = dailyMap.get(date)!;
          const dailyNet = data.income - data.expense;
          runningBalance += dailyNet;
          return {
-            date: date.slice(5), // MM-DD
+            date: date.slice(5).split('-').reverse().join('/'), // DD/MM
             fullDate: date,
             ...data,
             accumulated: runningBalance
@@ -271,7 +334,8 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
    };
 
    const cashFlowData = calculateCashFlow();
-   const currentBalance = cashFlowData.length > 0 ? cashFlowData[cashFlowData.length - 1].accumulated : 0;
+   // If no data in current period, show previous balance
+   const currentBalance = cashFlowData.length > 0 ? cashFlowData[cashFlowData.length - 1].accumulated : previousBalance;
 
    // Helper for currency
    const formatCurrency = (value: number) => {
@@ -345,66 +409,68 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
 
    return (
       <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 relative">
-         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <div className="flex items-center gap-3">
-               <button onClick={onBack} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
+         <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
+            <div className="flex items-center gap-3 w-full md:w-auto">
+               <button onClick={onBack} className="p-2 hover:bg-slate-200 rounded-full transition-colors shrink-0">
                   <ArrowLeft size={24} className="text-slate-600" />
                </button>
                <div>
-                  <h2 className="text-2xl font-bold text-slate-800">Gestão Financeira</h2>
-                  <p className="text-slate-500">Fluxo de caixa, DRE e controle de despesas.</p>
+                  <h2 className="text-xl md:text-2xl font-bold text-slate-800">Gestão Financeira</h2>
+                  <p className="text-xs md:text-sm text-slate-500">Fluxo de caixa, DRE e controle de despesas.</p>
                </div>
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex flex-col md:flex-row gap-2 w-full xl:w-auto overflow-x-auto pb-2 md:pb-0">
                {/* Branch Selector */}
-               <div className="bg-white p-1 rounded-lg border border-slate-200 flex">
+               <div className="bg-white p-1 rounded-lg border border-slate-200 flex shrink-0">
                   <button onClick={() => setSelectedBranch('ALL')} className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${selectedBranch === 'ALL' ? 'bg-slate-800 text-white' : 'text-slate-500 hover:bg-slate-50'}`}>Geral</button>
                   <button onClick={() => setSelectedBranch(Branch.MATRIZ)} className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${selectedBranch === Branch.MATRIZ ? 'bg-blue-600 text-white' : 'text-slate-500 hover:bg-slate-50'}`}>Matriz</button>
                   <button onClick={() => setSelectedBranch(Branch.FILIAL)} className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${selectedBranch === Branch.FILIAL ? 'bg-orange-500 text-white' : 'text-slate-500 hover:bg-slate-50'}`}>Filial</button>
                </div>
 
-               <button
-                  onClick={() => setShowAddModal(true)}
-                  className="bg-blue-800 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 shadow-lg shadow-blue-900/10 transition-colors"
-               >
-                  <Plus size={18} /> Lançar Despesa
-               </button>
+               <div className="flex gap-2 shrink-0">
+                  <button
+                     onClick={() => setShowAddModal(true)}
+                     className="bg-blue-800 hover:bg-blue-700 text-white px-3 py-2 rounded-lg font-bold flex items-center gap-2 shadow-lg shadow-blue-900/10 transition-colors text-xs md:text-sm whitespace-nowrap"
+                  >
+                     <Plus size={16} /> <span className="hidden sm:inline">Lançar</span> Despesa
+                  </button>
 
-               <button
-                  onClick={() => setShowCategoryModal(true)}
-                  className="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 shadow-lg shadow-slate-900/10 transition-colors"
-               >
-                  <Filter size={18} /> Categorias
-               </button>
+                  <button
+                     onClick={() => setShowCategoryModal(true)}
+                     className="bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded-lg font-bold flex items-center gap-2 shadow-lg shadow-slate-900/10 transition-colors text-xs md:text-sm whitespace-nowrap"
+                  >
+                     <Filter size={16} /> <span className="hidden sm:inline">Categorias</span>
+                  </button>
+               </div>
 
-               <div className="bg-white p-1 rounded-lg border border-slate-200 flex">
-                  <button onClick={() => setDateRange('THIS_MONTH')} className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${dateRange === 'THIS_MONTH' ? 'bg-slate-800 text-white' : 'text-slate-500 hover:bg-slate-50'}`}>Este Mês</button>
+               <div className="bg-white p-1 rounded-lg border border-slate-200 flex shrink-0">
+                  <button onClick={() => setDateRange('THIS_MONTH')} className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${dateRange === 'THIS_MONTH' ? 'bg-slate-800 text-white' : 'text-slate-500 hover:bg-slate-50'}`}>Mês</button>
                   <button onClick={() => setDateRange('ALL_TIME')} className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${dateRange === 'ALL_TIME' ? 'bg-slate-800 text-white' : 'text-slate-500 hover:bg-slate-50'}`}>Tudo</button>
                </div>
             </div>
          </div>
 
          {/* VIEW TOGGLE */}
-         <div className="flex justify-center">
-            <div className="bg-slate-200 p-1 rounded-xl flex">
+         <div className="flex justify-center overflow-x-auto pb-2 md:pb-0">
+            <div className="bg-slate-200 p-1 rounded-xl flex shrink-0">
                <button
                   onClick={() => setViewMode('CASH_FLOW')}
-                  className={`px-6 py-2 rounded-lg font-bold text-sm flex items-center gap-2 transition-all ${viewMode === 'CASH_FLOW' ? 'bg-white text-blue-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                  className={`px-4 md:px-6 py-2 rounded-lg font-bold text-xs md:text-sm flex items-center gap-2 transition-all whitespace-nowrap ${viewMode === 'CASH_FLOW' ? 'bg-white text-blue-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                >
-                  <LineChart size={18} /> Fluxo de Caixa
+                  <LineChart size={16} /> Fluxo de Caixa
                </button>
                <button
                   onClick={() => setViewMode('DRE')}
-                  className={`px-6 py-2 rounded-lg font-bold text-sm flex items-center gap-2 transition-all ${viewMode === 'DRE' ? 'bg-white text-blue-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                  className={`px-4 md:px-6 py-2 rounded-lg font-bold text-xs md:text-sm flex items-center gap-2 transition-all whitespace-nowrap ${viewMode === 'DRE' ? 'bg-white text-blue-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                >
-                  <BarChart3 size={18} /> DRE Gerencial
+                  <BarChart3 size={16} /> DRE Gerencial
                </button>
                <button
                   onClick={() => setViewMode('CASH_CLOSING')}
-                  className={`px-6 py-2 rounded-lg font-bold text-sm flex items-center gap-2 transition-all ${viewMode === 'CASH_CLOSING' ? 'bg-white text-blue-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                  className={`px-4 md:px-6 py-2 rounded-lg font-bold text-xs md:text-sm flex items-center gap-2 transition-all whitespace-nowrap ${viewMode === 'CASH_CLOSING' ? 'bg-white text-blue-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                >
-                  <Lock size={18} /> Fechamento de Caixa
+                  <Lock size={16} /> Fechamento
                </button>
             </div>
          </div>
@@ -453,45 +519,50 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
                      <h3 className="font-bold text-slate-700">Movimentações Recentes</h3>
                   </div>
                   <div className="divide-y divide-slate-100 max-h-[400px] overflow-y-auto">
-                     {filteredRecords.map(record => (
-                        <div key={record.id} className="p-4 flex justify-between items-center hover:bg-slate-50 transition-colors group">
-                           <div className="flex items-center gap-4">
-                              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${record.type === 'Income' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
-                                 {record.type === 'Income' ? <ArrowUpCircle size={20} /> : <ArrowDownCircle size={20} />}
-                              </div>
-                              <div>
-                                 <p className="font-bold text-slate-800">{record.description}</p>
-                                 <div className="flex gap-2 items-center">
-                                    <p className="text-xs text-slate-500 flex items-center gap-1"><Calendar size={10} /> {record.date}</p>
-                                    <span className="text-xs px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">{record.category}</span>
-                                    {record.branch && (
-                                       <span className={`text-[10px] px-1.5 py-0.5 rounded border ${record.branch === Branch.MATRIZ ? 'bg-blue-50 text-blue-700 border-blue-100' : 'bg-orange-50 text-orange-700 border-orange-100'}`}>
-                                          {record.branch === Branch.MATRIZ ? 'Matriz' : 'Filial'}
-                                       </span>
-                                    )}
-                                    {record.paymentMethod && (
-                                       <span className="text-[10px] px-1.5 py-0.5 rounded border bg-slate-50 text-slate-600 border-slate-200">
-                                          {record.paymentMethod === 'Credit' ? 'Crédito' : record.paymentMethod === 'Debit' ? 'Débito' : record.paymentMethod === 'Cash' ? 'Dinheiro' : record.paymentMethod}
-                                       </span>
-                                    )}
+                     {unifiedRecords.map(record => {
+                        const isSaleRecord = record.id.startsWith('sale-');
+                        return (
+                           <div key={record.id} className="p-4 flex justify-between items-center hover:bg-slate-50 transition-colors group">
+                              <div className="flex items-center gap-4">
+                                 <div className={`w-10 h-10 rounded-full flex items-center justify-center ${record.type === 'Income' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
+                                    {record.type === 'Income' ? <ArrowUpCircle size={20} /> : <ArrowDownCircle size={20} />}
+                                 </div>
+                                 <div>
+                                    <p className="font-bold text-slate-800">{record.description}</p>
+                                    <div className="flex gap-2 items-center">
+                                       <p className="text-xs text-slate-500 flex items-center gap-1"><Calendar size={10} /> {record.date}</p>
+                                       <span className="text-xs px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">{record.category}</span>
+                                       {record.branch && (
+                                          <span className={`text-[10px] px-1.5 py-0.5 rounded border ${record.branch === Branch.MATRIZ ? 'bg-blue-50 text-blue-700 border-blue-100' : 'bg-orange-50 text-orange-700 border-orange-100'}`}>
+                                             {record.branch === Branch.MATRIZ ? 'Matriz' : 'Filial'}
+                                          </span>
+                                       )}
+                                       {record.paymentMethod && (
+                                          <span className="text-[10px] px-1.5 py-0.5 rounded border bg-slate-50 text-slate-600 border-slate-200">
+                                             {record.paymentMethod === 'Credit' ? 'Crédito' : record.paymentMethod === 'Debit' ? 'Débito' : record.paymentMethod === 'Cash' ? 'Dinheiro' : record.paymentMethod}
+                                          </span>
+                                       )}
+                                    </div>
                                  </div>
                               </div>
-                           </div>
-                           <div className="flex items-center gap-4">
-                              <span className={`font-bold ${record.type === 'Income' ? 'text-emerald-600' : 'text-rose-600'}`}>
-                                 {record.type === 'Income' ? '+' : '-'} {formatCurrency(record.amount)}
-                              </span>
-                              <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                 <button onClick={() => handleEditRecord(record)} className="text-slate-400 hover:text-blue-600 p-1">
-                                    <Building2 size={16} />
-                                 </button>
-                                 <button onClick={() => onDeleteRecord(record.id)} className="text-slate-400 hover:text-red-600 p-1">
-                                    <X size={16} />
-                                 </button>
+                              <div className="flex items-center gap-4">
+                                 <span className={`font-bold ${record.type === 'Income' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                    {record.type === 'Income' ? '+' : '-'} {formatCurrency(record.amount)}
+                                 </span>
+                                 {!isSaleRecord && (
+                                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                       <button onClick={() => handleEditRecord(record)} className="text-slate-400 hover:text-blue-600 p-1">
+                                          <Building2 size={16} />
+                                       </button>
+                                       <button onClick={() => onDeleteRecord(record.id)} className="text-slate-400 hover:text-red-600 p-1">
+                                          <X size={16} />
+                                       </button>
+                                    </div>
+                                 )}
                               </div>
                            </div>
-                        </div>
-                     ))}
+                        );
+                     })}
                   </div>
                </div>
             </div>

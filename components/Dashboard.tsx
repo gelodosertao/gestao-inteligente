@@ -277,7 +277,7 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <Card
           title="Receita"
           value={formatCurrency(currentPeriodRevenue)}
