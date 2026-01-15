@@ -22,7 +22,7 @@ interface FinancialProps {
 const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClosings, onAddRecord, onUpdateRecord, onDeleteRecord, onAddCashClosing, onDeleteCashClosing, currentUser, onBack }) => {
 
    const [showAddModal, setShowAddModal] = useState(false);
-   const [viewMode, setViewMode] = useState<'CASH_FLOW' | 'DRE' | 'CASH_CLOSING'>('CASH_FLOW');
+   const [viewMode, setViewMode] = useState<'MOVEMENTS' | 'DRE' | 'CASH_CLOSING'>('DRE');
    const [selectedBranch, setSelectedBranch] = useState<'ALL' | Branch>('ALL');
    const [dateRange, setDateRange] = useState('THIS_MONTH'); // Simplified for now
 
@@ -455,16 +455,16 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
          <div className="flex justify-center overflow-x-auto pb-2 md:pb-0">
             <div className="bg-slate-200 p-1 rounded-xl flex shrink-0">
                <button
-                  onClick={() => setViewMode('CASH_FLOW')}
-                  className={`px-4 md:px-6 py-2 rounded-lg font-bold text-xs md:text-sm flex items-center gap-2 transition-all whitespace-nowrap ${viewMode === 'CASH_FLOW' ? 'bg-white text-blue-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-               >
-                  <LineChart size={16} /> Fluxo de Caixa
-               </button>
-               <button
                   onClick={() => setViewMode('DRE')}
                   className={`px-4 md:px-6 py-2 rounded-lg font-bold text-xs md:text-sm flex items-center gap-2 transition-all whitespace-nowrap ${viewMode === 'DRE' ? 'bg-white text-blue-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                >
                   <BarChart3 size={16} /> DRE Gerencial
+               </button>
+               <button
+                  onClick={() => setViewMode('MOVEMENTS')}
+                  className={`px-4 md:px-6 py-2 rounded-lg font-bold text-xs md:text-sm flex items-center gap-2 transition-all whitespace-nowrap ${viewMode === 'MOVEMENTS' ? 'bg-white text-blue-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+               >
+                  <LineChart size={16} /> Movimentações
                </button>
                <button
                   onClick={() => setViewMode('CASH_CLOSING')}
@@ -475,44 +475,8 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
             </div>
          </div>
 
-         {viewMode === 'CASH_FLOW' ? (
+         {viewMode === 'MOVEMENTS' ? (
             <div className="space-y-6 animate-in fade-in">
-               {/* Summary Cards */}
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                     <p className="text-slate-500 font-medium text-sm">Saldo Atual</p>
-                     <h3 className={`text-3xl font-bold mt-1 ${currentBalance >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                        {formatCurrency(currentBalance)}
-                     </h3>
-                  </div>
-                  <div className="bg-rose-50 p-6 rounded-2xl border border-rose-100">
-                     <p className="text-rose-700 font-medium text-sm">Saídas (Período)</p>
-                     <h3 className="text-2xl font-bold mt-1 text-rose-800">
-                        {formatCurrency(cashFlowData.reduce((acc, d) => acc + d.expense, 0))}
-                     </h3>
-                  </div>
-               </div>
-
-               {/* Chart */}
-               <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 h-80">
-                  <h4 className="font-bold text-slate-700 mb-4">Evolução do Saldo</h4>
-                  <ResponsiveContainer width="100%" height="100%">
-                     <AreaChart data={cashFlowData}>
-                        <defs>
-                           <linearGradient id="colorBalance" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1} />
-                              <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                           </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                        <XAxis dataKey="date" fontSize={12} />
-                        <YAxis fontSize={12} />
-                        <RechartsTooltip formatter={(value: number) => formatCurrency(value)} />
-                        <Area type="monotone" dataKey="accumulated" stroke="#3b82f6" fillOpacity={1} fill="url(#colorBalance)" name="Saldo Acumulado" strokeWidth={2} />
-                     </AreaChart>
-                  </ResponsiveContainer>
-               </div>
-
                {/* Transaction List */}
                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                   <div className="p-4 border-b border-slate-100 bg-slate-50">
