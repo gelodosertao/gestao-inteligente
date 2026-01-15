@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { FinancialRecord, Branch, Sale, Product, CategoryItem, CashClosing, User } from '../types';
 import { dbCategories } from '../services/db';
 import { ArrowUpCircle, ArrowDownCircle, X, Plus, Calendar, DollarSign, Repeat, ArrowLeft, Building2, BarChart3, LineChart, Filter, Trash2, Lock, CheckCircle, AlertTriangle } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 import { getTodayDate } from '../services/utils';
 
 interface FinancialProps {
@@ -148,12 +148,16 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
       const byMethod = daySales.reduce((acc, s) => {
          acc[s.paymentMethod] = (acc[s.paymentMethod] || 0) + s.total;
          return acc;
-      }, { Pix: 0, Credit: 0, Debit: 0, Cash: 0 } as Record<string, number>);
+      }, { Pix: 0, Credit: 0, Debit: 0, Cash: 0 } as { Pix: number; Credit: number; Debit: number; Cash: number; });
 
       // Get expenses for the day
       const dayExpenses = records
          .filter(r => r.date === closingDate && r.branch === closingBranch && r.type === 'Expense')
          .reduce((acc, r) => acc + r.amount, 0);
+
+      // Calculate Cash Details (Received vs Change)
+      const totalCashReceived = daySales.reduce((acc, s) => acc + (s.cashReceived || 0), 0);
+      const totalChangeGiven = daySales.reduce((acc, s) => acc + (s.changeAmount || 0), 0);
 
       // Previous Closing Balance (Opening Balance)
       // Find the most recent closing BEFORE the selected date
@@ -172,6 +176,9 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
          totalSales,
          byMethod,
          dayExpenses,
+         totalExpense: dayExpenses, // Alias for compatibility
+         totalCashReceived,
+         totalChangeGiven,
          openingBalance,
          expectedInDrawer,
          netResult: totalSales - dayExpenses
@@ -238,91 +245,9 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
 
    const dreData = useMemo(() => calculateDRE(), [calculateDRE]);
 
-   // --- CASH FLOW CALCULATIONS ---
-   const previousBalance = useMemo(() => {
-      if (dateRange === 'ALL_TIME') return 0;
-
-      const now = new Date();
-      const currentYear = now.getFullYear();
-      const currentMonth = now.getMonth() + 1;
-
-      const isBeforeCurrentMonth = (dateString: string) => {
-         if (!dateString) return false;
-         const parts = dateString.split('-'); // YYYY-MM-DD
-         if (parts.length < 2) return false;
-         const year = parseInt(parts[0]);
-         const month = parseInt(parts[1]);
-
-         if (year < currentYear) return true;
-         if (year === currentYear && month < currentMonth) return true;
-         return false;
-      };
-
-      const prevSales = sales.filter(s => (selectedBranch === 'ALL' || s.branch === selectedBranch) && isBeforeCurrentMonth(s.date) && s.status === 'Completed');
-      const prevRecords = records.filter(r => (selectedBranch === 'ALL' || r.branch === selectedBranch) && isBeforeCurrentMonth(r.date));
-
-      const salesIncome = prevSales.reduce((acc, s) => acc + s.total, 0);
-
-      let recordsIncome = 0;
-      let recordsExpense = 0;
-
-      prevRecords.forEach(r => {
-         if (r.category === 'Vendas' && r.type === 'Income') return; // Skip auto-sales
-         if (r.type === 'Income') recordsIncome += r.amount;
-         else recordsExpense += r.amount;
-      });
-
-      return (salesIncome + recordsIncome) - recordsExpense;
-   }, [sales, records, dateRange, selectedBranch]);
-
-   const calculateCashFlow = () => {
-      // Combine Sales (Income) and Records (Income/Expense)
-      const dailyMap = new Map<string, { income: number, expense: number, balance: number }>();
-
-      // Process Sales as Income
-      filteredSales.forEach(sale => {
-         const date = sale.date; // YYYY-MM-DD
-         const current = dailyMap.get(date) || { income: 0, expense: 0, balance: 0 };
-         current.income += sale.total;
-         dailyMap.set(date, current);
-      });
-
-      // Process Financial Records
-      filteredRecords.forEach(record => {
-         // Skip 'Vendas' category ONLY if it's an Income (auto-generated from Sales)
-         // This allows Expenses categorized as 'Vendas' (e.g. commissions) to be counted
-         if (record.category === 'Vendas' && record.type === 'Income') return;
-
-         const date = record.date;
-         const current = dailyMap.get(date) || { income: 0, expense: 0, balance: 0 };
-         if (record.type === 'Income') {
-            current.income += record.amount;
-         } else {
-            current.expense += record.amount;
-         }
-         dailyMap.set(date, current);
-      });
-
-      // Convert to Array and Sort
-      const sortedDates = Array.from(dailyMap.keys()).sort();
-      let runningBalance = previousBalance;
-
-      return sortedDates.map(date => {
-         const data = dailyMap.get(date)!;
-         const dailyNet = data.income - data.expense;
-         runningBalance += dailyNet;
-         return {
-            date: date.slice(5).split('-').reverse().join('/'), // DD/MM
-            fullDate: date,
-            ...data,
-            accumulated: runningBalance
-         };
-      });
-   };
-
-   const cashFlowData = calculateCashFlow();
-   // If no data in current period, show previous balance
-   const currentBalance = cashFlowData.length > 0 ? cashFlowData[cashFlowData.length - 1].accumulated : previousBalance;
+   // --- CASH FLOW CALCULATIONS REMOVED ---
+   // The Cash Flow view has been removed as per user request.
+   // Keeping DRE and Movements only.
 
    // Helper for currency
    const formatCurrency = (value: number) => {
@@ -462,7 +387,7 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
             </div>
          </div>
 
-         {viewMode === 'MOVEMENTS' ? (
+         {viewMode === 'MOVEMENTS' && (
             <div className="space-y-6 animate-in fade-in">
                {/* Transaction List */}
                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
@@ -517,7 +442,9 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
                   </div>
                </div>
             </div>
-         ) : (
+         )}
+
+         {viewMode === 'DRE' && (
             <div className="space-y-6 animate-in fade-in">
                {/* DRE View */}
                <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 max-w-4xl mx-auto">
