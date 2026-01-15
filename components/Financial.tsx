@@ -120,10 +120,10 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
       const nonSaleRecords = filteredRecords.filter(r => !(r.category === 'Vendas' && r.type === 'Income'));
 
       const salesAsRecords: FinancialRecord[] = filteredSales.map(sale => ({
-         id: `sale-${sale.id}`,
-         date: sale.date,
-         description: `Venda #${sale.id.slice(0, 8)} - ${sale.customerName}`,
-         amount: sale.total,
+         id: `sale-${sale.id || Math.random()}`,
+         date: sale.date || getTodayDate(),
+         description: `Venda #${(sale.id || '').slice(0, 8)} - ${sale.customerName || 'Cliente'}`,
+         amount: sale.total || 0,
          type: 'Income',
          category: 'Vendas',
          branch: sale.branch,
@@ -133,8 +133,10 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
       return [...nonSaleRecords, ...salesAsRecords].sort((a, b) => {
          // Sort by date desc, then by id
          // String comparison for ISO dates is faster and correct
-         if (a.date !== b.date) return b.date.localeCompare(a.date);
-         return b.id.localeCompare(a.id);
+         const dateA = a.date || '';
+         const dateB = b.date || '';
+         if (dateA !== dateB) return dateB.localeCompare(dateA);
+         return (b.id || '').localeCompare(a.id || '');
       });
    }, [filteredRecords, filteredSales]);
 

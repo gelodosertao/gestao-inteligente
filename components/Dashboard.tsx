@@ -124,6 +124,8 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
     return { currentPeriodSales, currentPeriodRevenue, currentPeriodPending, currentPeriodExpenses, currentPeriodProfit };
   }, [filteredSales, filteredFinancials, periodStart, periodEnd]);
 
+  const { currentPeriodSales, currentPeriodRevenue, currentPeriodPending, currentPeriodExpenses, currentPeriodProfit } = periodData;
+
   // Previous Period Data (for trends)
   const prevPeriodData = useMemo(() => {
     const prevPeriodSalesRaw = sales.filter(s => (selectedBranch === 'ALL' || s.branch === selectedBranch) && isInRange(s.date, prevStart, prevEnd));
@@ -149,9 +151,10 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
 
   // Stock Data - Dynamic based on Branch
   const stockData = useMemo(() => products.slice(0, 6).map(p => {
-    const item: any = { name: p.name.split(' ')[0] + ' ' + (p.name.split(' ')[1] || '') };
-    if (selectedBranch === 'ALL' || selectedBranch === Branch.MATRIZ) item.Matriz = p.stockMatriz;
-    if (selectedBranch === 'ALL' || selectedBranch === Branch.FILIAL) item.Filial = p.stockFilial;
+    const safeName = p.name || 'Produto Sem Nome';
+    const item: any = { name: safeName.split(' ')[0] + ' ' + (safeName.split(' ')[1] || '') };
+    if (selectedBranch === 'ALL' || selectedBranch === Branch.MATRIZ) item.Matriz = p.stockMatriz || 0;
+    if (selectedBranch === 'ALL' || selectedBranch === Branch.FILIAL) item.Filial = p.stockFilial || 0;
     return item;
   }), [products, selectedBranch]);
 
@@ -159,13 +162,14 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
   // Default Dashboard shows last 30 days or current month
   const revenueData = useMemo(() => filteredSales
     .filter(s => {
+      if (!s.date) return false;
       if (dateRange === 'THIS_MONTH') return isSameMonth(s.date, currentMonth, currentYear);
       if (dateRange === 'LAST_MONTH') return isSameMonth(s.date, lastMonth, lastMonthYear);
       return s.date.startsWith(currentYear.toString());
     })
     .map(s => ({
-      date: s.date.slice(5), // mm-dd
-      amount: s.total
+      date: s.date ? s.date.slice(5) : '00-00', // mm-dd
+      amount: s.total || 0
     })).reduce((acc: any[], curr) => {
       const found = acc.find(a => a.date === curr.date);
       if (found) found.amount += curr.amount;
