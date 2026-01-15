@@ -97,13 +97,23 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
    // --- FILTERING ---
    const filterByDate = (dateString: string) => {
       if (dateRange === 'ALL_TIME') return true;
-      const date = new Date(dateString);
+      if (!dateString) return false;
+
+      // Fix timezone issue by parsing YYYY-MM-DD directly
+      // This avoids the "previous day" bug when parsing UTC dates in Western timezones
+      const parts = dateString.split('-');
+      if (parts.length < 2) return false;
+
+      const year = parseInt(parts[0]);
+      const month = parseInt(parts[1]);
+
       const now = new Date();
-      return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+      return month === (now.getMonth() + 1) && year === now.getFullYear();
    };
 
    const filteredRecords = records.filter(r => (selectedBranch === 'ALL' || r.branch === selectedBranch) && filterByDate(r.date));
-   const filteredSales = sales.filter(s => (selectedBranch === 'ALL' || s.branch === selectedBranch) && filterByDate(s.date));
+   // Only include COMPLETED sales in financial reports
+   const filteredSales = sales.filter(s => (selectedBranch === 'ALL' || s.branch === selectedBranch) && filterByDate(s.date) && s.status === 'Completed');
 
    // --- CASH CLOSING CALCULATIONS ---
    const closingData = useMemo(() => {
@@ -669,7 +679,7 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
                                  <div className="flex justify-between items-start mb-2">
                                     <div>
                                        <p className="font-bold text-slate-800 flex items-center gap-2">
-                                          {new Date(closing.date).toLocaleDateString()}
+                                          {closing.date.split('-').reverse().join('/')}
                                           <span className={`text-[10px] px-1.5 py-0.5 rounded border ${closing.branch === Branch.MATRIZ ? 'bg-blue-50 text-blue-700 border-blue-100' : 'bg-orange-50 text-orange-700 border-orange-100'}`}>
                                              {closing.branch === Branch.MATRIZ ? 'Matriz' : 'Filial'}
                                           </span>
