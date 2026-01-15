@@ -452,6 +452,7 @@ const App: React.FC = () => {
   };
 
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // If viewing Online Menu, bypass login
   if (currentView === 'ONLINE_MENU') {
@@ -464,16 +465,32 @@ const App: React.FC = () => {
 
   return (
     <div className="flex min-h-screen bg-slate-50 text-slate-900 font-sans">
+      {/* Mobile Header */}
+      <div className="md:hidden fixed top-0 left-0 right-0 h-16 bg-blue-900 z-40 flex items-center px-4 shadow-md">
+        <button
+          onClick={() => setIsMobileMenuOpen(true)}
+          className="text-white p-2 hover:bg-blue-800 rounded-lg"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+        </button>
+        <span className="ml-4 text-white font-bold text-lg">Gelo do Sertão</span>
+      </div>
+
       <AppSidebar
         currentView={currentView}
-        setView={setCurrentView}
+        setView={(view) => {
+          setCurrentView(view);
+          setIsMobileMenuOpen(false); // Close mobile menu on navigate
+        }}
         currentUser={currentUser}
         onLogout={handleLogout}
         isCollapsed={isSidebarCollapsed}
         toggleSidebar={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+        isMobileMenuOpen={isMobileMenuOpen}
+        closeMobileMenu={() => setIsMobileMenuOpen(false)}
       />
 
-      <main className={`flex-1 transition-all duration-300 mb-20 md:mb-0 p-4 lg:p-8 ${isSidebarCollapsed ? 'md:ml-20' : 'md:ml-20 lg:ml-64'}`}>
+      <main className={`flex-1 transition-all duration-300 pt-20 px-4 pb-4 md:p-4 lg:p-8 ${isSidebarCollapsed ? 'md:ml-20' : 'md:ml-20 lg:ml-64'}`}>
         <div className="max-w-7xl mx-auto h-full">
           {renderContent()}
         </div>

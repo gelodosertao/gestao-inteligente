@@ -9,9 +9,11 @@ interface AppSidebarProps {
   onLogout: () => void;
   isCollapsed: boolean;
   toggleSidebar: () => void;
+  isMobileMenuOpen?: boolean;
+  closeMobileMenu?: () => void;
 }
 
-const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, setView, currentUser, onLogout, isCollapsed, toggleSidebar }) => {
+const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, setView, currentUser, onLogout, isCollapsed, toggleSidebar, isMobileMenuOpen, closeMobileMenu }) => {
   // Define menu structure based on roles
   const allMenuItems = [
     { id: 'DASHBOARD', label: 'Dashboard', icon: LayoutDashboard, roles: ['ADMIN'] },
@@ -29,8 +31,22 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, setView, currentUs
 
   return (
     <>
-      {/* DESKTOP SIDEBAR */}
-      <div className={`hidden md:flex flex-col h-screen fixed left-0 top-0 z-50 transition-all duration-300 shadow-xl border-r border-blue-800 bg-blue-900 text-white ${isCollapsed ? 'w-20' : 'w-20 lg:w-64'}`}>
+      {/* MOBILE BACKDROP */}
+      {isMobileMenuOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 md:hidden backdrop-blur-sm animate-in fade-in duration-200"
+          onClick={closeMobileMenu}
+        />
+      )}
+
+      {/* SIDEBAR (Desktop & Mobile Drawer) */}
+      <div className={`
+        fixed left-0 top-0 z-50 h-screen flex flex-col 
+        bg-blue-900 text-white shadow-xl border-r border-blue-800
+        transition-all duration-300 ease-in-out
+        ${isMobileMenuOpen ? 'translate-x-0 w-64' : '-translate-x-full md:translate-x-0'}
+        ${isCollapsed ? 'md:w-20' : 'md:w-64'}
+      `}>
         <div className="p-4 flex flex-col items-center justify-center border-b border-blue-800 h-28 relative overflow-hidden shrink-0">
           {/* Logo Image */}
           <div className="relative z-10 flex flex-col items-center select-none">
@@ -43,7 +59,7 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, setView, currentUs
           {/* Toggle Button (Desktop Only) */}
           <button
             onClick={toggleSidebar}
-            className="hidden lg:flex absolute bottom-2 right-2 text-blue-300 hover:text-white bg-blue-950/50 p-1 rounded-full transition-colors"
+            className="hidden md:flex absolute bottom-2 right-2 text-blue-300 hover:text-white bg-blue-950/50 p-1 rounded-full transition-colors"
             title={isCollapsed ? "Expandir Menu" : "Recolher Menu"}
           >
             {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
@@ -57,17 +73,18 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, setView, currentUs
               <button
                 key={item.id}
                 onClick={() => setView(item.id as ViewState)}
-                className={`w-full flex items-center justify-center lg:justify-start gap-3 p-3 rounded-xl transition-all duration-200 group relative
+                className={`w-full flex items-center justify-start gap-3 p-3 rounded-xl transition-all duration-200 group relative
                   ${isActive
                     ? 'bg-orange-500 text-white shadow-lg shadow-orange-900/40'
                     : 'text-blue-200 hover:bg-blue-800 hover:text-white'
                   }
+                  ${isCollapsed ? 'md:justify-center' : ''}
                 `}
                 title={isCollapsed ? item.label : ''}
               >
                 <item.icon size={20} className={`shrink-0 ${isActive ? 'text-white' : 'text-blue-300 group-hover:text-white'}`} />
-                <span className={`hidden font-medium whitespace-nowrap ${!isCollapsed ? 'lg:block' : ''}`}>{item.label}</span>
-                {isActive && <div className={`hidden absolute right-3 w-1.5 h-1.5 rounded-full bg-white animate-pulse ${!isCollapsed ? 'lg:block' : ''}`} />}
+                <span className={`font-medium whitespace-nowrap ${isCollapsed ? 'md:hidden' : 'block'}`}>{item.label}</span>
+                {isActive && <div className={`absolute right-3 w-1.5 h-1.5 rounded-full bg-white animate-pulse ${isCollapsed ? 'md:hidden' : 'block'}`} />}
               </button>
             );
           })}
@@ -77,15 +94,18 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, setView, currentUs
           {currentUser.role === 'ADMIN' && (
             <button
               onClick={() => setView('SETTINGS')}
-              className={`w-full flex items-center justify-center lg:justify-start gap-3 p-2 rounded-lg transition-colors ${currentView === 'SETTINGS' ? 'bg-blue-800 text-orange-400' : 'text-blue-300 hover:text-white hover:bg-blue-800'}`}
+              className={`w-full flex items-center justify-start gap-3 p-2 rounded-lg transition-colors 
+                ${currentView === 'SETTINGS' ? 'bg-blue-800 text-orange-400' : 'text-blue-300 hover:text-white hover:bg-blue-800'}
+                ${isCollapsed ? 'md:justify-center' : ''}
+              `}
               title={isCollapsed ? "Configurações" : ''}
             >
               <Settings size={20} className="shrink-0" />
-              <span className={`hidden text-sm font-medium whitespace-nowrap ${!isCollapsed ? 'lg:block' : ''}`}>Configurações</span>
+              <span className={`text-sm font-medium whitespace-nowrap ${isCollapsed ? 'md:hidden' : 'block'}`}>Configurações</span>
             </button>
           )}
 
-          <div className={`hidden items-center gap-3 pt-2 ${!isCollapsed ? 'lg:flex' : ''}`}>
+          <div className={`flex items-center gap-3 pt-2 ${isCollapsed ? 'md:hidden' : ''}`}>
             <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-orange-400 to-orange-600 flex items-center justify-center font-bold text-white shadow-sm border-2 border-blue-800 shrink-0">
               {currentUser.avatarInitials}
             </div>
@@ -100,39 +120,12 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, setView, currentUs
             </button>
           </div>
 
-          <div className={`flex justify-center pt-2 ${!isCollapsed ? 'lg:hidden' : ''}`}>
+          {/* Collapsed User Icon (Desktop Only) */}
+          <div className={`hidden ${isCollapsed ? 'md:flex' : ''} justify-center pt-2`}>
             <button onClick={onLogout} className="text-blue-300 hover:text-rose-400" title="Sair">
               <LogOut size={20} />
             </button>
           </div>
-        </div>
-      </div>
-
-      {/* MOBILE BOTTOM NAVIGATION */}
-      <div className="md:hidden fixed bottom-0 left-0 w-full bg-blue-900 text-white z-50 border-t border-blue-800 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] pb-safe">
-        <div className="flex justify-around items-center p-2">
-          {visibleItems.slice(0, 5).map((item) => { // Show max 5 items on mobile to fit
-            const isActive = currentView === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => setView(item.id as ViewState)}
-                className={`flex flex-col items-center justify-center p-2 rounded-lg transition-all
-                   ${isActive ? 'text-orange-400' : 'text-blue-300'}
-                 `}
-              >
-                <item.icon size={24} strokeWidth={isActive ? 2.5 : 2} />
-                <span className="text-[10px] mt-1 font-medium">{item.label}</span>
-              </button>
-            );
-          })}
-          <button
-            onClick={() => setView('SETTINGS')}
-            className={`flex flex-col items-center justify-center p-2 rounded-lg transition-all ${currentView === 'SETTINGS' ? 'text-orange-400' : 'text-blue-300'}`}
-          >
-            <Settings size={24} />
-            <span className="text-[10px] mt-1 font-medium">Ajustes</span>
-          </button>
         </div>
       </div>
     </>
