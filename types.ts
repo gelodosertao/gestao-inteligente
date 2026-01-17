@@ -105,7 +105,22 @@ export interface User {
   avatarInitials: string;
 }
 
-export type ViewState = 'DASHBOARD' | 'INVENTORY' | 'SALES' | 'FINANCIAL' | 'AI_INSIGHTS' | 'SETTINGS' | 'CUSTOMERS' | 'PRICING' | 'ONLINE_MENU' | 'MENU_CONFIG' | 'PRODUCTION';
+export type ViewState = 'DASHBOARD' | 'INVENTORY' | 'SALES' | 'FINANCIAL' | 'AI_INSIGHTS' | 'SETTINGS' | 'CUSTOMERS' | 'PRICING' | 'ONLINE_MENU' | 'MENU_CONFIG' | 'PRODUCTION' | 'ORDER_CENTER';
+
+export interface Order {
+  id: string;
+  date: string;
+  customerName: string;
+  customerPhone?: string;
+  address?: string;
+  deliveryMethod: 'DELIVERY' | 'PICKUP';
+  paymentMethod: 'PIX' | 'CARD' | 'CASH';
+  items: SaleItem[];
+  total: number;
+  status: 'PENDING' | 'PREPARING' | 'READY' | 'DELIVERED' | 'CANCELLED';
+  branch: Branch;
+  createdAt: number;
+}
 
 export interface Customer {
   id: string;

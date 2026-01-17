@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { Product, StoreSettings, Sale, FinancialRecord, Customer, StockMovement, Branch, Category, ProductionRecord, Shift, User, Role, CategoryItem, CashClosing } from '../types';
+import { Product, StoreSettings, Sale, FinancialRecord, Customer, StockMovement, Branch, Category, ProductionRecord, Shift, User, Role, CategoryItem, CashClosing, Order } from '../types';
 
 // --- USERS & AUTH ---
 
@@ -553,6 +553,57 @@ export const dbCashClosings = {
 
   async delete(id: string) {
     const { error } = await supabase.from('cash_closings').delete().eq('id', id);
+    if (error) throw error;
+  }
+};
+
+// --- ORDERS ---
+export const dbOrders = {
+  async getAll(): Promise<Order[]> {
+    const { data, error } = await supabase.from('orders').select('*').order('created_at', { ascending: false });
+    if (error) throw error;
+
+    return (data || []).map((row: any) => ({
+      id: row.id,
+      date: row.date,
+      customerName: row.customer_name,
+      customerPhone: row.customer_phone,
+      address: row.address,
+      deliveryMethod: row.delivery_method,
+      paymentMethod: row.payment_method,
+      items: row.items,
+      total: row.total,
+      status: row.status,
+      branch: row.branch,
+      createdAt: row.created_at
+    }));
+  },
+
+  async add(order: Order) {
+    const { error } = await supabase.from('orders').insert([{
+      id: order.id,
+      date: order.date,
+      customer_name: order.customerName,
+      customer_phone: order.customerPhone,
+      address: order.address,
+      delivery_method: order.deliveryMethod,
+      payment_method: order.paymentMethod,
+      items: order.items,
+      total: order.total,
+      status: order.status,
+      branch: order.branch,
+      created_at: order.createdAt
+    }]);
+    if (error) throw error;
+  },
+
+  async updateStatus(id: string, status: string) {
+    const { error } = await supabase.from('orders').update({ status }).eq('id', id);
+    if (error) throw error;
+  },
+
+  async delete(id: string) {
+    const { error } = await supabase.from('orders').delete().eq('id', id);
     if (error) throw error;
   }
 };

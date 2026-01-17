@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Product, Sale, Branch, StoreSettings } from '../types';
+import { Product, Sale, Branch, StoreSettings, Order } from '../types';
 import { ShoppingCart, Plus, Minus, Trash2, Send, MapPin, CreditCard, User, Store, X, Search, CheckCircle, Clock } from 'lucide-react';
-import { dbProducts, dbSales, dbSettings } from '../services/db';
+import { dbProducts, dbSales, dbSettings, dbOrders } from '../services/db';
 import { getTodayDate } from '../services/utils';
 
 interface CartItem {
@@ -155,24 +155,26 @@ const OnlineMenu: React.FC<OnlineMenuProps> = () => {
         setIsProcessing(true);
 
         try {
-            const newSale: Sale = {
+            const newOrder: Order = {
                 id: `ord-${Date.now()}`,
                 date: getTodayDate(),
-                customerName: `${customerName} (Online)`,
-                total: cartTotal,
-                branch: Branch.FILIAL,
-                status: 'Pending',
-                paymentMethod: paymentMethod === 'PIX' ? 'Pix' : paymentMethod === 'CARD' ? 'Credit' : 'Cash',
-                hasInvoice: false,
+                customerName: customerName,
+                address: deliveryMethod === 'DELIVERY' ? address : undefined,
+                deliveryMethod: deliveryMethod,
+                paymentMethod: paymentMethod,
                 items: cart.map(item => ({
                     productId: item.product.id,
                     productName: item.product.name,
                     quantity: item.quantity,
                     priceAtSale: item.product.priceFilial
-                }))
+                })),
+                total: cartTotal,
+                status: 'PENDING',
+                branch: Branch.FILIAL,
+                createdAt: Date.now()
             };
 
-            await dbSales.add(newSale);
+            await dbOrders.add(newOrder);
 
             // Calculate total quantity sold for each product (handling Combos)
             const soldQuantities: Record<string, number> = {};

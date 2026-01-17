@@ -12,6 +12,7 @@ import Pricing from './components/Pricing';
 import OnlineMenu from './components/OnlineMenu';
 import MenuConfig from './components/MenuConfig';
 import Production from './components/Production';
+import OrderCenter from './components/OrderCenter';
 import { ViewState, User, Product, Sale, FinancialRecord, Branch, Customer, CashClosing } from './types';
 import { MOCK_PRODUCTS, MOCK_SALES, MOCK_FINANCIALS } from './constants';
 import { dbProducts, dbSales, dbFinancials, dbCustomers, dbCashClosings, dbUsers } from './services/db';
@@ -411,6 +412,7 @@ const App: React.FC = () => {
             create table financials (id text primary key, date text, description text, amount numeric, type text, category text, branch text);<br />
             create table customers (id text primary key, name text, cpf_cnpj text, email text, phone text, address text, segment text, city text, state text);<br />
             create table cash_closings (id text primary key, date text, branch text, opening_balance numeric, total_income numeric, total_expense numeric, total_by_payment_method jsonb, cash_in_drawer numeric, difference numeric, notes text, closed_by text);<br />
+            create table orders (id text primary key, date text, customer_name text, customer_phone text, address text, delivery_method text, payment_method text, items jsonb, total numeric, status text, branch text, created_at bigint);<br />
             create table app_users (id uuid default gen_random_uuid() primary key, name text, email text unique, password text, role text, avatar_initials text);
           </div>
           <button onClick={() => loadDataFromCloud()} className="mt-6 bg-red-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-red-700">
@@ -443,6 +445,8 @@ const App: React.FC = () => {
         return <MenuConfig onBack={() => setCurrentView('DASHBOARD')} />;
       case 'PRODUCTION':
         return <Production products={products} currentUser={currentUser} onUpdateProduct={handleUpdateProduct} onBack={() => setCurrentView('DASHBOARD')} />;
+      case 'ORDER_CENTER':
+        return <OrderCenter onBack={() => setCurrentView('DASHBOARD')} />;
       case 'SETTINGS':
         if (!currentUser) return null;
         return <Settings currentUser={currentUser} onResetData={handleResetData} />;

@@ -160,9 +160,13 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
       if (isIce) {
          setPendingProduct(product);
          // Default to Wholesale price if in Wholesale mode or Matriz
-         const defaultPrice = (selectedBranch === Branch.MATRIZ || isWholesale) ? product.priceMatriz : product.priceFilial;
-         setNegotiatedPrice(defaultPrice.toString());
-         setNegotiatedQty(1);
+         if (selectedBranch === Branch.MATRIZ || isWholesale) {
+            setNegotiatedPrice('');
+            setNegotiatedQty(0);
+         } else {
+            setNegotiatedPrice(product.priceFilial.toString());
+            setNegotiatedQty(1);
+         }
          setShowPriceModal(true);
       } else if (product.packSize && product.pricePack) {
          setPendingProduct(product);
@@ -969,6 +973,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-lg font-bold text-center bg-white text-slate-900 focus:ring-2 focus:ring-blue-500"
                                  value={negotiatedQty || ''}
                                  onChange={(e) => setNegotiatedQty(Number(e.target.value))}
+                                 autoFocus
                               />
                            </div>
                            <div>
@@ -982,7 +987,6 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                                     className="w-full pl-8 pr-2 py-2 border border-slate-200 rounded-lg text-lg font-bold text-center bg-white text-blue-700 focus:ring-2 focus:ring-blue-500"
                                     value={negotiatedPrice}
                                     onChange={(e) => setNegotiatedPrice(e.target.value)}
-                                    autoFocus
                                  />
                               </div>
                            </div>
