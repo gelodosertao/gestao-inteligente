@@ -24,9 +24,12 @@ const OnlineMenu: React.FC<OnlineMenuProps> = () => {
 
     // Checkout State
     const [customerName, setCustomerName] = useState('');
+    const [customerPhone, setCustomerPhone] = useState('');
     const [deliveryMethod, setDeliveryMethod] = useState<'DELIVERY' | 'PICKUP'>('DELIVERY');
     const [address, setAddress] = useState('');
+    const [referencePoint, setReferencePoint] = useState('');
     const [paymentMethod, setPaymentMethod] = useState<'PIX' | 'CARD' | 'CASH'>('PIX');
+    const [changeFor, setChangeFor] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
     const [orderSuccess, setOrderSuccess] = useState(false);
 
@@ -147,6 +150,10 @@ const OnlineMenu: React.FC<OnlineMenuProps> = () => {
             alert("Por favor, digite seu nome.");
             return;
         }
+        if (!customerPhone) {
+            alert("Por favor, digite seu telefone (WhatsApp).");
+            return;
+        }
         if (deliveryMethod === 'DELIVERY' && !address) {
             alert("Por favor, digite o endereço de entrega.");
             return;
@@ -155,11 +162,16 @@ const OnlineMenu: React.FC<OnlineMenuProps> = () => {
         setIsProcessing(true);
 
         try {
+            const fullAddress = deliveryMethod === 'DELIVERY'
+                ? `${address}${referencePoint ? ` (Ref: ${referencePoint})` : ''}`
+                : undefined;
+
             const newOrder: Order = {
                 id: `ord-${Date.now()}`,
                 date: getTodayDate(),
                 customerName: customerName,
-                address: deliveryMethod === 'DELIVERY' ? address : undefined,
+                customerPhone: customerPhone,
+                address: fullAddress,
                 deliveryMethod: deliveryMethod,
                 paymentMethod: paymentMethod,
                 items: cart.map(item => ({
@@ -203,10 +215,14 @@ const OnlineMenu: React.FC<OnlineMenuProps> = () => {
 
             const itemsList = cart.map(i => `• ${i.quantity}x ${i.product.name} (R$ ${i.product.priceFilial.toFixed(2)})`).join('%0A');
             const totalFormatted = cartTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-            const methodText = deliveryMethod === 'DELIVERY' ? `Entrega em: ${address}` : 'Retirada no Balcão';
-            const paymentText = paymentMethod === 'PIX' ? 'Pix' : paymentMethod === 'CARD' ? 'Cartão' : 'Dinheiro';
+            const methodText = deliveryMethod === 'DELIVERY' ? `Entrega em: ${fullAddress}` : 'Retirada no Balcão';
 
-            const message = `*NOVO PEDIDO ONLINE* 🛒%0A%0A*Cliente:* ${customerName}%0A%0A*Itens:*%0A${itemsList}%0A%0A*Total:* ${totalFormatted}%0A%0A*Entrega:* ${methodText}%0A*Pagamento:* ${paymentText}%0A%0A_Pedido gerado automaticamente pelo App Gelo do Sertão_`;
+            let paymentText = paymentMethod === 'PIX' ? 'Pix' : paymentMethod === 'CARD' ? 'Cartão' : 'Dinheiro';
+            if (paymentMethod === 'CASH' && changeFor) {
+                paymentText += ` (Troco para R$ ${changeFor})`;
+            }
+
+            const message = `*NOVO PEDIDO ONLINE* 🛒%0A%0A*Cliente:* ${customerName}%0A*Tel:* ${customerPhone}%0A%0A*Itens:*%0A${itemsList}%0A%0A*Total:* ${totalFormatted}%0A%0A*Entrega:* ${methodText}%0A*Pagamento:* ${paymentText}%0A%0A_Pedido gerado automaticamente pelo App Gelo do Sertão_`;
 
             const phone = settings?.phone || "5577998129383";
             window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
@@ -230,7 +246,14 @@ const OnlineMenu: React.FC<OnlineMenuProps> = () => {
                 <h2 className="text-2xl font-bold text-slate-800 mb-2">Pedido Enviado!</h2>
                 <p className="text-slate-600 mb-8">Seu pedido foi registrado e encaminhado para o nosso WhatsApp. Aguarde a confirmação.</p>
                 <button
-                    onClick={() => { setOrderSuccess(false); setCustomerName(''); setAddress(''); }}
+                    onClick={() => {
+                        setOrderSuccess(false);
+                        setCustomerName('');
+                        setCustomerPhone('');
+                        setAddress('');
+                        setReferencePoint('');
+                        setChangeFor('');
+                    }}
                     className="bg-blue-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-blue-700 transition-colors"
                 >
                     Fazer Novo Pedido
@@ -331,9 +354,9 @@ const OnlineMenu: React.FC<OnlineMenuProps> = () => {
                                     return (
                                         <div key={product.id} className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm flex gap-4 hover:border-blue-200 transition-colors">
                                             {/* Image Placeholder */}
-                                            <div className="w-24 h-24 bg-slate-100 rounded-lg flex items-center justify-center shrink-0 self-center overflow-hidden">
+                                            <div className="w-24 h-24 bg-white rounded-lg flex items-center justify-center shrink-0 self-center overflow-hidden border border-slate-100">
                                                 {product.image ? (
-                                                    <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
+                                                    <img src={product.image} alt={product.name} className="w-full h-full object-contain" />
                                                 ) : (
                                                     <Store size={32} className="text-slate-300" />
                                                 )}
@@ -455,6 +478,17 @@ const OnlineMenu: React.FC<OnlineMenuProps> = () => {
                                         </div>
 
                                         <div>
+                                            <label className="block text-xs font-bold text-slate-500 mb-1 uppercase">Seu Telefone (WhatsApp)</label>
+                                            <input
+                                                type="tel"
+                                                placeholder="(77) 99999-9999"
+                                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none font-medium"
+                                                value={customerPhone}
+                                                onChange={(e) => setCustomerPhone(e.target.value)}
+                                            />
+                                        </div>
+
+                                        <div>
                                             <label className="block text-xs font-bold text-slate-500 mb-2 uppercase">Entrega</label>
                                             <div className="flex bg-slate-100 p-1 rounded-xl mb-3">
                                                 <button
@@ -472,12 +506,19 @@ const OnlineMenu: React.FC<OnlineMenuProps> = () => {
                                             </div>
 
                                             {deliveryMethod === 'DELIVERY' && (
-                                                <div className="animate-in fade-in slide-in-from-top-2">
+                                                <div className="animate-in fade-in slide-in-from-top-2 space-y-3">
                                                     <textarea
-                                                        placeholder="Endereço completo (Rua, Número, Bairro, Referência)..."
-                                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none h-24 font-medium"
+                                                        placeholder="Endereço completo (Rua, Número, Bairro)..."
+                                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none h-20 font-medium"
                                                         value={address}
                                                         onChange={(e) => setAddress(e.target.value)}
+                                                    />
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Ponto de Referência (Opcional)"
+                                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none font-medium"
+                                                        value={referencePoint}
+                                                        onChange={(e) => setReferencePoint(e.target.value)}
                                                     />
                                                 </div>
                                             )}
@@ -485,7 +526,7 @@ const OnlineMenu: React.FC<OnlineMenuProps> = () => {
 
                                         <div>
                                             <label className="block text-xs font-bold text-slate-500 mb-2 uppercase">Pagamento</label>
-                                            <div className="grid grid-cols-3 gap-2">
+                                            <div className="grid grid-cols-3 gap-2 mb-3">
                                                 <button
                                                     onClick={() => setPaymentMethod('PIX')}
                                                     className={`py-3 text-xs font-bold rounded-xl border transition-all flex flex-col items-center gap-1 ${paymentMethod === 'PIX' ? 'bg-green-50 border-green-500 text-green-700' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}
@@ -505,6 +546,19 @@ const OnlineMenu: React.FC<OnlineMenuProps> = () => {
                                                     <span>💵</span> Dinheiro
                                                 </button>
                                             </div>
+
+                                            {paymentMethod === 'CASH' && (
+                                                <div className="animate-in fade-in slide-in-from-top-2">
+                                                    <label className="block text-xs font-bold text-slate-500 mb-1 uppercase">Troco para quanto?</label>
+                                                    <input
+                                                        type="number"
+                                                        placeholder="Ex: 50,00 (Deixe vazio se não precisar)"
+                                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none font-medium"
+                                                        value={changeFor}
+                                                        onChange={(e) => setChangeFor(e.target.value)}
+                                                    />
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
 
