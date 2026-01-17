@@ -427,7 +427,7 @@ const OnlineMenu: React.FC<OnlineMenuProps> = () => {
                                 <button onClick={() => setIsCartOpen(false)} className="p-2 hover:bg-slate-50 rounded-full text-slate-500"><X size={24} /></button>
                             </div>
 
-                            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50">
+                            <div className="flex-1 overflow-y-auto p-4 bg-slate-50">
                                 {cart.length === 0 ? (
                                     <div className="h-full flex flex-col items-center justify-center text-slate-400 opacity-60">
                                         <ShoppingCart size={64} className="mb-4" />
@@ -435,155 +435,190 @@ const OnlineMenu: React.FC<OnlineMenuProps> = () => {
                                         <button onClick={() => setIsCartOpen(false)} className="mt-4 text-blue-600 font-bold text-sm">Voltar ao Cardápio</button>
                                     </div>
                                 ) : (
-                                    cart.map(item => (
-                                        <div key={item.product.id} className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm">
-                                            <div className="flex justify-between items-start mb-3">
-                                                <div>
-                                                    <h4 className="font-bold text-slate-800 text-sm line-clamp-2">{item.product.name}</h4>
-                                                    <p className="text-xs text-slate-400 mt-1">{item.product.unit}</p>
-                                                </div>
-                                                <p className="text-slate-800 font-bold text-sm">
-                                                    {(item.product.priceFilial * item.quantity).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                                                </p>
+                                    <div className="space-y-6">
+                                        {/* Cart Items Summary */}
+                                        <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+                                            <div className="bg-slate-50 px-4 py-2 border-b border-slate-100 flex items-center gap-2">
+                                                <ShoppingCart size={16} className="text-slate-400" />
+                                                <h3 className="font-bold text-slate-600 text-sm uppercase tracking-wide">Resumo do Pedido</h3>
                                             </div>
+                                            <div className="divide-y divide-slate-100">
+                                                {cart.map(item => (
+                                                    <div key={item.product.id} className="p-3 flex justify-between items-center hover:bg-slate-50 transition-colors">
+                                                        <div className="flex items-center gap-3 flex-1">
+                                                            <div className="flex items-center gap-2 bg-slate-100 rounded-lg px-2 py-1">
+                                                                <button onClick={() => updateQuantity(item.product.id, -1)} className="text-slate-400 hover:text-red-500 transition-colors"><Minus size={12} /></button>
+                                                                <span className="font-bold text-slate-800 text-sm w-4 text-center">{item.quantity}</span>
+                                                                <button onClick={() => updateQuantity(item.product.id, 1)} className="text-slate-400 hover:text-blue-600 transition-colors"><Plus size={12} /></button>
+                                                            </div>
+                                                            <div className="flex-1">
+                                                                <p className="text-sm font-medium text-slate-800 line-clamp-1">{item.product.name}</p>
+                                                                <p className="text-xs text-slate-400">{item.product.unit}</p>
+                                                            </div>
+                                                        </div>
+                                                        <div className="text-right pl-2">
+                                                            <p className="font-bold text-slate-800 text-sm">
+                                                                {(item.product.priceFilial * item.quantity).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                            </p>
+                                                            <button onClick={() => removeFromCart(item.product.id)} className="text-[10px] text-red-400 hover:text-red-600 font-medium">
+                                                                Remover
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <div className="bg-slate-50 px-4 py-3 border-t border-slate-100 flex justify-between items-center">
+                                                <span className="text-sm font-bold text-slate-500">Subtotal</span>
+                                                <span className="text-base font-bold text-slate-800">
+                                                    {cartTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                </span>
+                                            </div>
+                                        </div>
 
-                                            <div className="flex justify-between items-center">
-                                                <button onClick={() => removeFromCart(item.product.id)} className="text-xs text-red-500 font-medium hover:underline">
-                                                    Remover
-                                                </button>
-                                                <div className="flex items-center gap-3 bg-slate-50 rounded-lg p-1 border border-slate-200">
-                                                    <button onClick={() => updateQuantity(item.product.id, -1)} className="w-7 h-7 flex items-center justify-center bg-white rounded shadow-sm text-slate-600 hover:text-red-500 font-bold transition-colors"><Minus size={14} /></button>
-                                                    <span className="font-bold text-slate-800 w-4 text-center text-sm">{item.quantity}</span>
-                                                    <button onClick={() => updateQuantity(item.product.id, 1)} className="w-7 h-7 flex items-center justify-center bg-white rounded shadow-sm text-blue-600 hover:bg-blue-50 font-bold transition-colors"><Plus size={14} /></button>
+                                        {/* Checkout Form */}
+                                        <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+                                            <div className="bg-slate-50 px-4 py-2 border-b border-slate-100 flex items-center gap-2">
+                                                <Users size={16} className="text-slate-400" />
+                                                <h3 className="font-bold text-slate-600 text-sm uppercase tracking-wide">Seus Dados</h3>
+                                            </div>
+                                            <div className="p-4 space-y-4">
+                                                <div>
+                                                    <label className="block text-xs font-bold text-slate-500 mb-1 uppercase">Nome Completo</label>
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Digite seu nome"
+                                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none font-medium transition-all"
+                                                        value={customerName}
+                                                        onChange={(e) => setCustomerName(e.target.value)}
+                                                    />
+                                                </div>
+
+                                                <div>
+                                                    <label className="block text-xs font-bold text-slate-500 mb-1 uppercase">Telefone (WhatsApp)</label>
+                                                    <input
+                                                        type="tel"
+                                                        placeholder="(77) 99999-9999"
+                                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none font-medium transition-all"
+                                                        value={customerPhone}
+                                                        onChange={(e) => setCustomerPhone(e.target.value)}
+                                                    />
                                                 </div>
                                             </div>
                                         </div>
-                                    ))
+
+                                        <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+                                            <div className="bg-slate-50 px-4 py-2 border-b border-slate-100 flex items-center gap-2">
+                                                <Truck size={16} className="text-slate-400" />
+                                                <h3 className="font-bold text-slate-600 text-sm uppercase tracking-wide">Entrega</h3>
+                                            </div>
+                                            <div className="p-4 space-y-4">
+                                                <div className="flex bg-slate-100 p-1 rounded-xl">
+                                                    <button
+                                                        onClick={() => setDeliveryMethod('DELIVERY')}
+                                                        className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${deliveryMethod === 'DELIVERY' ? 'bg-white text-blue-800 shadow-sm' : 'text-slate-500'}`}
+                                                    >
+                                                        Entrega
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setDeliveryMethod('PICKUP')}
+                                                        className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${deliveryMethod === 'PICKUP' ? 'bg-white text-blue-800 shadow-sm' : 'text-slate-500'}`}
+                                                    >
+                                                        Retirada
+                                                    </button>
+                                                </div>
+
+                                                {deliveryMethod === 'DELIVERY' && (
+                                                    <div className="animate-in fade-in slide-in-from-top-2 space-y-3">
+                                                        <textarea
+                                                            placeholder="Endereço completo (Rua, Número, Bairro)..."
+                                                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none h-20 font-medium transition-all"
+                                                            value={address}
+                                                            onChange={(e) => setAddress(e.target.value)}
+                                                        />
+                                                        <input
+                                                            type="text"
+                                                            placeholder="Ponto de Referência (Opcional)"
+                                                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none font-medium transition-all"
+                                                            value={referencePoint}
+                                                            onChange={(e) => setReferencePoint(e.target.value)}
+                                                        />
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+                                            <div className="bg-slate-50 px-4 py-2 border-b border-slate-100 flex items-center gap-2">
+                                                <DollarSign size={16} className="text-slate-400" />
+                                                <h3 className="font-bold text-slate-600 text-sm uppercase tracking-wide">Pagamento</h3>
+                                            </div>
+                                            <div className="p-4 space-y-4">
+                                                <div className="grid grid-cols-3 gap-2">
+                                                    <button
+                                                        onClick={() => setPaymentMethod('PIX')}
+                                                        className={`py-3 text-xs font-bold rounded-xl border transition-all flex flex-col items-center gap-1 ${paymentMethod === 'PIX' ? 'bg-green-50 border-green-500 text-green-700' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}
+                                                    >
+                                                        <span>💠</span> Pix
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setPaymentMethod('CARD')}
+                                                        className={`py-3 text-xs font-bold rounded-xl border transition-all flex flex-col items-center gap-1 ${paymentMethod === 'CARD' ? 'bg-blue-50 border-blue-500 text-blue-700' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}
+                                                    >
+                                                        <CreditCard size={16} /> Cartão
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setPaymentMethod('CASH')}
+                                                        className={`py-3 text-xs font-bold rounded-xl border transition-all flex flex-col items-center gap-1 ${paymentMethod === 'CASH' ? 'bg-orange-50 border-orange-500 text-orange-700' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}
+                                                    >
+                                                        <span>💵</span> Dinheiro
+                                                    </button>
+                                                </div>
+
+                                                {paymentMethod === 'CASH' && (
+                                                    <div className="animate-in fade-in slide-in-from-top-2">
+                                                        <label className="block text-xs font-bold text-slate-500 mb-1 uppercase">Troco para quanto?</label>
+                                                        <input
+                                                            type="number"
+                                                            placeholder="Ex: 50,00 (Deixe vazio se não precisar)"
+                                                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none font-medium transition-all"
+                                                            value={changeFor}
+                                                            onChange={(e) => setChangeFor(e.target.value)}
+                                                        />
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* Spacer to ensure content isn't hidden behind footer */}
+                                        <div className="h-4"></div>
+                                    </div>
                                 )}
                             </div>
 
                             {cart.length > 0 && (
-                                <div className="p-4 bg-white border-t border-slate-200 shadow-[0_-5px_20px_rgba(0,0,0,0.05)] space-y-4">
-                                    {/* Checkout Form */}
-                                    <div className="space-y-4">
+                                <div className="p-4 bg-white border-t border-slate-200 shadow-[0_-5px_20px_rgba(0,0,0,0.05)] z-20">
+                                    <div className="flex justify-between items-center mb-4">
                                         <div>
-                                            <label className="block text-xs font-bold text-slate-500 mb-1 uppercase">Seu Nome</label>
-                                            <input
-                                                type="text"
-                                                placeholder="Nome completo"
-                                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none font-medium"
-                                                value={customerName}
-                                                onChange={(e) => setCustomerName(e.target.value)}
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-xs font-bold text-slate-500 mb-1 uppercase">Seu Telefone (WhatsApp)</label>
-                                            <input
-                                                type="tel"
-                                                placeholder="(77) 99999-9999"
-                                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none font-medium"
-                                                value={customerPhone}
-                                                onChange={(e) => setCustomerPhone(e.target.value)}
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-xs font-bold text-slate-500 mb-2 uppercase">Entrega</label>
-                                            <div className="flex bg-slate-100 p-1 rounded-xl mb-3">
-                                                <button
-                                                    onClick={() => setDeliveryMethod('DELIVERY')}
-                                                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${deliveryMethod === 'DELIVERY' ? 'bg-white text-blue-800 shadow-sm' : 'text-slate-500'}`}
-                                                >
-                                                    Entrega
-                                                </button>
-                                                <button
-                                                    onClick={() => setDeliveryMethod('PICKUP')}
-                                                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${deliveryMethod === 'PICKUP' ? 'bg-white text-blue-800 shadow-sm' : 'text-slate-500'}`}
-                                                >
-                                                    Retirada
-                                                </button>
-                                            </div>
-
-                                            {deliveryMethod === 'DELIVERY' && (
-                                                <div className="animate-in fade-in slide-in-from-top-2 space-y-3">
-                                                    <textarea
-                                                        placeholder="Endereço completo (Rua, Número, Bairro)..."
-                                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none h-20 font-medium"
-                                                        value={address}
-                                                        onChange={(e) => setAddress(e.target.value)}
-                                                    />
-                                                    <input
-                                                        type="text"
-                                                        placeholder="Ponto de Referência (Opcional)"
-                                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none font-medium"
-                                                        value={referencePoint}
-                                                        onChange={(e) => setReferencePoint(e.target.value)}
-                                                    />
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-xs font-bold text-slate-500 mb-2 uppercase">Pagamento</label>
-                                            <div className="grid grid-cols-3 gap-2 mb-3">
-                                                <button
-                                                    onClick={() => setPaymentMethod('PIX')}
-                                                    className={`py-3 text-xs font-bold rounded-xl border transition-all flex flex-col items-center gap-1 ${paymentMethod === 'PIX' ? 'bg-green-50 border-green-500 text-green-700' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}
-                                                >
-                                                    <span>💠</span> Pix
-                                                </button>
-                                                <button
-                                                    onClick={() => setPaymentMethod('CARD')}
-                                                    className={`py-3 text-xs font-bold rounded-xl border transition-all flex flex-col items-center gap-1 ${paymentMethod === 'CARD' ? 'bg-blue-50 border-blue-500 text-blue-700' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}
-                                                >
-                                                    <CreditCard size={16} /> Cartão
-                                                </button>
-                                                <button
-                                                    onClick={() => setPaymentMethod('CASH')}
-                                                    className={`py-3 text-xs font-bold rounded-xl border transition-all flex flex-col items-center gap-1 ${paymentMethod === 'CASH' ? 'bg-orange-50 border-orange-500 text-orange-700' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}
-                                                >
-                                                    <span>💵</span> Dinheiro
-                                                </button>
-                                            </div>
-
-                                            {paymentMethod === 'CASH' && (
-                                                <div className="animate-in fade-in slide-in-from-top-2">
-                                                    <label className="block text-xs font-bold text-slate-500 mb-1 uppercase">Troco para quanto?</label>
-                                                    <input
-                                                        type="number"
-                                                        placeholder="Ex: 50,00 (Deixe vazio se não precisar)"
-                                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none font-medium"
-                                                        value={changeFor}
-                                                        onChange={(e) => setChangeFor(e.target.value)}
-                                                    />
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    <div className="pt-4 border-t border-slate-100">
-                                        <div className="flex justify-between items-center mb-4">
-                                            <span className="text-slate-500 font-medium">Total</span>
-                                            <span className="text-2xl font-bold text-slate-800">
+                                            <p className="text-xs text-slate-500 font-bold uppercase">Total a Pagar</p>
+                                            <p className="text-2xl font-bold text-slate-800">
                                                 {cartTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                                            </span>
+                                            </p>
                                         </div>
-
-                                        <button
-                                            onClick={handleFinishOrder}
-                                            disabled={isProcessing}
-                                            className="w-full bg-green-600 hover:bg-green-500 text-white py-4 rounded-xl font-bold text-lg shadow-lg shadow-green-600/20 flex items-center justify-center gap-2 transition-all disabled:opacity-70 disabled:cursor-not-allowed active:scale-[0.98]"
-                                        >
-                                            {isProcessing ? (
-                                                <>Processando...</>
-                                            ) : (
-                                                <>
-                                                    Enviar Pedido <Send size={20} />
-                                                </>
-                                            )}
-                                        </button>
                                     </div>
+
+                                    <button
+                                        onClick={handleFinishOrder}
+                                        disabled={isProcessing}
+                                        className="w-full bg-green-600 hover:bg-green-500 text-white py-4 rounded-xl font-bold text-lg shadow-lg shadow-green-600/20 flex items-center justify-center gap-2 transition-all disabled:opacity-70 disabled:cursor-not-allowed active:scale-[0.98]"
+                                    >
+                                        {isProcessing ? (
+                                            <>Processando...</>
+                                        ) : (
+                                            <>
+                                                Confirmar Pedido <Send size={20} />
+                                            </>
+                                        )}
+                                    </button>
                                 </div>
                             )}
                         </div>
