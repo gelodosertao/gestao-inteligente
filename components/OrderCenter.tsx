@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Order, Sale, Branch } from '../types';
-import { dbOrders, dbSales } from '../services/db';
+import { dbOrders, dbSales, dbProducts } from '../services/db';
 import { Clock, CheckCircle, Truck, XCircle, ChefHat, ArrowRight, RefreshCw, Store } from 'lucide-react';
 import { getTodayDate } from '../services/utils';
 
@@ -37,8 +37,99 @@ const OrderCenter: React.FC<OrderCenterProps> = ({ onBack }) => {
         }
     };
 
+    const handleManualRestock = async (order: Order) => {
+        if (!confirm("Tem certeza que deseja devolver os itens deste pedido ao estoque? Faça isso apenas se o estorno não tiver ocorrido automaticamente.")) return;
+
+        try {
+            const allProducts = await dbProducts.getAll();
+            for (const item of order.items) {
+                const product = allProducts.find(p => p.id === item.productId);
+                if (product) {
+                    if (product.comboItems && product.comboItems.length > 0) {
+                        for (const component of product.comboItems) {
+                            const compProd = allProducts.find(p => p.id === component.productId);
+                            if (compProd && compProd.isStockControlled !== false) {
+                                const qtyToAdd = component.quantity * item.quantity;
+                                await dbProducts.update({
+                                    ...compProd,
+                                    stockFilial: compProd.stockFilial + qtyToAdd
+                                });
+                            }
+                        }
+                    } else if (product.isStockControlled !== false) {
+                        await dbProducts.update({
+                            ...product,
+                            stockFilial: product.stockFilial + item.quantity
+                        });
+                    }
+                }
+            }
+            alert("Estoque estornado com sucesso!");
+        } catch (error) {
+            console.error("Erro ao estornar estoque:", error);
+            alert("Erro ao estornar estoque.");
+        }
+    };
+
     const updateStatus = async (order: Order, newStatus: Order['status']) => {
         try {
+            // Stock Management Logic
+            const stockDeductedStates = ['PREPARING', 'READY', 'DELIVERED'];
+            const wasDeducted = stockDeductedStates.includes(order.status);
+            const willBeDeducted = stockDeductedStates.includes(newStatus);
+
+            if (!wasDeducted && willBeDeducted) {
+                // Deduct Stock
+                const allProducts = await dbProducts.getAll();
+                for (const item of order.items) {
+                    const product = allProducts.find(p => p.id === item.productId);
+                    if (product) {
+                        if (product.comboItems && product.comboItems.length > 0) {
+                            for (const component of product.comboItems) {
+                                const compProd = allProducts.find(p => p.id === component.productId);
+                                if (compProd && compProd.isStockControlled !== false) {
+                                    const qtyToDeduct = component.quantity * item.quantity;
+                                    await dbProducts.update({
+                                        ...compProd,
+                                        stockFilial: Math.max(0, compProd.stockFilial - qtyToDeduct)
+                                    });
+                                }
+                            }
+                        } else if (product.isStockControlled !== false) {
+                            await dbProducts.update({
+                                ...product,
+                                stockFilial: Math.max(0, product.stockFilial - item.quantity)
+                            });
+                        }
+                    }
+                }
+            } else if (wasDeducted && !willBeDeducted) {
+                // Return Stock (Cancelled or moved back to Pending)
+                const allProducts = await dbProducts.getAll();
+                for (const item of order.items) {
+                    const product = allProducts.find(p => p.id === item.productId);
+                    if (product) {
+                        if (product.comboItems && product.comboItems.length > 0) {
+                            for (const component of product.comboItems) {
+                                const compProd = allProducts.find(p => p.id === component.productId);
+                                if (compProd && compProd.isStockControlled !== false) {
+                                    const qtyToAdd = component.quantity * item.quantity;
+                                    await dbProducts.update({
+                                        ...compProd,
+                                        stockFilial: compProd.stockFilial + qtyToAdd
+                                    });
+                                }
+                            }
+                        } else if (product.isStockControlled !== false) {
+                            await dbProducts.update({
+                                ...product,
+                                stockFilial: product.stockFilial + item.quantity
+                            });
+                        }
+                    }
+                }
+            }
+
             await dbOrders.updateStatus(order.id, newStatus);
 
             // If Delivered, create a Sale record
@@ -71,7 +162,8 @@ const OrderCenter: React.FC<OrderCenterProps> = ({ onBack }) => {
         { id: 'PENDING', label: 'Pendente', icon: <Clock size={20} />, color: 'bg-yellow-100 text-yellow-800', border: 'border-yellow-200' },
         { id: 'PREPARING', label: 'Em Preparo', icon: <ChefHat size={20} />, color: 'bg-blue-100 text-blue-800', border: 'border-blue-200' },
         { id: 'READY', label: 'Pronto / Saiu', icon: <Truck size={20} />, color: 'bg-orange-100 text-orange-800', border: 'border-orange-200' },
-        { id: 'DELIVERED', label: 'Entregue', icon: <CheckCircle size={20} />, color: 'bg-green-100 text-green-800', border: 'border-green-200' }
+        { id: 'DELIVERED', label: 'Entregue', icon: <CheckCircle size={20} />, color: 'bg-green-100 text-green-800', border: 'border-green-200' },
+        { id: 'CANCELLED', label: 'Cancelados', icon: <XCircle size={20} />, color: 'bg-red-100 text-red-800', border: 'border-red-200' }
     ];
 
     return (
@@ -96,9 +188,9 @@ const OrderCenter: React.FC<OrderCenterProps> = ({ onBack }) => {
             {isLoading ? (
                 <div className="text-center py-12 text-slate-400">Carregando pedidos...</div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 h-[calc(100vh-180px)] overflow-x-auto pb-4">
+                <div className="flex gap-4 h-[calc(100vh-180px)] overflow-x-auto pb-4 items-start">
                     {columns.map(col => (
-                        <div key={col.id} className="flex flex-col h-full min-w-[300px]">
+                        <div key={col.id} className="flex flex-col h-full min-w-[300px] max-w-[350px] shrink-0">
                             <div className={`p-3 rounded-t-xl font-bold flex items-center gap-2 ${col.color}`}>
                                 {col.icon} {col.label}
                                 <span className="ml-auto bg-white/50 px-2 py-0.5 rounded text-sm">
@@ -152,9 +244,14 @@ const OrderCenter: React.FC<OrderCenterProps> = ({ onBack }) => {
                                                     Concluir Entrega
                                                 </button>
                                             )}
-                                            {order.status !== 'DELIVERED' && (
+                                            {order.status !== 'DELIVERED' && order.status !== 'CANCELLED' && (
                                                 <button onClick={() => updateStatus(order, 'CANCELLED')} className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100">
                                                     <XCircle size={16} />
+                                                </button>
+                                            )}
+                                            {order.status === 'CANCELLED' && (
+                                                <button onClick={() => handleManualRestock(order)} className="flex-1 bg-red-100 text-red-700 py-2 rounded-lg text-xs font-bold hover:bg-red-200 flex items-center justify-center gap-2">
+                                                    <RefreshCw size={14} /> Estornar Estoque
                                                 </button>
                                             )}
                                         </div>

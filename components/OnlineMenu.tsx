@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Product, Sale, Branch, StoreSettings, Order } from '../types';
-import { ShoppingCart, Plus, Minus, Trash2, Send, MapPin, CreditCard, User, Store, X, Search, CheckCircle, Clock } from 'lucide-react';
+import { ShoppingCart, Minus, Plus, X, Search, Clock, Store, CreditCard, Send, CheckCircle, Users, Truck, DollarSign } from 'lucide-react';
 import { dbProducts, dbSales, dbSettings, dbOrders } from '../services/db';
 import { getTodayDate } from '../services/utils';
 
@@ -188,30 +188,7 @@ const OnlineMenu: React.FC<OnlineMenuProps> = () => {
 
             await dbOrders.add(newOrder);
 
-            // Calculate total quantity sold for each product (handling Combos)
-            const soldQuantities: Record<string, number> = {};
-            cart.forEach(item => {
-                if (item.product.comboItems && item.product.comboItems.length > 0) {
-                    item.product.comboItems.forEach(component => {
-                        soldQuantities[component.productId] = (soldQuantities[component.productId] || 0) + (component.quantity * item.quantity);
-                    });
-                } else {
-                    soldQuantities[item.product.id] = (soldQuantities[item.product.id] || 0) + item.quantity;
-                }
-            });
-
-            // Update stocks in DB
-            const allProducts = await dbProducts.getAll(); // Fetch fresh data to be safe
-            for (const [prodId, qty] of Object.entries(soldQuantities)) {
-                const product = allProducts.find(p => p.id === prodId);
-                if (product && product.isStockControlled !== false) {
-                    const updatedProduct = {
-                        ...product,
-                        stockFilial: Math.max(0, product.stockFilial - qty)
-                    };
-                    await dbProducts.update(updatedProduct);
-                }
-            }
+            // Stock is now deducted in OrderCenter when status changes to PREPARING
 
             const itemsList = cart.map(i => `• ${i.quantity}x ${i.product.name} (R$ ${i.product.priceFilial.toFixed(2)})`).join('%0A');
             const totalFormatted = cartTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
