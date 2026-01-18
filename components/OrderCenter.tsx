@@ -26,8 +26,8 @@ const OrderCenter: React.FC<OrderCenterProps> = ({ onBack }) => {
             // For now, let's show all active orders (not cancelled/delivered) + today's delivered
             const today = getTodayDate();
             const filtered = data.filter(o =>
-                o.status !== 'DELIVERED' && o.status !== 'CANCELLED' ||
-                o.date === today
+                o.status !== 'DELIVERED' || // Show all active (Pending, Preparing, Ready, Cancelled)
+                o.date === today // Show delivered from today
             );
             setOrders(filtered);
         } catch (error) {
@@ -52,14 +52,14 @@ const OrderCenter: React.FC<OrderCenterProps> = ({ onBack }) => {
                                 const qtyToAdd = component.quantity * item.quantity;
                                 await dbProducts.update({
                                     ...compProd,
-                                    stockFilial: compProd.stockFilial + qtyToAdd
+                                    stockFilial: Number(compProd.stockFilial) + qtyToAdd
                                 });
                             }
                         }
                     } else if (product.isStockControlled !== false) {
                         await dbProducts.update({
                             ...product,
-                            stockFilial: product.stockFilial + item.quantity
+                            stockFilial: Number(product.stockFilial) + item.quantity
                         });
                     }
                 }
@@ -131,6 +131,28 @@ const OrderCenter: React.FC<OrderCenterProps> = ({ onBack }) => {
             }
 
             await dbOrders.updateStatus(order.id, newStatus);
+
+            // WhatsApp Notifications
+            if (order.customerPhone) {
+                const phone = order.customerPhone.replace(/\D/g, '');
+                const validPhone = phone.length <= 11 ? `55${phone}` : phone; // Add 55 if missing
+                let message = '';
+
+                if (newStatus === 'READY') {
+                    const isDelivery = order.deliveryMethod === 'DELIVERY';
+                    if (isDelivery) {
+                        message = `Olá *${order.customerName}*!%0A%0ASeu pedido *saiu para entrega*! 🛵💨%0AEm breve chegaremos no endereço: _${order.address}_`;
+                    } else {
+                        message = `Olá *${order.customerName}*!%0A%0ASeu pedido está *pronto para retirada*! 🛍️✅%0APode vir buscar no balcão.`;
+                    }
+                } else if (newStatus === 'DELIVERED') {
+                    message = `Olá *${order.customerName}*!%0A%0ASeu pedido foi *entregue/concluído*. ✅%0A%0AObrigado pela preferência! Volte sempre. ❄️`;
+                }
+
+                if (message) {
+                    window.open(`https://wa.me/${validPhone}?text=${message}`, '_blank');
+                }
+            }
 
             // If Delivered, create a Sale record
             if (newStatus === 'DELIVERED' && order.status !== 'DELIVERED') {
