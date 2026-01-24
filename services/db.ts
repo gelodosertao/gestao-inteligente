@@ -298,7 +298,7 @@ export const dbSales = {
   },
 
   async add(sale: Sale) {
-    const { error } = await supabase.from('sales').insert([{
+    const saleData: any = {
       id: sale.id,
       date: sale.date,
       customer_name: sale.customerName,
@@ -306,29 +306,39 @@ export const dbSales = {
       branch: sale.branch,
       status: sale.status,
       payment_method: sale.paymentMethod,
-      payment_splits: sale.paymentSplits,
       has_invoice: sale.hasInvoice,
       items: sale.items,
       cash_received: sale.cashReceived,
       change_amount: sale.changeAmount
-    }]);
+    };
+
+    if (sale.paymentSplits) {
+      saleData.payment_splits = sale.paymentSplits;
+    }
+
+    const { error } = await supabase.from('sales').insert([saleData]);
     if (error) throw error;
   },
 
   async update(sale: Sale) {
-    const { error } = await supabase.from('sales').update({
+    const saleData: any = {
       date: sale.date,
       customer_name: sale.customerName,
       total: sale.total,
       branch: sale.branch,
       status: sale.status,
       payment_method: sale.paymentMethod,
-      payment_splits: sale.paymentSplits,
       has_invoice: sale.hasInvoice,
       items: sale.items,
       cash_received: sale.cashReceived,
       change_amount: sale.changeAmount
-    }).eq('id', sale.id);
+    };
+
+    if (sale.paymentSplits) {
+      saleData.payment_splits = sale.paymentSplits;
+    }
+
+    const { error } = await supabase.from('sales').update(saleData).eq('id', sale.id);
     if (error) throw error;
   },
 
