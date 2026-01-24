@@ -25,7 +25,7 @@ interface CartItem {
    isPack?: boolean; // Indicates if the item is a pack (fardo)
 }
 
-type PaymentMethod = 'Pix' | 'Credit' | 'Debit' | 'Cash';
+type PaymentMethod = 'Pix' | 'Credit' | 'Debit' | 'Cash' | 'Split';
 
 const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, onAddCustomer, currentUser, onUpdateSale, onDeleteSale, onBack }) => {
    const [activeTab, setActiveTab] = useState<'History' | 'POS'>('History');
@@ -94,6 +94,12 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
    const [saleDate, setSaleDate] = useState<string>(getTodayDate());
    const [discount, setDiscount] = useState<string>(''); // Discount in R$
    const [isPendingSale, setIsPendingSale] = useState(false);
+
+   // --- SPLIT PAYMENT STATE ---
+   const [splitMethod1, setSplitMethod1] = useState<Exclude<PaymentMethod, 'Split'>>('Cash');
+   const [splitValue1, setSplitValue1] = useState<string>('');
+   const [splitMethod2, setSplitMethod2] = useState<Exclude<PaymentMethod, 'Split'>>('Pix');
+   const [splitValue2, setSplitValue2] = useState<string>('');
 
    // Helper for currency
    const formatCurrency = (value: number) => {
@@ -294,6 +300,8 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
       setCashReceived('');
       setIsPendingSale(false);
       setSaleDate(getTodayDate()); // Reset to today
+      setSplitValue1('');
+      setSplitValue2('');
       setShowPaymentModal(true);
    };
 
@@ -308,6 +316,17 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
    );
 
    const processPayment = () => {
+      // Validation for Split
+      if (selectedPaymentMethod === 'Split') {
+         const v1 = parseFloat(splitValue1) || 0;
+         const v2 = parseFloat(splitValue2) || 0;
+         // Allow small floating point difference
+         if (Math.abs(v1 + v2 - cartTotal) > 0.05) {
+            alert(`A soma dos pagamentos (R$ ${(v1 + v2).toFixed(2)}) deve ser igual ao total (R$ ${cartTotal.toFixed(2)})`);
+            return;
+         }
+      }
+
       setCheckoutStep('PROCESSING');
 
       // Simulate transaction time
@@ -320,6 +339,10 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
             branch: selectedBranch,
             status: isPendingSale ? 'Pending' : 'Completed',
             paymentMethod: selectedPaymentMethod || 'Cash',
+            paymentSplits: selectedPaymentMethod === 'Split' ? [
+               { method: splitMethod1, amount: parseFloat(splitValue1) },
+               { method: splitMethod2, amount: parseFloat(splitValue2) }
+            ] : undefined,
             hasInvoice: !isPendingSale, // Auto emit NFC-e only if completed
             items: cart.map(c => ({
                productId: c.product.id,
@@ -1044,17 +1067,25 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
 
                               <p className="text-sm font-bold text-slate-700 mb-3">Selecione a Forma de Pagamento:</p>
                               <div className="grid grid-cols-2 gap-3 mb-6">
-                                 {['Pix', 'Credit', 'Debit', 'Cash'].map((method) => (
+                                 {['Pix', 'Credit', 'Debit', 'Cash', 'Split'].map((method) => (
                                     <button
                                        key={method}
-                                       onClick={() => setSelectedPaymentMethod(method as PaymentMethod)}
+                                       onClick={() => {
+                                          setSelectedPaymentMethod(method as PaymentMethod);
+                                          if (method === 'Split') {
+                                             // Auto-fill first split with total
+                                             setSplitValue1(cartTotal.toString());
+                                             setSplitValue2('0');
+                                          }
+                                       }}
                                        className={`p-4 rounded-xl border-2 font-bold flex flex-col items-center gap-2 transition-all ${selectedPaymentMethod === method ? 'border-orange-500 bg-orange-50 text-orange-700' : 'border-slate-100 hover:border-slate-300 text-slate-600'} `}
                                     >
                                        {method === 'Pix' && <QrCode size={24} />}
                                        {method === 'Credit' && <CreditCard size={24} />}
                                        {method === 'Debit' && <CreditCard size={24} />}
                                        {method === 'Cash' && <Banknote size={24} />}
-                                       {method === 'Cash' ? 'Dinheiro' : method === 'Credit' ? 'Crédito' : method === 'Debit' ? 'Débito' : method}
+                                       {method === 'Split' && <div className="flex"><CreditCard size={16} /><Banknote size={16} /></div>}
+                                       {method === 'Cash' ? 'Dinheiro' : method === 'Credit' ? 'Crédito' : method === 'Debit' ? 'Débito' : method === 'Split' ? 'Dividir' : method}
                                     </button>
                                  ))}
                               </div>
@@ -1094,6 +1125,67 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                                  </div>
                               )}
 
+                              {selectedPaymentMethod === 'Split' && (
+                                 <div className="mb-6 animate-in slide-in-from-top-2 space-y-4">
+                                    <div className="p-3 bg-blue-50 border border-blue-100 rounded-lg text-sm text-blue-800">
+                                       Divida o pagamento em duas formas. A soma deve ser <strong>{formatCurrency(cartTotal)}</strong>.
+                                    </div>
+
+                                    {/* Split 1 */}
+                                    <div className="flex gap-2">
+                                       <select
+                                          value={splitMethod1}
+                                          onChange={(e) => setSplitMethod1(e.target.value as any)}
+                                          className="w-1/3 px-3 py-2 border border-slate-300 rounded-lg font-bold text-slate-700"
+                                       >
+                                          <option value="Cash">Dinheiro</option>
+                                          <option value="Pix">Pix</option>
+                                          <option value="Credit">Crédito</option>
+                                          <option value="Debit">Débito</option>
+                                       </select>
+                                       <div className="relative flex-1">
+                                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold">R$</span>
+                                          <input
+                                             type="number"
+                                             className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg font-bold text-slate-900"
+                                             value={splitValue1}
+                                             onChange={(e) => {
+                                                setSplitValue1(e.target.value);
+                                                // Auto calc remainder
+                                                const val = parseFloat(e.target.value) || 0;
+                                                if (val <= cartTotal) {
+                                                   setSplitValue2((cartTotal - val).toFixed(2));
+                                                }
+                                             }}
+                                          />
+                                       </div>
+                                    </div>
+
+                                    {/* Split 2 */}
+                                    <div className="flex gap-2">
+                                       <select
+                                          value={splitMethod2}
+                                          onChange={(e) => setSplitMethod2(e.target.value as any)}
+                                          className="w-1/3 px-3 py-2 border border-slate-300 rounded-lg font-bold text-slate-700"
+                                       >
+                                          <option value="Pix">Pix</option>
+                                          <option value="Cash">Dinheiro</option>
+                                          <option value="Credit">Crédito</option>
+                                          <option value="Debit">Débito</option>
+                                       </select>
+                                       <div className="relative flex-1">
+                                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold">R$</span>
+                                          <input
+                                             type="number"
+                                             className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg font-bold text-slate-900"
+                                             value={splitValue2}
+                                             onChange={(e) => setSplitValue2(e.target.value)}
+                                          />
+                                       </div>
+                                    </div>
+                                 </div>
+                              )}
+
                               <div className="mb-6 flex items-center gap-3 p-3 bg-yellow-50 border border-yellow-100 rounded-lg">
                                  <input
                                     type="checkbox"
@@ -1108,7 +1200,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                               </div>
 
                               <button
-                                 disabled={(!isPendingSale && !selectedPaymentMethod) || (selectedPaymentMethod === 'Cash' && !isPendingSale && cashReceived !== '' && parseFloat(cashReceived) < cartTotal)}
+                                 disabled={(!isPendingSale && !selectedPaymentMethod) || (selectedPaymentMethod === 'Cash' && !isPendingSale && cashReceived !== '' && parseFloat(cashReceived) < cartTotal) || (selectedPaymentMethod === 'Split' && Math.abs((parseFloat(splitValue1) || 0) + (parseFloat(splitValue2) || 0) - cartTotal) > 0.05)}
                                  onClick={processPayment}
                                  className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white py-4 rounded-xl font-bold text-lg shadow-lg shadow-blue-900/20 transition-all"
                               >
@@ -1157,8 +1249,14 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                                  </div>
                                  <div className="flex justify-between mt-1">
                                     <span>Pagamento: {selectedPaymentMethod}</span>
-                                    <span>{selectedPaymentMethod === 'Cash' ? formatCurrency(parseFloat(cashReceived)) : formatCurrency(cartTotal)}</span>
+                                    <span>{selectedPaymentMethod === 'Cash' ? formatCurrency(parseFloat(cashReceived)) : selectedPaymentMethod === 'Split' ? 'Misto' : formatCurrency(cartTotal)}</span>
                                  </div>
+                                 {selectedPaymentMethod === 'Split' && (
+                                    <div className="text-[10px] text-slate-500 mb-1">
+                                       <div className="flex justify-between"><span>{splitMethod1}:</span><span>{formatCurrency(parseFloat(splitValue1))}</span></div>
+                                       <div className="flex justify-between"><span>{splitMethod2}:</span><span>{formatCurrency(parseFloat(splitValue2))}</span></div>
+                                    </div>
+                                 )}
                                  {selectedPaymentMethod === 'Cash' && (
                                     <div className="flex justify-between">
                                        <span>Troco</span>

@@ -69,7 +69,8 @@ export interface Sale {
   items: SaleItem[];
   branch: Branch;
   status: 'Completed' | 'Pending' | 'Cancelled';
-  paymentMethod: 'Pix' | 'Credit' | 'Debit' | 'Cash';
+  paymentMethod: 'Pix' | 'Credit' | 'Debit' | 'Cash' | 'Split';
+  paymentSplits?: { method: 'Pix' | 'Credit' | 'Debit' | 'Cash', amount: number }[];
   hasInvoice: boolean; // NF-e emitted
   invoiceKey?: string;
   invoiceUrl?: string;

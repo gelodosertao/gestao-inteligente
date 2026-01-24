@@ -119,16 +119,35 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
       // Exclude only auto-generated Sales Income. Keep Expenses even if category is 'Vendas'.
       const nonSaleRecords = filteredRecords.filter(r => !(r.category === 'Vendas' && r.type === 'Income'));
 
-      const salesAsRecords: FinancialRecord[] = filteredSales.map(sale => ({
-         id: `sale-${sale.id || Math.random()}`,
-         date: sale.date || getTodayDate(),
-         description: `Venda #${(sale.id || '').slice(0, 8)} - ${sale.customerName || 'Cliente'}`,
-         amount: sale.total || 0,
-         type: 'Income',
-         category: 'Vendas',
-         branch: sale.branch,
-         paymentMethod: sale.paymentMethod
-      }));
+      const salesAsRecords: FinancialRecord[] = [];
+
+      filteredSales.forEach(sale => {
+         if (sale.paymentMethod === 'Split' && sale.paymentSplits) {
+            sale.paymentSplits.forEach((split, index) => {
+               salesAsRecords.push({
+                  id: `sale-${sale.id}-split-${index}`,
+                  date: sale.date || getTodayDate(),
+                  description: `Venda #${(sale.id || '').slice(0, 8)} - ${sale.customerName || 'Cliente'} (${split.method})`,
+                  amount: split.amount,
+                  type: 'Income',
+                  category: 'Vendas',
+                  branch: sale.branch,
+                  paymentMethod: split.method
+               });
+            });
+         } else {
+            salesAsRecords.push({
+               id: `sale-${sale.id || Math.random()}`,
+               date: sale.date || getTodayDate(),
+               description: `Venda #${(sale.id || '').slice(0, 8)} - ${sale.customerName || 'Cliente'}`,
+               amount: sale.total || 0,
+               type: 'Income',
+               category: 'Vendas',
+               branch: sale.branch,
+               paymentMethod: sale.paymentMethod as any
+            });
+         }
+      });
 
       return [...nonSaleRecords, ...salesAsRecords].sort((a, b) => {
          // Sort by date desc, then by id
@@ -148,7 +167,13 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
 
       // Calculate Cash/Pix/Card breakdown
       const byMethod = daySales.reduce((acc, s) => {
-         acc[s.paymentMethod] = (acc[s.paymentMethod] || 0) + s.total;
+         if (s.paymentMethod === 'Split' && s.paymentSplits) {
+            s.paymentSplits.forEach(split => {
+               acc[split.method] = (acc[split.method] || 0) + split.amount;
+            });
+         } else if (s.paymentMethod !== 'Split') {
+            acc[s.paymentMethod] = (acc[s.paymentMethod] || 0) + s.total;
+         }
          return acc;
       }, { Pix: 0, Credit: 0, Debit: 0, Cash: 0 } as { Pix: number; Credit: number; Debit: number; Cash: number; });
 

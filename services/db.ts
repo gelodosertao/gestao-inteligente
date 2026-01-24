@@ -289,6 +289,7 @@ export const dbSales = {
       branch: row.branch as Branch,
       status: row.status as any,
       paymentMethod: row.payment_method as any,
+      paymentSplits: row.payment_splits,
       hasInvoice: row.has_invoice,
       items: row.items, // JSONB auto-mapped
       cashReceived: row.cash_received,
@@ -305,6 +306,7 @@ export const dbSales = {
       branch: sale.branch,
       status: sale.status,
       payment_method: sale.paymentMethod,
+      payment_splits: sale.paymentSplits,
       has_invoice: sale.hasInvoice,
       items: sale.items,
       cash_received: sale.cashReceived,
@@ -321,6 +323,7 @@ export const dbSales = {
       branch: sale.branch,
       status: sale.status,
       payment_method: sale.paymentMethod,
+      payment_splits: sale.paymentSplits,
       has_invoice: sale.hasInvoice,
       items: sale.items,
       cash_received: sale.cashReceived,
