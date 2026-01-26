@@ -31,7 +31,8 @@ export const dbUsers = {
       name: user.name,
       email: user.email,
       role: user.role as Role,
-      avatarInitials: user.avatar_initials
+      avatarInitials: user.avatar_initials,
+      tenantId: user.tenant_id || '00000000-0000-0000-0000-000000000000'
     };
     localStorage.setItem('app_user', JSON.stringify(sessionUser));
 
@@ -50,13 +51,26 @@ export const dbUsers = {
       throw new Error('Este email já está cadastrado.');
     }
 
-    // 2. Insert into app_users
+    // 2. Create Tenant
+    const { data: tenant, error: tenantError } = await supabase
+      .from('tenants')
+      .insert([{ name: user.name + " Store" }])
+      .select()
+      .single();
+
+    if (tenantError) {
+      console.error("Erro ao criar tenant:", tenantError);
+      throw new Error("Erro ao criar organização.");
+    }
+
+    // 3. Insert into app_users
     const newUser = {
       name: user.name,
       email: user.email,
       password: user.password, // Storing plain text as requested for simplicity/revert
       role: user.role,
-      avatar_initials: user.name.substring(0, 2).toUpperCase()
+      avatar_initials: user.name.substring(0, 2).toUpperCase(),
+      tenant_id: tenant.id
     };
 
     const { data, error } = await supabase
@@ -76,7 +90,8 @@ export const dbUsers = {
       name: data.name,
       email: data.email,
       role: data.role as Role,
-      avatarInitials: data.avatar_initials
+      avatarInitials: data.avatar_initials,
+      tenantId: data.tenant_id
     };
     localStorage.setItem('app_user', JSON.stringify(sessionUser));
 
@@ -107,7 +122,8 @@ export const dbUsers = {
       name: row.name,
       email: row.email,
       role: row.role as Role,
-      avatarInitials: row.avatar_initials
+      avatarInitials: row.avatar_initials,
+      tenantId: row.tenant_id
     }));
   },
 
@@ -127,8 +143,8 @@ export const dbUsers = {
 
 // --- CATEGORIES ---
 export const dbCategories = {
-  async getAll(type?: 'PRODUCT' | 'FINANCIAL'): Promise<CategoryItem[]> {
-    let query = supabase.from('categories').select('*').order('name', { ascending: true });
+  async getAll(tenantId: string, type?: 'PRODUCT' | 'FINANCIAL'): Promise<CategoryItem[]> {
+    let query = supabase.from('categories').select('*').eq('tenant_id', tenantId).order('name', { ascending: true });
 
     if (type) {
       query = query.eq('type', type);
@@ -144,10 +160,11 @@ export const dbCategories = {
     }));
   },
 
-  async add(category: Omit<CategoryItem, 'id'>) {
+  async add(category: Omit<CategoryItem, 'id'>, tenantId: string) {
     const { error } = await supabase.from('categories').insert([{
       name: category.name,
-      type: category.type
+      type: category.type,
+      tenant_id: tenantId
     }]);
     if (error) throw error;
   },
@@ -160,8 +177,8 @@ export const dbCategories = {
 
 // --- PRODUCTS ---
 export const dbProducts = {
-  async getAll(): Promise<Product[]> {
-    const { data, error } = await supabase.from('products').select('*');
+  async getAll(tenantId: string): Promise<Product[]> {
+    const { data, error } = await supabase.from('products').select('*').eq('tenant_id', tenantId);
     if (error) throw error;
 
     return (data || []).map((row: any) => ({
@@ -186,7 +203,7 @@ export const dbProducts = {
     }));
   },
 
-  async add(product: Product) {
+  async add(product: Product, tenantId: string) {
     const { error } = await supabase.from('products').insert([{
       id: product.id,
       name: product.name,
@@ -205,7 +222,8 @@ export const dbProducts = {
       image: product.image,
       recipe: product.recipe,
       recipe_batch_size: product.recipeBatchSize,
-      operational_cost: product.operationalCost
+      operational_cost: product.operationalCost,
+      tenant_id: tenantId
     }]);
     if (error) throw error;
   },
@@ -241,8 +259,8 @@ export const dbProducts = {
 
 // --- STORE SETTINGS ---
 export const dbSettings = {
-  async get(): Promise<StoreSettings | null> {
-    const { data, error } = await supabase.from('store_settings').select('*').single();
+  async get(tenantId: string): Promise<StoreSettings | null> {
+    const { data, error } = await supabase.from('store_settings').select('*').eq('tenant_id', tenantId).single();
     if (error && error.code !== 'PGRST116') throw error; // PGRST116 is "Row not found"
     if (!data) return null;
 
@@ -259,9 +277,9 @@ export const dbSettings = {
     };
   },
 
-  async save(settings: StoreSettings) {
+  async save(settings: StoreSettings, tenantId: string) {
     const { error } = await supabase.from('store_settings').upsert({
-      id: settings.id,
+      id: tenantId, // Use tenantId as the ID to ensure 1 per tenant
       store_name: settings.storeName,
       phone: settings.phone,
       address: settings.address,
@@ -269,7 +287,8 @@ export const dbSettings = {
       background_image: settings.backgroundImage,
       logo_image: settings.logoImage,
       opening_hours: settings.openingHours,
-      primary_color: settings.primaryColor
+      primary_color: settings.primaryColor,
+      tenant_id: tenantId
     });
     if (error) throw error;
   }
@@ -277,8 +296,8 @@ export const dbSettings = {
 
 // --- SALES ---
 export const dbSales = {
-  async getAll(): Promise<Sale[]> {
-    const { data, error } = await supabase.from('sales').select('*').order('date', { ascending: false });
+  async getAll(tenantId: string): Promise<Sale[]> {
+    const { data, error } = await supabase.from('sales').select('*').eq('tenant_id', tenantId).order('date', { ascending: false });
     if (error) throw error;
 
     return (data || []).map((row: any) => ({
@@ -297,7 +316,7 @@ export const dbSales = {
     }));
   },
 
-  async add(sale: Sale) {
+  async add(sale: Sale, tenantId: string) {
     const saleData: any = {
       id: sale.id,
       date: sale.date,
@@ -309,7 +328,8 @@ export const dbSales = {
       has_invoice: sale.hasInvoice,
       items: sale.items,
       cash_received: sale.cashReceived,
-      change_amount: sale.changeAmount
+      change_amount: sale.changeAmount,
+      tenant_id: tenantId
     };
 
     if (sale.paymentSplits) {
@@ -350,8 +370,8 @@ export const dbSales = {
 
 // --- FINANCIALS ---
 export const dbFinancials = {
-  async getAll(): Promise<FinancialRecord[]> {
-    const { data, error } = await supabase.from('financials').select('*').order('date', { ascending: false });
+  async getAll(tenantId: string): Promise<FinancialRecord[]> {
+    const { data, error } = await supabase.from('financials').select('*').eq('tenant_id', tenantId).order('date', { ascending: false });
     if (error) throw error;
 
     return (data || []).map((row: any) => ({
@@ -366,7 +386,7 @@ export const dbFinancials = {
     }));
   },
 
-  async addBatch(records: FinancialRecord[]) {
+  async addBatch(records: FinancialRecord[], tenantId: string) {
     if (records.length === 0) return;
     const rows = records.map(r => ({
       id: r.id,
@@ -376,7 +396,8 @@ export const dbFinancials = {
       type: r.type,
       category: r.category,
       branch: r.branch,
-      payment_method: r.paymentMethod // Map to DB column
+      payment_method: r.paymentMethod, // Map to DB column
+      tenant_id: tenantId
     }));
     const { error } = await supabase.from('financials').insert(rows);
     if (error) throw error;
@@ -403,8 +424,8 @@ export const dbFinancials = {
 
 // --- CUSTOMERS ---
 export const dbCustomers = {
-  async getAll(): Promise<Customer[]> {
-    const { data, error } = await supabase.from('customers').select('*').order('name', { ascending: true });
+  async getAll(tenantId: string): Promise<Customer[]> {
+    const { data, error } = await supabase.from('customers').select('*').eq('tenant_id', tenantId).order('name', { ascending: true });
     if (error) throw error;
 
     return (data || []).map((row: any) => ({
@@ -417,19 +438,20 @@ export const dbCustomers = {
     }));
   },
 
-  async add(customer: Customer) {
+  async add(customer: Customer, tenantId: string) {
     const { error } = await supabase.from('customers').insert([{
       id: customer.id,
       name: customer.name,
       cpf_cnpj: customer.cpfCnpj,
       email: customer.email,
       phone: customer.phone,
-      address: customer.address
+      address: customer.address,
+      tenant_id: tenantId
     }]);
     if (error) throw error;
   },
 
-  async addBatch(customers: Customer[]) {
+  async addBatch(customers: Customer[], tenantId: string) {
     if (customers.length === 0) return;
     const rows = customers.map(c => ({
       id: c.id,
@@ -437,7 +459,8 @@ export const dbCustomers = {
       cpf_cnpj: c.cpfCnpj,
       email: c.email,
       phone: c.phone,
-      address: c.address
+      address: c.address,
+      tenant_id: tenantId
     }));
     const { error } = await supabase.from('customers').insert(rows);
     if (error) throw error;
@@ -462,8 +485,8 @@ export const dbCustomers = {
 
 // --- STOCK MOVEMENTS ---
 export const dbStockMovements = {
-  async getAll(): Promise<StockMovement[]> {
-    const { data, error } = await supabase.from('stock_movements').select('*').order('date', { ascending: false });
+  async getAll(tenantId: string): Promise<StockMovement[]> {
+    const { data, error } = await supabase.from('stock_movements').select('*').eq('tenant_id', tenantId).order('date', { ascending: false });
     if (error) throw error;
 
     return (data || []).map((row: any) => ({
@@ -478,7 +501,7 @@ export const dbStockMovements = {
     }));
   },
 
-  async add(movement: StockMovement) {
+  async add(movement: StockMovement, tenantId: string) {
     const { error } = await supabase.from('stock_movements').insert([{
       id: movement.id,
       date: movement.date,
@@ -487,7 +510,8 @@ export const dbStockMovements = {
       quantity: movement.quantity,
       type: movement.type,
       reason: movement.reason,
-      branch: movement.branch
+      branch: movement.branch,
+      tenant_id: tenantId
     }]);
     if (error) throw error;
   }
@@ -495,8 +519,8 @@ export const dbStockMovements = {
 
 // --- PRODUCTION LOGS ---
 export const dbProduction = {
-  async getAll(): Promise<ProductionRecord[]> {
-    const { data, error } = await supabase.from('production_logs').select('*').order('date', { ascending: false });
+  async getAll(tenantId: string): Promise<ProductionRecord[]> {
+    const { data, error } = await supabase.from('production_logs').select('*').eq('tenant_id', tenantId).order('date', { ascending: false });
     if (error) throw error;
 
     return (data || []).map((row: any) => ({
@@ -511,7 +535,7 @@ export const dbProduction = {
     }));
   },
 
-  async add(record: ProductionRecord) {
+  async add(record: ProductionRecord, tenantId: string) {
     const { error } = await supabase.from('production_logs').insert([{
       id: record.id,
       date: record.date,
@@ -520,7 +544,8 @@ export const dbProduction = {
       quantity: record.quantity,
       shift: record.shift,
       responsible: record.responsible,
-      notes: record.notes
+      notes: record.notes,
+      tenant_id: tenantId
     }]);
     if (error) throw error;
   }
@@ -528,8 +553,8 @@ export const dbProduction = {
 
 // --- CASH CLOSINGS ---
 export const dbCashClosings = {
-  async getAll(): Promise<CashClosing[]> {
-    const { data, error } = await supabase.from('cash_closings').select('*').order('date', { ascending: false });
+  async getAll(tenantId: string): Promise<CashClosing[]> {
+    const { data, error } = await supabase.from('cash_closings').select('*').eq('tenant_id', tenantId).order('date', { ascending: false });
     if (error) throw error;
 
     return (data || []).map((row: any) => ({
@@ -547,7 +572,7 @@ export const dbCashClosings = {
     }));
   },
 
-  async add(closing: CashClosing) {
+  async add(closing: CashClosing, tenantId: string) {
     const { error } = await supabase.from('cash_closings').insert([{
       id: closing.id,
       date: closing.date,
@@ -559,7 +584,8 @@ export const dbCashClosings = {
       cash_in_drawer: closing.cashInDrawer,
       difference: closing.difference,
       notes: closing.notes,
-      closed_by: closing.closedBy
+      closed_by: closing.closedBy,
+      tenant_id: tenantId
     }]);
     if (error) throw error;
   },
@@ -572,8 +598,8 @@ export const dbCashClosings = {
 
 // --- ORDERS ---
 export const dbOrders = {
-  async getAll(): Promise<Order[]> {
-    const { data, error } = await supabase.from('orders').select('*').order('created_at', { ascending: false });
+  async getAll(tenantId: string): Promise<Order[]> {
+    const { data, error } = await supabase.from('orders').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false });
     if (error) throw error;
 
     return (data || []).map((row: any) => ({
@@ -592,7 +618,7 @@ export const dbOrders = {
     }));
   },
 
-  async add(order: Order) {
+  async add(order: Order, tenantId: string) {
     const { error } = await supabase.from('orders').insert([{
       id: order.id,
       date: order.date,
@@ -605,7 +631,8 @@ export const dbOrders = {
       total: order.total,
       status: order.status,
       branch: order.branch,
-      created_at: order.createdAt
+      created_at: order.createdAt,
+      tenant_id: tenantId
     }]);
     if (error) throw error;
   },

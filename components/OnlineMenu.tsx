@@ -41,10 +41,13 @@ const OnlineMenu: React.FC<OnlineMenuProps> = () => {
     }, []);
 
     const loadData = async () => {
+        const params = new URLSearchParams(window.location.search);
+        const tenantId = params.get('tenantId') || '00000000-0000-0000-0000-000000000000';
+
         try {
             const [allProducts, storeSettings] = await Promise.all([
-                dbProducts.getAll(),
-                dbSettings.get()
+                dbProducts.getAll(tenantId),
+                dbSettings.get(tenantId)
             ]);
 
             const availableProducts = allProducts.filter(p => p.stockFilial > 0 || p.isStockControlled === false || (p.comboItems && p.comboItems.length > 0));
@@ -186,7 +189,9 @@ const OnlineMenu: React.FC<OnlineMenuProps> = () => {
                 createdAt: Date.now()
             };
 
-            await dbOrders.add(newOrder);
+            const params = new URLSearchParams(window.location.search);
+            const tenantId = params.get('tenantId') || '00000000-0000-0000-0000-000000000000';
+            await dbOrders.add(newOrder, tenantId);
 
             // Stock is now deducted in OrderCenter when status changes to PREPARING
 

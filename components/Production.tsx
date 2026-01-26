@@ -32,7 +32,7 @@ const Production: React.FC<ProductionProps> = ({ products, currentUser, onUpdate
 
     const loadRecords = async () => {
         try {
-            const data = await dbProduction.getAll();
+            const data = await dbProduction.getAll(currentUser.tenantId);
             setRecords(data);
         } catch (error) {
             console.error("Erro ao carregar produção:", error);
@@ -92,7 +92,7 @@ const Production: React.FC<ProductionProps> = ({ products, currentUser, onUpdate
 
         try {
             // 1. Save Production Record
-            await dbProduction.add(newRecord);
+            await dbProduction.add(newRecord, currentUser.tenantId);
 
             // 2. Update Product Stock (Matriz) - Finished Good
             const updatedProduct = {
@@ -112,7 +112,7 @@ const Production: React.FC<ProductionProps> = ({ products, currentUser, onUpdate
                 type: 'TRANSFER_IN', // Entrada por Produção
                 reason: `Produção - Turno ${shift}`,
                 branch: Branch.MATRIZ
-            });
+            }, currentUser.tenantId);
 
             // 4. Deduct Raw Materials (Based on CONFIRMED usedIngredients)
             if (usedIngredients.length > 0) {
@@ -137,7 +137,7 @@ const Production: React.FC<ProductionProps> = ({ products, currentUser, onUpdate
                             type: 'TRANSFER_OUT', // Saída por Uso/Produção
                             reason: `Insumo para Produção de ${product.name} (Lote: ${quantity})`,
                             branch: Branch.MATRIZ
-                        });
+                        }, currentUser.tenantId);
                     }
                 }
             }

@@ -104,6 +104,7 @@ export interface User {
   email: string;
   role: Role;
   avatarInitials: string;
+  tenantId: string;
 }
 
 export type ViewState = 'DASHBOARD' | 'INVENTORY' | 'SALES' | 'FINANCIAL' | 'AI_INSIGHTS' | 'SETTINGS' | 'CUSTOMERS' | 'PRICING' | 'ONLINE_MENU' | 'MENU_CONFIG' | 'PRODUCTION' | 'ORDER_CENTER';

@@ -6,9 +6,10 @@ import { getTodayDate } from '../services/utils';
 
 interface OrderCenterProps {
     onBack: () => void;
+    tenantId: string;
 }
 
-const OrderCenter: React.FC<OrderCenterProps> = ({ onBack }) => {
+const OrderCenter: React.FC<OrderCenterProps> = ({ onBack, tenantId }) => {
     const [orders, setOrders] = useState<Order[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -21,7 +22,7 @@ const OrderCenter: React.FC<OrderCenterProps> = ({ onBack }) => {
 
     const loadOrders = async () => {
         try {
-            const data = await dbOrders.getAll();
+            const data = await dbOrders.getAll(tenantId);
             // Filter for today's orders or active orders
             // For now, let's show all active orders (not cancelled/delivered) + today's delivered
             const today = getTodayDate();
@@ -41,7 +42,7 @@ const OrderCenter: React.FC<OrderCenterProps> = ({ onBack }) => {
         if (!confirm("Tem certeza que deseja devolver os itens deste pedido ao estoque? Faça isso apenas se o estorno não tiver ocorrido automaticamente.")) return;
 
         try {
-            const allProducts = await dbProducts.getAll();
+            const allProducts = await dbProducts.getAll(tenantId);
             for (const item of order.items) {
                 const product = allProducts.find(p => p.id === item.productId);
                 if (product) {
@@ -80,7 +81,7 @@ const OrderCenter: React.FC<OrderCenterProps> = ({ onBack }) => {
 
             if (!wasDeducted && willBeDeducted) {
                 // Deduct Stock
-                const allProducts = await dbProducts.getAll();
+                const allProducts = await dbProducts.getAll(tenantId);
                 for (const item of order.items) {
                     const product = allProducts.find(p => p.id === item.productId);
                     if (product) {
@@ -105,7 +106,7 @@ const OrderCenter: React.FC<OrderCenterProps> = ({ onBack }) => {
                 }
             } else if (wasDeducted && !willBeDeducted) {
                 // Return Stock (Cancelled or moved back to Pending)
-                const allProducts = await dbProducts.getAll();
+                const allProducts = await dbProducts.getAll(tenantId);
                 for (const item of order.items) {
                     const product = allProducts.find(p => p.id === item.productId);
                     if (product) {
@@ -169,7 +170,7 @@ const OrderCenter: React.FC<OrderCenterProps> = ({ onBack }) => {
                     cashReceived: undefined,
                     changeAmount: undefined
                 };
-                await dbSales.add(newSale);
+                await dbSales.add(newSale, tenantId);
                 alert("Venda registrada no financeiro!");
             }
 

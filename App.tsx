@@ -62,11 +62,11 @@ const App: React.FC = () => {
     try {
       // Parallel fetch for speed
       const [p, s, f, c, cc] = await Promise.all([
-        dbProducts.getAll(),
-        dbSales.getAll(),
-        dbFinancials.getAll(),
-        dbCustomers.getAll(),
-        dbCashClosings.getAll()
+        dbProducts.getAll(currentUser.tenantId),
+        dbSales.getAll(currentUser.tenantId),
+        dbFinancials.getAll(currentUser.tenantId),
+        dbCustomers.getAll(currentUser.tenantId),
+        dbCashClosings.getAll(currentUser.tenantId)
       ]);
 
       setProducts(p.length > 0 ? p : []);
@@ -105,7 +105,7 @@ const App: React.FC = () => {
   const handleAddProduct = async (newProduct: Product) => {
     setProducts(prev => [...prev, newProduct]);
     try {
-      await dbProducts.add(newProduct);
+      await dbProducts.add(newProduct, currentUser!.tenantId);
     } catch (e: any) {
       console.error(e);
       alert(`Erro ao criar produto no banco: ${e.message || e}`);
@@ -168,8 +168,8 @@ const App: React.FC = () => {
       setFinancials(prev => [newFinancial, ...prev]);
 
       try {
-        await dbSales.add(newSale);
-        await dbFinancials.addBatch([newFinancial]);
+        await dbSales.add(newSale, currentUser!.tenantId);
+        await dbFinancials.addBatch([newFinancial], currentUser!.tenantId);
 
         for (const prodId of Object.keys(soldQuantities)) {
           const product = updatedProductsList.find(p => p.id === prodId);
@@ -184,7 +184,7 @@ const App: React.FC = () => {
     } else {
       // If Pending, just save sale and update stock (stock is reserved even if pending? Usually yes)
       try {
-        await dbSales.add(newSale);
+        await dbSales.add(newSale, currentUser!.tenantId);
         for (const prodId of Object.keys(soldQuantities)) {
           const product = updatedProductsList.find(p => p.id === prodId);
           if (product) {
@@ -202,7 +202,7 @@ const App: React.FC = () => {
   const handleAddFinancialRecord = async (newRecords: FinancialRecord[]) => {
     setFinancials(prev => [...newRecords, ...prev]);
     try {
-      await dbFinancials.addBatch(newRecords);
+      await dbFinancials.addBatch(newRecords, currentUser!.tenantId);
     } catch (e) {
       console.error(e);
       alert("Erro ao salvar despesas no banco.");
@@ -233,7 +233,7 @@ const App: React.FC = () => {
   const handleAddCustomer = async (newCustomer: Customer) => {
     setCustomers(prev => [...prev, newCustomer]);
     try {
-      await dbCustomers.add(newCustomer);
+      await dbCustomers.add(newCustomer, currentUser!.tenantId);
     } catch (e) {
       console.error(e);
       alert("Erro ao salvar cliente no banco.");
@@ -243,7 +243,7 @@ const App: React.FC = () => {
   const handleImportCustomers = async (newCustomers: Customer[]) => {
     setCustomers(prev => [...prev, ...newCustomers]);
     try {
-      await dbCustomers.addBatch(newCustomers);
+      await dbCustomers.addBatch(newCustomers, currentUser!.tenantId);
     } catch (e) {
       console.error(e);
       alert("Erro ao importar clientes no banco.");
@@ -339,7 +339,7 @@ const App: React.FC = () => {
   const handleAddCashClosing = async (newClosing: CashClosing) => {
     setCashClosings(prev => [newClosing, ...prev]);
     try {
-      await dbCashClosings.add(newClosing);
+      await dbCashClosings.add(newClosing, currentUser!.tenantId);
     } catch (e) {
       console.error(e);
       alert("Erro ao salvar fechamento de caixa.");
@@ -442,11 +442,11 @@ const App: React.FC = () => {
       // ... imports
 
       case 'MENU_CONFIG':
-        return <MenuConfig onBack={() => setCurrentView('DASHBOARD')} />;
+        return <MenuConfig onBack={() => setCurrentView('DASHBOARD')} tenantId={currentUser.tenantId} />;
       case 'PRODUCTION':
         return <Production products={products} currentUser={currentUser} onUpdateProduct={handleUpdateProduct} onBack={() => setCurrentView('DASHBOARD')} />;
       case 'ORDER_CENTER':
-        return <OrderCenter onBack={() => setCurrentView('DASHBOARD')} />;
+        return <OrderCenter onBack={() => setCurrentView('DASHBOARD')} tenantId={currentUser.tenantId} />;
       case 'SETTINGS':
         if (!currentUser) return null;
         return <Settings currentUser={currentUser} onResetData={handleResetData} />;

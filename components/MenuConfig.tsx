@@ -6,9 +6,10 @@ import { Save, Image, Store, Clock, Phone, MapPin, Palette, ArrowLeft, Upload } 
 
 interface MenuConfigProps {
     onBack: () => void;
+    tenantId: string;
 }
 
-const MenuConfig: React.FC<MenuConfigProps> = ({ onBack }) => {
+const MenuConfig: React.FC<MenuConfigProps> = ({ onBack, tenantId }) => {
     const [settings, setSettings] = useState<StoreSettings>({
         id: 'default',
         storeName: '',
@@ -29,7 +30,7 @@ const MenuConfig: React.FC<MenuConfigProps> = ({ onBack }) => {
 
     const loadSettings = async () => {
         try {
-            const data = await dbSettings.get();
+            const data = await dbSettings.get(tenantId);
             if (data) {
                 setSettings(data);
             } else {
@@ -57,7 +58,7 @@ const MenuConfig: React.FC<MenuConfigProps> = ({ onBack }) => {
     const handleSave = async () => {
         setIsSaving(true);
         try {
-            await dbSettings.save(settings);
+            await dbSettings.save(settings, tenantId);
             alert("Configurações salvas com sucesso!");
         } catch (error) {
             console.error("Erro ao salvar:", error);
@@ -122,12 +123,12 @@ const MenuConfig: React.FC<MenuConfigProps> = ({ onBack }) => {
                 <div className="flex w-full md:w-auto gap-2">
                     <input
                         readOnly
-                        value={`${window.location.origin}${window.location.pathname}?menu=true`}
+                        value={`${window.location.origin}${window.location.pathname}?menu=true&tenantId=${tenantId}`}
                         className="flex-1 md:w-96 px-4 py-2 border border-blue-200 rounded-lg bg-white text-slate-600 text-sm font-mono"
                     />
                     <button
                         onClick={() => {
-                            navigator.clipboard.writeText(`${window.location.origin}${window.location.pathname}?menu=true`);
+                            navigator.clipboard.writeText(`${window.location.origin}${window.location.pathname}?menu=true&tenantId=${tenantId}`);
                             alert("Link copiado!");
                         }}
                         className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold text-sm transition-colors whitespace-nowrap"
