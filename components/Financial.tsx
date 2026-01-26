@@ -50,8 +50,9 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
    const handleAddInlineCategory = async () => {
       if (!newCategoryName.trim()) return;
       try {
-         await dbCategories.add({ name: newCategoryName, type: 'FINANCIAL' });
-         const updatedCats = await dbCategories.getAll('FINANCIAL');
+         if (!currentUser) return;
+         await dbCategories.add({ name: newCategoryName, type: 'FINANCIAL' }, currentUser.tenantId);
+         const updatedCats = await dbCategories.getAll(currentUser.tenantId, 'FINANCIAL');
          setCategories(updatedCats);
          setNewRecord({ ...newRecord, category: newCategoryName });
          setNewCategoryName('');
@@ -67,7 +68,8 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
    }, []);
 
    const loadCategories = () => {
-      dbCategories.getAll('FINANCIAL')
+      if (!currentUser) return;
+      dbCategories.getAll(currentUser.tenantId, 'FINANCIAL')
          .then(setCategories)
          .catch(err => console.error("Erro ao carregar categorias", err));
    };
@@ -75,7 +77,8 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
    const handleAddCategory = async () => {
       if (!newCategoryName.trim()) return;
       try {
-         await dbCategories.add({ name: newCategoryName, type: 'FINANCIAL' });
+         if (!currentUser) return;
+         await dbCategories.add({ name: newCategoryName, type: 'FINANCIAL' }, currentUser.tenantId);
          setNewCategoryName('');
          loadCategories();
       } catch (error) {
@@ -238,37 +241,85 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
       // 1. Gross Revenue (Receita Bruta) - Only Completed Sales
       const grossRevenue = filteredSales.reduce((acc, s) => acc + s.total, 0);
 
-      // 2. Variable Costs (CMV/CPV + Taxes + Commissions)
-      const variableCosts = 0; // Placeholder for CMV
+      // 2. Variable Costs (CMV - Custo da Mercadoria Vendida)
+      // Iterates over sales items and sums (quantity * current_product_cost)
+      const variableCosts = filteredSales.reduce((totalCMV, sale) => {
+         const saleCMV = sale.items.reduce((acc, item) => {
+            const product = products.find(p => p.id === item.productId);
+            return acc + (item.quantity * (product?.cost || 0));
+         }, 0);
+         return totalCMV + saleCMV;
+      }, 0);
 
       // 3. Gross Profit
       const grossProfit = grossRevenue - variableCosts;
 
-      // 4. Expenses by Category
-      const expensesByCategory: Record<string, number> = {};
+      // 4. Expenses by Category and Subcategory (Description)
+      const expensesStructure: Record<string, { total: number; items: Record<string, number> }> = {};
       let totalExpenses = 0;
 
       filteredRecords.forEach(r => {
          if (r.type === 'Expense') {
-            expensesByCategory[r.category] = (expensesByCategory[r.category] || 0) + r.amount;
+            if (!expensesStructure[r.category]) {
+               expensesStructure[r.category] = { total: 0, items: {} };
+            }
+
+            // Add to Category Total
+            expensesStructure[r.category].total += r.amount;
+
+            // Add to Description (Subcategory)
+            const desc = r.description || 'Outros';
+            expensesStructure[r.category].items[desc] = (expensesStructure[r.category].items[desc] || 0) + r.amount;
+
             totalExpenses += r.amount;
          }
       });
 
-      // 5. Net Profit
+      // 5. Net Profit (Result of the Period)
       const netProfit = grossProfit - totalExpenses;
       const profitMargin = grossRevenue > 0 ? (netProfit / grossRevenue) * 100 : 0;
+
+      // 6. Accumulated Balance (Saldo Anterior)
+      // Only relevant if viewing a specific month (THIS_MONTH)
+      let previousBalance = 0;
+      if (dateRange === 'THIS_MONTH') {
+         const now = new Date();
+         const currentMonthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+         // Filter records BEFORE this month
+         const previousRecords = records.filter(r => {
+            if (selectedBranch !== 'ALL' && r.branch !== selectedBranch) return false;
+            return r.date < currentMonthPrefix + '-01';
+         });
+
+         // Filter sales BEFORE this month
+         const previousSales = sales.filter(s => {
+            if (selectedBranch !== 'ALL' && s.branch !== selectedBranch) return false;
+            return s.date < currentMonthPrefix + '-01' && s.status === 'Completed';
+         });
+
+         const prevIncome = previousRecords.filter(r => r.type === 'Income').reduce((acc, r) => acc + r.amount, 0)
+            + previousSales.reduce((acc, s) => acc + s.total, 0);
+
+         const prevExpense = previousRecords.filter(r => r.type === 'Expense').reduce((acc, r) => acc + r.amount, 0);
+
+         previousBalance = prevIncome - prevExpense;
+      }
+
+      const accumulatedResult = previousBalance + netProfit;
 
       return {
          grossRevenue,
          variableCosts,
          grossProfit,
-         expensesByCategory,
+         expensesStructure,
          totalExpenses,
          netProfit,
-         profitMargin
+         profitMargin,
+         previousBalance,
+         accumulatedResult
       };
-   }, [filteredSales, filteredRecords]);
+   }, [filteredSales, filteredRecords, records, sales, selectedBranch, dateRange, products]);
 
    const dreData = useMemo(() => calculateDRE(), [calculateDRE]);
 
@@ -345,6 +396,16 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
       setIsRecurring(false);
       setInstallments(2);
    };
+
+   // Chart Data Preparation
+   const chartData = useMemo(() => {
+      return [
+         { name: 'Receita', value: dreData.grossRevenue, fill: '#10b981' },
+         { name: 'CMV', value: dreData.variableCosts, fill: '#f59e0b' },
+         { name: 'Despesas', value: dreData.totalExpenses, fill: '#ef4444' },
+         { name: 'Lucro', value: dreData.netProfit, fill: '#3b82f6' }
+      ];
+   }, [dreData]);
 
    return (
       <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 relative">
@@ -474,63 +535,107 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
          {viewMode === 'DRE' && (
             <div className="space-y-6 animate-in fade-in">
                {/* DRE View */}
-               <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 max-w-4xl mx-auto">
-                  <div className="text-center mb-8">
-                     <h3 className="text-2xl font-bold text-slate-800">Demonstração do Resultado do Exercício</h3>
-                     <p className="text-slate-500">Visão Gerencial {selectedBranch !== 'ALL' ? `- ${selectedBranch}` : ''}</p>
+               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  {/* Left Column: Summary & Chart */}
+                  <div className="lg:col-span-1 space-y-6">
+                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                        <h3 className="font-bold text-slate-700 mb-4">Resumo do Período</h3>
+                        <div className="h-64 w-full">
+                           <ResponsiveContainer width="100%" height="100%">
+                              <BarChart data={chartData}>
+                                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                 <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
+                                 <YAxis fontSize={12} tickLine={false} axisLine={false} tickFormatter={(val) => `R$${val / 1000}k`} />
+                                 <RechartsTooltip formatter={(value: number) => formatCurrency(value)} cursor={{ fill: 'transparent' }} />
+                                 <Bar dataKey="value" radius={[4, 4, 0, 0]} />
+                              </BarChart>
+                           </ResponsiveContainer>
+                        </div>
+                     </div>
+
+                     {dateRange === 'THIS_MONTH' && (
+                        <div className="bg-slate-800 text-white p-6 rounded-2xl shadow-lg">
+                           <h3 className="text-sm font-medium text-slate-400 mb-1">Saldo Acumulado (Anterior + Atual)</h3>
+                           <div className="flex justify-between items-end mb-4">
+                              <div>
+                                 <p className="text-3xl font-bold">{formatCurrency(dreData.accumulatedResult)}</p>
+                                 <p className="text-xs text-slate-400 mt-1">Saldo Anterior: {formatCurrency(dreData.previousBalance)}</p>
+                              </div>
+                              <div className={`p-2 rounded-lg ${dreData.accumulatedResult >= 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`}>
+                                 {dreData.accumulatedResult >= 0 ? <ArrowUpCircle size={24} /> : <ArrowDownCircle size={24} />}
+                              </div>
+                           </div>
+                        </div>
+                     )}
                   </div>
 
-                  <div className="space-y-4">
-                     {/* Gross Revenue */}
-                     <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
-                        <span className="font-bold text-blue-900">(=) Receita Bruta de Vendas</span>
-                        <span className="font-bold text-blue-900">{formatCurrency(dreData.grossRevenue)}</span>
+                  {/* Right Column: Detailed DRE */}
+                  <div className="lg:col-span-2 bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
+                     <div className="text-center mb-8">
+                        <h3 className="text-2xl font-bold text-slate-800">Demonstração do Resultado</h3>
+                        <p className="text-slate-500">Visão Gerencial Detalhada {selectedBranch !== 'ALL' ? `- ${selectedBranch}` : ''}</p>
                      </div>
 
-                     {/* Variable Costs */}
-                     <div className="flex justify-between items-center px-4 text-rose-600">
-                        <span>(-) Custos Variáveis (CMV Estimado)</span>
-                        <span>{formatCurrency(dreData.variableCosts)}</span>
-                     </div>
-
-                     <div className="border-t border-slate-200 my-2"></div>
-
-                     {/* Gross Profit */}
-                     <div className="flex justify-between items-center p-3 bg-slate-100 rounded-lg">
-                        <span className="font-bold text-slate-800">(=) Lucro Bruto</span>
-                        <span className="font-bold text-slate-800">{formatCurrency(dreData.grossProfit)}</span>
-                     </div>
-
-                     {/* Operating Expenses */}
-                     <div className="pl-4 space-y-2">
-                        <div className="flex justify-between items-center font-medium text-rose-700">
-                           <span>(-) Despesas Operacionais</span>
-                           <span>{formatCurrency(dreData.totalExpenses)}</span>
+                     <div className="space-y-3 font-mono text-sm md:text-base">
+                        {/* Gross Revenue */}
+                        <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg border border-blue-100">
+                           <span className="font-bold text-blue-900">(=) Receita Bruta de Vendas</span>
+                           <span className="font-bold text-blue-900">{formatCurrency(dreData.grossRevenue)}</span>
                         </div>
-                        {/* Detail Expenses */}
-                        <div className="pl-4 text-sm text-slate-500 space-y-1">
-                           {Object.entries(dreData.expensesByCategory).map(([cat, amount]: [string, any]) => (
-                              <div key={cat} className="flex justify-between">
-                                 <span>• {cat}</span>
-                                 <span>{formatCurrency(amount)}</span>
-                              </div>
-                           ))}
+
+                        {/* Variable Costs */}
+                        <div className="flex justify-between items-center px-4 py-2 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors">
+                           <span>(-) Custos Variáveis (CMV)</span>
+                           <span>{formatCurrency(dreData.variableCosts)}</span>
                         </div>
-                     </div>
 
-                     <div className="border-t-2 border-slate-800 my-4"></div>
+                        <div className="border-t border-slate-200 my-2"></div>
 
-                     {/* Net Profit */}
-                     <div className={`flex justify-between items-center p-4 rounded-xl text-white shadow-lg ${dreData.netProfit >= 0 ? 'bg-emerald-600' : 'bg-rose-600'}`}>
-                        <span className="text-xl font-bold">(=) Resultado Líquido</span>
-                        <span className="text-2xl font-bold">{formatCurrency(dreData.netProfit)}</span>
-                     </div>
+                        {/* Gross Profit */}
+                        <div className="flex justify-between items-center p-3 bg-slate-100 rounded-lg">
+                           <span className="font-bold text-slate-800">(=) Lucro Bruto</span>
+                           <span className="font-bold text-slate-800">{formatCurrency(dreData.grossProfit)}</span>
+                        </div>
 
-                     {/* Margin Indicator */}
-                     <div className="text-center mt-4">
-                        <span className="text-sm font-medium text-slate-500">
-                           Margem Líquida: {dreData.profitMargin.toFixed(1)}%
-                        </span>
+                        {/* Operating Expenses */}
+                        <div className="mt-4">
+                           <div className="flex justify-between items-center px-4 py-2 font-bold text-rose-700 bg-rose-50/50 rounded-lg mb-2">
+                              <span>(-) Despesas Operacionais</span>
+                              <span>{formatCurrency(dreData.totalExpenses)}</span>
+                           </div>
+
+                           {/* Detail Expenses by Category */}
+                           <div className="space-y-4 pl-2">
+                              {Object.entries(dreData.expensesStructure).sort((a, b) => b[1].total - a[1].total).map(([cat, data]) => (
+                                 <div key={cat} className="border-l-2 border-slate-200 pl-4">
+                                    <div className="flex justify-between font-bold text-slate-700 mb-1">
+                                       <span>{cat}</span>
+                                       <span>{formatCurrency(data.total)}</span>
+                                    </div>
+                                    {/* Subcategories (Descriptions) */}
+                                    <div className="space-y-1 pl-2">
+                                       {Object.entries(data.items).map(([desc, amount]) => (
+                                          <div key={desc} className="flex justify-between text-xs text-slate-500 hover:bg-slate-50 px-2 py-0.5 rounded">
+                                             <span>{desc}</span>
+                                             <span>{formatCurrency(amount)}</span>
+                                          </div>
+                                       ))}
+                                    </div>
+                                 </div>
+                              ))}
+                           </div>
+                        </div>
+
+                        <div className="border-t-2 border-slate-800 my-4"></div>
+
+                        {/* Net Profit */}
+                        <div className={`flex justify-between items-center p-4 rounded-xl text-white shadow-lg transform transition-transform hover:scale-[1.01] ${dreData.netProfit >= 0 ? 'bg-gradient-to-r from-emerald-600 to-teal-600' : 'bg-gradient-to-r from-rose-600 to-red-600'}`}>
+                           <div className="flex flex-col">
+                              <span className="text-xl font-bold">(=) Resultado Líquido</span>
+                              <span className="text-xs opacity-80">Margem: {dreData.profitMargin.toFixed(1)}%</span>
+                           </div>
+                           <span className="text-3xl font-bold">{formatCurrency(dreData.netProfit)}</span>
+                        </div>
                      </div>
                   </div>
                </div>
