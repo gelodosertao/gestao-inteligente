@@ -402,22 +402,21 @@ const App: React.FC = () => {
           <h3 className="text-xl font-bold text-red-700 mb-2">Atenção Necessária no Banco de Dados</h3>
           <p className="text-slate-700 mb-6">{dbError}</p>
           <div className="bg-white p-4 rounded border text-left text-xs font-mono overflow-x-auto text-slate-600">
-            -- Execute este SQL no Supabase:<br />
-            -- Para corrigir tabela existente:<br />
-            alter table financials add column if not exists branch text;<br />
+            -- Execute este SQL no Supabase para corrigir o banco de dados:<br />
+            -- (Copie o conteúdo do arquivo fix_database_schema.sql)<br />
             <br />
-            -- Para criar tabelas do zero:<br />
-            create table products (id text primary key, name text, category text, price_matriz numeric, price_filial numeric, cost numeric, stock_matriz integer, stock_filial integer, unit text, min_stock integer);<br />
-            create table sales (id text primary key, date text, customer_name text, total numeric, branch text, status text, payment_method text, has_invoice boolean, items jsonb, cash_received numeric, change_amount numeric);<br />
-            create table financials (id text primary key, date text, description text, amount numeric, type text, category text, branch text);<br />
-            create table customers (id text primary key, name text, cpf_cnpj text, email text, phone text, address text, segment text, city text, state text);<br />
-            create table cash_closings (id text primary key, date text, branch text, opening_balance numeric, total_income numeric, total_expense numeric, total_by_payment_method jsonb, cash_in_drawer numeric, difference numeric, notes text, closed_by text);<br />
-            create table orders (id text primary key, date text, customer_name text, customer_phone text, address text, delivery_method text, payment_method text, items jsonb, total numeric, status text, branch text, created_at bigint);<br />
-            create table app_users (id uuid default gen_random_uuid() primary key, name text, email text unique, password text, role text, avatar_initials text);
+            -- Exemplo de comando rápido para criar a tabela de empresas:<br />
+            create table if not exists tenants (id uuid default gen_random_uuid() primary key, name text not null);<br />
+            insert into tenants (id, name) select '00000000-0000-0000-0000-000000000000', 'Gelo do Sertão' where not exists (select 1 from tenants where id = '00000000-0000-0000-0000-000000000000');
           </div>
-          <button onClick={() => loadDataFromCloud()} className="mt-6 bg-red-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-red-700">
-            Tentar Conectar Novamente
-          </button>
+          <div className="flex gap-4 justify-center mt-6">
+            <button onClick={() => loadDataFromCloud()} className="bg-red-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-red-700">
+              Tentar Conectar Novamente
+            </button>
+            <button onClick={handleLogout} className="bg-slate-200 text-slate-700 px-6 py-2 rounded-lg font-bold hover:bg-slate-300">
+              Sair / Logout
+            </button>
+          </div>
         </div>
       )
     }
