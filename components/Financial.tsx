@@ -24,7 +24,9 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
    const [showAddModal, setShowAddModal] = useState(false);
    const [viewMode, setViewMode] = useState<'MOVEMENTS' | 'DRE' | 'CASH_CLOSING'>('DRE');
    const [selectedBranch, setSelectedBranch] = useState<'ALL' | Branch>('ALL');
-   const [dateRange, setDateRange] = useState('THIS_MONTH'); // Simplified for now
+   const [dateRange, setDateRange] = useState<'TODAY' | 'THIS_WEEK' | 'THIS_MONTH' | 'LAST_30_DAYS' | 'LAST_60_DAYS' | 'LAST_90_DAYS' | 'ALL_TIME' | 'CUSTOM'>('THIS_MONTH');
+   const [customStartDate, setCustomStartDate] = useState(getTodayDate());
+   const [customEndDate, setCustomEndDate] = useState(getTodayDate());
 
    // Cash Closing State
    const [closingDate, setClosingDate] = useState(getTodayDate());
@@ -98,19 +100,57 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
    };
 
    // --- OPTIMIZED FILTERING ---
-   // Use string comparison instead of Date parsing for performance
    const filterByDate = useCallback((dateString: string) => {
-      if (dateRange === 'ALL_TIME') return true;
       if (!dateString) return false;
+      if (dateRange === 'ALL_TIME') return true;
 
-      // Assuming dateString is YYYY-MM-DD
-      // We want to match current Month and Year
-      // Format: YYYY-MM
-      const now = new Date();
-      const currentMonthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      const recordDate = new Date(dateString);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Normalize today
 
-      return dateString.startsWith(currentMonthPrefix);
-   }, [dateRange]);
+      if (dateRange === 'TODAY') {
+         const recDate = new Date(dateString);
+         recDate.setHours(0, 0, 0, 0); // Normalize record date to midnight for comparison
+         // Fix timezone offset issue by comparing ISO strings up to 'T'
+         return dateString === getTodayDate();
+      }
+
+      if (dateRange === 'THIS_WEEK') {
+         const firstDayOfWeek = new Date(today);
+         firstDayOfWeek.setDate(today.getDate() - today.getDay()); // Sunday
+         firstDayOfWeek.setHours(0, 0, 0, 0);
+         return recordDate >= firstDayOfWeek && recordDate <= new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1); // +1 to include today fully
+      }
+
+      if (dateRange === 'THIS_MONTH') {
+         const currentMonthPrefix = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+         return dateString.startsWith(currentMonthPrefix);
+      }
+
+      if (dateRange === 'LAST_30_DAYS') {
+         const pastDate = new Date(today);
+         pastDate.setDate(today.getDate() - 30);
+         return recordDate >= pastDate && recordDate <= today;
+      }
+
+      if (dateRange === 'LAST_60_DAYS') {
+         const pastDate = new Date(today);
+         pastDate.setDate(today.getDate() - 60);
+         return recordDate >= pastDate && recordDate <= today;
+      }
+
+      if (dateRange === 'LAST_90_DAYS') {
+         const pastDate = new Date(today);
+         pastDate.setDate(today.getDate() - 90);
+         return recordDate >= pastDate && recordDate <= today;
+      }
+
+      if (dateRange === 'CUSTOM') {
+         return dateString >= customStartDate && dateString <= customEndDate;
+      }
+
+      return true;
+   }, [dateRange, customStartDate, customEndDate]);
 
    const filteredRecords = useMemo(() => records.filter(r => (selectedBranch === 'ALL' || r.branch === selectedBranch) && filterByDate(r.date)), [records, selectedBranch, filterByDate]);
 
@@ -305,6 +345,8 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
 
          previousBalance = prevIncome - prevExpense;
       }
+      // For other ranges, previous balance logic might need adjustment or be irrelevant (e.g. "Last 30 days" usually implies a flow, not a ledger with opening balance from eternity)
+      // But for consistency, let's keep it 0 for now unless "THIS_MONTH" is selected, as requested by typical accounting views.
 
       const accumulatedResult = previousBalance + netProfit;
 
@@ -444,9 +486,39 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
                   </button>
                </div>
 
-               <div className="bg-white p-1 rounded-lg border border-slate-200 flex shrink-0">
-                  <button onClick={() => setDateRange('THIS_MONTH')} className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${dateRange === 'THIS_MONTH' ? 'bg-slate-800 text-white' : 'text-slate-500 hover:bg-slate-50'}`}>Mês</button>
-                  <button onClick={() => setDateRange('ALL_TIME')} className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${dateRange === 'ALL_TIME' ? 'bg-slate-800 text-white' : 'text-slate-500 hover:bg-slate-50'}`}>Tudo</button>
+               <div className="bg-white p-1 rounded-lg border border-slate-200 flex shrink-0 items-center gap-2">
+                  <select
+                     value={dateRange}
+                     onChange={(e) => setDateRange(e.target.value as any)}
+                     className="px-3 py-1.5 rounded-md text-xs font-bold text-slate-600 bg-transparent outline-none cursor-pointer hover:bg-slate-50"
+                  >
+                     <option value="TODAY">Hoje</option>
+                     <option value="THIS_WEEK">Esta Semana</option>
+                     <option value="THIS_MONTH">Este Mês</option>
+                     <option value="LAST_30_DAYS">Últimos 30 Dias</option>
+                     <option value="LAST_60_DAYS">Últimos 60 Dias</option>
+                     <option value="LAST_90_DAYS">Últimos 90 Dias</option>
+                     <option value="ALL_TIME">Todo o Período</option>
+                     <option value="CUSTOM">Personalizado</option>
+                  </select>
+
+                  {dateRange === 'CUSTOM' && (
+                     <div className="flex items-center gap-1 pr-2 animate-in fade-in slide-in-from-right-2">
+                        <input
+                           type="date"
+                           value={customStartDate}
+                           onChange={(e) => setCustomStartDate(e.target.value)}
+                           className="w-24 px-2 py-1 border border-slate-200 rounded text-xs"
+                        />
+                        <span className="text-slate-400">-</span>
+                        <input
+                           type="date"
+                           value={customEndDate}
+                           onChange={(e) => setCustomEndDate(e.target.value)}
+                           className="w-24 px-2 py-1 border border-slate-200 rounded text-xs"
+                        />
+                     </div>
+                  )}
                </div>
             </div>
          </div>
