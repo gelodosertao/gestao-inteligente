@@ -120,9 +120,26 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
     const currentPeriodRevenue = currentPeriodSales.filter(s => s.status === 'Completed').reduce((acc, curr) => acc + curr.total, 0);
     const currentPeriodPending = currentPeriodSales.filter(s => s.status === 'Pending').reduce((acc, curr) => acc + curr.total, 0);
     const currentPeriodExpenses = filteredFinancials.filter(f => f.type === 'Expense' && isInRange(f.date, periodStart, periodEnd)).reduce((acc, curr) => acc + curr.amount, 0);
-    const currentPeriodProfit = currentPeriodRevenue - currentPeriodExpenses;
-    return { currentPeriodSales, currentPeriodRevenue, currentPeriodPending, currentPeriodExpenses, currentPeriodProfit };
-  }, [filteredSales, filteredFinancials, periodStart, periodEnd]);
+
+    // Calculate Previous Balance (Accumulated) ONLY if viewing MONTH
+    // Calculate Previous Balance (Accumulated) for ALL periods
+    // We use periodStart to determine the cutoff date
+    const startDateStr = periodStart.toLocaleDateString('sv-SE', { timeZone: 'America/Bahia' });
+
+    const previousRecords = filteredFinancials.filter(r => r.date < startDateStr);
+    const previousSales = filteredSales.filter(s => s.date < startDateStr && s.status === 'Completed');
+
+    const prevIncome = previousRecords.filter(r => r.type === 'Income').reduce((acc, r) => acc + r.amount, 0)
+      + previousSales.reduce((acc, s) => acc + s.total, 0);
+
+    const prevExpense = previousRecords.filter(r => r.type === 'Expense').reduce((acc, r) => acc + r.amount, 0);
+
+    const previousBalance = prevIncome - prevExpense;
+
+    const currentPeriodProfit = (currentPeriodRevenue - currentPeriodExpenses) + previousBalance;
+
+    return { currentPeriodSales, currentPeriodRevenue, currentPeriodPending, currentPeriodExpenses, currentPeriodProfit, previousBalance };
+  }, [filteredSales, filteredFinancials, periodStart, periodEnd, period, currentDate]);
 
   const { currentPeriodSales, currentPeriodRevenue, currentPeriodPending, currentPeriodExpenses, currentPeriodProfit } = periodData;
 
@@ -303,7 +320,7 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
           color="bg-rose-500"
         />
         <Card
-          title="Lucro Líquido"
+          title="Saldo Acumulado"
           value={formatCurrency(currentPeriodProfit)}
           icon={<DollarSignIcon />}
           trend={profitTrend}
