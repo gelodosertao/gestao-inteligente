@@ -42,6 +42,7 @@ export interface Product {
   isStockControlled?: boolean; // Se false, não controla estoque (ex: Drinks feitos na hora)
   comboItems?: { productId: string; quantity: number }[]; // Se preenchido, é um Combo
   image?: string; // URL da imagem do produto
+  description?: string; // Descrição do produto
 
   // Production / Recipe
   recipe?: { ingredientId: string; quantity: number }[]; // Insumos gastos por unidade produzida

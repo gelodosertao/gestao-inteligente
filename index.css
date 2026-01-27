@@ -6,6 +6,67 @@ body {
   font-family: 'Inter', sans-serif;
 }
 
+/* --- ANIMATIONS --- */
+.animate-in {
+  animation-duration: 0.3s;
+  animation-fill-mode: both;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.fade-in {
+  animation-name: fadeIn;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.slide-in-from-bottom-4 {
+  animation-name: slideInUpSmall;
+}
+
+@keyframes slideInUpSmall {
+  from { transform: translateY(1rem); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.slide-in-from-right {
+  animation-name: slideInRight;
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+.slide-in-from-top-2 {
+  animation-name: slideInDownSmall;
+}
+
+@keyframes slideInDownSmall {
+  from { transform: translateY(-0.5rem); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.slide-in-from-top-4 {
+  animation-name: slideInDownMedium;
+}
+
+@keyframes slideInDownMedium {
+  from { transform: translateY(-1rem); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* Scrollbar hide utility */
+.scrollbar-hide::-webkit-scrollbar {
+    display: none;
+}
+.scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
 /* --- PRINT STYLES FOR THERMAL PRINTER --- */
 @media print {
 
