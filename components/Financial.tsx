@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { FinancialRecord, Branch, Sale, Product, CategoryItem, CashClosing, User } from '../types';
 import { dbCategories } from '../services/db';
-import { ArrowUpCircle, ArrowDownCircle, X, Plus, Calendar, DollarSign, Repeat, ArrowLeft, Building2, BarChart3, LineChart, Filter, Trash2, Lock, CheckCircle, AlertTriangle } from 'lucide-react';
+import { ArrowUpCircle, ArrowDownCircle, X, Plus, Calendar, DollarSign, Repeat, ArrowLeft, Building2, BarChart3, LineChart, Filter, Trash2, Lock, CheckCircle, AlertTriangle, Search } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 import { getTodayDate } from '../services/utils';
 
@@ -27,6 +27,7 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
    const [dateRange, setDateRange] = useState<'TODAY' | 'THIS_WEEK' | 'THIS_MONTH' | 'LAST_30_DAYS' | 'LAST_60_DAYS' | 'LAST_90_DAYS' | 'ALL_TIME' | 'CUSTOM'>('THIS_MONTH');
    const [customStartDate, setCustomStartDate] = useState(getTodayDate());
    const [customEndDate, setCustomEndDate] = useState(getTodayDate());
+   const [searchTerm, setSearchTerm] = useState('');
 
    // Cash Closing State
    const [closingDate, setClosingDate] = useState(getTodayDate());
@@ -201,6 +202,16 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
          return (b.id || '').localeCompare(a.id || '');
       });
    }, [filteredRecords, filteredSales]);
+
+   const searchedRecords = useMemo(() => {
+      if (!searchTerm.trim()) return unifiedRecords;
+      const lowerTerm = searchTerm.toLowerCase();
+      return unifiedRecords.filter(r =>
+         r.description.toLowerCase().includes(lowerTerm) ||
+         r.category.toLowerCase().includes(lowerTerm) ||
+         r.amount.toString().includes(lowerTerm)
+      );
+   }, [unifiedRecords, searchTerm]);
 
    // --- CASH CLOSING CALCULATIONS ---
    const closingData = useMemo(() => {
@@ -573,54 +584,70 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
             <div className="space-y-6 animate-in fade-in">
                {/* Transaction List */}
                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                  <div className="p-4 border-b border-slate-100 bg-slate-50">
+                  <div className="p-4 border-b border-slate-100 bg-slate-50 flex flex-col md:flex-row justify-between items-center gap-4">
                      <h3 className="font-bold text-slate-700">Movimentações Recentes</h3>
+                     <div className="relative w-full md:w-64">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                        <input
+                           type="text"
+                           placeholder="Buscar movimentação..."
+                           className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                           value={searchTerm}
+                           onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                     </div>
                   </div>
                   <div className="divide-y divide-slate-100 max-h-[400px] overflow-y-auto">
-                     {unifiedRecords.map(record => {
-                        const isSaleRecord = record.id.startsWith('sale-');
-                        return (
-                           <div key={record.id} className="p-4 flex justify-between items-center hover:bg-slate-50 transition-colors group">
-                              <div className="flex items-center gap-4">
-                                 <div className={`w-10 h-10 rounded-full flex items-center justify-center ${record.type === 'Income' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
-                                    {record.type === 'Income' ? <ArrowUpCircle size={20} /> : <ArrowDownCircle size={20} />}
-                                 </div>
-                                 <div>
-                                    <p className="font-bold text-slate-800">{record.description}</p>
-                                    <div className="flex gap-2 items-center">
-                                       <p className="text-xs text-slate-500 flex items-center gap-1"><Calendar size={10} /> {record.date}</p>
-                                       <span className="text-xs px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">{record.category}</span>
-                                       {record.branch && (
-                                          <span className={`text-[10px] px-1.5 py-0.5 rounded border ${record.branch === Branch.MATRIZ ? 'bg-blue-50 text-blue-700 border-blue-100' : 'bg-orange-50 text-orange-700 border-orange-100'}`}>
-                                             {record.branch === Branch.MATRIZ ? 'Matriz' : 'Filial'}
-                                          </span>
-                                       )}
-                                       {record.paymentMethod && (
-                                          <span className="text-[10px] px-1.5 py-0.5 rounded border bg-slate-50 text-slate-600 border-slate-200">
-                                             {record.paymentMethod === 'Credit' ? 'Crédito' : record.paymentMethod === 'Debit' ? 'Débito' : record.paymentMethod === 'Cash' ? 'Dinheiro' : record.paymentMethod}
-                                          </span>
-                                       )}
+                     {searchedRecords.length === 0 ? (
+                        <div className="p-8 text-center text-slate-500">
+                           Nenhuma movimentação encontrada.
+                        </div>
+                     ) : (
+                        searchedRecords.map(record => {
+                           const isSaleRecord = record.id.startsWith('sale-');
+                           return (
+                              <div key={record.id} className="p-4 flex justify-between items-center hover:bg-slate-50 transition-colors group">
+                                 <div className="flex items-center gap-4">
+                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${record.type === 'Income' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
+                                       {record.type === 'Income' ? <ArrowUpCircle size={20} /> : <ArrowDownCircle size={20} />}
+                                    </div>
+                                    <div>
+                                       <p className="font-bold text-slate-800">{record.description}</p>
+                                       <div className="flex gap-2 items-center">
+                                          <p className="text-xs text-slate-500 flex items-center gap-1"><Calendar size={10} /> {record.date}</p>
+                                          <span className="text-xs px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">{record.category}</span>
+                                          {record.branch && (
+                                             <span className={`text-[10px] px-1.5 py-0.5 rounded border ${record.branch === Branch.MATRIZ ? 'bg-blue-50 text-blue-700 border-blue-100' : 'bg-orange-50 text-orange-700 border-orange-100'}`}>
+                                                {record.branch === Branch.MATRIZ ? 'Matriz' : 'Filial'}
+                                             </span>
+                                          )}
+                                          {record.paymentMethod && (
+                                             <span className="text-[10px] px-1.5 py-0.5 rounded border bg-slate-50 text-slate-600 border-slate-200">
+                                                {record.paymentMethod === 'Credit' ? 'Crédito' : record.paymentMethod === 'Debit' ? 'Débito' : record.paymentMethod === 'Cash' ? 'Dinheiro' : record.paymentMethod}
+                                             </span>
+                                          )}
+                                       </div>
                                     </div>
                                  </div>
+                                 <div className="flex items-center gap-4">
+                                    <span className={`font-bold ${record.type === 'Income' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                       {record.type === 'Income' ? '+' : '-'} {formatCurrency(record.amount)}
+                                    </span>
+                                    {!isSaleRecord && (
+                                       <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                          <button onClick={() => handleEditRecord(record)} className="text-slate-400 hover:text-blue-600 p-1">
+                                             <Building2 size={16} />
+                                          </button>
+                                          <button onClick={() => onDeleteRecord(record.id)} className="text-slate-400 hover:text-red-600 p-1">
+                                             <X size={16} />
+                                          </button>
+                                       </div>
+                                    )}
+                                 </div>
                               </div>
-                              <div className="flex items-center gap-4">
-                                 <span className={`font-bold ${record.type === 'Income' ? 'text-emerald-600' : 'text-rose-600'}`}>
-                                    {record.type === 'Income' ? '+' : '-'} {formatCurrency(record.amount)}
-                                 </span>
-                                 {!isSaleRecord && (
-                                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                       <button onClick={() => handleEditRecord(record)} className="text-slate-400 hover:text-blue-600 p-1">
-                                          <Building2 size={16} />
-                                       </button>
-                                       <button onClick={() => onDeleteRecord(record.id)} className="text-slate-400 hover:text-red-600 p-1">
-                                          <X size={16} />
-                                       </button>
-                                    </div>
-                                 )}
-                              </div>
-                           </div>
-                        );
-                     })}
+                           );
+                        })
+                     )}
                   </div>
                </div>
             </div>
