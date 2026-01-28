@@ -19,10 +19,12 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
   const [selectedBranch, setSelectedBranch] = useState<'ALL' | Branch>('ALL');
 
   // --- DATE FILTERING ---
-  const [period, setPeriod] = useState<'DAY' | 'WEEK' | 'MONTH'>('MONTH');
+  const [period, setPeriod] = useState<'DAY' | 'WEEK' | 'MONTH' | 'YEAR' | 'CUSTOM'>('MONTH');
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [customStartDate, setCustomStartDate] = useState(new Date().toISOString().split('T')[0]);
+  const [customEndDate, setCustomEndDate] = useState(new Date().toISOString().split('T')[0]);
 
-  const getPeriodDates = (date: Date, type: 'DAY' | 'WEEK' | 'MONTH') => {
+  const getPeriodDates = (date: Date, type: 'DAY' | 'WEEK' | 'MONTH' | 'YEAR' | 'CUSTOM') => {
     const start = new Date(date);
     const end = new Date(date);
 
@@ -37,31 +39,57 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
 
       end.setDate(diff + 6);
       end.setHours(23, 59, 59, 999);
-    } else {
+    } else if (type === 'MONTH') {
       start.setDate(1);
       start.setHours(0, 0, 0, 0);
       end.setMonth(end.getMonth() + 1);
       end.setDate(0);
       end.setHours(23, 59, 59, 999);
+    } else if (type === 'YEAR') {
+      start.setMonth(0, 1);
+      start.setHours(0, 0, 0, 0);
+      end.setFullYear(end.getFullYear() + 1, 0, 0); // Last day of current year
+      end.setHours(23, 59, 59, 999);
+    } else if (type === 'CUSTOM') {
+      const s = new Date(customStartDate);
+      s.setHours(0, 0, 0, 0);
+      // Fix timezone offset for start date
+      const offsetStart = s.getTime() + (s.getTimezoneOffset() * 60000);
+      const finalStart = new Date(offsetStart + (3600000 * 3)); // Add 3h back if needed or just use local. 
+      // Simpler: just parse YYYY-MM-DD
+      const [sy, sm, sd] = customStartDate.split('-').map(Number);
+      const customStart = new Date(sy, sm - 1, sd, 0, 0, 0, 0);
+
+      const [ey, em, ed] = customEndDate.split('-').map(Number);
+      const customEnd = new Date(ey, em - 1, ed, 23, 59, 59, 999);
+
+      return { start: customStart, end: customEnd };
     }
     return { start, end };
   };
 
   const navigatePeriod = (direction: 'prev' | 'next') => {
+    if (period === 'CUSTOM') return; // No navigation for custom
     const newDate = new Date(currentDate);
     if (period === 'DAY') newDate.setDate(newDate.getDate() + (direction === 'next' ? 1 : -1));
     if (period === 'WEEK') newDate.setDate(newDate.getDate() + (direction === 'next' ? 7 : -7));
     if (period === 'MONTH') newDate.setMonth(newDate.getMonth() + (direction === 'next' ? 1 : -1));
+    if (period === 'YEAR') newDate.setFullYear(newDate.getFullYear() + (direction === 'next' ? 1 : -1));
     setCurrentDate(newDate);
   };
 
   const formatPeriodLabel = () => {
+    if (period === 'CUSTOM') {
+      return `${customStartDate.split('-').reverse().join('/')} - ${customEndDate.split('-').reverse().join('/')}`;
+    }
     if (period === 'DAY') return currentDate.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'long' });
     if (period === 'WEEK') {
       const { start, end } = getPeriodDates(currentDate, 'WEEK');
       return `${start.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} à ${end.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}`;
     }
-    return currentDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+    if (period === 'MONTH') return currentDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+    if (period === 'YEAR') return currentDate.getFullYear().toString();
+    return '';
   };
 
   // State for Power BI Filters
@@ -85,6 +113,7 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
   if (period === 'DAY') prevDate.setDate(prevDate.getDate() - 1);
   if (period === 'WEEK') prevDate.setDate(prevDate.getDate() - 7);
   if (period === 'MONTH') prevDate.setMonth(prevDate.getMonth() - 1);
+  if (period === 'YEAR') prevDate.setFullYear(prevDate.getFullYear() - 1);
 
   const { start: prevStart, end: prevEnd } = getPeriodDates(prevDate, period);
 
@@ -136,12 +165,16 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
 
     const previousBalance = prevIncome - prevExpense;
 
-    const currentPeriodProfit = (currentPeriodRevenue - currentPeriodExpenses) + previousBalance;
+    // Net Result for the Period (Profit)
+    const currentPeriodNetResult = currentPeriodRevenue - currentPeriodExpenses;
 
-    return { currentPeriodSales, currentPeriodRevenue, currentPeriodPending, currentPeriodExpenses, currentPeriodProfit, previousBalance };
-  }, [filteredSales, filteredFinancials, periodStart, periodEnd, period, currentDate]);
+    // Accumulated Result (Balance + Net Result)
+    const currentPeriodAccumulated = currentPeriodNetResult + previousBalance;
 
-  const { currentPeriodSales, currentPeriodRevenue, currentPeriodPending, currentPeriodExpenses, currentPeriodProfit } = periodData;
+    return { currentPeriodSales, currentPeriodRevenue, currentPeriodPending, currentPeriodExpenses, currentPeriodNetResult, currentPeriodAccumulated, previousBalance };
+  }, [filteredSales, filteredFinancials, periodStart, periodEnd, period, currentDate, customStartDate, customEndDate]);
+
+  const { currentPeriodSales, currentPeriodRevenue, currentPeriodPending, currentPeriodExpenses, currentPeriodNetResult, currentPeriodAccumulated } = periodData;
 
   // Previous Period Data (for trends)
   const prevPeriodData = useMemo(() => {
@@ -149,8 +182,8 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
     const prevPeriodRevenue = prevPeriodSalesRaw.filter(s => s.status === 'Completed').reduce((acc, curr) => acc + curr.total, 0);
     const prevPeriodPending = prevPeriodSalesRaw.filter(s => s.status === 'Pending').reduce((acc, curr) => acc + curr.total, 0);
     const prevPeriodExpenses = financials.filter(f => (selectedBranch === 'ALL' || f.branch === selectedBranch) && f.type === 'Expense' && isInRange(f.date, prevStart, prevEnd)).reduce((acc, curr) => acc + curr.amount, 0);
-    const prevPeriodProfit = prevPeriodRevenue - prevPeriodExpenses;
-    return { prevPeriodSalesRaw, prevPeriodRevenue, prevPeriodPending, prevPeriodExpenses, prevPeriodProfit };
+    const prevPeriodNetResult = prevPeriodRevenue - prevPeriodExpenses;
+    return { prevPeriodSalesRaw, prevPeriodRevenue, prevPeriodPending, prevPeriodExpenses, prevPeriodNetResult };
   }, [sales, financials, selectedBranch, prevStart, prevEnd]);
 
   // Trends
@@ -163,7 +196,7 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
   const revenueTrend = calculateTrend(periodData.currentPeriodRevenue, prevPeriodData.prevPeriodRevenue);
   const pendingTrend = calculateTrend(periodData.currentPeriodPending, prevPeriodData.prevPeriodPending);
   const expenseTrend = calculateTrend(periodData.currentPeriodExpenses, prevPeriodData.prevPeriodExpenses);
-  const profitTrend = calculateTrend(periodData.currentPeriodProfit, prevPeriodData.prevPeriodProfit);
+  const netResultTrend = calculateTrend(periodData.currentPeriodNetResult, prevPeriodData.prevPeriodNetResult);
   const salesCountTrend = calculateTrend(periodData.currentPeriodSales.length, prevPeriodData.prevPeriodSalesRaw.length);
 
   // Stock Data - Dynamic based on Branch
@@ -266,11 +299,21 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
           </div>
 
           {/* Period Selector */}
-          <div className="bg-white p-1 rounded-lg border border-slate-200 flex justify-center">
+          <div className="bg-white p-1 rounded-lg border border-slate-200 flex flex-wrap justify-center gap-1">
             <button onClick={() => setPeriod('DAY')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${period === 'DAY' ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}>Dia</button>
             <button onClick={() => setPeriod('WEEK')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${period === 'WEEK' ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}>Semana</button>
             <button onClick={() => setPeriod('MONTH')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${period === 'MONTH' ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}>Mês</button>
+            <button onClick={() => setPeriod('YEAR')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${period === 'YEAR' ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}>Ano</button>
+            <button onClick={() => setPeriod('CUSTOM')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${period === 'CUSTOM' ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}>Personalizado</button>
           </div>
+
+          {period === 'CUSTOM' && (
+            <div className="flex items-center gap-2 bg-white p-1 rounded-lg border border-slate-200">
+              <input type="date" value={customStartDate} onChange={e => setCustomStartDate(e.target.value)} className="text-sm border-none focus:ring-0 text-slate-600" />
+              <span className="text-slate-400">-</span>
+              <input type="date" value={customEndDate} onChange={e => setCustomEndDate(e.target.value)} className="text-sm border-none focus:ring-0 text-slate-600" />
+            </div>
+          )}
 
           {/* Branch Selector */}
           <div className="bg-white p-1 rounded-lg border border-slate-200 flex justify-center">
@@ -320,11 +363,18 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
           color="bg-rose-500"
         />
         <Card
-          title="Saldo Acumulado"
-          value={formatCurrency(currentPeriodProfit)}
+          title="Resultado Líquido"
+          value={formatCurrency(currentPeriodNetResult)}
           icon={<DollarSignIcon />}
-          trend={profitTrend}
-          color="bg-emerald-500"
+          trend={netResultTrend}
+          color={currentPeriodNetResult >= 0 ? "bg-emerald-500" : "bg-red-500"}
+        />
+        <Card
+          title="Saldo Acumulado"
+          value={formatCurrency(currentPeriodAccumulated)}
+          icon={<DollarSignIcon />}
+          trend={''}
+          color={currentPeriodAccumulated >= 0 ? "bg-slate-600" : "bg-red-500"}
         />
         <Card
           title="Vendas"
@@ -360,9 +410,9 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={currentPeriodSales
                 .map(s => ({
-                  date: period === 'DAY'
+                  date: (period === 'DAY' || period === 'CUSTOM')
                     ? (s.date.includes('T') ? s.date.split('T')[1].slice(0, 5) : '00:00')
-                    : s.date.slice(5, 10), // HH:MM for Day, MM-DD for others
+                    : (period === 'YEAR' ? s.date.slice(0, 7) : s.date.slice(5, 10)),
                   amount: s.total
                 })).reduce((acc: any[], curr) => {
                   const found = acc.find(a => a.date === curr.date);
@@ -588,18 +638,25 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
 };
 
 // Helper Components
-const Card = ({ title, value, icon, trend, color }: any) => (
-  <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between hover:shadow-md transition-shadow group">
-    <div>
-      <p className="text-sm font-medium text-slate-500 mb-1">{title}</p>
-      <h3 className="text-2xl font-bold text-slate-800">{value}</h3>
-      <span className={`text-xs font-medium px-2 py-0.5 rounded mt-2 inline-block ${trend.includes('-') ? 'text-red-600 bg-red-50' : 'text-emerald-600 bg-emerald-50'}`}>{trend}</span>
+const Card = ({ title, value, icon, trend, color }: any) => {
+  const isNegative = value.toString().includes('-');
+  return (
+    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between hover:shadow-md transition-shadow group">
+      <div>
+        <p className="text-sm font-medium text-slate-500 mb-1">{title}</p>
+        <h3 className={`text-2xl font-bold ${isNegative ? 'text-red-600' : 'text-slate-800'}`}>{value}</h3>
+        {trend && (
+          <span className={`text-xs font-medium px-2 py-0.5 rounded mt-2 inline-block ${trend.includes('-') ? 'text-red-600 bg-red-50' : 'text-emerald-600 bg-emerald-50'}`}>
+            {trend}
+          </span>
+        )}
+      </div>
+      <div className={`w-12 h-12 rounded-xl ${color} flex items-center justify-center text-white shadow-lg transition-transform group-hover:scale-110`}>
+        {React.cloneElement(icon, { size: 24 })}
+      </div>
     </div>
-    <div className={`w-12 h-12 rounded-xl ${color} flex items-center justify-center text-white shadow-lg transition-transform group-hover:scale-110`}>
-      {React.cloneElement(icon, { size: 24 })}
-    </div>
-  </div>
-);
+  );
+};
 
 const DollarSignIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
