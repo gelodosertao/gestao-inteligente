@@ -1584,7 +1584,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
          </div>
          {/* --- HIDDEN THERMAL RECEIPT (FOR PRINTING) --- */}
          {lastCompletedSale && (
-            <div id="receipt-content" className="fixed top-0 left-0 -z-50 bg-white p-2 text-black font-mono text-[10px] w-[300px]" style={{ fontFamily: '"Courier New", Courier, monospace' }}>
+            <div id="receipt-content" className="fixed top-0 left-0 -z-50 opacity-0 pointer-events-none bg-white p-2 text-black font-mono text-[10px] w-[300px]" style={{ fontFamily: '"Courier New", Courier, monospace' }}>
                <div className="text-center border-b border-black pb-2 mb-2">
                   <h2 className="font-bold text-sm uppercase">Gelo do Sertão</h2>
                   <p>CNPJ: 00.000.000/0001-00</p>
@@ -1634,7 +1634,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
 
          {/* --- HIDDEN RECEIPT FOR HISTORY DOWNLOAD --- */}
          {saleToDownload && (
-            <div id="printable-receipt-content" className="fixed top-0 left-0 -z-50 bg-white p-4 text-black font-mono text-xs w-[350px]" style={{ fontFamily: '"Courier New", Courier, monospace' }}>
+            <div id="printable-receipt-content" className="fixed top-0 left-0 -z-50 opacity-0 pointer-events-none bg-white p-4 text-black font-mono text-xs w-[350px]" style={{ fontFamily: '"Courier New", Courier, monospace' }}>
                <div className="text-center border-b-2 border-dashed border-black pb-4 mb-4">
                   <h2 className="font-bold text-lg uppercase mb-1">Gelo do Sertão</h2>
                   <p>CNPJ: 00.000.000/0001-00</p>
