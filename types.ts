@@ -62,6 +62,14 @@ export interface StoreSettings {
   primaryColor?: string; // Hex code
 }
 
+export interface PaymentEntry {
+  id: string;
+  date: string;
+  amount: number;
+  method: 'Pix' | 'Credit' | 'Debit' | 'Cash';
+  notes?: string;
+}
+
 export interface Sale {
   id: string;
   date: string;
@@ -77,6 +85,9 @@ export interface Sale {
   invoiceUrl?: string;
   cashReceived?: number; // Valor recebido em dinheiro
   changeAmount?: number; // Troco devolvido
+  // Propriedades para venda Fiado / Parcial
+  amountPaid?: number; // Total pago
+  paymentHistory?: PaymentEntry[]; // Histórico
 }
 
 export interface SaleItem {

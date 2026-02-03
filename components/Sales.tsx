@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { invoiceService } from '../services/invoiceService';
-import { Sale, Branch, Product, Customer, User } from '../types';
+import { Sale, Branch, Product, Customer, User, PaymentEntry } from '../types';
 import { hardwareBridge } from '../services/hardwareBridge';
 import { ShoppingCart, FileText, CheckCircle, Clock, X, Printer, Send, ScanBarcode, Search, Trash2, Plus, Minus, CreditCard, Banknote, QrCode, Bluetooth, ArrowRight, Store, Factory, Calculator, User as UserIcon, UserPlus, Edit, Save, ArrowLeft, Download } from 'lucide-react';
 import html2canvas from 'html2canvas';
@@ -52,6 +52,70 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
    const [cpf, setCpf] = useState('');
    const [lastCompletedSale, setLastCompletedSale] = useState<Sale | null>(null); // For printing POS receipt
    const [saleToDownload, setSaleToDownload] = useState<Sale | null>(null); // For downloading history receipt
+
+   // --- DEBT PAYMENT STATE ---
+   const [showDebtModal, setShowDebtModal] = useState(false);
+   const [selectedDebtSale, setSelectedDebtSale] = useState<Sale | null>(null);
+   const [paymentAmountInput, setPaymentAmountInput] = useState('');
+   const [paymentDateInput, setPaymentDateInput] = useState('');
+   const [paymentMethodInput, setPaymentMethodInput] = useState<'Pix' | 'Credit' | 'Debit' | 'Cash'>('Pix');
+   const [paymentNotesInput, setPaymentNotesInput] = useState('');
+
+   const openDebtPaymentModal = (sale: Sale) => {
+      setSelectedDebtSale(sale);
+      const remaining = sale.total - (sale.amountPaid || 0);
+      setPaymentAmountInput(remaining.toFixed(2));
+      setPaymentDateInput(getTodayDate());
+      setPaymentMethodInput('Pix');
+      setPaymentNotesInput('');
+      setShowDebtModal(true);
+   };
+
+   const handleRegisterPayment = () => {
+      if (!selectedDebtSale) return;
+
+      const amount = parseFloat(paymentAmountInput.replace(',', '.'));
+      if (isNaN(amount) || amount <= 0) {
+         alert('Valor inválido');
+         return;
+      }
+
+      const currentPaid = selectedDebtSale.amountPaid || 0;
+      const remaining = selectedDebtSale.total - currentPaid;
+
+      if (amount > remaining + 0.1) {
+         alert(`O valor não pode ser maior que o restante (R$ ${remaining.toFixed(2)})`);
+         return;
+      }
+
+      const newEntry: PaymentEntry = {
+         id: Math.random().toString(36).substr(2, 9),
+         date: paymentDateInput,
+         amount: amount,
+         method: paymentMethodInput,
+         notes: paymentNotesInput
+      };
+
+      const newPaid = currentPaid + amount;
+      const history = selectedDebtSale.paymentHistory || [];
+      const newHistory = [...history, newEntry];
+
+      // Tolerance for float comparison
+      const isFullyPaid = newPaid >= selectedDebtSale.total - 0.05;
+
+      const updatedSale: Sale = {
+         ...selectedDebtSale,
+         amountPaid: newPaid,
+         paymentHistory: newHistory,
+         status: isFullyPaid ? 'Completed' : 'Pending',
+         // If fully paid, we keep hasInvoice as is (usually false for Fiado), 
+         // user can emit later or we could auto-emit? Keeping manual for flexibility.
+      };
+
+      onUpdateSale(updatedSale);
+      setShowDebtModal(false);
+      setSelectedDebtSale(null);
+   };
 
    // --- POS (PDV) STATE ---
    const [selectedBranch, setSelectedBranch] = useState<Branch>(Branch.FILIAL); // Default to Retail/Filial
@@ -552,7 +616,14 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                      </div>
 
                      <div className="mt-4 md:mt-0 flex flex-col items-end gap-2 w-full md:w-auto">
-                        <span className="font-bold text-lg text-slate-800">{formatCurrency(sale.total)}</span>
+                        <div className="text-right">
+                           <span className="font-bold text-lg text-slate-800 block">{formatCurrency(sale.total)}</span>
+                           {sale.status === 'Pending' && (
+                              <span className="text-xs font-bold text-red-600 block">
+                                 Restante: {formatCurrency(sale.total - (sale.amountPaid || 0))}
+                              </span>
+                           )}
+                        </div>
                         <div className="flex gap-2 flex-wrap justify-end">
                            <span className={`px-2 py-0.5 rounded text-xs font-bold border flex items-center gap-1 ${sale.status === 'Completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : sale.status === 'Pending' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : 'bg-red-50 text-red-700 border-red-200'} `}>
                               {sale.status === 'Completed' ? 'Concluído' : sale.status === 'Pending' ? 'Pendente' : 'Cancelado'}
@@ -566,6 +637,14 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                            </span>
                         </div>
                         <div className="flex gap-2 mt-2">
+                           {sale.status === 'Pending' && (
+                              <button
+                                 onClick={() => openDebtPaymentModal(sale)}
+                                 className="text-xs text-orange-600 font-bold hover:underline flex items-center gap-1 cursor-pointer bg-orange-50 px-2 py-1 rounded hover:bg-orange-100 transition-colors border border-orange-200"
+                              >
+                                 <Banknote size={12} /> Pagar/Baixar
+                              </button>
+                           )}
                            {!sale.hasInvoice ? (
                               <button
                                  onClick={() => handleOpenInvoice(sale)}
@@ -1582,6 +1661,99 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                </div>
             )}
          </div>
+
+         {/* --- DEBT PAYMENT MODAL --- */}
+         {showDebtModal && selectedDebtSale && (
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+               <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+                  <div className="p-4 bg-orange-600 text-white flex justify-between items-center">
+                     <h3 className="font-bold flex items-center gap-2">
+                        <Banknote size={20} /> Registrar Pagamento de Fiado
+                     </h3>
+                     <button onClick={() => setShowDebtModal(false)}><X size={20} /></button>
+                  </div>
+
+                  <div className="p-6 space-y-4">
+                     <div>
+                        <p className="text-sm text-slate-500 mb-1">Cliente</p>
+                        <p className="font-bold text-lg text-slate-800">{selectedDebtSale.customerName}</p>
+                     </div>
+
+                     <div className="flex gap-4 p-3 bg-slate-50 rounded-lg border border-slate-100">
+                        <div className="flex-1">
+                           <p className="text-xs text-slate-500">Total Venda</p>
+                           <p className="font-bold text-slate-800">{formatCurrency(selectedDebtSale.total)}</p>
+                        </div>
+                        <div className="flex-1">
+                           <p className="text-xs text-slate-500">Já Pago</p>
+                           <p className="font-bold text-green-600">{formatCurrency(selectedDebtSale.amountPaid || 0)}</p>
+                        </div>
+                        <div className="flex-1 border-l pl-4 border-slate-200">
+                           <p className="text-xs text-red-500 font-bold">Restante</p>
+                           <p className="font-bold text-red-600">{formatCurrency(selectedDebtSale.total - (selectedDebtSale.amountPaid || 0))}</p>
+                        </div>
+                     </div>
+
+                     <div className="grid grid-cols-2 gap-4">
+                        <div>
+                           <label className="block text-sm font-bold text-slate-700 mb-1">Data Pagamento</label>
+                           <input
+                              type="date"
+                              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                              value={paymentDateInput}
+                              onChange={(e) => setPaymentDateInput(e.target.value)}
+                           />
+                        </div>
+                        <div>
+                           <label className="block text-sm font-bold text-slate-700 mb-1">Valor (R$)</label>
+                           <input
+                              type="number"
+                              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 font-bold text-lg"
+                              value={paymentAmountInput}
+                              onChange={(e) => setPaymentAmountInput(e.target.value)}
+                              placeholder="0.00"
+                              step="0.01"
+                              autoFocus
+                           />
+                        </div>
+                     </div>
+
+                     <div>
+                        <label className="block text-sm font-bold text-slate-700 mb-1">Forma de Pagamento</label>
+                        <div className="grid grid-cols-2 gap-2">
+                           {['Pix', 'Cash', 'Credit', 'Debit'].map((m) => (
+                              <button
+                                 key={m}
+                                 onClick={() => setPaymentMethodInput(m as any)}
+                                 className={`py-2 rounded-lg text-sm font-bold border transition-colors ${paymentMethodInput === m ? 'bg-orange-100 border-orange-500 text-orange-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                              >
+                                 {m === 'Cash' ? 'Dinheiro' : m === 'Credit' ? 'Crédito' : m === 'Debit' ? 'Débito' : m}
+                              </button>
+                           ))}
+                        </div>
+                     </div>
+
+                     <div>
+                        <label className="block text-sm font-bold text-slate-700 mb-1">Observações (Opcional)</label>
+                        <input
+                           type="text"
+                           className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                           value={paymentNotesInput}
+                           onChange={(e) => setPaymentNotesInput(e.target.value)}
+                           placeholder="Ex: Pagamento parcial referente..."
+                        />
+                     </div>
+
+                     <button
+                        onClick={handleRegisterPayment}
+                        className="w-full bg-orange-600 hover:bg-orange-700 text-white py-3 rounded-xl font-bold text-lg shadow-lg shadow-orange-900/10 flex items-center justify-center gap-2 mt-2"
+                     >
+                        <Save size={20} /> Confirmar Pagamento
+                     </button>
+                  </div>
+               </div>
+            </div>
+         )}
          {/* --- HIDDEN THERMAL RECEIPT (FOR PRINTING) --- */}
          {lastCompletedSale && (
             <div id="receipt-content" className="fixed top-0 left-0 -z-50 opacity-0 pointer-events-none bg-white p-2 text-black font-mono text-[10px] w-[300px]" style={{ fontFamily: '"Courier New", Courier, monospace' }}>
