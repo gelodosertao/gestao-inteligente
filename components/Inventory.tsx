@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Product, Branch, Category, Sale, FinancialRecord, StockMovement, CategoryItem } from '../types';
+import { Product, Branch, Category, Sale, FinancialRecord, StockMovement, CategoryItem, User } from '../types';
 import { Search, Plus, ArrowRightLeft, Filter, Save, X, Truck, AlertTriangle, Upload, FileText, ArrowLeft, AlertOctagon, Edit, Calculator, DollarSign, TrendingUp, Trash2, PieChart, BarChart3, ScrollText } from 'lucide-react';
 import { dbStockMovements, dbCategories } from '../services/db';
 import { getTodayDate } from '../services/utils';
@@ -14,9 +14,10 @@ interface InventoryProps {
   onOpenPricing: (productId: string) => void;
   onAddFinancialRecord: (records: FinancialRecord[]) => void;
   onBack: () => void;
+  currentUser: User;
 }
 
-const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUpdateProduct, onAddProduct, onDeleteProduct, onOpenPricing, onAddFinancialRecord, onBack }) => {
+const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUpdateProduct, onAddProduct, onDeleteProduct, onOpenPricing, onAddFinancialRecord, onBack, currentUser }) => {
   const [filter, setFilter] = useState('');
 
   // Modal States
@@ -61,7 +62,7 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
   useEffect(() => {
     if (showReportModal) {
       setLoadingMovements(true);
-      dbStockMovements.getAll()
+      dbStockMovements.getAll(currentUser.tenantId)
         .then(data => setStockMovements(data))
         .catch(err => console.error("Erro ao carregar movimentos", err))
         .finally(() => setLoadingMovements(false));
@@ -73,7 +74,7 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
   }, []);
 
   const loadCategories = () => {
-    dbCategories.getAll('PRODUCT')
+    dbCategories.getAll(currentUser.tenantId, 'PRODUCT')
       .then(setCategories)
       .catch(err => console.error("Erro ao carregar categorias", err));
   };
@@ -81,7 +82,7 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
   const handleAddCategory = async () => {
     if (!newCategoryName.trim()) return;
     try {
-      await dbCategories.add({ name: newCategoryName, type: 'PRODUCT' });
+      await dbCategories.add({ name: newCategoryName, type: 'PRODUCT' }, currentUser.tenantId);
       setNewCategoryName('');
       loadCategories();
     } catch (error) {
@@ -230,7 +231,7 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
         type: 'LOSS',
         reason: lossData.reason,
         branch: lossData.branch
-      });
+      }, currentUser.tenantId);
 
       // Create Financial Record for the Loss
       const lossValue = selectedProduct.cost * lossData.quantity;
@@ -380,165 +381,168 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 relative">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div className="flex items-center gap-3">
-          <button onClick={onBack} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
-            <ArrowLeft size={24} className="text-slate-600" />
-          </button>
-          <div>
-            <h2 className="text-2xl font-bold text-slate-800">Controle de Estoque</h2>
-            <p className="text-slate-500">Gerencie níveis de gelo e bebidas entre Matriz e Filial.</p>
+    <>
+      <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 relative">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="flex items-center gap-3">
+            <button onClick={onBack} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
+              <ArrowLeft size={24} className="text-slate-600" />
+            </button>
+            <div>
+              <h2 className="text-2xl font-bold text-slate-800">Controle de Estoque</h2>
+              <p className="text-slate-500">Gerencie níveis de gelo e bebidas entre Matriz e Filial.</p>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={handleOpenTransfer}
+              className="bg-blue-800 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors shadow-lg shadow-blue-900/10"
+            >
+              <ArrowRightLeft size={18} /> Transferir (Matriz {'->'} Filial)
+            </button>
+            <button
+              onClick={() => {
+                setIsEditing(false);
+                setNewProductData({ category: 'Gelo Cubo', unit: 'un' });
+                setShowNewProductModal(true);
+              }}
+              className="bg-orange-500 hover:bg-orange-400 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 shadow-lg shadow-orange-900/20 transition-colors"
+            >
+              <Plus size={18} /> Novo Produto
+            </button>
+            <label className="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 cursor-pointer transition-colors shadow-lg shadow-slate-900/10">
+              <Upload size={18} /> Importar XML
+              <input type="file" accept=".xml" className="hidden" onChange={handleFileUpload} />
+            </label>
+            <button
+              onClick={() => setShowCategoryModal(true)}
+              className="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 shadow-lg shadow-slate-900/10 transition-colors"
+            >
+              <Filter size={18} /> Categorias
+            </button>
+            <button
+              onClick={() => setShowReportModal(true)}
+              className="bg-purple-700 hover:bg-purple-600 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 shadow-lg shadow-purple-900/10 transition-colors"
+            >
+              <PieChart size={18} /> Relatórios
+            </button>
           </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <button
-            onClick={handleOpenTransfer}
-            className="bg-blue-800 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors shadow-lg shadow-blue-900/10"
-          >
-            <ArrowRightLeft size={18} /> Transferir (Matriz {'->'} Filial)
-          </button>
-          <button
-            onClick={() => {
-              setIsEditing(false);
-              setNewProductData({ category: 'Gelo Cubo', unit: 'un' });
-              setShowNewProductModal(true);
-            }}
-            className="bg-orange-500 hover:bg-orange-400 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 shadow-lg shadow-orange-900/20 transition-colors"
-          >
-            <Plus size={18} /> Novo Produto
-          </button>
-          <label className="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 cursor-pointer transition-colors shadow-lg shadow-slate-900/10">
-            <Upload size={18} /> Importar XML
-            <input type="file" accept=".xml" className="hidden" onChange={handleFileUpload} />
-          </label>
-          <button
-            onClick={() => setShowCategoryModal(true)}
-            className="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 shadow-lg shadow-slate-900/10 transition-colors"
-          >
-            <Filter size={18} /> Categorias
-          </button>
-          <button
-            onClick={() => setShowReportModal(true)}
-            className="bg-purple-700 hover:bg-purple-600 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 shadow-lg shadow-purple-900/10 transition-colors"
-          >
-            <PieChart size={18} /> Relatórios
-          </button>
-        </div>
-      </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-        {/* Toolbar */}
-        <div className="p-4 border-b border-slate-100 flex gap-4">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} />
-            <input
-              type="text"
-              placeholder="Buscar produto por nome ou categoria..."
-              className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white transition-all text-slate-900"
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-            />
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+          {/* Toolbar */}
+          <div className="p-4 border-b border-slate-100 flex gap-4">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} />
+              <input
+                type="text"
+                placeholder="Buscar produto por nome ou categoria..."
+                className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white transition-all text-slate-900"
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+              />
+            </div>
+            <button
+              onClick={() => filter ? setFilter('') : setShowCategoryModal(true)}
+              className="p-2 text-slate-500 hover:bg-slate-50 rounded-lg border border-slate-200"
+              title={filter ? "Limpar Filtro" : "Filtrar por Categoria"}
+            >
+              {filter ? <X size={18} /> : <Filter size={18} />}
+            </button>
           </div>
-          <button
-            onClick={() => filter ? setFilter('') : setShowCategoryModal(true)}
-            className="p-2 text-slate-500 hover:bg-slate-50 rounded-lg border border-slate-200"
-            title={filter ? "Limpar Filtro" : "Filtrar por Categoria"}
-          >
-            {filter ? <X size={18} /> : <Filter size={18} />}
-          </button>
-        </div>
 
-        {/* Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-slate-50 text-slate-600 text-sm">
-                <th className="p-4 font-semibold">Produto</th>
-                <th className="p-4 font-semibold">Categoria</th>
-                <th className="p-4 font-semibold">Preço Varejo (Filial)</th>
-                <th className="p-4 font-semibold">Preço Base Atacado</th>
-                <th className="p-4 font-semibold text-center bg-blue-50/50 border-l border-slate-200">Estoque Matriz</th>
-                <th className="p-4 font-semibold text-center bg-orange-50/50 border-l border-slate-200">Estoque Filial</th>
-                <th className="p-4 font-semibold text-center">Status</th>
-                <th className="p-4 font-semibold text-right">Ações</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {filteredProducts.map((product) => {
-                const isLow = product.stockMatriz < product.minStock || product.stockFilial < product.minStock;
+          {/* Table */}
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-50 text-slate-600 text-sm">
+                  <th className="p-4 font-semibold">Produto</th>
+                  <th className="p-4 font-semibold">Categoria</th>
+                  <th className="p-4 font-semibold">Preço Varejo (Filial)</th>
+                  <th className="p-4 font-semibold">Preço Base Atacado</th>
+                  <th className="p-4 font-semibold text-center bg-blue-50/50 border-l border-slate-200">Estoque Matriz</th>
+                  <th className="p-4 font-semibold text-center bg-orange-50/50 border-l border-slate-200">Estoque Filial</th>
+                  <th className="p-4 font-semibold text-center">Status</th>
+                  <th className="p-4 font-semibold text-right">Ações</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filteredProducts.map((product) => {
+                  const isLow = product.stockMatriz < product.minStock || product.stockFilial < product.minStock;
 
-                return (
-                  <tr key={product.id} className="hover:bg-slate-50 transition-colors group">
-                    <td className="p-4">
-                      <p className="font-semibold text-slate-800">{product.name}</p>
-                      <span className="text-xs text-slate-400">ID: {product.id}</span>
-                    </td>
-                    <td className="p-4">
-                      <span className="px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs font-medium">
-                        {product.category}
-                      </span>
-                    </td>
-                    <td className="p-4 font-medium text-orange-700">{formatCurrency(product.priceFilial)}</td>
-                    <td className="p-4 font-medium text-blue-700">{formatCurrency(product.priceMatriz)}</td>
-                    <td className="p-4 text-center bg-blue-50/20 border-l border-slate-200 font-medium text-slate-700">
-                      {product.comboItems ? <span className="text-xs font-bold text-purple-600">COMBO</span> : product.isStockControlled === false ? <span className="text-xl">∞</span> : <span>{product.stockMatriz} <span className="text-xs text-slate-400">{product.unit}</span></span>}
-                    </td>
-                    <td className="p-4 text-center bg-orange-50/20 border-l border-slate-200 font-medium text-slate-700">
-                      {product.comboItems ? <span className="text-xs font-bold text-purple-600">COMBO</span> : product.isStockControlled === false ? <span className="text-xl">∞</span> : <span>{product.stockFilial} <span className="text-xs text-slate-400">{product.unit}</span></span>}
-                    </td>
-                    <td className="p-4 text-center">
-                      {isLow ? (
-                        <span className="px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs font-bold flex items-center justify-center gap-1">
-                          <AlertTriangle size={10} /> Baixo
+                  return (
+                    <tr key={product.id} className="hover:bg-slate-50 transition-colors group">
+                      <td className="p-4">
+                        <p className="font-semibold text-slate-800">{product.name}</p>
+                        <span className="text-xs text-slate-400">ID: {product.id}</span>
+                      </td>
+                      <td className="p-4">
+                        <span className="px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs font-medium">
+                          {product.category}
                         </span>
-                      ) : (
-                        <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold">Normal</span>
-                      )}
-                    </td>
-                    <td className="p-4 text-right flex justify-end gap-2">
-                      <button
-                        onClick={() => onOpenPricing(product.id)}
-                        className="text-emerald-500 hover:text-emerald-700 text-sm font-medium transition-colors flex items-center gap-1"
-                        title="Definir Receita"
-                      >
-                        <ScrollText size={16} /> Receita
-                      </button>
-                      <button
-                        onClick={() => handleOpenLoss(product)}
-                        className="text-red-400 hover:text-red-600 text-sm font-medium transition-colors flex items-center gap-1"
-                        title="Registrar Perda"
-                      >
-                        <AlertOctagon size={16} />
-                      </button>
-                      <button
-                        onClick={() => handleOpenEdit(product)}
-                        className="text-slate-400 hover:text-blue-600 text-sm font-medium transition-colors flex items-center gap-1"
-                      >
-                        <Edit size={16} /> Editar
-                      </button>
-                      <button
-                        onClick={() => {
-                          if (confirm(`Tem certeza que deseja excluir o produto "${product.name}"?`)) {
-                            onDeleteProduct(product.id);
-                          }
-                        }}
-                        className="text-slate-400 hover:text-red-600 text-sm font-medium transition-colors flex items-center gap-1 ml-2"
-                        title="Excluir Produto"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                      </td>
+                      <td className="p-4 font-medium text-orange-700">{formatCurrency(product.priceFilial)}</td>
+                      <td className="p-4 font-medium text-blue-700">{formatCurrency(product.priceMatriz)}</td>
+                      <td className="p-4 text-center bg-blue-50/20 border-l border-slate-200 font-medium text-slate-700">
+                        {product.comboItems ? <span className="text-xs font-bold text-purple-600">COMBO</span> : product.isStockControlled === false ? <span className="text-xl">∞</span> : <span>{product.stockMatriz} <span className="text-xs text-slate-400">{product.unit}</span></span>}
+                      </td>
+                      <td className="p-4 text-center bg-orange-50/20 border-l border-slate-200 font-medium text-slate-700">
+                        {product.comboItems ? <span className="text-xs font-bold text-purple-600">COMBO</span> : product.isStockControlled === false ? <span className="text-xl">∞</span> : <span>{product.stockFilial} <span className="text-xs text-slate-400">{product.unit}</span></span>}
+                      </td>
+                      <td className="p-4 text-center">
+                        {isLow ? (
+                          <span className="px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs font-bold flex items-center justify-center gap-1">
+                            <AlertTriangle size={10} /> Baixo
+                          </span>
+                        ) : (
+                          <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold">Normal</span>
+                        )}
+                      </td>
+                      <td className="p-4 text-right flex justify-end gap-2">
+                        <button
+                          onClick={() => onOpenPricing(product.id)}
+                          className="text-emerald-500 hover:text-emerald-700 text-sm font-medium transition-colors flex items-center gap-1"
+                          title="Definir Receita"
+                        >
+                          <ScrollText size={16} /> Receita
+                        </button>
+                        <button
+                          onClick={() => handleOpenLoss(product)}
+                          className="text-red-400 hover:text-red-600 text-sm font-medium transition-colors flex items-center gap-1"
+                          title="Registrar Perda"
+                        >
+                          <AlertOctagon size={16} />
+                        </button>
+                        <button
+                          onClick={() => handleOpenEdit(product)}
+                          className="text-slate-400 hover:text-blue-600 text-sm font-medium transition-colors flex items-center gap-1"
+                        >
+                          <Edit size={16} /> Editar
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (confirm(`Tem certeza que deseja excluir o produto "${product.name}"?`)) {
+                              onDeleteProduct(product.id);
+                            }
+                          }}
+                          className="text-slate-400 hover:text-red-600 text-sm font-medium transition-colors flex items-center gap-1 ml-2"
+                          title="Excluir Produto"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="p-4 border-t border-slate-100 bg-slate-50 text-xs text-slate-500 text-center">
+            Mostrando {filteredProducts.length} produtos
+          </div>
         </div>
 
-        <div className="p-4 border-t border-slate-100 bg-slate-50 text-xs text-slate-500 text-center">
-          Mostrando {filteredProducts.length} produtos
-        </div>
       </div>
 
       {/* --- MODAL DE TRANSFERÊNCIA --- */}
@@ -745,7 +749,10 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
                   <select className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-white text-slate-900"
                     value={newProductData.category} onChange={e => setNewProductData({ ...newProductData, category: e.target.value })}
                   >
-                    {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                    {categories.length > 0
+                      ? categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)
+                      : Object.values(Category).map(c => <option key={c} value={c}>{c}</option>)
+                    }
                   </select>
                 </div>
                 <div>
@@ -1366,7 +1373,7 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 };
 
