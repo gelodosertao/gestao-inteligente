@@ -1,23 +1,25 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import AppSidebar from './components/AppSidebar';
-import Dashboard from './components/Dashboard';
-import Inventory from './components/Inventory';
-import Sales from './components/Sales';
-import Financial from './components/Financial';
-import AIAssistant from './components/AIAssistant';
-import Settings from './components/Settings';
-import Login from './components/Login';
-import Customers from './components/Customers';
-import Pricing from './components/Pricing';
-import OnlineMenu from './components/OnlineMenu';
-import MenuConfig from './components/MenuConfig';
-import Production from './components/Production';
-import OrderCenter from './components/OrderCenter';
 import { ViewState, User, Product, Sale, FinancialRecord, Branch, Customer, CashClosing } from './types';
 import { MOCK_PRODUCTS, MOCK_SALES, MOCK_FINANCIALS } from './constants';
 import { dbProducts, dbSales, dbFinancials, dbCustomers, dbCashClosings, dbUsers } from './services/db';
 import { supabase } from './services/supabase';
 import { Loader2, AlertCircle } from 'lucide-react';
+
+// Lazy Load Components to prevent circular dependencies and "Cannot access before initialization" errors
+const Dashboard = React.lazy(() => import('./components/Dashboard'));
+const Inventory = React.lazy(() => import('./components/Inventory'));
+const Sales = React.lazy(() => import('./components/Sales'));
+const Financial = React.lazy(() => import('./components/Financial'));
+const AIAssistant = React.lazy(() => import('./components/AIAssistant'));
+const Settings = React.lazy(() => import('./components/Settings'));
+const Login = React.lazy(() => import('./components/Login'));
+const Customers = React.lazy(() => import('./components/Customers'));
+const Pricing = React.lazy(() => import('./components/Pricing'));
+const OnlineMenu = React.lazy(() => import('./components/OnlineMenu'));
+const MenuConfig = React.lazy(() => import('./components/MenuConfig'));
+const Production = React.lazy(() => import('./components/Production'));
+const OrderCenter = React.lazy(() => import('./components/OrderCenter'));
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -439,6 +441,19 @@ const App: React.FC = () => {
       )
     }
 
+    return (
+      <Suspense fallback={
+        <div className="h-full flex flex-col items-center justify-center text-slate-500 gap-4">
+          <Loader2 size={48} className="animate-spin text-orange-500" />
+          <p>Carregando módulo...</p>
+        </div>
+      }>
+        {renderContentInternal()}
+      </Suspense>
+    );
+  };
+
+  const renderContentInternal = () => {
     switch (currentView) {
       case 'DASHBOARD':
         return <Dashboard products={products} sales={sales} financials={financials} customers={customers} onNavigate={setCurrentView} />;
@@ -477,11 +492,19 @@ const App: React.FC = () => {
 
   // If viewing Online Menu, bypass login
   if (currentView === 'ONLINE_MENU') {
-    return <OnlineMenu onBack={() => setCurrentView('DASHBOARD')} />;
+    return (
+      <Suspense fallback={<div className="h-screen w-screen flex items-center justify-center bg-slate-50"><Loader2 size={48} className="animate-spin text-orange-500" /></div>}>
+        <OnlineMenu onBack={() => setCurrentView('DASHBOARD')} />
+      </Suspense>
+    );
   }
 
   if (!currentUser) {
-    return <Login onLogin={handleLogin} onOpenMenu={() => setCurrentView('ONLINE_MENU')} />;
+    return (
+      <Suspense fallback={<div className="h-screen w-screen flex items-center justify-center bg-blue-900"><Loader2 size={48} className="animate-spin text-white" /></div>}>
+        <Login onLogin={handleLogin} onOpenMenu={() => setCurrentView('ONLINE_MENU')} />
+      </Suspense>
+    );
   }
 
   return (
