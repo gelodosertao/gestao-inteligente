@@ -6,14 +6,16 @@ export const MOCK_USERS: User[] = [
     name: 'João Pedro',
     email: 'admin@gelodosertao.com',
     role: 'ADMIN',
-    avatarInitials: 'JP'
+    avatarInitials: 'JP',
+    tenantId: '00000000-0000-0000-0000-000000000000'
   },
   {
     id: 'u2',
     name: 'Operador Caixa',
     email: 'caixa@gelodosertao.com',
     role: 'OPERATOR',
-    avatarInitials: 'CX'
+    avatarInitials: 'CX',
+    tenantId: '00000000-0000-0000-0000-000000000000'
   }
 ];
 

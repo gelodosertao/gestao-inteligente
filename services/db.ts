@@ -106,9 +106,14 @@ export const dbUsers = {
 
   async getCurrentUser(): Promise<User | null> {
     // 1. Check LocalStorage first
-    const stored = localStorage.getItem('app_user');
-    if (stored) {
-      return JSON.parse(stored);
+    try {
+      const stored = localStorage.getItem('app_user');
+      if (stored) {
+        return JSON.parse(stored);
+      }
+    } catch (e) {
+      console.error("Erro ao ler usuário do cache:", e);
+      localStorage.removeItem('app_user');
     }
     return null;
   },
