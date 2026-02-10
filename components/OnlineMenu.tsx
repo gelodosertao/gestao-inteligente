@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Product, Order, Branch, StoreSettings } from '../types';
-import { ShoppingCart, Minus, Plus, X, Search, MapPin, CreditCard, Send, Check, ChevronLeft, Home } from 'lucide-react';
+import { ShoppingBag, Minus, Plus, X, Search, MapPin, CreditCard, Send, CheckCircle, ChevronLeft, Store } from 'lucide-react';
 import { dbProducts, dbSettings, dbOrders } from '../services/db';
 import { getTodayDate } from '../services/utils';
 
@@ -328,7 +328,7 @@ const OnlineMenu: React.FC<OnlineMenuProps> = ({ onBack }) => {
         return (
             <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-8 text-center animate-in fade-in zoom-in duration-300">
                 <div className="w-24 h-24 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-6 shadow-sm">
-                    <Check size={48} />
+                    <CheckCircle size={48} />
                 </div>
                 <h2 className="text-2xl font-bold text-slate-800 mb-2">Pedido Recebido!</h2>
                 <p className="text-slate-600 mb-8 max-w-xs mx-auto">Seu pedido foi encaminhado para o nosso WhatsApp. Aguarde a confirmação.</p>
@@ -362,7 +362,7 @@ const OnlineMenu: React.FC<OnlineMenuProps> = ({ onBack }) => {
                     {/* Order Summary */}
                     <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
                         <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
-                            <ShoppingCart size={18} className="text-blue-600" /> Resumo
+                            <ShoppingBag size={18} className="text-blue-600" /> Resumo
                         </h3>
                         <div className="space-y-3">
                             {cart.map(item => (
@@ -395,7 +395,7 @@ const OnlineMenu: React.FC<OnlineMenuProps> = ({ onBack }) => {
                     {/* Simplified for brevity - injecting previous logic back */}
                     <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 space-y-4">
                         <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                            <Home size={18} className="text-blue-600" /> Seus Dados
+                            <Store size={18} className="text-blue-600" /> Seus Dados
                         </h3>
                         <div className="grid gap-3">
                             <input type="text" className="w-full bg-slate-50 border-0 rounded-xl px-4 py-3 text-slate-800 font-medium focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Seu nome completo" value={customerName} onChange={e => setCustomerName(e.target.value)} />
@@ -632,7 +632,7 @@ const OnlineMenu: React.FC<OnlineMenuProps> = ({ onBack }) => {
                                             <img src={product.image} className="w-full h-full object-cover" alt={product.name} />
                                         ) : (
                                             <div className="w-full h-full flex items-center justify-center text-slate-300">
-                                                <Home size={32} />
+                                                <Store size={32} />
                                             </div>
                                         )}
                                         {qty > 0 && (
