@@ -174,6 +174,7 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
     const currentPeriodRevenue = currentPeriodSales.filter(s => s.status === 'Completed').reduce((acc, curr) => acc + curr.total, 0);
     const currentPeriodPending = currentPeriodSales.filter(s => s.status === 'Pending').reduce((acc, curr) => acc + (curr.total - (curr.amountPaid || 0)), 0);
     const currentPeriodExpenses = filteredFinancials.filter(f => f.type === 'Expense' && isInRange(f.date, periodStart, periodEnd)).reduce((acc, curr) => acc + curr.amount, 0);
+    const currentPeriodNetResult = currentPeriodRevenue - currentPeriodExpenses;
 
     // Calculate Previous Balance (Accumulated) ONLY if viewing MONTH
     return { currentPeriodSales, currentPeriodRevenue, currentPeriodPending, currentPeriodExpenses, currentPeriodNetResult };
