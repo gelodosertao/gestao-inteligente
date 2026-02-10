@@ -1,5 +1,4 @@
 import React, { useState, useEffect, Suspense } from 'react';
-import AppSidebar from './components/AppSidebar';
 import { ViewState, User, Product, Sale, FinancialRecord, Branch, Customer, CashClosing } from './types';
 import { MOCK_PRODUCTS, MOCK_SALES, MOCK_FINANCIALS } from './constants';
 import { dbProducts, dbSales, dbFinancials, dbCustomers, dbCashClosings, dbUsers } from './services/db';
@@ -7,6 +6,7 @@ import { supabase } from './services/supabase';
 import { Loader2, AlertCircle } from 'lucide-react';
 
 // Lazy Load Components to prevent circular dependencies and "Cannot access before initialization" errors
+const AppSidebar = React.lazy(() => import('./components/AppSidebar'));
 const Dashboard = React.lazy(() => import('./components/Dashboard'));
 const Inventory = React.lazy(() => import('./components/Inventory'));
 const Sales = React.lazy(() => import('./components/Sales'));
