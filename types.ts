@@ -26,6 +26,16 @@ export interface CategoryItem {
   type: 'PRODUCT' | 'FINANCIAL';
 }
 
+export interface ProductOption {
+  name: string; // e.g., "Adicionais", "Fruta"
+  type: 'checkbox' | 'radio' | 'text'; // checkbox = multiple, radio = single
+  required?: boolean;
+  choices: {
+    name: string; // e.g., "Dose Extra", "Morango"
+    priceChange?: number; // +5.00
+  }[];
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -43,6 +53,7 @@ export interface Product {
   comboItems?: { productId: string; quantity: number }[]; // Se preenchido, é um Combo
   image?: string; // URL da imagem do produto
   description?: string; // Descrição do produto
+  options?: ProductOption[]; // Opções de personalização
 
   // Production / Recipe
   recipe?: { ingredientId: string; quantity: number }[]; // Insumos gastos por unidade produzida
@@ -95,6 +106,12 @@ export interface SaleItem {
   productName: string;
   quantity: number;
   priceAtSale: number;
+  selectedOptions?: {
+    optionName: string;
+    choiceName: string;
+    priceChange: number;
+  }[];
+  notes?: string;
 }
 
 export interface FinancialRecord {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Product, Branch, Category, Sale, FinancialRecord, StockMovement, CategoryItem, User } from '../types';
-import { Search, Plus, ArrowRightLeft, Filter, Save, X, Truck, AlertTriangle, Upload, FileText, ArrowLeft, AlertOctagon, Edit, Calculator, DollarSign, TrendingUp, Trash2, PieChart, BarChart3, ScrollText } from 'lucide-react';
+import { Search, Plus, ArrowRightLeft, Filter, Save, X, Truck, AlertTriangle, Upload, FileText, ArrowLeft, AlertOctagon, Edit, Calculator, DollarSign, TrendingUp, Trash2, PieChart, BarChart3, ScrollText, ListPlus } from 'lucide-react';
 import { dbStockMovements, dbCategories } from '../services/db';
 import { getTodayDate } from '../services/utils';
 
@@ -279,6 +279,7 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
       isStockControlled: newProductData.isStockControlled !== false, // Default true
 
       comboItems: newProductData.comboItems && newProductData.comboItems.length > 0 ? newProductData.comboItems : undefined,
+      options: newProductData.options && newProductData.options.length > 0 ? newProductData.options : undefined,
       image: newProductData.image || null
     };
 
@@ -1039,6 +1040,144 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
                       </div>
                     </div>
                   </div>
+                </div>
+              </div>
+
+              {/* --- CUSTOMIZATION OPTIONS (OPCIONAL) --- */}
+              <div className="space-y-4 bg-yellow-50 p-4 rounded-xl border border-yellow-200">
+                <h4 className="font-bold text-yellow-800 flex items-center gap-2">
+                  <ListPlus size={16} /> Personalização (Adicionais)
+                </h4>
+
+                <div className="space-y-4">
+                  {(newProductData.options || []).map((option, optIdx) => (
+                    <div key={optIdx} className="bg-white p-3 rounded-lg border border-yellow-200 shadow-sm relative group">
+                      <button
+                        onClick={() => {
+                          const newOptions = (newProductData.options || []).filter((_, i) => i !== optIdx);
+                          setNewProductData({ ...newProductData, options: newOptions });
+                        }}
+                        className="absolute top-2 right-2 text-red-400 hover:text-red-600 p-1 bg-red-50 rounded-full opacity-0 group-hover:opacity-100 transition-all"
+                        title="Remover Grupo"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3 pr-8">
+                        <input
+                          type="text"
+                          placeholder="Nome do Grupo (ex: Adicionar Fruta)"
+                          className="px-3 py-2 border border-slate-200 rounded text-sm font-bold text-slate-800 w-full"
+                          value={option.name}
+                          onChange={e => {
+                            const newOpts = [...(newProductData.options || [])];
+                            newOpts[optIdx].name = e.target.value;
+                            setNewProductData({ ...newProductData, options: newOpts });
+                          }}
+                        />
+                        <div className="flex bg-slate-100 rounded p-1">
+                          <button
+                            onClick={() => {
+                              const newOpts = [...(newProductData.options || [])];
+                              newOpts[optIdx].type = 'radio';
+                              setNewProductData({ ...newProductData, options: newOpts });
+                            }}
+                            className={`flex-1 text-xs font-bold rounded py-1 transition-all ${option.type === 'radio' ? 'bg-white shadow text-slate-900' : 'text-slate-500'}`}
+                          >
+                            1 Escolha (Radio)
+                          </button>
+                          <button
+                            onClick={() => {
+                              const newOpts = [...(newProductData.options || [])];
+                              newOpts[optIdx].type = 'checkbox';
+                              setNewProductData({ ...newProductData, options: newOpts });
+                            }}
+                            className={`flex-1 text-xs font-bold rounded py-1 transition-all ${option.type === 'checkbox' ? 'bg-white shadow text-slate-900' : 'text-slate-500'}`}
+                          >
+                            Múltiplas (Check)
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-xs font-bold text-slate-400 uppercase">Obrigatório?</span>
+                        <input
+                          type="checkbox"
+                          checked={option.required || false}
+                          onChange={e => {
+                            const newOpts = [...(newProductData.options || [])];
+                            newOpts[optIdx].required = e.target.checked;
+                            setNewProductData({ ...newProductData, options: newOpts });
+                          }}
+                          className="w-4 h-4 text-blue-600 rounded cursor-pointer"
+                        />
+                      </div>
+
+                      <div className="space-y-2 pl-3 border-l-2 border-slate-100">
+                        {option.choices.map((choice, choiceIdx) => (
+                          <div key={choiceIdx} className="flex gap-2 items-center">
+                            <input
+                              type="text"
+                              placeholder="Opção (ex: Morango)"
+                              className="flex-1 px-2 py-1 border border-slate-200 rounded text-xs sm:text-sm"
+                              value={choice.name}
+                              onChange={e => {
+                                const newOpts = [...(newProductData.options || [])];
+                                newOpts[optIdx].choices[choiceIdx].name = e.target.value;
+                                setNewProductData({ ...newProductData, options: newOpts });
+                              }}
+                            />
+                            <div className="relative w-20 sm:w-24">
+                              <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">+</span>
+                              <input
+                                type="number"
+                                placeholder="0.00"
+                                className="w-full pl-6 pr-2 py-1 border border-slate-200 rounded text-xs sm:text-sm font-medium text-slate-800"
+                                value={choice.priceChange || ''}
+                                onChange={e => {
+                                  const newOpts = [...(newProductData.options || [])];
+                                  newOpts[optIdx].choices[choiceIdx].priceChange = Number(e.target.value);
+                                  setNewProductData({ ...newProductData, options: newOpts });
+                                }}
+                              />
+                            </div>
+                            <button
+                              onClick={() => {
+                                const newOpts = [...(newProductData.options || [])];
+                                newOpts[optIdx].choices = newOpts[optIdx].choices.filter((_, i) => i !== choiceIdx);
+                                setNewProductData({ ...newProductData, options: newOpts });
+                              }}
+                              className="text-red-300 hover:text-red-500 p-1"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        ))}
+                        <button
+                          onClick={() => {
+                            const newOpts = [...(newProductData.options || [])];
+                            newOpts[optIdx].choices.push({ name: '', priceChange: 0 });
+                            setNewProductData({ ...newProductData, options: newOpts });
+                          }}
+                          className="text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 mt-2 bg-blue-50 px-2 py-1.5 rounded self-start"
+                        >
+                          <Plus size={12} /> Add Opção
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+
+                  <button
+                    onClick={() => {
+                      setNewProductData({
+                        ...newProductData,
+                        options: [...(newProductData.options || []), { name: '', type: 'radio', choices: [{ name: 'Padrão', priceChange: 0 }] }]
+                      });
+                    }}
+                    className="w-full py-3 border-2 border-dashed border-yellow-400 rounded-xl text-yellow-700 font-bold text-sm hover:bg-yellow-100 transition-colors flex justify-center items-center gap-2"
+                  >
+                    <Plus size={16} /> Adicionar Grupo de Opções
+                  </button>
                 </div>
               </div>
 

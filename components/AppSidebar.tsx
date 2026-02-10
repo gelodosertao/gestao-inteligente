@@ -11,9 +11,10 @@ interface AppSidebarProps {
   toggleSidebar: () => void;
   isMobileMenuOpen?: boolean;
   closeMobileMenu?: () => void;
+  pendingOrdersCount?: number;
 }
 
-const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, setView, currentUser, onLogout, isCollapsed, toggleSidebar, isMobileMenuOpen, closeMobileMenu }) => {
+const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, setView, currentUser, onLogout, isCollapsed, toggleSidebar, isMobileMenuOpen, closeMobileMenu, pendingOrdersCount }) => {
   // Define menu structure based on roles
   const allMenuItems = [
     { id: 'DASHBOARD', label: 'Dashboard', icon: LayoutDashboard, roles: ['ADMIN'] },
@@ -85,6 +86,13 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, setView, currentUs
                 <item.icon size={20} className={`shrink-0 ${isActive ? 'text-white' : 'text-blue-300 group-hover:text-white'}`} />
                 <span className={`font-medium whitespace-nowrap ${isCollapsed ? 'md:hidden' : 'block'}`}>{item.label}</span>
                 {isActive && <div className={`absolute right-3 w-1.5 h-1.5 rounded-full bg-white animate-pulse ${isCollapsed ? 'md:hidden' : 'block'}`} />}
+
+                {/* Pending Badge */}
+                {item.id === 'ORDER_CENTER' && (pendingOrdersCount || 0) > 0 && (
+                  <div className={`absolute right-2 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-sm animate-pulse ${isCollapsed ? 'top-1 right-1' : ''}`}>
+                    {pendingOrdersCount}
+                  </div>
+                )}
               </button>
             );
           })}

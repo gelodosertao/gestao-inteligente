@@ -109,32 +109,65 @@ const MenuConfig: React.FC<MenuConfigProps> = ({ onBack, tenantId }) => {
                 </div>
             </div>
 
-            {/* Link Section */}
-            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex flex-col md:flex-row items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                    <div className="bg-blue-100 p-2 rounded-lg text-blue-600">
-                        <Store size={24} />
+            {/* Link & QR Code Section */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="md:col-span-2 bg-blue-50 border border-blue-200 rounded-xl p-6 flex flex-col justify-between">
+                    <div className="flex items-start gap-4 mb-4">
+                        <div className="bg-blue-100 p-3 rounded-xl text-blue-600 shrink-0">
+                            <Store size={32} />
+                        </div>
+                        <div>
+                            <h3 className="font-bold text-xl text-blue-900 mb-1">Link do seu Cardápio Digital</h3>
+                            <p className="text-sm text-blue-700 leading-relaxed">
+                                Este é o endereço da sua loja online. Compartilhe no Instagram, WhatsApp e redes sociais.
+                                Seus clientes poderão fazer pedidos diretamente por este link.
+                            </p>
+                        </div>
                     </div>
-                    <div>
-                        <h3 className="font-bold text-blue-900">Link do seu Cardápio</h3>
-                        <p className="text-sm text-blue-700">Compartilhe este link com seus clientes.</p>
+
+                    <div className="space-y-2">
+                        <label className="text-xs font-bold text-blue-800 uppercase tracking-wider">URL do Cardápio</label>
+                        <div className="flex gap-2">
+                            <input
+                                readOnly
+                                value={`${window.location.origin}${window.location.pathname}?menu=true&tenantId=${tenantId}`}
+                                className="flex-1 px-4 py-3 border border-blue-200 rounded-lg bg-white text-slate-600 text-sm font-mono shadow-sm"
+                            />
+                            <button
+                                onClick={() => {
+                                    navigator.clipboard.writeText(`${window.location.origin}${window.location.pathname}?menu=true&tenantId=${tenantId}`);
+                                    alert("Link copiado para a área de transferência!");
+                                }}
+                                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-bold transition-colors shadow-sm flex items-center gap-2"
+                            >
+                                <Store size={18} /> Copiar
+                            </button>
+                        </div>
                     </div>
                 </div>
-                <div className="flex w-full md:w-auto gap-2">
-                    <input
-                        readOnly
-                        value={`${window.location.origin}${window.location.pathname}?menu=true&tenantId=${tenantId}`}
-                        className="flex-1 md:w-96 px-4 py-2 border border-blue-200 rounded-lg bg-white text-slate-600 text-sm font-mono"
-                    />
-                    <button
-                        onClick={() => {
-                            navigator.clipboard.writeText(`${window.location.origin}${window.location.pathname}?menu=true&tenantId=${tenantId}`);
-                            alert("Link copiado!");
-                        }}
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold text-sm transition-colors whitespace-nowrap"
+
+                {/* QR Code */}
+                <div className="bg-white border border-slate-200 rounded-xl p-6 flex flex-col items-center text-center shadow-sm">
+                    <h3 className="font-bold text-slate-800 mb-2">QR Code da Loja</h3>
+                    <p className="text-xs text-slate-500 mb-4">Escaneie para testar ou imprima para seus clientes.</p>
+
+                    <div className="bg-white p-2 rounded-lg border border-slate-100 shadow-inner mb-4">
+                        <img
+                            src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(`${window.location.origin}${window.location.pathname}?menu=true&tenantId=${tenantId}`)}`}
+                            alt="QR Code do Cardápio"
+                            className="w-32 h-32 object-contain"
+                        />
+                    </div>
+
+                    <a
+                        href={`https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(`${window.location.origin}${window.location.pathname}?menu=true&tenantId=${tenantId}`)}`}
+                        download="qrcode-loja.png"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-blue-600 text-sm font-bold hover:underline flex items-center gap-1"
                     >
-                        Copiar Link
-                    </button>
+                        <Upload size={14} className="rotate-180" /> Baixar em Alta Resolução
+                    </a>
                 </div>
             </div>
 

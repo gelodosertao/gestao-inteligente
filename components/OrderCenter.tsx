@@ -12,24 +12,37 @@ interface OrderCenterProps {
 const OrderCenter: React.FC<OrderCenterProps> = ({ onBack, tenantId }) => {
     const [orders, setOrders] = useState<Order[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const lastOrderCountRef = React.useRef(0);
 
-    useEffect(() => {
-        loadOrders();
-        // Poll for new orders every 30 seconds
-        const interval = setInterval(loadOrders, 30000);
-        return () => clearInterval(interval);
-    }, []);
+    const playNotificationSound = () => {
+        try {
+            const audio = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-software-interface-start-2574.mp3');
+            audio.play().catch(e => console.log('Audio play failed (user interaction needed first):', e));
+        } catch (e) {
+            console.error("Error playing sound", e);
+        }
+    };
 
     const loadOrders = async () => {
         try {
             const data = await dbOrders.getAll(tenantId);
-            // Filter for today's orders or active orders
-            // For now, let's show all active orders (not cancelled/delivered) + today's delivered
             const today = getTodayDate();
+
+            // Filter logic: Active orders + Today's delivered
             const filtered = data.filter(o =>
-                o.status !== 'DELIVERED' || // Show all active (Pending, Preparing, Ready, Cancelled)
-                o.date === today // Show delivered from today
+                o.status !== 'DELIVERED' ||
+                o.date === today
             );
+
+            // Check for new pending orders to play sound
+            const pendingCount = filtered.filter(o => o.status === 'PENDING').length;
+
+            // If count increased, play sound
+            if (pendingCount > lastOrderCountRef.current && pendingCount > 0) {
+                playNotificationSound();
+            }
+            lastOrderCountRef.current = pendingCount;
+
             setOrders(filtered);
         } catch (error) {
             console.error("Erro ao carregar pedidos:", error);
@@ -37,6 +50,16 @@ const OrderCenter: React.FC<OrderCenterProps> = ({ onBack, tenantId }) => {
             setIsLoading(false);
         }
     };
+
+    // Initial Load
+    useEffect(() => { loadOrders(); }, []);
+
+    // Polling Interval
+    useEffect(() => {
+        const interval = setInterval(loadOrders, 30000);
+        return () => clearInterval(interval);
+    }, []);
+
 
     const handleManualRestock = async (order: Order) => {
         if (!confirm("Tem certeza que deseja devolver os itens deste pedido ao estoque? Faça isso apenas se o estorno não tiver ocorrido automaticamente.")) return;
@@ -66,6 +89,7 @@ const OrderCenter: React.FC<OrderCenterProps> = ({ onBack, tenantId }) => {
                 }
             }
             alert("Estoque estornado com sucesso!");
+            loadOrders(); // Refresh to ensure state consistency
         } catch (error) {
             console.error("Erro ao estornar estoque:", error);
             alert("Erro ao estornar estoque.");
@@ -228,6 +252,11 @@ const OrderCenter: React.FC<OrderCenterProps> = ({ onBack, tenantId }) => {
                                             <span className="text-xs text-slate-400">{order.date}</span>
                                         </div>
                                         <h4 className="font-bold text-slate-700 mb-1">{order.customerName}</h4>
+                                        {order.customerPhone && (
+                                            <p className="text-xs text-slate-400 mb-2 flex items-center gap-1">
+                                                📞 {order.customerPhone}
+                                            </p>
+                                        )}
                                         <p className="text-xs text-slate-500 mb-2 flex items-center gap-1">
                                             {order.deliveryMethod === 'DELIVERY' ? <Truck size={12} /> : <Store size={12} />}
                                             {order.deliveryMethod === 'DELIVERY' ? 'Entrega' : 'Retirada'} • {order.paymentMethod}
@@ -246,9 +275,12 @@ const OrderCenter: React.FC<OrderCenterProps> = ({ onBack, tenantId }) => {
                                         </div>
 
                                         {order.address && (
-                                            <p className="text-xs text-slate-500 mb-3 italic truncate">
-                                                📍 {order.address}
-                                            </p>
+                                            <div className="bg-yellow-50 border border-yellow-100 p-2 rounded-lg mb-3">
+                                                <p className="text-xs text-yellow-800 font-bold flex items-start gap-1">
+                                                    <span className="shrink-0">📍</span>
+                                                    <span className="break-words">{order.address}</span>
+                                                </p>
+                                            </div>
                                         )}
 
                                         <div className="flex gap-2 mt-2">

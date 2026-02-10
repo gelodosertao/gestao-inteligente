@@ -29,6 +29,7 @@ const App: React.FC = () => {
   const [financials, setFinancials] = useState<FinancialRecord[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [cashClosings, setCashClosings] = useState<CashClosing[]>([]);
+  const [pendingOrdersCount, setPendingOrdersCount] = useState(0);
 
   // Loading & Error States
   const [isLoading, setIsLoading] = useState(false);
@@ -53,8 +54,25 @@ const App: React.FC = () => {
   useEffect(() => {
     if (currentUser) {
       loadDataFromCloud();
+
+      // Initial Order Count
+      checkPendingOrders();
+      // Poll every 30s
+      const interval = setInterval(checkPendingOrders, 30000);
+      return () => clearInterval(interval);
     }
   }, [currentUser]);
+
+  const checkPendingOrders = async () => {
+    if (!currentUser) return;
+    try {
+      const orders = await import('./services/db').then(m => m.dbOrders.getAll(currentUser.tenantId));
+      const pending = orders.filter(o => o.status === 'PENDING').length;
+      setPendingOrdersCount(pending);
+    } catch (e) {
+      console.error("Error checking orders", e);
+    }
+  };
 
   const loadDataFromCloud = async () => {
     setIsLoading(true);
@@ -491,6 +509,7 @@ const App: React.FC = () => {
         toggleSidebar={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
         isMobileMenuOpen={isMobileMenuOpen}
         closeMobileMenu={() => setIsMobileMenuOpen(false)}
+        pendingOrdersCount={pendingOrdersCount}
       />
 
       <main className={`flex-1 transition-all duration-300 pt-20 px-4 pb-4 md:p-4 lg:p-8 ${isSidebarCollapsed ? 'md:ml-20' : 'md:ml-20 lg:ml-64'}`}>
