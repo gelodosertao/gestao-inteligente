@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Product, Branch, Category, Sale, FinancialRecord, StockMovement, CategoryItem, User } from '../types';
-import { Search, Plus, ArrowRightLeft, Filter, Save, X, Truck, AlertTriangle, Upload, FileText, ArrowLeft, AlertOctagon, Edit, Calculator, DollarSign, TrendingUp, Trash2, PieChart, BarChart3, ScrollText, ListPlus } from 'lucide-react';
+import { Search, Plus, ArrowRightLeft, Filter, Save, X, Truck, AlertTriangle, Upload, FileText, ArrowLeft, AlertOctagon, Edit, Calculator, DollarSign, TrendingUp, Trash2, PieChart, BarChart3, ScrollText } from 'lucide-react';
 import { dbStockMovements, dbCategories } from '../services/db';
 import { getTodayDate } from '../services/utils';
 
@@ -1046,7 +1046,7 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
               {/* --- CUSTOMIZATION OPTIONS (OPCIONAL) --- */}
               <div className="space-y-4 bg-yellow-50 p-4 rounded-xl border border-yellow-200">
                 <h4 className="font-bold text-yellow-800 flex items-center gap-2">
-                  <ListPlus size={16} /> Personalização (Adicionais)
+                  <ScrollText size={16} /> Personalização (Adicionais)
                 </h4>
 
                 <div className="space-y-4">

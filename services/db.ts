@@ -199,7 +199,9 @@ export const dbProducts = {
       image: row.image,
       recipe: row.recipe,
       recipeBatchSize: row.recipe_batch_size,
-      operationalCost: row.operational_cost
+
+      operationalCost: row.operational_cost,
+      options: row.options
     }));
   },
 
@@ -223,6 +225,8 @@ export const dbProducts = {
       recipe: product.recipe,
       recipe_batch_size: product.recipeBatchSize,
       operational_cost: product.operationalCost,
+
+      options: product.options,
       tenant_id: tenantId
     }]);
     if (error) throw error;
@@ -246,7 +250,9 @@ export const dbProducts = {
       image: product.image,
       recipe: product.recipe,
       recipe_batch_size: product.recipeBatchSize,
-      operational_cost: product.operationalCost
+
+      operational_cost: product.operationalCost,
+      options: product.options
     }).eq('id', product.id);
     if (error) throw error;
   },
