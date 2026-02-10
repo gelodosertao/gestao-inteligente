@@ -330,59 +330,6 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
       const netProfit = grossProfit - totalExpenses;
       const profitMargin = grossRevenue > 0 ? (netProfit / grossRevenue) * 100 : 0;
 
-      // 6. Accumulated Balance (Saldo Anterior)
-      let previousBalance = 0;
-      let startDateStr: string | null = null;
-      const today = new Date();
-
-      // Determine Start Date String for filtering
-      if (dateRange === 'TODAY') {
-         startDateStr = getTodayDate();
-      } else if (dateRange === 'THIS_WEEK') {
-         const d = new Date(today);
-         d.setDate(today.getDate() - today.getDay());
-         startDateStr = d.toLocaleDateString('sv-SE', { timeZone: 'America/Bahia' });
-      } else if (dateRange === 'THIS_MONTH') {
-         startDateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-01`;
-      } else if (dateRange === 'LAST_30_DAYS') {
-         const d = new Date(today);
-         d.setDate(today.getDate() - 30);
-         startDateStr = d.toLocaleDateString('sv-SE', { timeZone: 'America/Bahia' });
-      } else if (dateRange === 'LAST_60_DAYS') {
-         const d = new Date(today);
-         d.setDate(today.getDate() - 60);
-         startDateStr = d.toLocaleDateString('sv-SE', { timeZone: 'America/Bahia' });
-      } else if (dateRange === 'LAST_90_DAYS') {
-         const d = new Date(today);
-         d.setDate(today.getDate() - 90);
-         startDateStr = d.toLocaleDateString('sv-SE', { timeZone: 'America/Bahia' });
-      } else if (dateRange === 'CUSTOM') {
-         startDateStr = customStartDate;
-      }
-
-      if (startDateStr) {
-         // Filter records BEFORE startDateStr
-         const previousRecords = records.filter(r => {
-            if (selectedBranch !== 'ALL' && r.branch !== selectedBranch) return false;
-            return r.date < startDateStr!;
-         });
-
-         // Filter sales BEFORE startDateStr
-         const previousSales = sales.filter(s => {
-            if (selectedBranch !== 'ALL' && s.branch !== selectedBranch) return false;
-            return s.date < startDateStr! && s.status === 'Completed';
-         });
-
-         const prevIncome = previousRecords.filter(r => r.type === 'Income').reduce((acc, r) => acc + r.amount, 0)
-            + previousSales.reduce((acc, s) => acc + s.total, 0);
-
-         const prevExpense = previousRecords.filter(r => r.type === 'Expense').reduce((acc, r) => acc + r.amount, 0);
-
-         previousBalance = prevIncome - prevExpense;
-      }
-
-      const accumulatedResult = previousBalance + netProfit;
-
       return {
          grossRevenue,
          variableCosts,
@@ -390,9 +337,7 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
          expensesStructure,
          totalExpenses,
          netProfit,
-         profitMargin,
-         previousBalance,
-         accumulatedResult
+         profitMargin
       };
    }, [filteredSales, filteredRecords, records, sales, selectedBranch, dateRange, products, customStartDate]);
 
@@ -674,20 +619,7 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
                         </div>
                      </div>
 
-                     {dateRange !== 'ALL_TIME' && (
-                        <div className="bg-slate-800 text-white p-6 rounded-2xl shadow-lg">
-                           <h3 className="text-sm font-medium text-slate-400 mb-1">Saldo Acumulado (Anterior + Atual)</h3>
-                           <div className="flex justify-between items-end mb-4">
-                              <div>
-                                 <p className="text-3xl font-bold">{formatCurrency(dreData.accumulatedResult)}</p>
-                                 <p className="text-xs text-slate-400 mt-1">Saldo Anterior: {formatCurrency(dreData.previousBalance)}</p>
-                              </div>
-                              <div className={`p-2 rounded-lg ${dreData.accumulatedResult >= 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`}>
-                                 {dreData.accumulatedResult >= 0 ? <ArrowUpCircle size={24} /> : <ArrowDownCircle size={24} />}
-                              </div>
-                           </div>
-                        </div>
-                     )}
+
                   </div>
 
                   {/* Right Column: Detailed DRE */}

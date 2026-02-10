@@ -151,30 +151,10 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
     const currentPeriodExpenses = filteredFinancials.filter(f => f.type === 'Expense' && isInRange(f.date, periodStart, periodEnd)).reduce((acc, curr) => acc + curr.amount, 0);
 
     // Calculate Previous Balance (Accumulated) ONLY if viewing MONTH
-    // Calculate Previous Balance (Accumulated) for ALL periods
-    // We use periodStart to determine the cutoff date
-    const startDateStr = periodStart.toLocaleDateString('sv-SE', { timeZone: 'America/Bahia' });
-
-    const previousRecords = filteredFinancials.filter(r => r.date < startDateStr);
-    const previousSales = filteredSales.filter(s => s.date < startDateStr && s.status === 'Completed');
-
-    const prevIncome = previousRecords.filter(r => r.type === 'Income').reduce((acc, r) => acc + r.amount, 0)
-      + previousSales.reduce((acc, s) => acc + s.total, 0);
-
-    const prevExpense = previousRecords.filter(r => r.type === 'Expense').reduce((acc, r) => acc + r.amount, 0);
-
-    const previousBalance = prevIncome - prevExpense;
-
-    // Net Result for the Period (Profit)
-    const currentPeriodNetResult = currentPeriodRevenue - currentPeriodExpenses;
-
-    // Accumulated Result (Balance + Net Result)
-    const currentPeriodAccumulated = currentPeriodNetResult + previousBalance;
-
-    return { currentPeriodSales, currentPeriodRevenue, currentPeriodPending, currentPeriodExpenses, currentPeriodNetResult, currentPeriodAccumulated, previousBalance };
+    return { currentPeriodSales, currentPeriodRevenue, currentPeriodPending, currentPeriodExpenses, currentPeriodNetResult };
   }, [filteredSales, filteredFinancials, periodStart, periodEnd, period, currentDate, customStartDate, customEndDate]);
 
-  const { currentPeriodSales, currentPeriodRevenue, currentPeriodPending, currentPeriodExpenses, currentPeriodNetResult, currentPeriodAccumulated } = periodData;
+  const { currentPeriodSales, currentPeriodRevenue, currentPeriodPending, currentPeriodExpenses, currentPeriodNetResult } = periodData;
 
   // Previous Period Data (for trends)
   const prevPeriodData = useMemo(() => {
@@ -369,13 +349,7 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
           trend={netResultTrend}
           color={currentPeriodNetResult >= 0 ? "bg-emerald-500" : "bg-red-500"}
         />
-        <Card
-          title="Saldo Acumulado"
-          value={formatCurrency(currentPeriodAccumulated)}
-          icon={<DollarSignIcon />}
-          trend={''}
-          color={currentPeriodAccumulated >= 0 ? "bg-slate-600" : "bg-red-500"}
-        />
+
         <Card
           title="Vendas"
           value={currentPeriodSales.length.toString()}
