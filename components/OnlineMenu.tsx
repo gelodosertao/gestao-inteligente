@@ -86,6 +86,45 @@ const OnlineMenu: React.FC<OnlineMenuProps> = ({ onBack }) => {
         }
     }, [toastMessage]);
 
+    // --- EFFECT: PIXELS ---
+    useEffect(() => {
+        if (!settings) return;
+
+        // 1. Meta Pixel (Facebook)
+        if (settings.facebookPixelId) {
+            (function (f: any, b: any, e: any, v: any, n?: any, t?: any, s?: any) {
+                if (f.fbq) return; n = f.fbq = function () {
+                    n.callMethod ? n.callMethod.apply(n, arguments) : n.queue.push(arguments)
+                };
+                if (!f._fbq) f._fbq = n; n.push = n; n.loaded = !0; n.version = '2.0';
+                n.queue = []; t = b.createElement(e); t.async = !0;
+                t.src = v; s = b.getElementsByTagName(e)[0];
+                s.parentNode.insertBefore(t, s)
+            })(window, document, 'script', 'https://connect.facebook.net/en_US/fbevents.js');
+
+            (window as any).fbq('init', settings.facebookPixelId);
+            (window as any).fbq('track', 'PageView');
+        }
+
+        // 2. Google Tag (gtag.js)
+        if (settings.googleTagId) {
+            const scriptId = 'google-analytics-script';
+            if (!document.getElementById(scriptId)) {
+                const script = document.createElement('script');
+                script.id = scriptId;
+                script.async = true;
+                script.src = `https://www.googletagmanager.com/gtag/js?id=${settings.googleTagId}`;
+                document.head.appendChild(script);
+
+                (window as any).dataLayer = (window as any).dataLayer || [];
+                function gtag(...args: any[]) { (window as any).dataLayer.push(args); }
+                (window as any).gtag = gtag;
+                gtag('js', new Date());
+                gtag('config', settings.googleTagId);
+            }
+        }
+    }, [settings]);
+
     // --- HELPERS ---
     const formatCurrency = (val: number) => val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
@@ -145,6 +184,31 @@ const OnlineMenu: React.FC<OnlineMenuProps> = ({ onBack }) => {
         setCart(prev => [...prev, newItem]);
         setToastMessage("Item adicionado!");
         setCustomizationProduct(null); // Close modal if open
+
+        // TRACKING: AddToCart
+        try {
+            if ((window as any).fbq) {
+                (window as any).fbq('track', 'AddToCart', {
+                    content_name: product.name,
+                    content_ids: [product.id],
+                    content_type: 'product',
+                    value: product.priceFilial,
+                    currency: 'BRL'
+                });
+            }
+            if ((window as any).gtag) {
+                (window as any).gtag('event', 'add_to_cart', {
+                    currency: 'BRL',
+                    value: product.priceFilial,
+                    items: [{
+                        item_id: product.id,
+                        item_name: product.name,
+                        price: product.priceFilial,
+                        quantity: quantity
+                    }]
+                });
+            }
+        } catch (e) { console.error("Tracking Error", e); }
     };
 
     const removeFromCart = (cartId: string) => {
@@ -309,6 +373,33 @@ const OnlineMenu: React.FC<OnlineMenuProps> = ({ onBack }) => {
             const message = `👋 Olá! Gostaria de fazer um pedido:%0A%0A*👤 Cliente:* ${customerName}%0A*📱 Tel:* ${customerPhone}%0A%0A*🛒 Itens:*%0A${itemsList}%0A%0A*💰 Total:* ${formatCurrency(cartTotal)}%0A%0A*📦 Forma:* ${methodText}${addressText}%0A*💳 Pagamento:* ${paymentText}`;
 
             const phone = settings?.phone || "5577998129383";
+
+            // TRACKING: Purchase / Lead
+            try {
+                if ((window as any).fbq) {
+                    (window as any).fbq('track', 'Purchase', {
+                        value: cartTotal,
+                        currency: 'BRL',
+                        content_ids: cart.map(i => i.product.id),
+                        content_type: 'product',
+                        num_items: cartCount
+                    });
+                }
+                if ((window as any).gtag) {
+                    (window as any).gtag('event', 'purchase', {
+                        transaction_id: newOrder.id,
+                        value: cartTotal,
+                        currency: 'BRL',
+                        items: cart.map(item => ({
+                            item_id: item.product.id,
+                            item_name: item.product.name, // Simplified
+                            price: item.product.priceFilial, // Base price
+                            quantity: item.quantity
+                        }))
+                    });
+                }
+            } catch (e) { console.error("Tracking Error", e); }
+
             window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
 
         } catch (error) {

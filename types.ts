@@ -71,6 +71,8 @@ export interface StoreSettings {
   logoImage?: string;
   openingHours: string; // e.g. "Seg-Sex: 08h-18h"
   primaryColor?: string; // Hex code
+  facebookPixelId?: string;
+  googleTagId?: string;
 }
 
 export interface PaymentEntry {

@@ -326,6 +326,41 @@ const MenuConfig: React.FC<MenuConfigProps> = ({ onBack, tenantId }) => {
                 </div>
             </div>
 
+
+            {/* Pixels and Tracking */}
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 space-y-4">
+                <h3 className="font-bold text-slate-700 flex items-center gap-2">
+                    <span className="text-xl">📊</span> Pixels e Rastreamento
+                </h3>
+                <p className="text-sm text-slate-500">Configure aqui seus identificadores do Meta (Facebook) e Google Ads para rastrear acessos e vendas.</p>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Facebook Pixel ID</label>
+                        <input
+                            type="text"
+                            value={settings.facebookPixelId || ''}
+                            onChange={e => setSettings({ ...settings, facebookPixelId: e.target.value })}
+                            className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-mono text-sm"
+                            placeholder="Ex: 123456789012345"
+                        />
+                        <p className="text-xs text-slate-400 mt-1">Apenas o número do ID.</p>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Google Tag ID (G-XXXX / AW-XXXX)</label>
+                        <input
+                            type="text"
+                            value={settings.googleTagId || ''}
+                            onChange={e => setSettings({ ...settings, googleTagId: e.target.value })}
+                            className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-mono text-sm"
+                            placeholder="Ex: AW-123456789"
+                        />
+                        <p className="text-xs text-slate-400 mt-1">ID do Google Analytics 4 ou Google Ads.</p>
+                    </div>
+                </div>
+            </div>
+
             <div className="flex justify-end pt-4">
                 <button
                     onClick={handleSave}
@@ -335,7 +370,7 @@ const MenuConfig: React.FC<MenuConfigProps> = ({ onBack, tenantId }) => {
                     {isSaving ? 'Salvando...' : <><Save size={20} /> Salvar Configurações</>}
                 </button>
             </div>
-        </div>
+        </div >
     );
 };
 
