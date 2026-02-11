@@ -284,7 +284,9 @@ export const dbSettings = {
       backgroundImage: data.background_image,
       logoImage: data.logo_image,
       openingHours: data.opening_hours,
-      primaryColor: data.primary_color
+      primaryColor: data.primary_color,
+      facebookPixelId: data.facebook_pixel_id,
+      googleTagId: data.google_tag_id
     };
   },
 
@@ -299,6 +301,8 @@ export const dbSettings = {
       logo_image: settings.logoImage,
       opening_hours: settings.openingHours,
       primary_color: settings.primaryColor,
+      facebook_pixel_id: settings.facebookPixelId,
+      google_tag_id: settings.googleTagId,
       tenant_id: tenantId
     });
     if (error) throw error;
