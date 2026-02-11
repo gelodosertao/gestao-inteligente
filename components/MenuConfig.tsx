@@ -60,9 +60,13 @@ const MenuConfig: React.FC<MenuConfigProps> = ({ onBack, tenantId }) => {
         try {
             await dbSettings.save(settings, tenantId);
             alert("Configurações salvas com sucesso!");
-        } catch (error) {
+        } catch (error: any) {
             console.error("Erro ao salvar:", error);
-            alert("Erro ao salvar configurações.");
+            if (error.message?.includes('column') || error.message?.includes('facebook_pixel_id')) {
+                alert("Erro: O banco de dados precisa ser atualizado. Por favor, execute o script SQL 'add_pixels_settings.sql' no painel do Supabase.");
+            } else {
+                alert("Erro ao salvar configurações: " + (error.message || "Erro desconhecido"));
+            }
         } finally {
             setIsSaving(false);
         }
