@@ -327,7 +327,9 @@ export const dbSales = {
       hasInvoice: row.has_invoice,
       items: row.items, // JSONB auto-mapped
       cashReceived: row.cash_received,
-      changeAmount: row.change_amount
+      changeAmount: row.change_amount,
+      amountPaid: row.amount_paid,
+      paymentHistory: row.payment_history
     }));
   },
 
@@ -344,6 +346,8 @@ export const dbSales = {
       items: sale.items,
       cash_received: sale.cashReceived,
       change_amount: sale.changeAmount,
+      amount_paid: sale.amountPaid,
+      payment_history: sale.paymentHistory,
       tenant_id: tenantId
     };
 
@@ -366,7 +370,9 @@ export const dbSales = {
       has_invoice: sale.hasInvoice,
       items: sale.items,
       cash_received: sale.cashReceived,
-      change_amount: sale.changeAmount
+      change_amount: sale.changeAmount,
+      amount_paid: sale.amountPaid,
+      payment_history: sale.paymentHistory
     };
 
     if (sale.paymentSplits) {
