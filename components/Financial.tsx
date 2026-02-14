@@ -270,7 +270,7 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
       if (!currentUser) return;
 
       const newClosing: CashClosing = {
-         id: `cc-${Date.now()}`,
+         id: crypto.randomUUID(),
          date: closingDate,
          branch: closingBranch,
          openingBalance: closingData.openingBalance,
@@ -387,7 +387,7 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
             currentDate.setMonth(baseDate.getMonth() + i);
 
             recordsToAdd.push({
-               id: `f-${Date.now()}-${i}`,
+               id: crypto.randomUUID(),
                date: currentDate.toISOString().split('T')[0],
                description: `${description} (${i + 1}/${installments})`,
                amount: amount,
@@ -399,7 +399,7 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
       } else {
          // Single record
          recordsToAdd.push({
-            id: `f-${Date.now()}`,
+            id: crypto.randomUUID(),
             date: newRecord.date,
             description: description,
             amount: amount,

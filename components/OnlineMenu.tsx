@@ -162,7 +162,7 @@ const OnlineMenu: React.FC<OnlineMenuProps> = ({ onBack }) => {
         }
 
         const newItem: CartItem = {
-            id: `cart-${Date.now()}-${Math.random()}`,
+            id: crypto.randomUUID(),
             product,
             quantity,
             selectedOptions: options,
@@ -317,7 +317,7 @@ const OnlineMenu: React.FC<OnlineMenuProps> = ({ onBack }) => {
                 : undefined;
 
             const newOrder: Order = {
-                id: `ord-${Date.now()}`,
+                id: crypto.randomUUID(),
                 date: getTodayDate(),
                 customerName,
                 customerPhone,

@@ -177,7 +177,7 @@ const App: React.FC = () => {
     // Only add to financials if Completed
     if (newSale.status === 'Completed') {
       const newFinancial: FinancialRecord = {
-        id: `f-${Date.now()}`,
+        id: crypto.randomUUID(),
         date: newSale.date,
         description: `Venda #${newSale.id} - ${newSale.customerName}`,
         amount: newSale.total,

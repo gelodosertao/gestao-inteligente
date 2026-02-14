@@ -89,7 +89,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
       }
 
       const newEntry: PaymentEntry = {
-         id: Math.random().toString(36).substr(2, 9),
+         id: crypto.randomUUID(),
          date: paymentDateInput,
          amount: amount,
          method: paymentMethodInput,
@@ -396,7 +396,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
       // Simulate transaction time
       setTimeout(() => {
          const newSale: Sale = {
-            id: Math.floor(Math.random() * 10000).toString(),
+            id: crypto.randomUUID(),
             date: saleDate, // Use user selected date
             customerName: selectedCustomer ? selectedCustomer.name : (selectedBranch === Branch.MATRIZ ? 'Cliente Atacado' : 'Consumidor Final'),
             total: cartTotal,
