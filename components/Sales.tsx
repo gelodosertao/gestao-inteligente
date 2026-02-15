@@ -395,8 +395,18 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
 
       // Simulate transaction time
       setTimeout(() => {
+         // Generate a unique ID (check against existing sales to be 100% sure)
+         let newId = crypto.randomUUID();
+         let attempts = 0;
+         while (sales.some(s => s.id === newId) && attempts < 3) {
+            console.warn(`Generated ID collision: ${newId}. Retrying...`);
+            newId = crypto.randomUUID();
+            attempts++;
+         }
+         console.log(`Generating New Sale ID: ${newId}`);
+
          const newSale: Sale = {
-            id: crypto.randomUUID(),
+            id: newId,
             date: saleDate, // Use user selected date
             customerName: selectedCustomer ? selectedCustomer.name : (selectedBranch === Branch.MATRIZ ? 'Cliente Atacado' : 'Consumidor Final'),
             total: cartTotal,

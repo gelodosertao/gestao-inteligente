@@ -199,7 +199,7 @@ const App: React.FC = () => {
         }
       } catch (e) {
         console.error("Erro ao sincronizar venda com banco:", e);
-        alert(`A venda foi registrada localmente mas houve erro ao salvar na nuvem: ${e.message || JSON.stringify(e)}`);
+        alert(`A venda (ID: ${newSale.id}) foi registrada localmente mas houve erro ao salvar na nuvem: ${e.message || JSON.stringify(e)}`);
       }
     } else {
       // If Pending, just save sale and update stock (stock is reserved even if pending? Usually yes)
