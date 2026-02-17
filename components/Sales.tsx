@@ -699,70 +699,51 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                   {/* Left Column: Product Selection */}
                   <div className={`lg:col-span-2 flex flex-col gap-4 h-full overflow-hidden ${showMobileCart ? 'hidden lg:flex' : 'flex'} `}>
 
-                     {/* Branch Toggle & Scanner */}
-                     <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col gap-4">
-                        {/* Branch Switcher */}
-                        <div className="flex bg-slate-100 p-1.5 rounded-xl">
+                     {/* Branch & Scanner - Compact Header */}
+                     <div className="bg-white p-3 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row gap-3 items-center">
+                        {/* Branch Switcher - Compact */}
+                        <div className="flex bg-slate-100 p-1 rounded-lg shrink-0">
                            <button
                               onClick={() => { setSelectedBranch(Branch.FILIAL); setCart([]); setIsWholesale(false); }}
-                              className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg font-bold transition-all text-xs md:text-base ${selectedBranch === Branch.FILIAL ? 'bg-white text-orange-600 shadow-md' : 'text-slate-500 hover:text-slate-700'} `}
+                              className={`px-3 py-1.5 rounded-md font-bold transition-all text-xs flex items-center gap-1.5 ${selectedBranch === Branch.FILIAL ? 'bg-white text-orange-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'} `}
                            >
-                              <Store size={16} /> Filial
+                              <Store size={14} /> Filial
                            </button>
                            <button
                               onClick={() => { setSelectedBranch(Branch.MATRIZ); setCart([]); setIsWholesale(true); }}
-                              className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg font-bold transition-all text-xs md:text-base ${selectedBranch === Branch.MATRIZ ? 'bg-white text-blue-700 shadow-md' : 'text-slate-500 hover:text-slate-700'} `}
+                              className={`px-3 py-1.5 rounded-md font-bold transition-all text-xs flex items-center gap-1.5 ${selectedBranch === Branch.MATRIZ ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'} `}
                            >
-                              <Factory size={16} /> Matriz
+                              <Factory size={14} /> Matriz
                            </button>
                         </div>
 
-                        {/* Wholesale Toggle for Filial */}
-                        {selectedBranch === Branch.FILIAL && (
-                           <div className="flex items-center gap-3 px-2 py-2 bg-blue-50/50 rounded-lg border border-blue-100">
-                              <label className="relative inline-flex items-center cursor-pointer">
-                                 <input
-                                    type="checkbox"
-                                    className="sr-only peer"
-                                    checked={isWholesale}
-                                    onChange={(e) => setIsWholesale(e.target.checked)}
-                                 />
-                                 <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                              </label>
-                              <span className="text-sm font-medium text-slate-700 flex flex-col">
-                                 <span>Aplicar Preços de Atacado</span>
-                                 <span className="text-[10px] text-slate-500 font-normal">Vender estoque da Filial com tabela da Matriz</span>
-                              </span>
-                           </div>
-                        )}
-
-                        <div className="flex flex-col md:flex-row gap-4 items-center">
-                           <div className="flex-1 w-full relative">
-                              <ScanBarcode className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" />
+                        {/* Scanner Input - Expanded */}
+                        <div className="flex-1 w-full relative flex gap-2">
+                           <div className="relative flex-1">
+                              <ScanBarcode size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" />
                               <input
                                  ref={barcodeInputRef}
                                  type="text"
                                  value={barcodeInput}
                                  onChange={(e) => setBarcodeInput(e.target.value)}
                                  onKeyDown={handleBarcodeSubmit}
-                                 placeholder={scannerStatus === 'CONNECTED' ? "Escaneie..." : "Código..."}
-                                 className={`w-full pl-10 pr-4 py-3 rounded-xl border-2 transition-all outline-none ${scannerStatus === 'CONNECTED' ? 'border-green-500 bg-green-50/20' : 'border-slate-200 focus:border-orange-500'} `}
+                                 placeholder={scannerStatus === 'CONNECTED' ? "Escaneie..." : "Código ou Nome..."}
+                                 className={`w-full pl-9 pr-4 py-2 text-sm rounded-xl border transition-all outline-none ${scannerStatus === 'CONNECTED' ? 'border-green-500 bg-green-50/20' : 'border-slate-200 focus:border-orange-500'} `}
                               />
                            </div>
                            <button
                               onClick={handlePairScanner}
                               disabled={scannerStatus === 'CONNECTED'}
-                              className={`flex items-center gap-2 px-4 py-3 rounded-xl font-medium transition-all w-full md:w-auto justify-center
-                        ${scannerStatus === 'CONNECTED'
+                              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all shrink-0
+                         ${scannerStatus === 'CONNECTED'
                                     ? 'bg-green-100 text-green-700 cursor-default'
                                     : scannerStatus === 'CONNECTING'
                                        ? 'bg-amber-100 text-amber-700 animate-pulse'
                                        : 'bg-blue-800 text-white hover:bg-blue-700'
                                  } `}
                            >
-                              <Bluetooth size={18} />
-                              <span className="md:hidden lg:inline">{scannerStatus === 'CONNECTED' ? 'Pareado' : 'Parear'}</span>
-                              <span className="hidden md:inline lg:hidden">{scannerStatus === 'CONNECTED' ? 'Leitor Pareado' : 'Parear Leitor'}</span>
+                              <Bluetooth size={14} />
+                              <span className="hidden sm:inline">{scannerStatus === 'CONNECTED' ? 'Pareado' : 'Leitor'}</span>
                            </button>
                         </div>
                      </div>

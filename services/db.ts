@@ -355,7 +355,7 @@ export const dbSales = {
       saleData.payment_splits = sale.paymentSplits;
     }
 
-    const { error } = await supabase.from('sales').insert([saleData]);
+    const { error } = await supabase.from('sales').upsert([saleData]);
     if (error) throw error;
   },
 
