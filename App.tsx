@@ -20,6 +20,7 @@ const OnlineMenu = React.lazy(() => import('./components/OnlineMenu'));
 const MenuConfig = React.lazy(() => import('./components/MenuConfig'));
 const Production = React.lazy(() => import('./components/Production'));
 const OrderCenter = React.lazy(() => import('./components/OrderCenter'));
+const Reports = React.lazy(() => import('./components/Reports'));
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -457,6 +458,8 @@ const App: React.FC = () => {
     switch (currentView) {
       case 'DASHBOARD':
         return <Dashboard products={products} sales={sales} financials={financials} customers={customers} onNavigate={setCurrentView} />;
+      case 'REPORTS':
+        return <Reports sales={sales} products={products} customers={customers} onBack={() => setCurrentView('DASHBOARD')} />;
       case 'INVENTORY':
         return <Inventory products={products} sales={sales} financials={financials} onUpdateProduct={handleUpdateProduct} onAddProduct={handleAddProduct} onDeleteProduct={handleDeleteProduct} onOpenPricing={(id) => { setPricingProductId(id); setCurrentView('PRICING'); }} onAddFinancialRecord={handleAddFinancialRecord} onBack={() => setCurrentView('DASHBOARD')} currentUser={currentUser!} />;
       case 'SALES':
