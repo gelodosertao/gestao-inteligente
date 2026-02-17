@@ -39,7 +39,7 @@ export const dbUsers = {
     return sessionUser;
   },
 
-  async register(user: { name: string, email: string, password: string, role: Role }): Promise<User> {
+  async register(user: { name: string, email: string, password: string, role: Role }, existingTenantId?: string): Promise<User> {
     // 1. Check if user exists
     const { data: existing } = await supabase
       .from('app_users')
@@ -51,16 +51,21 @@ export const dbUsers = {
       throw new Error('Este email já está cadastrado.');
     }
 
-    // 2. Create Tenant
-    const { data: tenant, error: tenantError } = await supabase
-      .from('tenants')
-      .insert([{ name: user.name + " Store" }])
-      .select()
-      .single();
+    let tenantId = existingTenantId;
 
-    if (tenantError) {
-      console.error("Erro ao criar tenant:", tenantError);
-      throw new Error("Erro ao criar organização.");
+    // 2. Create Tenant ONLY if not provided
+    if (!tenantId) {
+      const { data: tenant, error: tenantError } = await supabase
+        .from('tenants')
+        .insert([{ name: user.name + " Store" }])
+        .select()
+        .single();
+
+      if (tenantError) {
+        console.error("Erro ao criar tenant:", tenantError);
+        throw new Error("Erro ao criar organização.");
+      }
+      tenantId = tenant.id;
     }
 
     // 3. Insert into app_users
@@ -70,7 +75,7 @@ export const dbUsers = {
       password: user.password, // Storing plain text as requested for simplicity/revert
       role: user.role,
       avatar_initials: user.name.substring(0, 2).toUpperCase(),
-      tenant_id: tenant.id
+      tenant_id: tenantId
     };
 
     const { data, error } = await supabase
@@ -84,7 +89,13 @@ export const dbUsers = {
       throw new Error("Erro ao criar conta: " + error.message);
     }
 
-    // 3. Auto-login (Save to LocalStorage)
+    // 3. Auto-login (Save to LocalStorage) - ONLY if it's a new self-registration (no existing tenant passed)
+    // If an admin is creating a user (existingTenantId passed), we probably don't want to auto-login as that new user immediately on this browser.
+
+    // However, the original code always returned sessionUser and set localStorage.
+    // We should preserve behavior for Login.tsx (self-registration) but maybe NOT set localStorage if it's an admin action?
+    // But the return type Promise<User> implies we return the created user.
+
     const sessionUser: User = {
       id: data.id,
       name: data.name,
@@ -93,7 +104,10 @@ export const dbUsers = {
       avatarInitials: data.avatar_initials,
       tenantId: data.tenant_id
     };
-    localStorage.setItem('app_user', JSON.stringify(sessionUser));
+
+    if (!existingTenantId) {
+      localStorage.setItem('app_user', JSON.stringify(sessionUser));
+    }
 
     return sessionUser;
   },

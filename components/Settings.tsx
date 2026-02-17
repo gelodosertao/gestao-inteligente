@@ -89,7 +89,7 @@ const Settings: React.FC<SettingsProps> = ({ currentUser, onResetData }) => {
       }
       setLoading(true);
       try {
-         await dbUsers.register(newUser);
+         await dbUsers.register(newUser, currentUser.tenantId);
          setSuccessMsg('Usuário cadastrado com sucesso!');
          setShowUserModal(false);
          setNewUser({ name: '', email: '', role: 'OPERATOR', password: '' });
