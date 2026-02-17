@@ -74,12 +74,12 @@ const OnlineMenu: React.FC<OnlineMenuProps> = ({ onBack }) => {
                 return;
             }
 
-            // Default Store Location (Barreiras - BA)
-            const storeLat = -12.146337;
-            const storeLon = -44.995872;
+            // Default Store Location (Barreiras - BA - Gelo do Sertão)
+            const storeLat = settings?.storeLat || -12.146528;
+            const storeLon = settings?.storeLng || -44.996861;
 
             // Create Map
-            mapRef.current = L.map('map-container').setView([storeLat, storeLon], 14);
+            mapRef.current = L.map('map-container').setView([storeLat, storeLon], 15);
 
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '&copy; OpenStreetMap contributors'

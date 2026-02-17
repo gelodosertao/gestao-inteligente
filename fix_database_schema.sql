@@ -235,3 +235,8 @@ ADD COLUMN IF NOT EXISTS google_tag_id TEXT;
 ALTER TABLE store_settings
 ADD COLUMN IF NOT EXISTS delivery_base_fee NUMERIC DEFAULT 0,
 ADD COLUMN IF NOT EXISTS delivery_per_km NUMERIC DEFAULT 0;
+
+-- Add store coordinates columns to store_settings table
+ALTER TABLE store_settings
+ADD COLUMN IF NOT EXISTS store_lat NUMERIC,
+ADD COLUMN IF NOT EXISTS store_lng NUMERIC;

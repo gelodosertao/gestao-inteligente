@@ -75,6 +75,8 @@ export interface StoreSettings {
   googleTagId?: string;
   deliveryBaseFee?: number;
   deliveryPerKm?: number;
+  storeLat?: number;
+  storeLng?: number;
 }
 
 export interface PaymentEntry {
