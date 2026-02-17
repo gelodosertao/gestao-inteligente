@@ -59,9 +59,11 @@ create table if not exists sales (
   items jsonb,
   cash_received numeric,
   change_amount numeric,
+  created_at timestamp with time zone,
   tenant_id uuid references tenants(id) default '00000000-0000-0000-0000-000000000000'
 );
 alter table sales add column if not exists payment_splits jsonb;
+alter table sales add column if not exists created_at timestamp with time zone;
 alter table sales add column if not exists tenant_id uuid references tenants(id) default '00000000-0000-0000-0000-000000000000';
 
 -- FINANCIALS
@@ -224,8 +226,12 @@ create policy "Enable all access for now" on categories for all using (true);
 create policy "Enable all access for now" on store_settings for all using (true);
 create policy "Enable all access for now" on app_users for all using (true);
 create policy "Enable all access for now" on tenants for all using (true);
-- -   A d d   p i x e l   c o l u m n s   t o   s t o r e _ s e t t i n g s   t a b l e  
- A L T E R   T A B L E   s t o r e _ s e t t i n g s    
- A D D   C O L U M N   I F   N O T   E X I S T S   f a c e b o o k _ p i x e l _ i d   T E X T ,  
- A D D   C O L U M N   I F   N O T   E X I S T S   g o o g l e _ t a g _ i d   T E X T ;  
+- -   A d d   p i x e l   c o l u m n s   t o   s t o r e _ s e t t i n g s   t a b l e 
+ 
+ A L T E R   T A B L E   s t o r e _ s e t t i n g s   
+ 
+ A D D   C O L U M N   I F   N O T   E X I S T S   f a c e b o o k _ p i x e l _ i d   T E X T , 
+ 
+ A D D   C O L U M N   I F   N O T   E X I S T S   g o o g l e _ t a g _ i d   T E X T ; 
+ 
  

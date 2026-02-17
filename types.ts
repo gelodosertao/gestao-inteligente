@@ -101,6 +101,7 @@ export interface Sale {
   // Propriedades para venda Fiado / Parcial
   amountPaid?: number; // Total pago
   paymentHistory?: PaymentEntry[]; // Histórico
+  createdAt?: string; // ISO Date String for proper sorting/time display
 }
 
 export interface SaleItem {

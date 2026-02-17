@@ -408,6 +408,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
          const newSale: Sale = {
             id: newId,
             date: saleDate, // Use user selected date
+            createdAt: new Date().toISOString(),
             customerName: selectedCustomer ? selectedCustomer.name : (selectedBranch === Branch.MATRIZ ? 'Cliente Atacado' : 'Consumidor Final'),
             total: cartTotal,
             branch: selectedBranch,
@@ -618,7 +619,12 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                         </div>
                         <div>
                            <h4 className="font-bold text-slate-800">{sale.customerName}</h4>
-                           <p className="text-sm text-slate-500">{sale.date} • <span className={`font-bold ${sale.branch === Branch.MATRIZ ? 'text-blue-600' : 'text-orange-600'} `}>{sale.branch}</span></p>
+                           <p className="text-sm text-slate-500">
+                              {sale.date}
+                              {sale.createdAt && ` - ${new Date(sale.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`}
+                              {' • '}
+                              <span className={`font-bold ${sale.branch === Branch.MATRIZ ? 'text-blue-600' : 'text-orange-600'} `}>{sale.branch}</span>
+                           </p>
                            <div className="text-xs text-slate-400 mt-1">
                               {sale.items.map(i => `${i.quantity}x ${i.productName} `).join(', ')}
                            </div>

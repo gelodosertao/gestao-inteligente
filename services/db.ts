@@ -329,7 +329,8 @@ export const dbSales = {
       cashReceived: row.cash_received,
       changeAmount: row.change_amount,
       amountPaid: row.amount_paid,
-      paymentHistory: row.payment_history
+      paymentHistory: row.payment_history,
+      createdAt: row.created_at
     }));
   },
 
@@ -348,6 +349,7 @@ export const dbSales = {
       change_amount: sale.changeAmount,
       amount_paid: sale.amountPaid,
       payment_history: sale.paymentHistory,
+      created_at: sale.createdAt,
       tenant_id: tenantId
     };
 
