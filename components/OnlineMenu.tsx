@@ -44,13 +44,196 @@ const OnlineMenu: React.FC<OnlineMenuProps> = ({ onBack }) => {
     const [changeFor, setChangeFor] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
 
+    const [deliveryFee, setDeliveryFee] = useState(0);
+    const [isCalculatingFee, setIsCalculatingFee] = useState(false);
+
+    // Map State
+    const [showMap, setShowMap] = useState(false);
+    const mapRef = useRef<any>(null);
+    const markerRef = useRef<any>(null);
+    const [houseNumber, setHouseNumber] = useState('');
+
     // Refs for scrolling
     const categoryScrollRef = useRef<HTMLDivElement>(null);
+    const addressTypingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+    // --- EFFECT: MAP INITIALIZATION ---
+    useEffect(() => {
+        if (!showMap) return;
+
+        // Cleanup previous map instance if exists (safety)
+        if (mapRef.current) {
+            mapRef.current.remove();
+            mapRef.current = null;
+        }
+
+        const timeout = setTimeout(() => {
+            const L = (window as any).L;
+            if (!L) {
+                console.error("Leaflet not loaded");
+                return;
+            }
+
+            // Default Store Location (Barreiras - BA)
+            const storeLat = -12.146337;
+            const storeLon = -44.995872;
+
+            // Create Map
+            mapRef.current = L.map('map-container').setView([storeLat, storeLon], 14);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap contributors'
+            }).addTo(mapRef.current);
+
+            // Add Store Marker
+            const storeIcon = L.divIcon({
+                className: 'custom-div-icon',
+                html: `<div style="background-color: blue; width: 15px; height: 15px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 5px rgba(0,0,0,0.5);"></div>`,
+                iconSize: [20, 20],
+                iconAnchor: [10, 10]
+            });
+
+            L.marker([storeLat, storeLon], { icon: storeIcon }).addTo(mapRef.current)
+                .bindPopup(`<b>${settings?.storeName || 'Loja'}</b><br>Nós estamos aqui!`).openPopup();
+
+            // Click Handler for Customer Pin
+            mapRef.current.on('click', async (e: any) => {
+                const { lat, lng } = e.latlng;
+
+                // Remove old marker
+                if (markerRef.current) {
+                    mapRef.current.removeLayer(markerRef.current);
+                }
+
+                // Add new marker
+                // Using a simple red icon
+                const redIcon = L.divIcon({
+                    className: 'custom-div-icon',
+                    html: `<div style="background-color: red; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white; box-shadow: 0 0 10px rgba(0,0,0,0.5); animation: bounce 0.5s;"></div>`,
+                    iconSize: [24, 24],
+                    iconAnchor: [12, 12]
+                });
+
+                markerRef.current = L.marker([lat, lng], { icon: redIcon }).addTo(mapRef.current)
+                    .bindPopup("Sua Entrega").openPopup();
+
+                // 1. Calculate Distance & Fee
+                const R = 6371; // Earth radius in km
+                const dLat = (lat - storeLat) * Math.PI / 180;
+                const dLon = (lng - storeLon) * Math.PI / 180;
+                const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                    Math.cos(storeLat * Math.PI / 180) * Math.cos(lat * Math.PI / 180) *
+                    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+                const d = R * c; // Distance in km
+                const distKm = Math.max(0.1, d); // Min distance
+
+                const fee = (settings?.deliveryBaseFee || 0) + (distKm * (settings?.deliveryPerKm || 0));
+                const roundedFee = Math.ceil(fee * 2) / 2;
+
+                setDeliveryFee(roundedFee);
+                setIsCalculatingFee(false);
+
+                // 2. Reverse Geocode (Get Address Text)
+                setAddress("Buscando endereço...");
+                setHouseNumber(''); // Reset house number on new pin
+                try {
+                    const resp = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
+                    const data = await resp.json();
+                    if (data && data.display_name) {
+                        // Cleanup address string a bit
+                        const cleanAddr = data.display_name.split(',').slice(0, 4).join(',');
+                        setAddress(cleanAddr);
+                    } else {
+                        setAddress(`Localização selecionada no mapa (${lat.toFixed(5)}, ${lng.toFixed(5)})`);
+                    }
+                } catch (err) {
+                    console.error("Geocoding error", err);
+                    setAddress(`Localização Latitude: ${lat.toFixed(5)}, Longitude: ${lng.toFixed(5)}`);
+                }
+            });
+
+            // Invalidate size to ensure it renders correctly
+            setTimeout(() => {
+                mapRef.current.invalidateSize();
+            }, 200);
+
+        }, 100);
+
+        return () => clearTimeout(timeout);
+    }, [showMap]);
 
     // --- EFFECT: LOAD DATA ---
     useEffect(() => {
         loadData();
     }, []);
+
+    // --- EFFECT: Debounce Address Calculation ---
+    useEffect(() => {
+        if (deliveryMethod === 'DELIVERY' && address.length > 5 && settings?.deliveryPerKm) {
+            if (addressTypingTimeoutRef.current) clearTimeout(addressTypingTimeoutRef.current);
+            setIsCalculatingFee(true);
+            addressTypingTimeoutRef.current = setTimeout(() => {
+                calculateDeliveryFee(address);
+            }, 1500);
+        } else {
+            setDeliveryFee(settings?.deliveryBaseFee || 0);
+            setIsCalculatingFee(false);
+        }
+    }, [address, deliveryMethod, settings]);
+
+    const calculateDeliveryFee = async (inputAddress: string) => {
+        if (!settings?.deliveryPerKm) {
+            setDeliveryFee(settings?.deliveryBaseFee || 0);
+            setIsCalculatingFee(false);
+            return;
+        }
+
+        try {
+            // 1. Get Store Coordinates (Hardcoded for now based on user input, or geocode store address)
+            // Store: Rua Professor José Seabra, 701 - Centro, Barreiras - BA
+            // Lat/Lon approx: -12.148, -44.996 (Example, ideally geocode store too once)
+            // Using a fixed point for "Centro, Barreiras" as fallback if geocoding fails or use specific coords if known.
+            const storeLat = -12.146337;
+            const storeLon = -44.995872;
+
+            // 2. Geocode Customer Address (OpenStreetMap Nominatim)
+            // Append city/state to improve accuracy
+            const safeAddress = `${inputAddress}, Barreiras, Bahia, Brasil`;
+            const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(safeAddress)}`);
+            const data = await response.json();
+
+            if (data && data.length > 0) {
+                const customerLat = parseFloat(data[0].lat);
+                const customerLon = parseFloat(data[0].lon);
+
+                // 3. Calculate Distance
+                const { calculateDistance } = await import('../services/utils');
+                const distanceKm = calculateDistance(storeLat, storeLon, customerLat, customerLon);
+
+                // 4. Calculate Fee
+                // Formula: Base + (Km * Rate)
+                // Assuming minimum 1km
+                const dist = Math.max(1, distanceKm);
+                const fee = (settings.deliveryBaseFee || 0) + (dist * (settings.deliveryPerKm || 0));
+
+                // Round to nearest 0.50
+                const roundedFee = Math.ceil(fee * 2) / 2;
+
+                setDeliveryFee(roundedFee);
+                // console.log(`Distance: ${distanceKm}km, Fee: ${roundedFee}`);
+            } else {
+                // Determine fallback if address not found: maybe standard fee?
+                setDeliveryFee(settings.deliveryBaseFee || 0);
+            }
+
+        } catch (error) {
+            console.error("Error calculating fee:", error);
+            setDeliveryFee(settings?.deliveryBaseFee || 0);
+        } finally {
+            setIsCalculatingFee(false);
+        }
+    };
 
     const loadData = async () => {
         const params = new URLSearchParams(window.location.search);
@@ -71,6 +254,11 @@ const OnlineMenu: React.FC<OnlineMenuProps> = ({ onBack }) => {
 
             setProducts(availableProducts);
             setSettings(storeSettings);
+
+            // Set initial base fee
+            if (storeSettings?.deliveryBaseFee) {
+                setDeliveryFee(storeSettings.deliveryBaseFee);
+            }
         } catch (error) {
             console.error("Erro ao carregar dados:", error);
         } finally {
@@ -358,7 +546,7 @@ const OnlineMenu: React.FC<OnlineMenuProps> = ({ onBack }) => {
             let paymentText = paymentMethod === 'PIX' ? 'Pix' : paymentMethod === 'CARD' ? 'Cartão' : 'Dinheiro';
             if (paymentMethod === 'CASH' && changeFor) paymentText += ` (Troco para R$ ${changeFor})`;
 
-            const message = `👋 Olá! Gostaria de fazer um pedido:%0A%0A*👤 Cliente:* ${customerName}%0A*📱 Tel:* ${customerPhone}%0A%0A*🛒 Itens:*%0A${itemsList}%0A%0A*💰 Total:* ${formatCurrency(cartTotal)}%0A%0A*📦 Forma:* ${methodText}${addressText}%0A*💳 Pagamento:* ${paymentText}`;
+            const message = `👋 Olá! Gostaria de fazer um pedido:%0A%0A*👤 Cliente:* ${customerName}%0A*📱 Tel:* ${customerPhone}%0A%0A*🛒 Itens:*%0A${itemsList}%0A%0A*📦 Entrega:* ${methodText} ${deliveryMethod === 'DELIVERY' && deliveryFee > 0 ? `(R$ ${deliveryFee.toFixed(2)})` : ''}${addressText}%0A%0A*💰 Total Geral:* ${formatCurrency(cartTotal + (deliveryMethod === 'DELIVERY' ? deliveryFee : 0))}%0A*💳 Pagamento:* ${paymentText}`;
 
             const phone = settings?.phone || "5577998129383";
 
@@ -463,9 +651,24 @@ const OnlineMenu: React.FC<OnlineMenuProps> = ({ onBack }) => {
                                     </span>
                                 </div>
                             ))}
+
+                            {/* Delivery Fee Line */}
+                            {deliveryMethod === 'DELIVERY' && (
+                                <div className="flex justify-between items-center text-sm text-slate-600 pt-2 border-t border-slate-50">
+                                    <span>Taxa de Entrega</span>
+                                    {isCalculatingFee ? (
+                                        <span className="animate-pulse text-xs bg-slate-100 px-2 py-0.5 rounded">Calculando...</span>
+                                    ) : deliveryFee > 0 ? (
+                                        <span>{formatCurrency(deliveryFee)}</span>
+                                    ) : (
+                                        <span className="text-green-600 font-bold">Grátis/A Calcular</span>
+                                    )}
+                                </div>
+                            )}
+
                             <div className="border-t border-slate-100 pt-3 flex justify-between items-center font-bold text-lg text-slate-800 mt-2">
                                 <span>Total</span>
-                                <span>{formatCurrency(cartTotal)}</span>
+                                <span>{formatCurrency(cartTotal + (deliveryMethod === 'DELIVERY' ? deliveryFee : 0))}</span>
                             </div>
                         </div>
                     </div>
@@ -490,8 +693,18 @@ const OnlineMenu: React.FC<OnlineMenuProps> = ({ onBack }) => {
                         </div>
                         {deliveryMethod === 'DELIVERY' && (
                             <div className="space-y-3">
-                                <textarea className="w-full bg-slate-50 border-0 rounded-xl px-4 py-3 text-slate-800 font-medium focus:ring-2 focus:ring-blue-500 outline-none resize-none h-24" placeholder="Endereço completo" value={address} onChange={e => setAddress(e.target.value)} />
-                                <input type="text" className="w-full bg-slate-50 border-0 rounded-xl px-4 py-3 text-slate-800 font-medium focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Ponto de Referência" value={referencePoint} onChange={e => setReferencePoint(e.target.value)} />
+                                <div className="space-y-3">
+                                    <button
+                                        onClick={() => setShowMap(true)}
+                                        className="w-full py-4 bg-orange-50 border border-orange-200 text-orange-700 font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-orange-100 transition-colors shadow-sm"
+                                    >
+                                        <MapPin size={22} className="fill-orange-500 text-white" />
+                                        {address ? 'Alterar Localização no Mapa' : 'Selecionar Local de Entrega no Mapa'}
+                                    </button>
+
+                                    <textarea className="w-full bg-slate-50 border-0 rounded-xl px-4 py-3 text-slate-800 font-medium focus:ring-2 focus:ring-blue-500 outline-none resize-none h-20 text-sm" placeholder="Endereço completo (Confirmar detalhes)" value={address} onChange={e => setAddress(e.target.value)} />
+                                    <input type="text" className="w-full bg-slate-50 border-0 rounded-xl px-4 py-3 text-slate-800 font-medium focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Ponto de Referência" value={referencePoint} onChange={e => setReferencePoint(e.target.value)} />
+                                </div>
                             </div>
                         )}
                     </div>
@@ -510,6 +723,77 @@ const OnlineMenu: React.FC<OnlineMenuProps> = ({ onBack }) => {
                         )}
                     </div>
                 </div>
+
+                {/* Map Modal */}
+                {showMap && (
+                    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
+                        <div className="bg-white w-full max-w-lg h-[80vh] rounded-2xl overflow-hidden flex flex-col shadow-2xl animate-in zoom-in-95">
+                            <div className="p-4 bg-slate-900 text-white flex justify-between items-center shrink-0">
+                                <div>
+                                    <h3 className="font-bold flex items-center gap-2 text-lg"><MapPin className="text-orange-500" /> Onde você está?</h3>
+                                    <p className="text-xs text-slate-400">Toque no mapa para marcar sua entrega</p>
+                                </div>
+                                <button onClick={() => setShowMap(false)} className="p-2 bg-slate-800 rounded-full hover:bg-slate-700 transition-colors"><X size={20} /></button>
+                            </div>
+
+                            <div className="flex-1 relative bg-slate-100">
+                                <div id="map-container" className="absolute inset-0 z-10" />
+                                {!mapRef.current && (
+                                    <div className="absolute inset-0 flex items-center justify-center text-slate-400">
+                                        <p>Carregando mapa...</p>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="p-4 bg-white border-t border-slate-200 shrink-0">
+                                <div className="mb-3">
+                                    <p className="text-xs font-bold text-slate-500 uppercase">Endereço Selecionado</p>
+                                    <p className="text-sm text-slate-800 font-medium truncate mb-2">{address || 'Toque no mapa para selecionar'}</p>
+
+                                    {address && (
+                                        <div className="flex gap-2 mb-2 animate-in slide-in-from-bottom-2">
+                                            <div className="flex-1">
+                                                <label className="text-[10px] font-bold text-slate-500 uppercase">Número</label>
+                                                <input
+                                                    type="number"
+                                                    placeholder="Nº"
+                                                    className="w-full px-3 py-2 bg-slate-100 border border-slate-300 rounded-lg text-slate-900 font-bold outline-none focus:ring-2 focus:ring-blue-500"
+                                                    value={houseNumber}
+                                                    onChange={(e) => setHouseNumber(e.target.value)}
+                                                    autoFocus
+                                                />
+                                            </div>
+                                            <div className="flex-[2]">
+                                                <label className="text-[10px] font-bold text-slate-500 uppercase">Complemento (opc)</label>
+                                                <input
+                                                    type="text"
+                                                    placeholder="Apto, Bloco..."
+                                                    className="w-full px-3 py-2 bg-slate-100 border border-slate-300 rounded-lg text-slate-900 outline-none focus:ring-2 focus:ring-blue-500"
+                                                    value={referencePoint}
+                                                    onChange={(e) => setReferencePoint(e.target.value)}
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {deliveryFee > 0 && <p className="text-xs text-green-600 font-bold">Taxa de Entrega: {formatCurrency(deliveryFee)}</p>}
+                                </div>
+                                <button
+                                    onClick={() => {
+                                        if (houseNumber) {
+                                            setAddress(`${address}, Nº ${houseNumber}`);
+                                        }
+                                        setShowMap(false);
+                                    }}
+                                    disabled={!address || !houseNumber}
+                                    className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-bold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                                >
+                                    Confirmar Localização
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* Footer Action */}
                 <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-slate-100 shadow-[0_-5px_20px_rgba(0,0,0,0.05)]">

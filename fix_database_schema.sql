@@ -226,12 +226,12 @@ create policy "Enable all access for now" on categories for all using (true);
 create policy "Enable all access for now" on store_settings for all using (true);
 create policy "Enable all access for now" on app_users for all using (true);
 create policy "Enable all access for now" on tenants for all using (true);
-- -   A d d   p i x e l   c o l u m n s   t o   s t o r e _ s e t t i n g s   t a b l e 
- 
- A L T E R   T A B L E   s t o r e _ s e t t i n g s   
- 
- A D D   C O L U M N   I F   N O T   E X I S T S   f a c e b o o k _ p i x e l _ i d   T E X T , 
- 
- A D D   C O L U M N   I F   N O T   E X I S T S   g o o g l e _ t a g _ i d   T E X T ; 
- 
- 
+-- Add pixel columns to store_settings table
+ALTER TABLE store_settings 
+ADD COLUMN IF NOT EXISTS facebook_pixel_id TEXT,
+ADD COLUMN IF NOT EXISTS google_tag_id TEXT;
+
+-- Add delivery fee columns to store_settings table
+ALTER TABLE store_settings
+ADD COLUMN IF NOT EXISTS delivery_base_fee NUMERIC DEFAULT 0,
+ADD COLUMN IF NOT EXISTS delivery_per_km NUMERIC DEFAULT 0;

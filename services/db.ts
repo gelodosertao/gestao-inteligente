@@ -286,7 +286,9 @@ export const dbSettings = {
       openingHours: data.opening_hours,
       primaryColor: data.primary_color,
       facebookPixelId: data.facebook_pixel_id,
-      googleTagId: data.google_tag_id
+      googleTagId: data.google_tag_id,
+      deliveryBaseFee: data.delivery_base_fee,
+      deliveryPerKm: data.delivery_per_km
     };
   },
 
@@ -303,6 +305,8 @@ export const dbSettings = {
       primary_color: settings.primaryColor,
       facebook_pixel_id: settings.facebookPixelId,
       google_tag_id: settings.googleTagId,
+      delivery_base_fee: settings.deliveryBaseFee,
+      delivery_per_km: settings.deliveryPerKm,
       tenant_id: tenantId
     });
     if (error) throw error;

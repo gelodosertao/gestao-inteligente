@@ -73,6 +73,8 @@ export interface StoreSettings {
   primaryColor?: string; // Hex code
   facebookPixelId?: string;
   googleTagId?: string;
+  deliveryBaseFee?: number;
+  deliveryPerKm?: number;
 }
 
 export interface PaymentEntry {

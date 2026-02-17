@@ -365,6 +365,48 @@ const MenuConfig: React.FC<MenuConfigProps> = ({ onBack, tenantId }) => {
                 </div>
             </div>
 
+            {/* Delivery Fees */}
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 space-y-4">
+                <h3 className="font-bold text-slate-700 flex items-center gap-2">
+                    <span className="text-xl">🛵</span> Taxas de Entrega
+                </h3>
+                <p className="text-sm text-slate-500">Configure como o valor do frete será calculado.</p>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Taxa Fixa (Base)</label>
+                        <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">R$</span>
+                            <input
+                                type="number"
+                                step="0.50"
+                                value={settings.deliveryBaseFee || ''}
+                                onChange={e => setSettings({ ...settings, deliveryBaseFee: parseFloat(e.target.value) })}
+                                className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-mono text-sm"
+                                placeholder="0.00"
+                            />
+                        </div>
+                        <p className="text-xs text-slate-400 mt-1">Valor mínimo cobrado por entrega.</p>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Valor por Km Rodado</label>
+                        <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">R$</span>
+                            <input
+                                type="number"
+                                step="0.50"
+                                value={settings.deliveryPerKm || ''}
+                                onChange={e => setSettings({ ...settings, deliveryPerKm: parseFloat(e.target.value) })}
+                                className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-mono text-sm"
+                                placeholder="0.00"
+                            />
+                        </div>
+                        <p className="text-xs text-slate-400 mt-1">Adicional cobrado a cada quilômetro de distância.</p>
+                    </div>
+                </div>
+            </div>
+
             <div className="flex justify-end pt-4">
                 <button
                     onClick={handleSave}
