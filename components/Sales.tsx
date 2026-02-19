@@ -41,9 +41,34 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
 
    const handleSaveEditedSale = () => {
       if (!editingSale) return;
-      onUpdateSale(editingSale);
+
+      // Recalculate total based on items
+      const newTotal = editingSale.items.reduce((acc, item) => acc + (item.priceAtSale * item.quantity), 0);
+
+      // Apply discount if any (assuming discount is stored somewhere or calculated difference)
+      // For simplicity in this edit mode, we can just save the total as is or allow manual override if needed but auto-calc is safer.
+      // However, if we want to allow "Discount" editing, we should probably add a discount field to Sale type or just manipulate total.
+      // Let's assume we update total directly from items sum.
+
+      const updatedSale = { ...editingSale, total: newTotal };
+
+      onUpdateSale(updatedSale);
       setShowEditSaleModal(false);
       setEditingSale(null);
+   };
+
+   // Helper to update item in editing sale
+   const updateEditingItem = (index: number, field: 'quantity' | 'priceAtSale', value: number) => {
+      if (!editingSale) return;
+      const newItems = [...editingSale.items];
+      newItems[index] = { ...newItems[index], [field]: value };
+      setEditingSale({ ...editingSale, items: newItems });
+   };
+
+   const removeEditingItem = (index: number) => {
+      if (!editingSale) return;
+      const newItems = editingSale.items.filter((_, i) => i !== index);
+      setEditingSale({ ...editingSale, items: newItems });
    };
 
    // --- INVOICE MODAL STATE ---
@@ -1528,8 +1553,51 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                            </select>
                         </div>
 
-                        <div className="bg-amber-50 border border-amber-100 p-3 rounded-lg text-xs text-amber-800">
-                           <strong>Atenção:</strong> Alterar os itens da venda não é permitido nesta versão para garantir a integridade do estoque. Para corrigir itens, cancele esta venda e lance uma nova.
+                        <div className="border-t border-slate-200 pt-4 mt-2">
+                           <label className="block text-sm font-bold text-slate-700 mb-2">Itens do Pedido</label>
+                           <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
+                              {editingSale.items.map((item, index) => (
+                                 <div key={index} className="flex items-center gap-2 bg-slate-50 p-2 rounded border border-slate-200">
+                                    <div className="flex-1">
+                                       <p className="text-xs font-bold text-slate-700 truncate">{item.productName}</p>
+                                    </div>
+                                    <div className="w-20">
+                                       <label className="text-[10px] text-slate-500 block">Qtd</label>
+                                       <input
+                                          type="number"
+                                          min="1"
+                                          className="w-full px-2 py-1 text-xs border border-slate-300 rounded focus:ring-1 focus:ring-orange-500 outline-none"
+                                          value={item.quantity}
+                                          onChange={(e) => updateEditingItem(index, 'quantity', parseFloat(e.target.value))}
+                                       />
+                                    </div>
+                                    <div className="w-24">
+                                       <label className="text-[10px] text-slate-500 block">Valor Un.</label>
+                                       <input
+                                          type="number"
+                                          min="0"
+                                          step="0.01"
+                                          className="w-full px-2 py-1 text-xs border border-slate-300 rounded focus:ring-1 focus:ring-orange-500 outline-none"
+                                          value={item.priceAtSale}
+                                          onChange={(e) => updateEditingItem(index, 'priceAtSale', parseFloat(e.target.value))}
+                                       />
+                                    </div>
+                                    <button
+                                       onClick={() => removeEditingItem(index)}
+                                       className="text-red-500 hover:bg-red-50 p-1 rounded transition-colors mt-3"
+                                       title="Remover item"
+                                    >
+                                       <Trash2 size={14} />
+                                    </button>
+                                 </div>
+                              ))}
+                           </div>
+                           <div className="flex justify-between items-center mt-3 bg-slate-100 p-2 rounded">
+                              <span className="text-sm font-bold text-slate-700">Novo Total:</span>
+                              <span className="text-lg font-bold text-blue-800">
+                                 {formatCurrency(editingSale.items.reduce((acc, item) => acc + (item.priceAtSale * item.quantity), 0))}
+                              </span>
+                           </div>
                         </div>
 
                         <button
