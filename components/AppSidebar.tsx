@@ -14,22 +14,34 @@ interface AppSidebarProps {
   pendingOrdersCount?: number;
 }
 
-const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, setView, currentUser, onLogout, isCollapsed, toggleSidebar, isMobileMenuOpen, closeMobileMenu, pendingOrdersCount }) => {
-  // Define menu structure based on roles
-  const allMenuItems = [
-    { id: 'DASHBOARD', label: 'Dashboard', icon: LayoutDashboard, roles: ['ADMIN'] },
-    { id: 'INVENTORY', label: 'Estoque', icon: Package, roles: ['ADMIN', 'OPERATOR'] },
-    { id: 'PRODUCTION', label: 'Produção', icon: Factory, roles: ['ADMIN', 'FACTORY'] },
-    { id: 'SALES', label: 'Vendas', icon: ShoppingCart, roles: ['ADMIN', 'OPERATOR'] },
-    { id: 'ORDER_CENTER', label: 'Central de Pedidos', icon: Truck, roles: ['ADMIN', 'OPERATOR'] },
-    { id: 'CUSTOMERS', label: 'Clientes', icon: Users, roles: ['ADMIN', 'OPERATOR'] },
-    { id: 'PRICING', label: 'Custos', icon: Calculator, roles: ['ADMIN'] },
-    { id: 'FINANCIAL', label: 'Financeiro', icon: DollarSign, roles: ['ADMIN'] },
-    { id: 'REPORTS', label: 'Relatórios', icon: PieChart, roles: ['ADMIN'] },
-    { id: 'MENU_CONFIG', label: 'Site / Cardápio', icon: Globe, roles: ['ADMIN'] },
-  ];
+// Define menu structure based on roles (exported for use in Settings)
+export const ALL_MENU_ITEMS = [
+  { id: 'DASHBOARD', label: 'Dashboard', icon: LayoutDashboard, roles: ['ADMIN'] },
+  { id: 'INVENTORY', label: 'Estoque', icon: Package, roles: ['ADMIN', 'OPERATOR'] },
+  { id: 'PRODUCTION', label: 'Produção', icon: Factory, roles: ['ADMIN', 'FACTORY'] },
+  { id: 'SALES', label: 'Vendas', icon: ShoppingCart, roles: ['ADMIN', 'OPERATOR'] },
+  { id: 'ORDER_CENTER', label: 'Central de Pedidos', icon: Truck, roles: ['ADMIN', 'OPERATOR'] },
+  { id: 'CUSTOMERS', label: 'Clientes', icon: Users, roles: ['ADMIN', 'OPERATOR'] },
+  { id: 'PRICING', label: 'Custos', icon: Calculator, roles: ['ADMIN'] },
+  { id: 'FINANCIAL', label: 'Financeiro', icon: DollarSign, roles: ['ADMIN'] },
+  { id: 'REPORTS', label: 'Relatórios', icon: PieChart, roles: ['ADMIN'] },
+  { id: 'MENU_CONFIG', label: 'Site / Cardápio', icon: Globe, roles: ['ADMIN'] },
+];
 
-  const visibleItems = allMenuItems.filter(item => item.roles.includes(currentUser.role));
+const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, setView, currentUser, onLogout, isCollapsed, toggleSidebar, isMobileMenuOpen, closeMobileMenu, pendingOrdersCount }) => {
+
+  const visibleItems = ALL_MENU_ITEMS.filter(item => {
+    // 1. Admin always has full access (unless restricted by some other logic, but usually Admin = Root)
+    if (currentUser.role === 'ADMIN') return true;
+
+    // 2. If user has specific allowed modules defined, adhere STRICTLY to them
+    if (currentUser.allowedModules && currentUser.allowedModules.length > 0) {
+      return currentUser.allowedModules.includes(item.id);
+    }
+
+    // 3. Fallback for legacy users (no allowedModules set): use Role-based defaults
+    return item.roles.includes(currentUser.role);
+  });
 
   return (
     <>

@@ -4,6 +4,7 @@ import { dbUsers } from '../services/db';
 import { Save, Shield, Globe, Users, Key, FileBadge, CheckCircle, CreditCard, QrCode, Smartphone, Server, Database, Download, Cloud, Trash2, X, Plus } from 'lucide-react';
 import { MOCK_PRODUCTS, MOCK_SALES, MOCK_FINANCIALS } from '../constants';
 import { getTodayDate } from '../services/utils';
+import { ALL_MENU_ITEMS } from './AppSidebar';
 
 interface SettingsProps {
    currentUser: User;
@@ -18,7 +19,7 @@ const Settings: React.FC<SettingsProps> = ({ currentUser, onResetData }) => {
    // User Management State
    const [users, setUsers] = useState<User[]>([]);
    const [showUserModal, setShowUserModal] = useState(false);
-   const [newUser, setNewUser] = useState({ name: '', email: '', role: 'OPERATOR' as Role, password: '' });
+   const [newUser, setNewUser] = useState<{ name: string, email: string, role: Role, password: string, allowedModules: string[] }>({ name: '', email: '', role: 'OPERATOR', password: '', allowedModules: [] });
 
    // Password Change State
    const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -92,7 +93,7 @@ const Settings: React.FC<SettingsProps> = ({ currentUser, onResetData }) => {
          await dbUsers.register(newUser, currentUser.tenantId);
          setSuccessMsg('Usuário cadastrado com sucesso!');
          setShowUserModal(false);
-         setNewUser({ name: '', email: '', role: 'OPERATOR', password: '' });
+         setNewUser({ name: '', email: '', role: 'OPERATOR', password: '', allowedModules: [] });
          loadUsers(); // Refresh list
          setTimeout(() => setSuccessMsg(''), 3000);
       } catch (error: any) {
@@ -160,12 +161,15 @@ const Settings: React.FC<SettingsProps> = ({ currentUser, onResetData }) => {
                >
                   <Globe size={18} /> Integrações (SEFAZ)
                </button>
-               <button
-                  onClick={() => setActiveTab('USERS')}
-                  className={`text-left px-4 py-3 rounded-xl font-medium flex items-center gap-3 transition-colors ${activeTab === 'USERS' ? 'bg-white text-orange-600 shadow-sm border border-slate-200' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'}`}
-               >
-                  <Users size={18} /> Usuários e Acesso
-               </button>
+
+               {currentUser.role === 'ADMIN' && (
+                  <button
+                     onClick={() => setActiveTab('USERS')}
+                     className={`text-left px-4 py-3 rounded-xl font-medium flex items-center gap-3 transition-colors ${activeTab === 'USERS' ? 'bg-white text-orange-600 shadow-sm border border-slate-200' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'}`}
+                  >
+                     <Users size={18} /> Usuários e Acesso
+                  </button>
+               )}
                <button
                   onClick={() => setActiveTab('SYSTEM')}
                   className={`text-left px-4 py-3 rounded-xl font-medium flex items-center gap-3 transition-colors ${activeTab === 'SYSTEM' ? 'bg-white text-orange-600 shadow-sm border border-slate-200' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'}`}
@@ -579,6 +583,32 @@ const Settings: React.FC<SettingsProps> = ({ currentUser, onResetData }) => {
                            onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
                         />
                      </div>
+
+                     {newUser.role !== 'ADMIN' && currentUser.role === 'ADMIN' && (
+                        <div>
+                           <label className="block text-sm font-medium text-slate-700 mb-2">Permissões de Acesso (Opcional)</label>
+                           <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto p-2 border border-slate-100 rounded-lg bg-slate-50">
+                              {ALL_MENU_ITEMS.filter(m => m.id !== 'DASHBOARD').map(item => (
+                                 <label key={item.id} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-slate-100 p-1 rounded">
+                                    <input
+                                       type="checkbox"
+                                       checked={newUser.allowedModules.includes(item.id)}
+                                       onChange={(e) => {
+                                          if (e.target.checked) {
+                                             setNewUser({ ...newUser, allowedModules: [...newUser.allowedModules, item.id] });
+                                          } else {
+                                             setNewUser({ ...newUser, allowedModules: newUser.allowedModules.filter(id => id !== item.id) });
+                                          }
+                                       }}
+                                       className="rounded text-orange-500 focus:ring-orange-500"
+                                    />
+                                    <span className="text-slate-700">{item.label}</span>
+                                 </label>
+                              ))}
+                           </div>
+                           <p className="text-xs text-slate-500 mt-1">Se nenhuma permissão for marcada, as permissões padrão do Perfil serão usadas.</p>
+                        </div>
+                     )}
 
                      <div className="pt-2">
                         <button

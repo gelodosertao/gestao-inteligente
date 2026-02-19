@@ -32,14 +32,15 @@ export const dbUsers = {
       email: user.email,
       role: user.role as Role,
       avatarInitials: user.avatar_initials,
-      tenantId: user.tenant_id || '00000000-0000-0000-0000-000000000000'
+      tenantId: user.tenant_id || '00000000-0000-0000-0000-000000000000',
+      allowedModules: user.allowed_modules
     };
     localStorage.setItem('app_user', JSON.stringify(sessionUser));
 
     return sessionUser;
   },
 
-  async register(user: { name: string, email: string, password: string, role: Role }, existingTenantId?: string): Promise<User> {
+  async register(user: { name: string, email: string, password: string, role: Role, allowedModules?: string[] }, existingTenantId?: string): Promise<User> {
     // 1. Check if user exists
     const { data: existing } = await supabase
       .from('app_users')
@@ -75,7 +76,8 @@ export const dbUsers = {
       password: user.password, // Storing plain text as requested for simplicity/revert
       role: user.role,
       avatar_initials: user.name.substring(0, 2).toUpperCase(),
-      tenant_id: tenantId
+      tenant_id: tenantId,
+      allowed_modules: user.allowedModules
     };
 
     const { data, error } = await supabase
@@ -102,7 +104,8 @@ export const dbUsers = {
       email: data.email,
       role: data.role as Role,
       avatarInitials: data.avatar_initials,
-      tenantId: data.tenant_id
+      tenantId: data.tenant_id,
+      allowedModules: data.allowed_modules
     };
 
     if (!existingTenantId) {
@@ -142,8 +145,21 @@ export const dbUsers = {
       email: row.email,
       role: row.role as Role,
       avatarInitials: row.avatar_initials,
-      tenantId: row.tenant_id
+      tenantId: row.tenant_id,
+      allowedModules: row.allowed_modules
     }));
+  },
+
+  async update(user: User): Promise<void> {
+    const { error } = await supabase
+      .from('app_users')
+      .update({
+        name: user.name,
+        role: user.role,
+        allowed_modules: user.allowedModules
+      })
+      .eq('id', user.id);
+    if (error) throw error;
   },
 
   async updatePassword(userId: string, newPassword: string): Promise<void> {
