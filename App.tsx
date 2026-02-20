@@ -50,7 +50,17 @@ const App: React.FC = () => {
 
     // Check for active session on load
     dbUsers.getCurrentUser().then(user => {
-      if (user) setCurrentUser(user);
+      if (user) {
+        setCurrentUser(user);
+        let initialView: ViewState = 'DASHBOARD';
+        if (user.allowedModules && user.allowedModules.length > 0) {
+          initialView = user.allowedModules[0] as ViewState;
+        } else {
+          if (user.role === 'FACTORY') initialView = 'PRODUCTION';
+          else if (user.role === 'OPERATOR') initialView = 'SALES';
+        }
+        setCurrentView(initialView);
+      }
     });
   }, []);
 
@@ -384,13 +394,14 @@ const App: React.FC = () => {
 
   const handleLogin = (user: User) => {
     setCurrentUser(user);
-    if (user.role === 'FACTORY') {
-      setCurrentView('PRODUCTION');
-    } else if (user.role === 'OPERATOR') {
-      setCurrentView('SALES');
+    let initialView: ViewState = 'DASHBOARD';
+    if (user.allowedModules && user.allowedModules.length > 0) {
+      initialView = user.allowedModules[0] as ViewState;
     } else {
-      setCurrentView('DASHBOARD');
+      if (user.role === 'FACTORY') initialView = 'PRODUCTION';
+      else if (user.role === 'OPERATOR') initialView = 'SALES';
     }
+    setCurrentView(initialView);
   };
 
   const handleLogout = async () => {
@@ -457,6 +468,14 @@ const App: React.FC = () => {
   const renderContentInternal = () => {
     switch (currentView) {
       case 'DASHBOARD':
+        if (currentUser?.role !== 'ADMIN' && !(currentUser?.allowedModules || []).includes('DASHBOARD')) {
+          return (
+            <div className="flex flex-col items-center justify-center p-12 mt-10 bg-white rounded-2xl shadow-sm border border-slate-200">
+              <h2 className="text-2xl font-bold text-slate-800 mb-2">Acesso Restrito</h2>
+              <p className="text-slate-500">Você não tem permissão para visualizar o Dashboard geral.</p>
+            </div>
+          );
+        }
         return <Dashboard products={products} sales={sales} financials={financials} customers={customers} onNavigate={setCurrentView} />;
       case 'REPORTS':
         return <Reports sales={sales} products={products} customers={customers} onBack={() => setCurrentView('DASHBOARD')} />;
@@ -486,6 +505,14 @@ const App: React.FC = () => {
         if (!currentUser) return null;
         return <Settings currentUser={currentUser} onResetData={handleResetData} />;
       default:
+        if (currentUser?.role !== 'ADMIN' && !(currentUser?.allowedModules || []).includes('DASHBOARD')) {
+          return (
+            <div className="flex flex-col items-center justify-center p-12 mt-10 bg-white rounded-2xl shadow-sm border border-slate-200">
+              <h2 className="text-2xl font-bold text-slate-800 mb-2">Acesso Restrito</h2>
+              <p className="text-slate-500">Você não tem permissão para visualizar o Dashboard geral.</p>
+            </div>
+          );
+        }
         return <Dashboard products={products} sales={sales} financials={financials} customers={customers} />;
     }
   };
