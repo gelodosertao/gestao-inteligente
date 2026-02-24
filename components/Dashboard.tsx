@@ -209,7 +209,7 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
   const stockData = useMemo(() => products.slice(0, 6).map(p => {
     const safeName = p.name || 'Produto Sem Nome';
     const item: any = { name: safeName.split(' ')[0] + ' ' + (safeName.split(' ')[1] || '') };
-    if (selectedBranch === 'ALL' || selectedBranch === Branch.MATRIZ) item.Matriz = p.stockMatriz || 0;
+    if (selectedBranch === 'ALL' || selectedBranch === Branch.MATRIZ) item.Matriz = (p.stockMatrizIbotirama + p.stockMatrizBarreiras) || 0;
     if (selectedBranch === 'ALL' || selectedBranch === Branch.FILIAL) item.Filial = p.stockFilial || 0;
     return item;
   }), [products, selectedBranch]);

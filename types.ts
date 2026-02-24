@@ -43,7 +43,8 @@ export interface Product {
   priceMatriz: number; // Preço Atacado
   priceFilial: number; // Preço Varejo
   cost: number;
-  stockMatriz: number;
+  stockMatrizIbotirama: number;
+  stockMatrizBarreiras: number;
   stockFilial: number;
   unit: string; // kg, un, pack
   minStock: number;
@@ -94,6 +95,7 @@ export interface Sale {
   total: number;
   items: SaleItem[];
   branch: Branch;
+  matrizDeposit?: 'Ibotirama' | 'Barreiras';
   status: 'Completed' | 'Pending' | 'Cancelled';
   paymentMethod: 'Pix' | 'Credit' | 'Debit' | 'Cash' | 'Split';
   paymentSplits?: { method: 'Pix' | 'Credit' | 'Debit' | 'Cash', amount: number }[];
@@ -183,6 +185,7 @@ export interface StockMovement {
   type: 'LOSS' | 'ADJUSTMENT' | 'TRANSFER_OUT' | 'TRANSFER_IN';
   reason: string;
   branch: Branch;
+  matrizDeposit?: 'Ibotirama' | 'Barreiras';
 }
 
 export type Shift = 'Manhã' | 'Tarde' | 'Noite' | 'Madrugada';

@@ -144,6 +144,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
 
    // --- POS (PDV) STATE ---
    const [selectedBranch, setSelectedBranch] = useState<Branch>(Branch.FILIAL); // Default to Retail/Filial
+   const [selectedDeposit, setSelectedDeposit] = useState<'Ibotirama' | 'Barreiras'>('Ibotirama');
    const [isWholesale, setIsWholesale] = useState(false); // Toggle for Wholesale prices in Filial
    const [cart, setCart] = useState<CartItem[]>([]);
    const [scannerStatus, setScannerStatus] = useState<'DISCONNECTED' | 'CONNECTING' | 'CONNECTED'>('DISCONNECTED');
@@ -229,7 +230,8 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
    };
 
    const getProductStock = (product: Product) => {
-      return selectedBranch === Branch.FILIAL ? product.stockFilial : product.stockMatriz;
+      if (selectedBranch === Branch.FILIAL) return product.stockFilial;
+      return selectedDeposit === 'Barreiras' ? product.stockMatrizBarreiras : product.stockMatrizIbotirama;
    };
 
    const subtotal = cart.reduce((acc, item) => acc + (getProductPrice(item) * item.quantity), 0);
@@ -437,6 +439,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
             customerName: selectedCustomer ? selectedCustomer.name : (selectedBranch === Branch.MATRIZ ? 'Cliente Atacado' : 'Consumidor Final'),
             total: cartTotal,
             branch: selectedBranch,
+            matrizDeposit: selectedBranch === Branch.MATRIZ ? selectedDeposit : undefined,
             status: isPendingSale ? 'Pending' : 'Completed',
             paymentMethod: selectedPaymentMethod || 'Cash',
             paymentSplits: selectedPaymentMethod === 'Split' ? [
@@ -747,6 +750,23 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                               <Factory size={14} /> Matriz
                            </button>
                         </div>
+
+                        {selectedBranch === Branch.MATRIZ && (
+                           <div className="flex bg-slate-100 p-1 rounded-lg shrink-0">
+                              <button
+                                 onClick={() => { setSelectedDeposit('Ibotirama'); setCart([]); }}
+                                 className={`px-3 py-1.5 rounded-md font-bold transition-all text-xs flex items-center ${selectedDeposit === 'Ibotirama' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'} `}
+                              >
+                                 Ibotirama
+                              </button>
+                              <button
+                                 onClick={() => { setSelectedDeposit('Barreiras'); setCart([]); }}
+                                 className={`px-3 py-1.5 rounded-md font-bold transition-all text-xs flex items-center ${selectedDeposit === 'Barreiras' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'} `}
+                              >
+                                 Barreiras
+                              </button>
+                           </div>
+                        )}
 
                         {/* Scanner Input - Expanded */}
                         <div className="flex-1 w-full relative flex gap-2">

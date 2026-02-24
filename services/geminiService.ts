@@ -12,7 +12,7 @@ export const getBusinessAnalysis = async (
 
   // Construct a context string representing the current business state
   const inventorySummary = products.map(p =>
-    `${p.name}: Matriz(${p.stockMatriz}), Filial(${p.stockFilial}), PreçoVarejo(R$${p.priceFilial}), PreçoAtacado(R$${p.priceMatriz})`
+    `${p.name}: Matriz(${p.stockMatrizIbotirama + p.stockMatrizBarreiras}), Filial(${p.stockFilial}), PreçoVarejo(R$${p.priceFilial}), PreçoAtacado(R$${p.priceMatriz})`
   ).join('\n');
 
   const recentSales = sales.slice(0, 5).map(s =>

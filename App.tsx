@@ -178,7 +178,10 @@ const App: React.FC = () => {
         if (newSale.branch === Branch.FILIAL) {
           return { ...prod, stockFilial: Math.max(0, prod.stockFilial - qtySold) };
         } else {
-          return { ...prod, stockMatriz: Math.max(0, prod.stockMatriz - qtySold) };
+          if (newSale.matrizDeposit === 'Barreiras') {
+            return { ...prod, stockMatrizBarreiras: Math.max(0, prod.stockMatrizBarreiras - qtySold) };
+          }
+          return { ...prod, stockMatrizIbotirama: Math.max(0, prod.stockMatrizIbotirama - qtySold) };
         }
       }
       return prod;
@@ -341,7 +344,10 @@ const App: React.FC = () => {
         if (saleToDelete.branch === Branch.FILIAL) {
           return { ...prod, stockFilial: prod.stockFilial + qtyReturned };
         } else {
-          return { ...prod, stockMatriz: prod.stockMatriz + qtyReturned };
+          if (saleToDelete.matrizDeposit === 'Barreiras') {
+            return { ...prod, stockMatrizBarreiras: prod.stockMatrizBarreiras + qtyReturned };
+          }
+          return { ...prod, stockMatrizIbotirama: prod.stockMatrizIbotirama + qtyReturned };
         }
       }
       return prod;

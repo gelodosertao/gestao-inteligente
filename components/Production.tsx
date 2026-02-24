@@ -108,7 +108,7 @@ const Production: React.FC<ProductionProps> = ({ products, currentUser, onUpdate
             // 2. Update Product Stock (Matriz) - Finished Good
             const updatedProduct = {
                 ...product,
-                stockMatriz: product.stockMatriz + Number(quantity)
+                stockMatrizIbotirama: product.stockMatrizIbotirama + Number(quantity)
             };
             await dbProducts.update(updatedProduct);
             onUpdateProduct(updatedProduct);
@@ -133,7 +133,7 @@ const Production: React.FC<ProductionProps> = ({ products, currentUser, onUpdate
                         // Update Ingredient Stock
                         const updatedIngredient = {
                             ...ingredient,
-                            stockMatriz: ingredient.stockMatriz - item.quantity
+                            stockMatrizIbotirama: ingredient.stockMatrizIbotirama - item.quantity
                         };
                         await dbProducts.update(updatedIngredient);
                         onUpdateProduct(updatedIngredient);
@@ -180,7 +180,8 @@ const Production: React.FC<ProductionProps> = ({ products, currentUser, onUpdate
             priceMatriz: parsedCost,
             priceFilial: parsedCost,
             cost: parsedCost,
-            stockMatriz: parsedStock,
+            stockMatrizIbotirama: parsedStock,
+            stockMatrizBarreiras: 0,
             stockFilial: 0,
             unit: newInput.unit,
             minStock: 0
@@ -524,9 +525,9 @@ const Production: React.FC<ProductionProps> = ({ products, currentUser, onUpdate
                                     rawMaterials.map(item => (
                                         <tr key={item.id} className="hover:bg-slate-50 transition-colors">
                                             <td className="px-6 py-4 font-bold text-slate-800">{item.name}</td>
-                                            <td className={`px-6 py-4 text-center font-bold text-lg ${item.stockMatriz < item.minStock ? 'text-red-600' : 'text-slate-700'}`}>
-                                                {item.stockMatriz}
-                                                {item.stockMatriz < item.minStock && <AlertTriangle size={14} className="inline ml-2 text-red-500" />}
+                                            <td className={`px-6 py-4 text-center font-bold text-lg ${item.stockMatrizIbotirama < item.minStock ? 'text-red-600' : 'text-slate-700'}`}>
+                                                {item.stockMatrizIbotirama}
+                                                {item.stockMatrizIbotirama < item.minStock && <AlertTriangle size={14} className="inline ml-2 text-red-500" />}
                                             </td>
                                             <td className="px-6 py-4 text-center text-slate-500">{item.unit}</td>
                                             <td className="px-6 py-4 text-right text-slate-600">

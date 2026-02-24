@@ -19,6 +19,7 @@ interface InventoryProps {
 
 const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUpdateProduct, onAddProduct, onDeleteProduct, onOpenPricing, onAddFinancialRecord, onBack, currentUser }) => {
   const [filter, setFilter] = useState('');
+  const [branchFilter, setBranchFilter] = useState<'GERAL' | Branch.MATRIZ | Branch.FILIAL>('GERAL');
 
   // Modal States
   const [showTransferModal, setShowTransferModal] = useState(false);
@@ -183,11 +184,11 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
     if (!selectedProduct) return;
 
     // Simple validation
-    const safeQty = Math.min(selectedProduct.stockMatriz, transferQty);
+    const safeQty = Math.min(selectedProduct.stockMatrizIbotirama, transferQty);
 
     const updatedProduct = {
       ...selectedProduct,
-      stockMatriz: selectedProduct.stockMatriz - safeQty,
+      stockMatrizIbotirama: selectedProduct.stockMatrizIbotirama - safeQty,
       stockFilial: selectedProduct.stockFilial + safeQty
     };
 
@@ -205,7 +206,7 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
       return;
     }
 
-    const currentStock = lossData.branch === Branch.MATRIZ ? selectedProduct.stockMatriz : selectedProduct.stockFilial;
+    const currentStock = lossData.branch === Branch.MATRIZ ? selectedProduct.stockMatrizIbotirama : selectedProduct.stockFilial;
 
     if (lossData.quantity > currentStock) {
       alert(`Quantidade de perda maior que o estoque atual na ${lossData.branch}.`);
@@ -214,7 +215,7 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
 
     const updatedProduct = {
       ...selectedProduct,
-      stockMatriz: lossData.branch === Branch.MATRIZ ? selectedProduct.stockMatriz - lossData.quantity : selectedProduct.stockMatriz,
+      stockMatrizIbotirama: lossData.branch === Branch.MATRIZ ? selectedProduct.stockMatrizIbotirama - lossData.quantity : selectedProduct.stockMatrizIbotirama,
       stockFilial: lossData.branch === Branch.FILIAL ? selectedProduct.stockFilial - lossData.quantity : selectedProduct.stockFilial
     };
 
@@ -270,7 +271,8 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
       priceMatriz: Number(newProductData.priceMatriz || 0),
       priceFilial: Number(newProductData.priceFilial),
       cost: Number(newProductData.cost || 0),
-      stockMatriz: Number(newProductData.stockMatriz || 0),
+      stockMatrizIbotirama: Number(newProductData.stockMatrizIbotirama || 0),
+      stockMatrizBarreiras: Number(newProductData.stockMatrizBarreiras || 0),
       stockFilial: Number(newProductData.stockFilial || 0),
       unit: newProductData.unit || 'un',
       minStock: Number(newProductData.minStock || 10),
@@ -332,7 +334,7 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
             priceMatriz: cost * 1.5, // Suggested Markup
             priceFilial: cost * 2.0, // Suggested Markup
             cost: cost,
-            stockMatriz: 0,
+            stockMatrizIbotirama: 0,
             stockFilial: qty, // Entry goes to Filial (Resale point)
             unit: unit.toLowerCase(),
             minStock: 10
@@ -363,7 +365,8 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
         priceMatriz: p.priceMatriz || 0,
         priceFilial: p.priceFilial || 0,
         cost: p.cost || 0,
-        stockMatriz: p.stockMatriz || 0,
+        stockMatrizIbotirama: p.stockMatrizIbotirama || 0,
+        stockMatrizBarreiras: p.stockMatrizBarreiras || 0,
         stockFilial: p.stockFilial || 0,
         unit: p.unit || 'un',
         minStock: p.minStock || 10
@@ -393,6 +396,26 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
               <h2 className="text-2xl font-bold text-slate-800">Controle de Estoque</h2>
               <p className="text-slate-500">Gerencie níveis de gelo e bebidas entre Matriz e Filial.</p>
             </div>
+          </div>
+          <div className="flex gap-2 bg-slate-100 p-1 rounded-xl w-fit flex-wrap">
+            <button
+              onClick={() => setBranchFilter('GERAL')}
+              className={`px-4 py-2 rounded-lg font-bold text-sm flex items-center transition-all ${branchFilter === 'GERAL' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              Geral
+            </button>
+            <button
+              onClick={() => setBranchFilter(Branch.MATRIZ)}
+              className={`px-4 py-2 rounded-lg font-bold text-sm flex items-center transition-all ${branchFilter === Branch.MATRIZ ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              Matriz
+            </button>
+            <button
+              onClick={() => setBranchFilter(Branch.FILIAL)}
+              className={`px-4 py-2 rounded-lg font-bold text-sm flex items-center transition-all ${branchFilter === Branch.FILIAL ? 'bg-white text-orange-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              Filial
+            </button>
           </div>
           <div className="flex flex-wrap gap-2">
             <button
@@ -461,15 +484,24 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
                   <th className="p-4 font-semibold">Categoria</th>
                   <th className="p-4 font-semibold">Preço Varejo (Filial)</th>
                   <th className="p-4 font-semibold">Preço Base Atacado</th>
-                  <th className="p-4 font-semibold text-center bg-blue-50/50 border-l border-slate-200">Estoque Matriz</th>
-                  <th className="p-4 font-semibold text-center bg-orange-50/50 border-l border-slate-200">Estoque Filial</th>
+                  {(branchFilter === 'GERAL' || branchFilter === Branch.MATRIZ) && (
+                    <>
+                      <th className="p-4 font-semibold text-center bg-blue-50/50 border-l border-slate-200">Matriz (Ibotirama)</th>
+                      <th className="p-4 font-semibold text-center bg-blue-50/50 border-l border-slate-200">Matriz (Barreiras)</th>
+                    </>
+                  )}
+                  {(branchFilter === 'GERAL' || branchFilter === Branch.FILIAL) && (
+                    <th className="p-4 font-semibold text-center bg-orange-50/50 border-l border-slate-200">Estoque Filial</th>
+                  )}
                   <th className="p-4 font-semibold text-center">Status</th>
                   <th className="p-4 font-semibold text-right">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredProducts.map((product) => {
-                  const isLow = product.stockMatriz < product.minStock || product.stockFilial < product.minStock;
+                  const isLowMatriz = product.stockMatrizIbotirama < product.minStock || product.stockMatrizBarreiras < product.minStock;
+                  const isLowFilial = product.stockFilial < product.minStock;
+                  const isLow = branchFilter === 'GERAL' ? (isLowMatriz || isLowFilial) : (branchFilter === Branch.MATRIZ ? isLowMatriz : isLowFilial);
 
                   return (
                     <tr key={product.id} className="hover:bg-slate-50 transition-colors group">
@@ -484,12 +516,21 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
                       </td>
                       <td className="p-4 font-medium text-orange-700">{formatCurrency(product.priceFilial)}</td>
                       <td className="p-4 font-medium text-blue-700">{formatCurrency(product.priceMatriz)}</td>
-                      <td className="p-4 text-center bg-blue-50/20 border-l border-slate-200 font-medium text-slate-700">
-                        {product.comboItems ? <span className="text-xs font-bold text-purple-600">COMBO</span> : product.isStockControlled === false ? <span className="text-xl">∞</span> : <span>{product.stockMatriz} <span className="text-xs text-slate-400">{product.unit}</span></span>}
-                      </td>
-                      <td className="p-4 text-center bg-orange-50/20 border-l border-slate-200 font-medium text-slate-700">
-                        {product.comboItems ? <span className="text-xs font-bold text-purple-600">COMBO</span> : product.isStockControlled === false ? <span className="text-xl">∞</span> : <span>{product.stockFilial} <span className="text-xs text-slate-400">{product.unit}</span></span>}
-                      </td>
+                      {(branchFilter === 'GERAL' || branchFilter === Branch.MATRIZ) && (
+                        <>
+                          <td className="p-4 text-center bg-blue-50/20 border-l border-slate-200 font-medium text-slate-700">
+                            {product.comboItems ? <span className="text-xs font-bold text-purple-600">COMBO</span> : product.isStockControlled === false ? <span className="text-xl">∞</span> : <span>{product.stockMatrizIbotirama} <span className="text-xs text-slate-400">{product.unit}</span></span>}
+                          </td>
+                          <td className="p-4 text-center bg-blue-50/20 border-l border-slate-200 font-medium text-slate-700">
+                            {product.comboItems ? <span className="text-xs font-bold text-purple-600">COMBO</span> : product.isStockControlled === false ? <span className="text-xl">∞</span> : <span>{product.stockMatrizBarreiras} <span className="text-xs text-slate-400">{product.unit}</span></span>}
+                          </td>
+                        </>
+                      )}
+                      {(branchFilter === 'GERAL' || branchFilter === Branch.FILIAL) && (
+                        <td className="p-4 text-center bg-orange-50/20 border-l border-slate-200 font-medium text-slate-700">
+                          {product.comboItems ? <span className="text-xs font-bold text-purple-600">COMBO</span> : product.isStockControlled === false ? <span className="text-xl">∞</span> : <span>{product.stockFilial} <span className="text-xs text-slate-400">{product.unit}</span></span>}
+                        </td>
+                      )}
                       <td className="p-4 text-center">
                         {isLow ? (
                           <span className="px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs font-bold flex items-center justify-center gap-1">
@@ -574,7 +615,7 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
               <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl border border-slate-200">
                 <div className="flex-1 text-center">
                   <p className="text-xs text-slate-500 uppercase font-bold">Origem: Matriz</p>
-                  <p className="text-2xl font-bold text-blue-600">{selectedProduct.stockMatriz}</p>
+                  <p className="text-2xl font-bold text-blue-600">{selectedProduct.stockMatrizIbotirama}</p>
                 </div>
                 <ArrowRightLeft className="text-slate-300" />
                 <div className="flex-1 text-center">
@@ -591,9 +632,9 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
                   value={transferQty}
                   onChange={(e) => setTransferQty(Number(e.target.value))}
                   min={1}
-                  max={selectedProduct.stockMatriz}
+                  max={selectedProduct.stockMatrizIbotirama}
                 />
-                <p className="text-xs text-slate-500 mt-1">Máximo disponível: {selectedProduct.stockMatriz}</p>
+                <p className="text-xs text-slate-500 mt-1">Máximo disponível: {selectedProduct.stockMatrizIbotirama}</p>
               </div>
 
               <button
@@ -672,10 +713,10 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
               <div className="bg-red-50 p-3 rounded-lg border border-red-100 text-xs text-red-800">
                 <strong>Atenção:</strong> Esta ação reduzirá o estoque atual de
                 <strong className="ml-1">
-                  {lossData.branch === Branch.MATRIZ ? selectedProduct.stockMatriz : selectedProduct.stockFilial}
+                  {lossData.branch === Branch.MATRIZ ? selectedProduct.stockMatrizIbotirama : selectedProduct.stockFilial}
                 </strong> para
                 <strong className="ml-1">
-                  {(lossData.branch === Branch.MATRIZ ? selectedProduct.stockMatriz : selectedProduct.stockFilial) - lossData.quantity}
+                  {(lossData.branch === Branch.MATRIZ ? selectedProduct.stockMatrizIbotirama : selectedProduct.stockFilial) - lossData.quantity}
                 </strong>.
               </div>
 
@@ -906,16 +947,21 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
 
                 </div>
               ) : (
-                // --- STOCK FIELDS (SIMPLE ONLY) ---
-                <div className="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-lg">
+                <div className="grid grid-cols-3 gap-4 bg-slate-50 p-4 rounded-lg">
                   <div>
-                    <label className="block text-xs font-bold text-slate-500 mb-1">{isEditing ? 'ESTOQUE ATUAL MATRIZ' : 'ESTOQUE INICIAL MATRIZ'}</label>
+                    <label className="block text-xs font-bold text-slate-500 mb-1">{isEditing ? 'MAT. IBOTIRAMA' : 'INICIAL IBOTIRAMA'}</label>
                     <input type="number" className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-white text-slate-900 font-bold text-blue-700"
-                      value={newProductData.stockMatriz || 0} onChange={e => setNewProductData({ ...newProductData, stockMatriz: Number(e.target.value) })}
+                      value={newProductData.stockMatrizIbotirama || 0} onChange={e => setNewProductData({ ...newProductData, stockMatrizIbotirama: Number(e.target.value) })}
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-500 mb-1">{isEditing ? 'ESTOQUE ATUAL FILIAL' : 'ESTOQUE INICIAL FILIAL'}</label>
+                    <label className="block text-xs font-bold text-slate-500 mb-1">{isEditing ? 'MAT. BARREIRAS' : 'INICIAL BARREIRAS'}</label>
+                    <input type="number" className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-white text-slate-900 font-bold text-blue-700"
+                      value={newProductData.stockMatrizBarreiras || 0} onChange={e => setNewProductData({ ...newProductData, stockMatrizBarreiras: Number(e.target.value) })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 mb-1">{isEditing ? 'ESTOQUE FILIAL' : 'INICIAL FILIAL'}</label>
                     <input type="number" className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-white text-slate-900 font-bold text-orange-700"
                       value={newProductData.stockFilial || 0} onChange={e => setNewProductData({ ...newProductData, stockFilial: Number(e.target.value) })}
                     />
@@ -1293,10 +1339,10 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
                   <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                     <h4 className="text-sm font-bold text-slate-500 uppercase mb-2">Valor Total em Estoque (Custo)</h4>
                     <div className="text-3xl font-bold text-slate-800">
-                      {formatCurrency(products.reduce((acc, p) => acc + (p.cost * (p.stockMatriz + p.stockFilial)), 0))}
+                      {formatCurrency(products.reduce((acc, p) => acc + (p.cost * (p.stockMatrizIbotirama + p.stockFilial)), 0))}
                     </div>
                     <div className="mt-2 text-xs text-slate-400 flex justify-between">
-                      <span>Matriz: {formatCurrency(products.reduce((acc, p) => acc + (p.cost * p.stockMatriz), 0))}</span>
+                      <span>Matriz: {formatCurrency(products.reduce((acc, p) => acc + (p.cost * p.stockMatrizIbotirama), 0))}</span>
                       <span>Filial: {formatCurrency(products.reduce((acc, p) => acc + (p.cost * p.stockFilial), 0))}</span>
                     </div>
                   </div>
@@ -1305,7 +1351,7 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
                   <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                     <h4 className="text-sm font-bold text-slate-500 uppercase mb-2">Potencial de Venda (Estimado)</h4>
                     <div className="text-3xl font-bold text-emerald-600">
-                      {formatCurrency(products.reduce((acc, p) => acc + (p.priceFilial * p.stockFilial) + (p.priceMatriz * p.stockMatriz), 0))}
+                      {formatCurrency(products.reduce((acc, p) => acc + (p.priceFilial * p.stockFilial) + (p.priceMatriz * p.stockMatrizIbotirama), 0))}
                     </div>
                     <p className="text-xs text-slate-400 mt-2">Baseado nos preços atuais de varejo e atacado.</p>
                   </div>
@@ -1314,7 +1360,7 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
                   <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                     <h4 className="text-sm font-bold text-slate-500 uppercase mb-2">Alertas de Estoque</h4>
                     <div className="text-3xl font-bold text-red-600">
-                      {products.filter(p => p.stockMatriz < p.minStock || p.stockFilial < p.minStock).length}
+                      {products.filter(p => p.stockMatrizIbotirama < p.minStock || p.stockFilial < p.minStock).length}
                     </div>
                     <p className="text-xs text-slate-400 mt-2">Produtos precisando de reposição.</p>
                   </div>
@@ -1386,12 +1432,12 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                           {products
-                            .filter(p => p.stockMatriz < p.minStock || p.stockFilial < p.minStock)
+                            .filter(p => p.stockMatrizIbotirama < p.minStock || p.stockFilial < p.minStock)
                             .map((p) => (
                               <tr key={p.id} className="hover:bg-slate-50">
                                 <td className="p-3 font-medium text-slate-700">{p.name}</td>
-                                <td className={`p-3 text-center font-bold ${p.stockMatriz < p.minStock ? 'text-red-600' : 'text-slate-600'}`}>
-                                  {p.stockMatriz}
+                                <td className={`p-3 text-center font-bold ${p.stockMatrizIbotirama < p.minStock ? 'text-red-600' : 'text-slate-600'}`}>
+                                  {p.stockMatrizIbotirama}
                                 </td>
                                 <td className={`p-3 text-center font-bold ${p.stockFilial < p.minStock ? 'text-red-600' : 'text-slate-600'}`}>
                                   {p.stockFilial}
@@ -1399,7 +1445,7 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
                                 <td className="p-3 text-center text-slate-400">{p.minStock}</td>
                               </tr>
                             ))}
-                          {products.filter(p => p.stockMatriz < p.minStock || p.stockFilial < p.minStock).length === 0 && (
+                          {products.filter(p => p.stockMatrizIbotirama < p.minStock || p.stockFilial < p.minStock).length === 0 && (
                             <tr>
                               <td colSpan={4} className="p-6 text-center text-slate-400">
                                 Nenhum produto com estoque baixo.

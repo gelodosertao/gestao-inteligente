@@ -223,7 +223,8 @@ export const dbProducts = {
       priceMatriz: row.price_matriz,
       priceFilial: row.price_filial,
       cost: row.cost,
-      stockMatriz: row.stock_matriz,
+      stockMatrizIbotirama: row.stock_matriz_ibotirama || 0,
+      stockMatrizBarreiras: row.stock_matriz_barreiras || 0,
       stockFilial: row.stock_filial,
       unit: row.unit,
       minStock: row.min_stock,
@@ -248,7 +249,8 @@ export const dbProducts = {
       price_matriz: product.priceMatriz,
       price_filial: product.priceFilial,
       cost: product.cost,
-      stock_matriz: product.stockMatriz,
+      stock_matriz_ibotirama: product.stockMatrizIbotirama,
+      stock_matriz_barreiras: product.stockMatrizBarreiras,
       stock_filial: product.stockFilial,
       unit: product.unit,
       min_stock: product.minStock,
@@ -274,7 +276,8 @@ export const dbProducts = {
       price_matriz: product.priceMatriz,
       price_filial: product.priceFilial,
       cost: product.cost,
-      stock_matriz: product.stockMatriz,
+      stock_matriz_ibotirama: product.stockMatrizIbotirama,
+      stock_matriz_barreiras: product.stockMatrizBarreiras,
       stock_filial: product.stockFilial,
       unit: product.unit,
       min_stock: product.minStock,
@@ -355,6 +358,7 @@ export const dbSales = {
       customerName: row.customer_name,
       total: row.total,
       branch: row.branch as Branch,
+      matrizDeposit: row.matriz_deposit,
       status: row.status as any,
       paymentMethod: row.payment_method as any,
       paymentSplits: row.payment_splits,
@@ -375,6 +379,7 @@ export const dbSales = {
       customer_name: sale.customerName,
       total: sale.total,
       branch: sale.branch,
+      matriz_deposit: sale.matrizDeposit,
       status: sale.status,
       payment_method: sale.paymentMethod,
       has_invoice: sale.hasInvoice,
@@ -401,6 +406,7 @@ export const dbSales = {
       customer_name: sale.customerName,
       total: sale.total,
       branch: sale.branch,
+      matriz_deposit: sale.matrizDeposit,
       status: sale.status,
       payment_method: sale.paymentMethod,
       has_invoice: sale.hasInvoice,
@@ -554,7 +560,8 @@ export const dbStockMovements = {
       quantity: row.quantity,
       type: row.type,
       reason: row.reason,
-      branch: row.branch as Branch
+      branch: row.branch as Branch,
+      matrizDeposit: row.matriz_deposit
     }));
   },
 
@@ -568,6 +575,7 @@ export const dbStockMovements = {
       type: movement.type,
       reason: movement.reason,
       branch: movement.branch,
+      matriz_deposit: movement.matrizDeposit,
       tenant_id: tenantId
     }]);
     if (error) throw error;
