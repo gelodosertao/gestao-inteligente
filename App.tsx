@@ -498,7 +498,7 @@ const App: React.FC = () => {
       case 'MENU_CONFIG':
         return <MenuConfig onBack={() => setCurrentView('DASHBOARD')} tenantId={currentUser.tenantId} />;
       case 'PRODUCTION':
-        return <Production products={products} currentUser={currentUser} onUpdateProduct={handleUpdateProduct} onBack={() => setCurrentView('DASHBOARD')} />;
+        return <Production products={products} currentUser={currentUser} onUpdateProduct={handleUpdateProduct} onAddProduct={handleAddProduct} onBack={() => setCurrentView('DASHBOARD')} />;
       case 'ORDER_CENTER':
         return <OrderCenter onBack={() => setCurrentView('DASHBOARD')} tenantId={currentUser.tenantId} />;
       case 'SETTINGS':

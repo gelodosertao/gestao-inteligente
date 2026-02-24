@@ -1,17 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { Product, ProductionRecord, Shift, Branch, User } from '../types';
+import { Product, ProductionRecord, Shift, Branch, User, Category } from '../types';
 import { dbProduction, dbProducts, dbStockMovements } from '../services/db';
 import { getTodayDate } from '../services/utils';
-import { Plus, Save, Clock, User as UserIcon, Package, Calendar, ArrowLeft, Trash2, Layers, History, Boxes, AlertTriangle, ArrowRightLeft } from 'lucide-react';
+import { Plus, Save, Clock, User as UserIcon, Package, Calendar, ArrowLeft, Trash2, Layers, History, Boxes, AlertTriangle, ArrowRightLeft, Calculator, Edit2 } from 'lucide-react';
 
 interface ProductionProps {
     products: Product[];
     currentUser: User;
     onUpdateProduct: (product: Product) => void;
+    onAddProduct?: (product: Product) => void;
     onBack: () => void;
 }
 
-const Production: React.FC<ProductionProps> = ({ products, currentUser, onUpdateProduct, onBack }) => {
+const Production: React.FC<ProductionProps> = ({ products, currentUser, onUpdateProduct, onAddProduct, onBack }) => {
     const [records, setRecords] = useState<ProductionRecord[]>([]);
     const [loading, setLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
@@ -19,12 +20,22 @@ const Production: React.FC<ProductionProps> = ({ products, currentUser, onUpdate
     // Form State
     const [selectedProductId, setSelectedProductId] = useState('');
     const [quantity, setQuantity] = useState('');
-    const [activeTab, setActiveTab] = useState<'production' | 'history' | 'stock'>('production');
+    const [activeTab, setActiveTab] = useState<'production' | 'history' | 'stock' | 'recipes'>('production');
     const [shift, setShift] = useState<Shift>('Manhã');
     const [notes, setNotes] = useState('');
 
     // Ingredient Usage State
     const [usedIngredients, setUsedIngredients] = useState<{ ingredientId: string; name: string; quantity: number; unit: string }[]>([]);
+
+    // New Input State
+    const [showInputForm, setShowInputForm] = useState(false);
+    const [newInput, setNewInput] = useState({ name: '', unit: '', cost: '', stock: '' });
+
+    // Recipe Management State
+    const [recipeProductId, setRecipeProductId] = useState('');
+    const [recipeItems, setRecipeItems] = useState<{ ingredientId: string; quantity: string }[]>([]);
+    const [recipeBatchSize, setRecipeBatchSize] = useState('1');
+    const [operationalCost, setOperationalCost] = useState('0');
 
     useEffect(() => {
         loadRecords();
@@ -154,10 +165,93 @@ const Production: React.FC<ProductionProps> = ({ products, currentUser, onUpdate
         }
     };
 
+    const handleAddInput = async () => {
+        if (!newInput.name || !newInput.unit || !newInput.cost || !onAddProduct) {
+            alert("Preencha todos os campos e certifique-se de que a inclusão é permitida.");
+            return;
+        }
+        const parsedCost = parseFloat(newInput.cost);
+        const parsedStock = parseFloat(newInput.stock) || 0;
+
+        const newProduct: Product = {
+            id: Date.now().toString(),
+            name: newInput.name,
+            category: Category.RAW_MATERIAL,
+            priceMatriz: parsedCost,
+            priceFilial: parsedCost,
+            cost: parsedCost,
+            stockMatriz: parsedStock,
+            stockFilial: 0,
+            unit: newInput.unit,
+            minStock: 0
+        };
+
+        try {
+            await onAddProduct(newProduct);
+
+            if (parsedStock > 0) {
+                await dbStockMovements.add({
+                    id: Date.now().toString() + '-mov',
+                    date: new Date().toISOString(),
+                    productId: newProduct.id,
+                    productName: newProduct.name,
+                    quantity: parsedStock,
+                    type: 'ADJUSTMENT',
+                    reason: 'Cadastro Inicial',
+                    branch: Branch.MATRIZ
+                }, currentUser.tenantId);
+            }
+
+            alert("Insumo cadastrado com sucesso!");
+            setNewInput({ name: '', unit: '', cost: '', stock: '' });
+            setShowInputForm(false);
+        } catch (e) {
+            alert("Erro ao salvar insumo.");
+        }
+    };
+
+    const handleSaveRecipe = async () => {
+        const product = products.find(p => p.id === recipeProductId);
+        if (!product) return;
+
+        const updatedProduct: Product = {
+            ...product,
+            recipeBatchSize: parseFloat(recipeBatchSize) || 1,
+            operationalCost: parseFloat(operationalCost) || 0,
+            recipe: recipeItems.map(item => ({
+                ingredientId: item.ingredientId,
+                quantity: parseFloat(item.quantity) || 0
+            })),
+            cost: (recipeItems.reduce((acc, item) => {
+                const ing = products.find(p => p.id === item.ingredientId);
+                return acc + (ing ? ing.cost * (parseFloat(item.quantity) || 0) : 0);
+            }, 0) / (parseFloat(recipeBatchSize) || 1)) + (parseFloat(operationalCost) || 0)
+        };
+
+        try {
+            await onUpdateProduct(updatedProduct);
+            alert("Receita calculada e salva com sucesso! O custo unitário do produto principal foi atualizado.");
+        } catch (e) {
+            alert("Erro ao salvar receita.");
+        }
+    };
+
+    useEffect(() => {
+        if (activeTab === 'recipes' && recipeProductId) {
+            const product = products.find(p => p.id === recipeProductId);
+            if (product) {
+                setRecipeBatchSize(product.recipeBatchSize?.toString() || '1');
+                setOperationalCost(product.operationalCost?.toString() || '0');
+                setRecipeItems((product.recipe || []).map(r => ({ ...r, quantity: r.quantity.toString() })));
+            }
+        }
+    }, [recipeProductId, activeTab, products]);
+
+
     // Filter only manufactured products (Ice)
     const manufacturedProducts = products.filter(p => p.category.includes('Gelo'));
     // Filter raw materials
-    const rawMaterials = products.filter(p => p.category === 'Insumo (Matéria-prima)');
+    const rawMaterials = products.filter(p => p.category === 'Insumo (Matéria-prima)' || p.category === 'Insumo (Matéria-Prima)');
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -174,7 +268,7 @@ const Production: React.FC<ProductionProps> = ({ products, currentUser, onUpdate
                     </div>
                 </div>
                 {/* --- TABS --- */}
-                <div className="flex gap-2 bg-slate-100 p-1 rounded-xl w-fit">
+                <div className="flex gap-2 bg-slate-100 p-1 rounded-xl w-fit flex-wrap">
                     <button
                         onClick={() => setActiveTab('production')}
                         className={`px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 transition-all ${activeTab === 'production' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
@@ -192,6 +286,12 @@ const Production: React.FC<ProductionProps> = ({ products, currentUser, onUpdate
                         className={`px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 transition-all ${activeTab === 'stock' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                     >
                         <Boxes size={16} /> Estoque de Insumos
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('recipes')}
+                        className={`px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 transition-all ${activeTab === 'recipes' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                    >
+                        <Calculator size={16} /> Custo de Produção
                     </button>
                 </div>
             </div>
@@ -374,8 +474,39 @@ const Production: React.FC<ProductionProps> = ({ products, currentUser, onUpdate
                             <h3 className="font-bold text-lg text-slate-800">Estoque de Insumos</h3>
                             <p className="text-slate-500 text-sm">Gerencie a matéria-prima da fábrica.</p>
                         </div>
-                        {/* Future: Add button to register purchase/entry of raw materials */}
+                        {onAddProduct && (
+                            <button
+                                onClick={() => setShowInputForm(!showInputForm)}
+                                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold transition-all flex items-center gap-2"
+                            >
+                                <Plus size={18} /> Novo Insumo
+                            </button>
+                        )}
                     </div>
+                    {showInputForm && (
+                        <div className="p-6 bg-slate-50 border-b border-slate-200 grid grid-cols-1 md:grid-cols-5 gap-4">
+                            <div className="md:col-span-2">
+                                <label className="block text-sm font-bold text-slate-700 mb-1">Nome do Insumo</label>
+                                <input type="text" value={newInput.name} onChange={e => setNewInput({ ...newInput, name: e.target.value })} placeholder="Ex: Energia (kWh)" className="w-full px-3 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500" />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-1">Unidade</label>
+                                <input type="text" value={newInput.unit} onChange={e => setNewInput({ ...newInput, unit: e.target.value })} placeholder="Ex: L, kWh, diária" className="w-full px-3 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500" />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-1">Custo Un (R$)</label>
+                                <input type="number" step="0.01" value={newInput.cost} onChange={e => setNewInput({ ...newInput, cost: e.target.value })} placeholder="0.00" className="w-full px-3 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500" />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-1">Estoque</label>
+                                <input type="number" value={newInput.stock} onChange={e => setNewInput({ ...newInput, stock: e.target.value })} placeholder="0" className="w-full px-3 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500" />
+                            </div>
+                            <div className="md:col-span-5 flex justify-end gap-2 mt-2">
+                                <button onClick={() => setShowInputForm(false)} className="px-4 py-2 rounded-lg text-slate-600 hover:bg-slate-200 font-bold">Cancelar</button>
+                                <button onClick={handleAddInput} className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 font-bold flex items-center gap-2"><Save size={16} /> Salvar Insumo</button>
+                            </div>
+                        </div>
+                    )}
                     <div className="overflow-x-auto">
                         <table className="w-full text-left text-sm">
                             <thead className="bg-slate-50 border-b border-slate-200">
@@ -406,6 +537,152 @@ const Production: React.FC<ProductionProps> = ({ products, currentUser, onUpdate
                                 )}
                             </tbody>
                         </table>
+                    </div>
+                </div>
+            )}
+
+            {activeTab === 'recipes' && (
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden animate-in fade-in duration-300 p-6">
+                    <h3 className="font-bold text-lg text-slate-800 mb-2 flex items-center gap-2">
+                        <Calculator className="text-blue-600" /> Custos de Produção por Unidade
+                    </h3>
+                    <p className="text-slate-500 text-sm mb-6">Selecione um produto e defina o que é gasto para produzir um lote. O custo unitário será calculado automaticamente.</p>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        {/* Seletor e Configuração do Produto */}
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-1">Produto Fabricado</label>
+                                <select
+                                    value={recipeProductId}
+                                    onChange={(e) => setRecipeProductId(e.target.value)}
+                                    className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-slate-50 font-medium"
+                                >
+                                    <option value="">Selecione o produto...</option>
+                                    {manufacturedProducts.map(p => (
+                                        <option key={p.id} value={p.id}>{p.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {recipeProductId && (
+                                <>
+                                    <div>
+                                        <label className="block text-sm font-bold text-slate-700 mb-1">Tamanho do Lote Inicial</label>
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="number"
+                                                value={recipeBatchSize}
+                                                onChange={(e) => setRecipeBatchSize(e.target.value)}
+                                                className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-lg"
+                                            />
+                                            <span className="text-slate-500">Unidades</span>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-bold text-slate-700 mb-1">Outros Custos Operacionais (Lote) R$</label>
+                                        <input
+                                            type="number"
+                                            value={operationalCost}
+                                            onChange={(e) => setOperationalCost(e.target.value)}
+                                            className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-slate-700"
+                                            placeholder="Ex: 50.00"
+                                        />
+                                        <p className="text-xs text-slate-400 mt-1">Custo extra somado ao lote.</p>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+
+                        {/* Insumos Gastos */}
+                        {recipeProductId && (
+                            <div className="md:col-span-2 bg-slate-50 p-6 rounded-xl border border-slate-200 h-full flex flex-col">
+                                <div className="flex justify-between items-center mb-4">
+                                    <h4 className="font-bold text-slate-700 flex items-center gap-2">
+                                        <Boxes size={18} className="text-orange-500" /> Insumos do Lote
+                                    </h4>
+                                    <button
+                                        onClick={() => setRecipeItems([...recipeItems, { ingredientId: '', quantity: '1' }])}
+                                        className="text-sm font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                                    >
+                                        <Plus size={16} /> Adicionar Insumo
+                                    </button>
+                                </div>
+
+                                <div className="space-y-3 flex-1 overflow-y-auto max-h-[300px] mb-4">
+                                    {recipeItems.map((item, index) => (
+                                        <div key={index} className="flex gap-2 items-center bg-white p-2 rounded-lg border border-slate-200 shadow-sm">
+                                            <select
+                                                value={item.ingredientId}
+                                                onChange={(e) => {
+                                                    const newI = [...recipeItems];
+                                                    newI[index].ingredientId = e.target.value;
+                                                    setRecipeItems(newI);
+                                                }}
+                                                className="flex-1 px-3 py-2 border border-slate-200 rounded-md outline-none text-sm font-medium focus:ring-2 focus:ring-blue-500"
+                                            >
+                                                <option value="">Selecione...</option>
+                                                {rawMaterials.map(rm => (
+                                                    <option key={rm.id} value={rm.id}>{rm.name} ({rm.unit}) - R$ {rm.cost}</option>
+                                                ))}
+                                            </select>
+                                            <input
+                                                type="number"
+                                                value={item.quantity}
+                                                onChange={(e) => {
+                                                    const newI = [...recipeItems];
+                                                    newI[index].quantity = e.target.value;
+                                                    setRecipeItems(newI);
+                                                }}
+                                                className="w-24 px-3 py-2 border border-slate-200 rounded-md outline-none text-sm text-right focus:ring-2 focus:ring-blue-500"
+                                                placeholder="Qtd"
+                                            />
+                                            <button
+                                                onClick={() => setRecipeItems(recipeItems.filter((_, i) => i !== index))}
+                                                className="p-2 text-red-500 hover:bg-red-50 rounded-md"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </div>
+                                    ))}
+                                    {recipeItems.length === 0 && (
+                                        <p className="text-slate-400 text-sm italic text-center py-4">Nenhum insumo configurado para este lote.</p>
+                                    )}
+                                </div>
+
+                                <div className="pt-4 border-t border-slate-200 mt-auto">
+                                    <div className="flex justify-between items-center mb-4">
+                                        <span className="font-bold text-slate-700">Custo Total do Lote:</span>
+                                        <span className="font-bold text-lg text-slate-800">
+                                            R$ {
+                                                (recipeItems.reduce((acc, item) => {
+                                                    const ing = products.find(p => p.id === item.ingredientId);
+                                                    return acc + (ing ? ing.cost * (parseFloat(item.quantity) || 0) : 0);
+                                                }, 0) + (parseFloat(operationalCost) || 0)).toFixed(2)
+                                            }
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between items-center bg-blue-50 p-4 rounded-xl border border-blue-100">
+                                        <span className="font-bold text-blue-900">Custo Unitário Calculado:</span>
+                                        <span className="font-black text-2xl text-blue-700">
+                                            R$ {
+                                                ((recipeItems.reduce((acc, item) => {
+                                                    const ing = products.find(p => p.id === item.ingredientId);
+                                                    return acc + (ing ? ing.cost * (parseFloat(item.quantity) || 0) : 0);
+                                                }, 0) + (parseFloat(operationalCost) || 0)) / (parseFloat(recipeBatchSize) || 1)).toFixed(4)
+                                            }
+                                        </span>
+                                    </div>
+                                    <button
+                                        onClick={handleSaveRecipe}
+                                        className="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-all shadow-md"
+                                    >
+                                        <Save size={18} /> Salvar e Atualizar Custo
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
