@@ -421,8 +421,8 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
               <ArrowLeft size={24} className="text-slate-600" />
             </button>
             <div>
-              <h2 className="text-2xl font-bold text-slate-800">Controle de Estoque</h2>
-              <p className="text-slate-500">Gerencie níveis de gelo e bebidas entre Matriz e Filial.</p>
+              <h2 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-orange-500 tracking-tight">Controle de Estoque</h2>
+              <p className="text-slate-500 font-medium mt-1">Gerenciamento dinâmico de níveis e movimentações</p>
             </div>
           </div>
           <div className="flex gap-2 bg-slate-100 p-1 rounded-xl w-fit flex-wrap">
@@ -445,12 +445,12 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
               Filial
             </button>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-3 items-center">
             <button
               onClick={handleOpenTransfer}
-              className="bg-blue-800 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors shadow-lg shadow-blue-900/10"
+              className="bg-gradient-to-r from-blue-700 to-blue-600 hover:from-blue-600 hover:to-blue-500 text-white px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 transition-all shadow-md shadow-blue-900/10 hover:shadow-lg hover:-translate-y-0.5"
             >
-              <ArrowRightLeft size={18} /> Transferir (Matriz {'->'} Filial)
+              <ArrowRightLeft size={18} /> Transferir
             </button>
             <button
               onClick={() => {
@@ -458,23 +458,23 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
                 setNewProductData({ category: 'Gelo Cubo', unit: 'un' });
                 setShowNewProductModal(true);
               }}
-              className="bg-orange-500 hover:bg-orange-400 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 shadow-lg shadow-orange-900/20 transition-colors"
+              className="bg-gradient-to-r from-orange-500 to-orange-400 hover:from-orange-400 hover:to-orange-300 text-white px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-md shadow-orange-900/20 hover:shadow-lg hover:-translate-y-0.5 transition-all"
             >
               <Plus size={18} /> Novo Produto
             </button>
-            <label className="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 cursor-pointer transition-colors shadow-lg shadow-slate-900/10">
+            <label className="bg-slate-800 hover:bg-slate-700 text-white px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 cursor-pointer transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5">
               <Upload size={18} /> Importar XML
               <input type="file" accept=".xml" className="hidden" onChange={handleFileUpload} />
             </label>
             <button
               onClick={() => setShowCategoryModal(true)}
-              className="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 shadow-lg shadow-slate-900/10 transition-colors"
+              className="bg-white border border-slate-200 hover:border-slate-300 text-slate-700 px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-sm hover:shadow transition-all hover:-translate-y-0.5"
             >
               <Filter size={18} /> Categorias
             </button>
             <button
               onClick={() => setShowReportModal(true)}
-              className="bg-purple-700 hover:bg-purple-600 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 shadow-lg shadow-purple-900/10 transition-colors"
+              className="bg-white border border-slate-200 hover:border-purple-300 text-purple-700 px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-sm hover:shadow transition-all hover:-translate-y-0.5 hover:bg-purple-50"
             >
               <PieChart size={18} /> Relatórios
             </button>
@@ -483,13 +483,13 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
 
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
           {/* Toolbar */}
-          <div className="p-4 border-b border-slate-100 flex gap-4">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} />
+          <div className="p-5 border-b border-slate-100 flex gap-4 bg-slate-50/50 backdrop-blur-md">
+            <div className="relative flex-1 max-w-2xl group">
+              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={20} />
               <input
                 type="text"
                 placeholder="Buscar produto por nome ou categoria..."
-                className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white transition-all text-slate-900"
+                className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 shadow-sm transition-all text-slate-900 font-medium"
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
               />
@@ -507,22 +507,22 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-slate-50 text-slate-600 text-sm">
-                  <th className="p-4 font-semibold">Produto</th>
-                  <th className="p-4 font-semibold">Categoria</th>
-                  <th className="p-4 font-semibold">Preço Varejo (Filial)</th>
-                  <th className="p-4 font-semibold">Preço Base Atacado</th>
+                <tr className="bg-slate-50/80 text-slate-500 text-xs uppercase tracking-wider">
+                  <th className="p-5 font-bold">Produto</th>
+                  <th className="p-5 font-bold">Categoria</th>
+                  <th className="p-5 font-bold">Preço Varejo (Filial)</th>
+                  <th className="p-5 font-bold">Preço Atacado</th>
                   {(branchFilter === 'GERAL' || branchFilter === Branch.MATRIZ) && (
                     <>
-                      <th className="p-4 font-semibold text-center bg-blue-50/50 border-l border-slate-200">Matriz (Ibotirama)</th>
-                      <th className="p-4 font-semibold text-center bg-blue-50/50 border-l border-slate-200">Matriz (Barreiras)</th>
+                      <th className="p-5 font-bold text-center bg-blue-50/30 border-l border-slate-200">Matriz (Ibotirama)</th>
+                      <th className="p-5 font-bold text-center bg-blue-50/30 border-l border-slate-200">Matriz (Barreiras)</th>
                     </>
                   )}
                   {(branchFilter === 'GERAL' || branchFilter === Branch.FILIAL) && (
-                    <th className="p-4 font-semibold text-center bg-orange-50/50 border-l border-slate-200">Estoque Filial</th>
+                    <th className="p-5 font-bold text-center bg-orange-50/30 border-l border-slate-200">Estoque Filial</th>
                   )}
-                  <th className="p-4 font-semibold text-center">Status</th>
-                  <th className="p-4 font-semibold text-right">Ações</th>
+                  <th className="p-5 font-bold text-center">Status</th>
+                  <th className="p-5 font-bold text-right">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -533,33 +533,33 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
 
                   return (
                     <tr key={product.id} className="hover:bg-slate-50 transition-colors group">
-                      <td className="p-4">
+                      <td className="p-5">
                         <p className="font-semibold text-slate-800">{product.name}</p>
                         <span className="text-xs text-slate-400">ID: {product.id}</span>
                       </td>
-                      <td className="p-4">
+                      <td className="p-5">
                         <span className="px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs font-medium">
                           {product.category}
                         </span>
                       </td>
-                      <td className="p-4 font-medium text-orange-700">{formatCurrency(product.priceFilial)}</td>
-                      <td className="p-4 font-medium text-blue-700">{formatCurrency(product.priceMatriz)}</td>
+                      <td className="p-5 font-medium text-orange-700">{formatCurrency(product.priceFilial)}</td>
+                      <td className="p-5 font-medium text-blue-700">{formatCurrency(product.priceMatriz)}</td>
                       {(branchFilter === 'GERAL' || branchFilter === Branch.MATRIZ) && (
                         <>
-                          <td className="p-4 text-center bg-blue-50/20 border-l border-slate-200 font-medium text-slate-700">
+                          <td className="p-5 text-center bg-blue-50/20 border-l border-slate-200 font-medium text-slate-700">
                             {product.comboItems ? <span className="text-xs font-bold text-purple-600">COMBO</span> : product.isStockControlled === false ? <span className="text-xl">∞</span> : <span>{product.stockMatrizIbotirama} <span className="text-xs text-slate-400">{product.unit}</span></span>}
                           </td>
-                          <td className="p-4 text-center bg-blue-50/20 border-l border-slate-200 font-medium text-slate-700">
+                          <td className="p-5 text-center bg-blue-50/20 border-l border-slate-200 font-medium text-slate-700">
                             {product.comboItems ? <span className="text-xs font-bold text-purple-600">COMBO</span> : product.isStockControlled === false ? <span className="text-xl">∞</span> : <span>{product.stockMatrizBarreiras} <span className="text-xs text-slate-400">{product.unit}</span></span>}
                           </td>
                         </>
                       )}
                       {(branchFilter === 'GERAL' || branchFilter === Branch.FILIAL) && (
-                        <td className="p-4 text-center bg-orange-50/20 border-l border-slate-200 font-medium text-slate-700">
+                        <td className="p-5 text-center bg-orange-50/20 border-l border-slate-200 font-medium text-slate-700">
                           {product.comboItems ? <span className="text-xs font-bold text-purple-600">COMBO</span> : product.isStockControlled === false ? <span className="text-xl">∞</span> : <span>{product.stockFilial} <span className="text-xs text-slate-400">{product.unit}</span></span>}
                         </td>
                       )}
-                      <td className="p-4 text-center">
+                      <td className="p-5 text-center">
                         {isLow ? (
                           <span className="px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs font-bold flex items-center justify-center gap-1">
                             <AlertTriangle size={10} /> Baixo
@@ -568,24 +568,24 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
                           <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold">Normal</span>
                         )}
                       </td>
-                      <td className="p-4 text-right flex justify-end gap-2">
+                      <td className="p-5 text-right flex justify-end gap-2 items-center">
                         <button
                           onClick={() => onOpenPricing(product.id)}
-                          className="text-emerald-500 hover:text-emerald-700 text-sm font-medium transition-colors flex items-center gap-1"
+                          className="bg-emerald-50 text-emerald-600 hover:bg-emerald-100 px-3 py-1.5 rounded-lg text-sm font-bold transition-colors flex items-center gap-1 shadow-sm"
                           title="Definir Receita"
                         >
                           <ScrollText size={16} /> Receita
                         </button>
                         <button
                           onClick={() => handleOpenLoss(product)}
-                          className="text-red-400 hover:text-red-600 text-sm font-medium transition-colors flex items-center gap-1"
+                          className="bg-orange-50 text-orange-600 hover:bg-orange-100 p-1.5 rounded-lg text-sm font-bold transition-colors flex items-center gap-1 shadow-sm"
                           title="Registrar Perda"
                         >
                           <AlertOctagon size={16} />
                         </button>
                         <button
                           onClick={() => handleOpenEdit(product)}
-                          className="text-slate-400 hover:text-blue-600 text-sm font-medium transition-colors flex items-center gap-1"
+                          className="bg-blue-50 text-blue-600 hover:bg-blue-100 px-3 py-1.5 rounded-lg text-sm font-bold transition-colors flex items-center gap-1 shadow-sm"
                         >
                           <Edit size={16} /> Editar
                         </button>
@@ -595,7 +595,7 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
                               onDeleteProduct(product.id);
                             }
                           }}
-                          className="text-slate-400 hover:text-red-600 text-sm font-medium transition-colors flex items-center gap-1 ml-2"
+                          className="bg-red-50 text-red-600 hover:bg-red-100 p-1.5 rounded-lg text-sm font-bold transition-colors flex items-center gap-1 ml-1 shadow-sm"
                           title="Excluir Produto"
                         >
                           <Trash2 size={16} />
