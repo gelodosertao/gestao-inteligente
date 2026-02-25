@@ -3,6 +3,7 @@ import { Product, Branch, Category, Sale, FinancialRecord, StockMovement, Catego
 import { Search, Plus, ArrowRightLeft, Filter, Save, X, Truck, AlertTriangle, Upload, FileText, ArrowLeft, AlertOctagon, Edit, Calculator, DollarSign, TrendingUp, Trash2, PieChart, BarChart3, ListPlus, ScrollText } from 'lucide-react';
 import { dbStockMovements, dbCategories } from '../services/db';
 import { getTodayDate } from '../services/utils';
+import { supabase } from '../services/supabase';
 
 interface InventoryProps {
   products: Product[];
@@ -295,6 +296,33 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
     setNewProductData({ category: 'Gelo Cubo', unit: 'un' });
     setIsEditing(false);
     setSelectedProduct(null);
+  };
+
+  const handleProductImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `product-${Date.now()}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('images')
+        .upload(filePath, file);
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      const { data } = supabase.storage.from('images').getPublicUrl(filePath);
+
+      setNewProductData(prev => ({ ...prev, image: data.publicUrl }));
+      alert("Imagem enviada com sucesso!");
+    } catch (error: any) {
+      console.error("Erro no upload:", error);
+      alert("Erro ao enviar imagem. Verifique se o bucket 'images' existe no Supabase.");
+    }
   };
 
   // --- XML IMPORT FUNCTIONS ---
@@ -813,11 +841,22 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">URL da Imagem (Opcional)</label>
-                <input type="text" className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-white text-slate-900"
-                  placeholder="https://exemplo.com/imagem.jpg"
-                  value={newProductData.image || ''} onChange={e => setNewProductData({ ...newProductData, image: e.target.value })}
-                />
+                <label className="block text-sm font-medium text-slate-700 mb-1">Imagem do Produto (Opcional)</label>
+                <div className="flex gap-2">
+                  <input type="text" className="flex-1 px-4 py-2 border border-slate-200 rounded-lg bg-white text-slate-900"
+                    placeholder="https://exemplo.com/imagem.jpg"
+                    value={newProductData.image || ''} onChange={e => setNewProductData({ ...newProductData, image: e.target.value })}
+                  />
+                  <label className="cursor-pointer bg-slate-100 hover:bg-slate-200 p-2 rounded-lg border border-slate-200 transition-colors flex items-center justify-center" title="Upload de Imagem">
+                    <Upload size={20} className="text-slate-600" />
+                    <input type="file" className="hidden" accept="image/*" onChange={handleProductImageUpload} />
+                  </label>
+                </div>
+                {newProductData.image && (
+                  <div className="mt-2 h-24 w-24 rounded-lg bg-slate-100 overflow-hidden border border-slate-200">
+                    <img src={newProductData.image} alt="Preview" className="w-full h-full object-cover" onError={(e) => (e.currentTarget.style.display = 'none')} />
+                  </div>
+                )}
               </div>
 
               {newProductData.comboItems ? (
