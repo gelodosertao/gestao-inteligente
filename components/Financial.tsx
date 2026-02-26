@@ -36,12 +36,12 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
    const [cashInDrawer, setCashInDrawer] = useState<number>(0);
    const [closingNotes, setClosingNotes] = useState('');
 
-   // Form State - Defaulted to Expense, removed logic to switch to Income in UI
    const [newRecord, setNewRecord] = useState<Partial<FinancialRecord>>({
       type: 'Expense',
       date: getTodayDate(),
-      category: 'Fornecedores',
-      branch: Branch.MATRIZ
+      category: '',
+      branch: Branch.MATRIZ,
+      paymentMethod: 'Pix'
    });
    const [isRecurring, setIsRecurring] = useState(false);
    const [installments, setInstallments] = useState(2); // Default to 2 if recurring
@@ -81,6 +81,8 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
       "Despesas com Vendas": [
          "Comissões",
          "Fretes e Entregas",
+         "Manutenção de Veículos",
+         "Combustível",
          "Marketing e Publicidade",
          "Embalagens"
       ],
@@ -93,7 +95,8 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
          "Internet e Telefone",
          "Material de Escritório / Limpeza",
          "Honorários Contábeis",
-         "Manutenção e Reparos",
+         "Manutenção de Máquinas (Produção)",
+         "Manutenção Predial / Loja",
          "Outras Despesas Administrativas"
       ],
       "Despesas Financeiras": [
@@ -376,7 +379,7 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
                irpjCsll += amount;
             }
             // Vendas
-            else if (catLower.includes('comissão') || catLower.includes('comissao') || catLower.includes('frete') || catLower.includes('venda') || catLower.includes('marketing') || catLower.includes('embalagem')) {
+            else if (catLower.includes('comissão') || catLower.includes('comissao') || catLower.includes('frete') || catLower.includes('venda') || catLower.includes('marketing') || catLower.includes('embalagem') || catLower.includes('veículo') || catLower.includes('veiculo') || catLower.includes('combustível')) {
                despesasVendas[catName] = (despesasVendas[catName] || 0) + amount;
                totalDespesasVendas += amount;
             }
@@ -510,7 +513,8 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
                amount: amount,
                type: recordType,
                category: newRecord.category || 'Outros',
-               branch: newRecord.branch
+               branch: newRecord.branch,
+               paymentMethod: newRecord.paymentMethod || 'Pix'
             });
          }
       } else {
@@ -522,14 +526,15 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
             amount: amount,
             type: recordType,
             category: newRecord.category || 'Outros',
-            branch: newRecord.branch
+            branch: newRecord.branch,
+            paymentMethod: newRecord.paymentMethod || 'Pix'
          });
       }
 
       onAddRecord(recordsToAdd);
       setShowAddModal(false);
       // Reset form
-      setNewRecord({ type: 'Expense', date: getTodayDate(), category: 'Fornecedores', description: '', amount: 0, branch: Branch.MATRIZ });
+      setNewRecord({ type: 'Expense', date: getTodayDate(), category: '', description: '', amount: 0, branch: Branch.MATRIZ, paymentMethod: 'Pix' });
       setIsRecurring(false);
       setInstallments(2);
    };

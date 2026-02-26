@@ -237,9 +237,9 @@ const App: React.FC = () => {
     setFinancials(prev => [...newRecords, ...prev]);
     try {
       await dbFinancials.addBatch(newRecords, currentUser!.tenantId);
-    } catch (e) {
-      console.error(e);
-      alert("Erro ao salvar despesas no banco.");
+    } catch (e: any) {
+      console.error("ERRO COMPLETO:", e);
+      alert(`Erro ao salvar despesas no banco: ${e.message || JSON.stringify(e)}`);
     }
   };
 
