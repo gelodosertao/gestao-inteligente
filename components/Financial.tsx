@@ -358,8 +358,8 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
       let totalOutrasReceitas = 0;
 
       filteredRecords.forEach(r => {
-         const desc = r.description || r.category || 'Outros';
-         const catLower = r.category.toLowerCase();
+         const catName = r.category || 'Outros';
+         const catLower = catName.toLowerCase();
          const amount = r.amount;
 
          if (r.type === 'Expense') {
@@ -377,17 +377,17 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
             }
             // Vendas
             else if (catLower.includes('comissão') || catLower.includes('comissao') || catLower.includes('frete') || catLower.includes('venda') || catLower.includes('marketing') || catLower.includes('embalagem')) {
-               despesasVendas[desc] = (despesasVendas[desc] || 0) + amount;
+               despesasVendas[catName] = (despesasVendas[catName] || 0) + amount;
                totalDespesasVendas += amount;
             }
             // Financeiras
             else if (catLower.includes('juros') || catLower.includes('taxa') || catLower.includes('banc') || catLower.includes('maquininha') || catLower.includes('tarifa')) {
-               despesasFinanceiras[desc] = (despesasFinanceiras[desc] || 0) + amount;
+               despesasFinanceiras[catName] = (despesasFinanceiras[catName] || 0) + amount;
                totalDespesasFinanceiras += amount;
             }
             // Outras
-            else if (catLower.includes('outras despesas')) {
-               outrasDespesasMap[desc] = (outrasDespesasMap[desc] || 0) + amount;
+            else if (catLower === 'outras despesas') {
+               outrasDespesasMap[catName] = (outrasDespesasMap[catName] || 0) + amount;
                totalOutrasDespesas += amount;
             }
             // Fornecedores e Compras (Exclude from admin expenses, keep separated or ignore in DRE as it might be CMV)
@@ -398,12 +398,12 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
             }
             // Administrativas (Fallback)
             else {
-               despesasAdministrativas[desc] = (despesasAdministrativas[desc] || 0) + amount;
+               despesasAdministrativas[catName] = (despesasAdministrativas[catName] || 0) + amount;
                totalDespesasAdministrativas += amount;
             }
          } else if (r.type === 'Income') {
             if (catLower !== 'vendas') {
-               outrasReceitasMap[desc] = (outrasReceitasMap[desc] || 0) + amount;
+               outrasReceitasMap[catName] = (outrasReceitasMap[catName] || 0) + amount;
                totalOutrasReceitas += amount;
             }
          }
