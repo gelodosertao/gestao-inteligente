@@ -1046,8 +1046,8 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
 
          {/* --- ADD RECORD MODAL --- */}
          {showAddModal && (
-            <div className="fixed inset-0 bg-blue-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-               <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden">
+            <div className="fixed inset-0 bg-blue-900/60 backdrop-blur-sm z-50 flex items-start justify-center p-4 pt-10 overflow-y-auto animate-in fade-in duration-200">
+               <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden mb-10">
                   <div className="p-4 bg-blue-900 text-white flex justify-between items-center">
                      <h3 className="font-bold flex items-center gap-2">
                         <DollarSign size={20} className="text-orange-400" /> Lançar Despesa

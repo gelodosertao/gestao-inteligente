@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Product, Branch, Category, Sale, FinancialRecord, StockMovement, CategoryItem, User } from '../types';
 import { Search, Plus, ArrowRightLeft, Filter, Save, X, Truck, AlertTriangle, Upload, FileText, ArrowLeft, AlertOctagon, Edit, Calculator, DollarSign, TrendingUp, Trash2, PieChart, BarChart3, ListPlus, ScrollText } from 'lucide-react';
 import { dbStockMovements, dbCategories } from '../services/db';
-import { getTodayDate } from '../services/utils';
+import { getTodayDate, getCurrentDateTime } from '../services/utils';
 import { supabase } from '../services/supabase';
 
 interface InventoryProps {
@@ -60,6 +60,32 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
   // Report State
   const [stockMovements, setStockMovements] = useState<StockMovement[]>([]);
   const [loadingMovements, setLoadingMovements] = useState(false);
+
+  const [reportMonth, setReportMonth] = useState((new Date().getMonth() + 1).toString().padStart(2, '0'));
+  const [reportYear, setReportYear] = useState(new Date().getFullYear().toString());
+
+  const filterByReportDate = (dateString: string) => {
+    if (!dateString) return false;
+    if (reportYear === 'ALL' && reportMonth === 'ALL') return true;
+
+    // Attempt parsing ISO string or simple YYYY-MM-DD
+    const d = new Date(dateString);
+    if (!isNaN(d.getTime())) {
+      const m = (d.getMonth() + 1).toString().padStart(2, '0');
+      const y = d.getFullYear().toString();
+      if (reportYear !== 'ALL' && reportYear !== y) return false;
+      if (reportMonth !== 'ALL' && reportMonth !== m) return false;
+      return true;
+    }
+    // Fallback comparison for YYYY-MM-DD strings directly
+    const parts = dateString.split('T')[0].split('-');
+    if (parts.length >= 3) {
+      if (reportYear !== 'ALL' && reportYear !== parts[0]) return false;
+      if (reportMonth !== 'ALL' && reportMonth !== parts[1]) return false;
+    }
+    return true;
+  };
+
 
   useEffect(() => {
     if (showReportModal) {
@@ -287,9 +313,28 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
     };
 
     if (isEditing) {
+      // Check for stock additions before updating
+      if (selectedProduct) {
+        const diffIbotirama = productToSave.stockMatrizIbotirama - selectedProduct.stockMatrizIbotirama;
+        if (diffIbotirama > 0) {
+          dbStockMovements.add({ id: `sm-${Date.now()}-ibo`, date: getCurrentDateTime(), productId: productToSave.id, productName: productToSave.name, quantity: diffIbotirama, type: 'ENTRY', reason: 'Edição Manual', branch: Branch.MATRIZ, matrizDeposit: 'Ibotirama' }, currentUser.tenantId);
+        }
+        const diffBarreiras = productToSave.stockMatrizBarreiras - selectedProduct.stockMatrizBarreiras;
+        if (diffBarreiras > 0) {
+          dbStockMovements.add({ id: `sm-${Date.now()}-bar`, date: getCurrentDateTime(), productId: productToSave.id, productName: productToSave.name, quantity: diffBarreiras, type: 'ENTRY', reason: 'Edição Manual', branch: Branch.MATRIZ, matrizDeposit: 'Barreiras' }, currentUser.tenantId);
+        }
+        const diffFilial = productToSave.stockFilial - selectedProduct.stockFilial;
+        if (diffFilial > 0) {
+          dbStockMovements.add({ id: `sm-${Date.now()}-fil`, date: getCurrentDateTime(), productId: productToSave.id, productName: productToSave.name, quantity: diffFilial, type: 'ENTRY', reason: 'Edição Manual', branch: Branch.FILIAL }, currentUser.tenantId);
+        }
+      }
       onUpdateProduct(productToSave);
     } else {
       onAddProduct(productToSave);
+      // Log initial stock creation as ENTRY
+      if (productToSave.stockMatrizIbotirama > 0) dbStockMovements.add({ id: `entry-${Date.now()}-ibo`, date: getCurrentDateTime(), productId: productToSave.id, productName: productToSave.name, quantity: productToSave.stockMatrizIbotirama, type: 'ENTRY', reason: 'Cadastro Inicial', branch: Branch.MATRIZ, matrizDeposit: 'Ibotirama' }, currentUser.tenantId);
+      if (productToSave.stockMatrizBarreiras > 0) dbStockMovements.add({ id: `entry-${Date.now()}-bar`, date: getCurrentDateTime(), productId: productToSave.id, productName: productToSave.name, quantity: productToSave.stockMatrizBarreiras, type: 'ENTRY', reason: 'Cadastro Inicial', branch: Branch.MATRIZ, matrizDeposit: 'Barreiras' }, currentUser.tenantId);
+      if (productToSave.stockFilial > 0) dbStockMovements.add({ id: `entry-${Date.now()}-fil`, date: getCurrentDateTime(), productId: productToSave.id, productName: productToSave.name, quantity: productToSave.stockFilial, type: 'ENTRY', reason: 'Cadastro Inicial', branch: Branch.FILIAL }, currentUser.tenantId);
     }
 
     setShowNewProductModal(false);
@@ -399,7 +444,12 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
         unit: p.unit || 'un',
         minStock: p.minStock || 10
       };
+
       onAddProduct(newProduct);
+
+      // Log entries for imported products
+      if (newProduct.stockFilial > 0) dbStockMovements.add({ id: `import-${Date.now()}-fil-${newProduct.id}`, date: getCurrentDateTime(), productId: newProduct.id, productName: newProduct.name, quantity: newProduct.stockFilial, type: 'ENTRY', reason: 'Importação XML NFe', branch: Branch.FILIAL }, currentUser.tenantId);
+      if (newProduct.stockMatrizIbotirama > 0) dbStockMovements.add({ id: `import-${Date.now()}-ibo-${newProduct.id}`, date: getCurrentDateTime(), productId: newProduct.id, productName: newProduct.name, quantity: newProduct.stockMatrizIbotirama, type: 'ENTRY', reason: 'Importação XML NFe', branch: Branch.MATRIZ, matrizDeposit: 'Ibotirama' }, currentUser.tenantId);
     });
     setShowImportModal(false);
     setImportedProducts([]);
@@ -763,8 +813,8 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
 
       {/* --- MODAL NOVO PRODUTO --- */}
       {showNewProductModal && (
-        <div className="fixed inset-0 bg-blue-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden">
+        <div className="fixed inset-0 bg-blue-900/60 backdrop-blur-sm z-50 flex items-start justify-center p-4 pt-10 overflow-y-auto animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden mb-10">
             <div className="p-4 bg-orange-500 text-white flex justify-between items-center">
               <h3 className="font-bold flex items-center gap-2">
                 {isEditing ? <Edit size={20} /> : <Plus size={20} />}
@@ -1369,7 +1419,38 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
                 <h3 className="font-bold flex items-center gap-2">
                   <BarChart3 size={20} className="text-purple-300" /> Relatório de Estoque e Vendas
                 </h3>
-                <button onClick={() => setShowReportModal(false)}><X size={20} /></button>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={reportMonth}
+                    onChange={e => setReportMonth(e.target.value)}
+                    className="bg-purple-700 text-white rounded-lg px-3 py-1.5 text-sm font-bold border border-purple-600 outline-none hover:bg-purple-600 focus:ring-2 focus:ring-purple-400 focus:border-transparent transition-all"
+                  >
+                    <option value="01">Janeiro</option>
+                    <option value="02">Fevereiro</option>
+                    <option value="03">Março</option>
+                    <option value="04">Abril</option>
+                    <option value="05">Maio</option>
+                    <option value="06">Junho</option>
+                    <option value="07">Julho</option>
+                    <option value="08">Agosto</option>
+                    <option value="09">Setembro</option>
+                    <option value="10">Outubro</option>
+                    <option value="11">Novembro</option>
+                    <option value="12">Dezembro</option>
+                    <option value="ALL">Todos os Meses</option>
+                  </select>
+                  <select
+                    value={reportYear}
+                    onChange={e => setReportYear(e.target.value)}
+                    className="bg-purple-700 text-white rounded-lg px-3 py-1.5 text-sm font-bold border border-purple-600 outline-none hover:bg-purple-600 focus:ring-2 focus:ring-purple-400 focus:border-transparent transition-all"
+                  >
+                    <option value="2026">2026</option>
+                    <option value="2025">2025</option>
+                    <option value="2024">2024</option>
+                    <option value="ALL">Todos os Anos</option>
+                  </select>
+                  <button onClick={() => setShowReportModal(false)} className="ml-2 p-1 hover:bg-purple-700 rounded-lg transition-colors"><X size={20} /></button>
+                </div>
               </div>
 
               <div className="flex-1 overflow-auto p-6 bg-slate-50">
@@ -1426,7 +1507,7 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
                           {(() => {
                             // Calculate sales per product
                             const productSales: Record<string, { name: string, qty: number, revenue: number }> = {};
-                            sales.forEach(sale => {
+                            sales.filter(s => filterByReportDate(s.date)).forEach(sale => {
                               sale.items.forEach(item => {
                                 if (!productSales[item.productId]) {
                                   productSales[item.productId] = { name: item.productName, qty: 0, revenue: 0 };
@@ -1497,39 +1578,81 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
                   </div>
                 </div>
 
-                {/* Relatório de Perdas */}
                 <div className="mt-6 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                   <div className="p-4 border-b border-slate-100 bg-red-50">
                     <h4 className="font-bold text-red-800 flex items-center gap-2">
                       <AlertOctagon size={18} /> Relatório de Perdas e Danos
                     </h4>
                   </div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm">
-                      <thead className="bg-slate-50 text-slate-500">
+                  <div className="overflow-x-auto max-h-60">
+                    <table className="w-full text-left text-sm relative">
+                      <thead className="bg-slate-50 text-slate-500 sticky top-0 shadow-sm">
                         <tr>
-                          <th className="p-3 font-semibold">Data</th>
-                          <th className="p-3 font-semibold">Produto</th>
-                          <th className="p-3 font-semibold text-center">Qtd.</th>
-                          <th className="p-3 font-semibold">Motivo</th>
-                          <th className="p-3 font-semibold">Local</th>
+                          <th className="p-3 font-semibold bg-slate-50">Data</th>
+                          <th className="p-3 font-semibold bg-slate-50">Produto</th>
+                          <th className="p-3 font-semibold text-center bg-slate-50">Qtd.</th>
+                          <th className="p-3 font-semibold bg-slate-50">Motivo</th>
+                          <th className="p-3 font-semibold bg-slate-50">Local</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
                         {loadingMovements ? (
                           <tr><td colSpan={5} className="p-4 text-center">Carregando...</td></tr>
-                        ) : stockMovements.filter(m => m.type === 'LOSS').length === 0 ? (
-                          <tr><td colSpan={5} className="p-4 text-center text-slate-400">Nenhuma perda registrada.</td></tr>
+                        ) : stockMovements.filter(m => m.type === 'LOSS' && filterByReportDate(m.date)).length === 0 ? (
+                          <tr><td colSpan={5} className="p-4 text-center text-slate-400">Nenhuma perda no período selecionado.</td></tr>
                         ) : (
-                          stockMovements.filter(m => m.type === 'LOSS').map(m => (
-                            <tr key={m.id} className="hover:bg-slate-50">
-                              <td className="p-3 text-slate-600">{new Date(m.date).toLocaleDateString()}</td>
-                              <td className="p-3 font-medium text-slate-800">{m.productName}</td>
-                              <td className="p-3 text-center font-bold text-red-600">-{m.quantity}</td>
-                              <td className="p-3 text-slate-600">{m.reason}</td>
-                              <td className="p-3 text-slate-500 text-xs">{m.branch}</td>
-                            </tr>
-                          ))
+                          stockMovements.filter(m => m.type === 'LOSS' && filterByReportDate(m.date))
+                            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                            .map(m => (
+                              <tr key={m.id} className="hover:bg-slate-50">
+                                <td className="p-3 text-slate-600">{new Date(m.date).toLocaleString()}</td>
+                                <td className="p-3 font-medium text-slate-800">{m.productName}</td>
+                                <td className="p-3 text-center font-bold text-red-600">-{m.quantity}</td>
+                                <td className="p-3 text-slate-600">{m.reason}</td>
+                                <td className="p-3 text-slate-500 text-xs">{m.branch}</td>
+                              </tr>
+                            ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Histórico de Entradas */}
+                <div className="mt-6 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                  <div className="p-4 border-b border-slate-100 bg-emerald-50">
+                    <h4 className="font-bold text-emerald-800 flex items-center gap-2">
+                      <ListPlus size={18} /> Histórico de Entradas (Estoque)
+                    </h4>
+                  </div>
+                  <div className="overflow-x-auto max-h-60">
+                    <table className="w-full text-left text-sm relative">
+                      <thead className="bg-slate-50 text-slate-500 sticky top-0 shadow-sm">
+                        <tr>
+                          <th className="p-3 font-semibold bg-slate-50">Data e Hora</th>
+                          <th className="p-3 font-semibold bg-slate-50">Produto</th>
+                          <th className="p-3 font-semibold text-center bg-slate-50">Qtd. Adicionada</th>
+                          <th className="p-3 font-semibold bg-slate-50">Motivo / Operação</th>
+                          <th className="p-3 font-semibold bg-slate-50">Local</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {loadingMovements ? (
+                          <tr><td colSpan={5} className="p-4 text-center">Carregando...</td></tr>
+                        ) : stockMovements.filter(m => m.type === 'ENTRY' && filterByReportDate(m.date)).length === 0 ? (
+                          <tr><td colSpan={5} className="p-4 text-center text-slate-400">Nenhuma entrada no período selecionado.</td></tr>
+                        ) : (
+                          stockMovements.filter(m => m.type === 'ENTRY' && filterByReportDate(m.date))
+                            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                            .map(m => (
+                              <tr key={m.id} className="hover:bg-slate-50">
+                                <td className="p-3 text-slate-600 font-medium whitespace-nowrap">{new Date(m.date).toLocaleString()}</td>
+                                <td className="p-3 font-medium text-slate-800">{m.productName}</td>
+                                <td className="p-3 text-center font-bold text-emerald-600">+{m.quantity}</td>
+                                <td className="p-3 text-slate-600">{m.reason}</td>
+                                <td className="p-3 text-slate-500 text-xs">{m.branch} {m.matrizDeposit ? `(${m.matrizDeposit})` : ''}</td>
+                              </tr>
+                            ))
                         )}
                       </tbody>
                     </table>

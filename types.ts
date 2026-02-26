@@ -182,7 +182,7 @@ export interface StockMovement {
   productId: string;
   productName: string;
   quantity: number;
-  type: 'LOSS' | 'ADJUSTMENT' | 'TRANSFER_OUT' | 'TRANSFER_IN';
+  type: 'LOSS' | 'ADJUSTMENT' | 'TRANSFER_OUT' | 'TRANSFER_IN' | 'ENTRY';
   reason: string;
   branch: Branch;
   matrizDeposit?: 'Ibotirama' | 'Barreiras';
