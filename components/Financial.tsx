@@ -66,6 +66,47 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
       }
    };
 
+   // DRE Standard Categories for Subcategory Selection
+   const DRE_CATEGORIES = {
+      "Deduções da Receita": [
+         "Imposto (DAS - Simples Nacional)",
+         "Devoluções de Vendas",
+         "Descontos Incondicionais"
+      ],
+      "Custos (Fornecedores)": [
+         "Compra de Mercadorias",
+         "Compra de Insumos",
+         "Pagamento de Fornecedores"
+      ],
+      "Despesas com Vendas": [
+         "Comissões",
+         "Fretes e Entregas",
+         "Marketing e Publicidade",
+         "Embalagens"
+      ],
+      "Despesas Administrativas": [
+         "Pró-labore",
+         "Salários e Encargos",
+         "Aluguel",
+         "Água",
+         "Energia Elétrica (Luz)",
+         "Internet e Telefone",
+         "Material de Escritório / Limpeza",
+         "Honorários Contábeis",
+         "Manutenção e Reparos",
+         "Outras Despesas Administrativas"
+      ],
+      "Despesas Financeiras": [
+         "Taxas Bancárias",
+         "Tarifas de Maquininha",
+         "Juros Pagos"
+      ],
+      "Impostos e Outras Despesas": [
+         "IRPJ / CSLL",
+         "Outras Despesas"
+      ]
+   };
+
    React.useEffect(() => {
       loadCategories();
    }, []);
@@ -322,24 +363,41 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
          const amount = r.amount;
 
          if (r.type === 'Expense') {
-            if (catLower.includes('imposto') || catLower.includes('das ') || catLower.includes('simples') || catLower.includes('das -')) {
+            // Deduções
+            if (catLower.includes('imposto (das') || catLower.includes('das ') || catLower.includes('simples nacional') || catLower.includes('das -')) {
                impostosVendas += amount;
             } else if (catLower.includes('devoluç') || catLower.includes('devoluc')) {
                devolucoesVendas += amount;
             } else if (catLower.includes('desconto')) {
                descontosIncondicionais += amount;
-            } else if (catLower.includes('irpj') || catLower.includes('csll')) {
+            }
+            // Impostos sobre Lucro
+            else if (catLower.includes('irpj') || catLower.includes('csll')) {
                irpjCsll += amount;
-            } else if (catLower.includes('comissão') || catLower.includes('comissao') || catLower.includes('frete') || catLower.includes('venda') || catLower.includes('marketing')) {
+            }
+            // Vendas
+            else if (catLower.includes('comissão') || catLower.includes('comissao') || catLower.includes('frete') || catLower.includes('venda') || catLower.includes('marketing') || catLower.includes('embalagem')) {
                despesasVendas[desc] = (despesasVendas[desc] || 0) + amount;
                totalDespesasVendas += amount;
-            } else if (catLower.includes('juros') || catLower.includes('taxa') || catLower.includes('banc')) {
+            }
+            // Financeiras
+            else if (catLower.includes('juros') || catLower.includes('taxa') || catLower.includes('banc') || catLower.includes('maquininha') || catLower.includes('tarifa')) {
                despesasFinanceiras[desc] = (despesasFinanceiras[desc] || 0) + amount;
                totalDespesasFinanceiras += amount;
-            } else if (catLower.includes('outras') && catLower.includes('despesas')) {
+            }
+            // Outras
+            else if (catLower.includes('outras despesas')) {
                outrasDespesasMap[desc] = (outrasDespesasMap[desc] || 0) + amount;
                totalOutrasDespesas += amount;
-            } else {
+            }
+            // Fornecedores e Compras (Exclude from admin expenses, keep separated or ignore in DRE as it might be CMV)
+            // But to avoid hiding it completely, we can map them to 'Outras Despesas' or a separate variable if we wanted. But user complained about it mixing in admin. 
+            // Let's exclude them from 'Despesas Administrativas' so it doesn't inflate operational costs. We assume CMV is computed via Stock.
+            else if (catLower.includes('fornecedor') || catLower.includes('compra de mercadoria') || catLower.includes('compra de insumo')) {
+               // Ignore in DRE (handled by CMV) or keep track? We'll ignore it from DRE operational expenses.
+            }
+            // Administrativas (Fallback)
+            else {
                despesasAdministrativas[desc] = (despesasAdministrativas[desc] || 0) + amount;
                totalDespesasAdministrativas += amount;
             }
@@ -1057,7 +1115,7 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
                      </div>
 
                      <div>
-                        <label className="block text-sm font-bold text-slate-700 mb-1">Categoria</label>
+                        <label className="block text-sm font-bold text-slate-700 mb-1">Categoria (Subcategoria)</label>
                         {isAddingInlineCategory ? (
                            <div className="flex gap-2">
                               <input
@@ -1088,7 +1146,19 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
                                  value={newRecord.category}
                                  onChange={(e) => setNewRecord({ ...newRecord, category: e.target.value })}
                               >
-                                 {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                                 <option value="" disabled>Selecione uma subcategoria...</option>
+                                 {Object.entries(DRE_CATEGORIES).map(([groupName, subCats]) => (
+                                    <optgroup label={groupName} key={groupName}>
+                                       {subCats.map(subCat => (
+                                          <option key={subCat} value={subCat}>{subCat}</option>
+                                       ))}
+                                    </optgroup>
+                                 ))}
+                                 {categories.length > 0 && (
+                                    <optgroup label="Categorias Personalizadas">
+                                       {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                                    </optgroup>
+                                 )}
                               </select>
                               <button
                                  onClick={() => { setIsAddingInlineCategory(true); setNewCategoryName(''); }}
