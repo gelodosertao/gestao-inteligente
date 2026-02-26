@@ -1304,7 +1304,19 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
                            value={editingRecord.category}
                            onChange={(e) => setEditingRecord({ ...editingRecord, category: e.target.value })}
                         >
-                           {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                           <option value="" disabled>Selecione uma subcategoria...</option>
+                           {Object.entries(DRE_CATEGORIES).map(([groupName, subCats]) => (
+                              <optgroup label={groupName} key={groupName}>
+                                 {subCats.map(subCat => (
+                                    <option key={subCat} value={subCat}>{subCat}</option>
+                                 ))}
+                              </optgroup>
+                           ))}
+                           {categories.length > 0 && (
+                              <optgroup label="Categorias Personalizadas">
+                                 {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                              </optgroup>
+                           )}
                         </select>
                      </div>
 
