@@ -345,6 +345,7 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
       let devolucoesVendas = 0;
       let descontosIncondicionais = 0;
       let impostosVendas = 0;
+      let perdasEstoque = 0;
 
       const despesasVendas: Record<string, number> = {};
       const despesasAdministrativas: Record<string, number> = {};
@@ -366,8 +367,12 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
          const amount = r.amount;
 
          if (r.type === 'Expense') {
+            // Perdas e Danos de Estoque (Adicionado ao CMV)
+            if (catLower.includes('perda') || catLower.includes('dano')) {
+               perdasEstoque += amount;
+            }
             // Deduções
-            if (catLower.includes('imposto (das') || catLower.includes('das ') || catLower.includes('simples nacional') || catLower.includes('das -')) {
+            else if (catLower.includes('imposto (das') || catLower === 'das' || catLower.startsWith('das ') || catLower.includes(' das ') || catLower.includes('simples nacional') || catLower.includes('das -')) {
                impostosVendas += amount;
             } else if (catLower.includes('devoluç') || catLower.includes('devoluc')) {
                devolucoesVendas += amount;
@@ -421,7 +426,7 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
             return acc + (item.quantity * (product?.cost || 0));
          }, 0);
          return totalCMV + saleCMV;
-      }, 0);
+      }, 0) + perdasEstoque;
 
       const resultadoBruto = receitaLiquida - cmv;
       const totalDespesasOperacionais = totalDespesasVendas + totalDespesasAdministrativas + totalDespesasFinanceiras;
