@@ -788,38 +788,41 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
 
                      {/* Branch & Scanner - Compact Header */}
                      <div className="bg-white p-3 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row gap-3 items-center">
-                        {/* Branch Switcher - Compact */}
-                        <div className="flex bg-slate-100 p-1 rounded-lg shrink-0">
-                           <button
-                              onClick={() => { setSelectedBranch(Branch.FILIAL); setCart([]); setIsWholesale(false); }}
-                              className={`px-3 py-1.5 rounded-md font-bold transition-all text-xs flex items-center gap-1.5 ${selectedBranch === Branch.FILIAL ? 'bg-white text-orange-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'} `}
-                           >
-                              <Store size={14} /> Filial
-                           </button>
-                           <button
-                              onClick={() => { setSelectedBranch(Branch.MATRIZ); setCart([]); setIsWholesale(true); }}
-                              className={`px-3 py-1.5 rounded-md font-bold transition-all text-xs flex items-center gap-1.5 ${selectedBranch === Branch.MATRIZ ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'} `}
-                           >
-                              <Factory size={14} /> Matriz
-                           </button>
-                        </div>
-
-                        {selectedBranch === Branch.MATRIZ && (
+                        {/* Scrollable container for branch and deposit controls on mobile */}
+                        <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0 scrollbar-hide">
+                           {/* Branch Switcher - Compact */}
                            <div className="flex bg-slate-100 p-1 rounded-lg shrink-0">
                               <button
-                                 onClick={() => { setSelectedDeposit('Ibotirama'); setCart([]); }}
-                                 className={`px-3 py-1.5 rounded-md font-bold transition-all text-xs flex items-center ${selectedDeposit === 'Ibotirama' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'} `}
+                                 onClick={() => { setSelectedBranch(Branch.FILIAL); setCart([]); setIsWholesale(false); }}
+                                 className={`px-3 py-1.5 rounded-md font-bold transition-all text-xs flex items-center gap-1.5 ${selectedBranch === Branch.FILIAL ? 'bg-white text-orange-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'} `}
                               >
-                                 Ibotirama
+                                 <Store size={14} /> <span className="whitespace-nowrap">Filial</span>
                               </button>
                               <button
-                                 onClick={() => { setSelectedDeposit('Barreiras'); setCart([]); }}
-                                 className={`px-3 py-1.5 rounded-md font-bold transition-all text-xs flex items-center ${selectedDeposit === 'Barreiras' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'} `}
+                                 onClick={() => { setSelectedBranch(Branch.MATRIZ); setCart([]); setIsWholesale(true); }}
+                                 className={`px-3 py-1.5 rounded-md font-bold transition-all text-xs flex items-center gap-1.5 ${selectedBranch === Branch.MATRIZ ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'} `}
                               >
-                                 Barreiras
+                                 <Factory size={14} /> <span className="whitespace-nowrap">Matriz</span>
                               </button>
                            </div>
-                        )}
+
+                           {selectedBranch === Branch.MATRIZ && (
+                              <div className="flex bg-slate-100 p-1 rounded-lg shrink-0">
+                                 <button
+                                    onClick={() => { setSelectedDeposit('Ibotirama'); setCart([]); }}
+                                    className={`px-3 py-1.5 rounded-md font-bold transition-all text-xs flex items-center ${selectedDeposit === 'Ibotirama' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'} `}
+                                 >
+                                    <span className="whitespace-nowrap">Ibotirama</span>
+                                 </button>
+                                 <button
+                                    onClick={() => { setSelectedDeposit('Barreiras'); setCart([]); }}
+                                    className={`px-3 py-1.5 rounded-md font-bold transition-all text-xs flex items-center ${selectedDeposit === 'Barreiras' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'} `}
+                                 >
+                                    <span className="whitespace-nowrap">Barreiras</span>
+                                 </button>
+                              </div>
+                           )}
+                        </div>
 
                         {/* Scanner Input - Expanded */}
                         <div className="flex-1 w-full relative flex gap-2">
@@ -902,7 +905,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                            </div>
                         )}
 
-                        <div className="flex-1 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pr-2 content-start">
+                        <div className="flex-1 overflow-y-auto grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 md:gap-3 pr-1 md:pr-2 content-start pb-24 md:pb-4">
                            {filteredPosProducts.map(product => {
                               const stock = getProductStock(product);
                               const isWholesaleIce = product.category.includes('Gelo');
@@ -912,30 +915,30 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                                  <button
                                     key={product.id}
                                     onClick={() => handleProductClick(product)}
-                                    className="flex flex-col items-start justify-between p-3 rounded-2xl border border-slate-100 bg-white shadow-sm hover:shadow-md hover:border-orange-200 transition-all group relative min-h-[160px] w-full text-left"
+                                    className="flex flex-col items-start justify-between p-2 md:p-3 rounded-2xl border border-slate-100 bg-white shadow-sm hover:shadow-md hover:border-orange-200 transition-all group relative min-h-[140px] md:min-h-[160px] w-full text-left"
                                     disabled={!product.comboItems && product.isStockControlled !== false && stock <= 0}
                                  >
-                                    <div className="w-full flex justify-between items-start mb-2">
-                                       <div className="w-8 h-8 bg-orange-50 rounded-full flex items-center justify-center text-orange-600 font-bold text-[10px] border border-orange-100">
+                                    <div className="w-full flex justify-between items-start mb-1 md:mb-2">
+                                       <div className="w-6 h-6 md:w-8 md:h-8 bg-orange-50 rounded-full flex items-center justify-center text-orange-600 font-bold text-[9px] md:text-[10px] border border-orange-100 shrink-0">
                                           {product.unit}
                                        </div>
-                                       <span className={`text - [9px] font-bold px-1.5 py-0.5 rounded-full ${product.comboItems ? 'bg-purple-100 text-purple-600' : product.isStockControlled === false ? 'bg-purple-100 text-purple-600' : stock < product.minStock ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-500'} `}>
+                                       <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${product.comboItems ? 'bg-purple-100 text-purple-600' : product.isStockControlled === false ? 'bg-purple-100 text-purple-600' : stock < product.minStock ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-500'} `}>
                                           {product.comboItems ? 'COMBO' : product.isStockControlled === false ? '∞' : `Est: ${stock} `}
                                        </span>
                                     </div>
 
-                                    <span className="font-bold text-sm text-slate-800 leading-tight line-clamp-2 mb-auto">{product.name}</span>
+                                    <span className="font-bold text-xs md:text-sm text-slate-800 leading-tight line-clamp-2 mb-auto mt-1">{product.name}</span>
 
                                     <div className="w-full mt-2">
                                        {isWholesaleIce ? (
-                                          <div className="flex items-center justify-between w-full">
-                                             <span className="text-xs text-slate-400">A partir de</span>
-                                             <span className="text-blue-700 font-bold text-sm bg-blue-50 px-2 py-1 rounded-lg border border-blue-100">Definir</span>
+                                          <div className="flex flex-col md:flex-row md:items-center justify-between w-full gap-1">
+                                             <span className="text-[10px] md:text-xs text-slate-400">A partir de</span>
+                                             <span className="text-blue-700 font-bold text-xs md:text-sm bg-blue-50 px-1.5 py-0.5 md:py-1 rounded-lg border border-blue-100 inline-block text-center">Definir</span>
                                           </div>
                                        ) : (
-                                          <div className="flex items-center justify-between w-full">
-                                             <span className="text-xs text-slate-400">Preço</span>
-                                             <span className="text-slate-900 font-extrabold text-base">{formatCurrency(price)}</span>
+                                          <div className="flex flex-col md:flex-row md:items-center justify-between w-full gap-0.5 md:gap-1">
+                                             <span className="text-[10px] md:text-xs text-slate-400">Preço</span>
+                                             <span className="text-slate-900 font-extrabold text-sm md:text-base">{formatCurrency(price)}</span>
                                           </div>
                                        )}
                                     </div>
@@ -1096,19 +1099,19 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                   <div className="lg:hidden fixed bottom-4 left-4 right-4 z-40 animate-in slide-in-from-bottom-4">
                      <button
                         onClick={() => setShowMobileCart(true)}
-                        className="w-full bg-slate-900 text-white p-4 rounded-xl shadow-2xl flex justify-between items-center"
+                        className="w-full bg-slate-900 text-white p-4 rounded-2xl shadow-2xl flex justify-between items-center ring-2 ring-slate-800/10 active:scale-95 transition-transform"
                      >
                         <div className="flex items-center gap-3">
-                           <div className="bg-orange-500 w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs">
+                           <div className="bg-orange-500 shadow-md shadow-orange-900/50 w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm">
                               {cart.reduce((acc, item) => acc + item.quantity, 0)}
                            </div>
                            <div className="flex flex-col items-start">
-                              <span className="text-xs text-slate-400">Total estimado</span>
-                              <span className="font-bold text-lg">{formatCurrency(cartTotal)}</span>
+                              <span className="text-xs text-slate-400 uppercase tracking-wider font-semibold">Total estimado</span>
+                              <span className="font-bold text-xl">{formatCurrency(cartTotal)}</span>
                            </div>
                         </div>
-                        <div className="flex items-center gap-2 font-bold text-sm bg-white/10 px-3 py-1.5 rounded-lg">
-                           Ver Sacola <ShoppingCart size={16} />
+                        <div className="flex items-center gap-2 font-bold text-sm bg-white/10 hover:bg-white/20 active:bg-white/30 px-4 py-2 rounded-xl transition-colors">
+                           Sacola <ShoppingCart size={18} />
                         </div>
                      </button>
                   </div>
