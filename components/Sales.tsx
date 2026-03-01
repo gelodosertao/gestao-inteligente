@@ -150,6 +150,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
    const [scannerStatus, setScannerStatus] = useState<'DISCONNECTED' | 'CONNECTING' | 'CONNECTED'>('DISCONNECTED');
    const [barcodeInput, setBarcodeInput] = useState('');
    const [posSearchTerm, setPosSearchTerm] = useState('');
+   const [posCategoryFilter, setPosCategoryFilter] = useState('ALL');
    const barcodeInputRef = useRef<HTMLInputElement>(null);
 
    // --- HISTORY SEARCH STATE ---
@@ -198,18 +199,25 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
 
 
 
+   // Get available categories for filtering
+   const availableCategories = Array.from(new Set(products.map(p => p.category)));
+
    // Filter products for POS quick select
    // Logic: If Atacado (Matriz), SHOW ONLY ICE PRODUCTS.
    const filteredPosProducts = products.filter(p => {
-      const matchesSearch = p.name.toLowerCase().includes(posSearchTerm.toLowerCase()) || p.id.includes(posSearchTerm);
+      const normalizedSearchTerm = posSearchTerm.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+      const normalizedProductName = p.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+      
+      const matchesSearch = normalizedProductName.includes(normalizedSearchTerm) || p.id.includes(posSearchTerm);
+      const matchesCategory = posCategoryFilter === 'ALL' || p.category === posCategoryFilter;
 
       if (selectedBranch === Branch.MATRIZ) {
          // Atacado Filter: Only Ice products
          const isIce = p.category.includes('Gelo');
-         return matchesSearch && isIce;
+         return matchesSearch && isIce && matchesCategory;
       }
 
-      return matchesSearch;
+      return matchesSearch && matchesCategory;
    });
 
    // Get correct price based on selected branch
@@ -375,7 +383,8 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
 
    const handleBarcodeSubmit = (e: React.KeyboardEvent) => {
       if (e.key === 'Enter') {
-         const product = products.find(p => p.id === barcodeInput || p.name.toLowerCase() === barcodeInput.toLowerCase());
+         const normalizedInput = barcodeInput.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+         const product = products.find(p => p.id === barcodeInput || p.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() === normalizedInput);
          if (product) {
             handleProductClick(product);
          } else {
@@ -815,6 +824,25 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                                  className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-orange-500 transition-all"
                               />
                            </div>
+                        </div>
+
+                        {/* Category Filter */}
+                        <div className="flex gap-2 mb-4 overflow-x-auto pb-2 scrollbar-hide">
+                           <button
+                              onClick={() => setPosCategoryFilter('ALL')}
+                              className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${posCategoryFilter === 'ALL' ? 'bg-orange-500 text-white shadow-md' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'} `}
+                           >
+                              Todos
+                           </button>
+                           {availableCategories.map(cat => (
+                              <button
+                                 key={cat}
+                                 onClick={() => setPosCategoryFilter(cat)}
+                                 className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${posCategoryFilter === cat ? 'bg-orange-500 text-white shadow-md' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'} `}
+                              >
+                                 {cat}
+                              </button>
+                           ))}
                         </div>
 
                         {filteredPosProducts.length === 0 && (
