@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Product, Branch, Category, Sale, FinancialRecord, StockMovement, CategoryItem, User } from '../types';
-import { Search, Plus, ArrowRightLeft, Filter, Save, X, Truck, AlertTriangle, Upload, FileText, ArrowLeft, AlertOctagon, Edit, Calculator, DollarSign, TrendingUp, Trash2, PieChart, BarChart3, ListPlus, ScrollText } from 'lucide-react';
+import { Search, Plus, ArrowRightLeft, Filter, Save, X, Truck, AlertTriangle, Upload, FileText, ArrowLeft, AlertOctagon, Edit, Calculator, DollarSign, TrendingUp, Trash2, PieChart, BarChart3, ListPlus, ScrollText, Camera } from 'lucide-react';
+import { BrowserMultiFormatReader } from '@zxing/library';
 import { dbStockMovements, dbCategories } from '../services/db';
 import { getTodayDate, getCurrentDateTime } from '../services/utils';
 import { supabase } from '../services/supabase';
@@ -60,6 +61,40 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
   // Report State
   const [stockMovements, setStockMovements] = useState<StockMovement[]>([]);
   const [loadingMovements, setLoadingMovements] = useState(false);
+
+  // --- CAMERA SCANNER STATE ---
+  const [showCameraModal, setShowCameraModal] = useState(false);
+  const videoRef = React.useRef<HTMLVideoElement>(null);
+  const codeReaderRef = React.useRef<BrowserMultiFormatReader | null>(null);
+
+  const startCamera = async () => {
+    setShowCameraModal(true);
+    if (!codeReaderRef.current) {
+      codeReaderRef.current = new BrowserMultiFormatReader();
+    }
+
+    try {
+      const videoInputDevices = await codeReaderRef.current.listVideoInputDevices();
+      if (videoInputDevices.length > 0) {
+        codeReaderRef.current.decodeFromVideoDevice(null, videoRef.current, (result) => {
+          if (result) {
+            const barcode = result.getText();
+            setNewProductData((prev) => ({ ...prev, barcode }));
+            stopCamera();
+          }
+        });
+      }
+    } catch (err) {
+      console.error("Erro ao iniciar câmera", err);
+    }
+  };
+
+  const stopCamera = () => {
+    if (codeReaderRef.current) {
+      codeReaderRef.current.reset();
+    }
+    setShowCameraModal(false);
+  };
 
   const [reportMonth, setReportMonth] = useState((new Date().getMonth() + 1).toString().padStart(2, '0'));
   const [reportYear, setReportYear] = useState(new Date().getFullYear().toString());
@@ -309,7 +344,8 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
 
       comboItems: newProductData.comboItems && newProductData.comboItems.length > 0 ? newProductData.comboItems : undefined,
       options: newProductData.options && newProductData.options.length > 0 ? newProductData.options : undefined,
-      image: newProductData.image || null
+      image: newProductData.image || null,
+      barcode: newProductData.barcode || undefined
     };
 
     if (isEditing) {
@@ -856,11 +892,28 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
               </div>
 
               {/* --- COMMON FIELDS --- */}
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Nome do Produto</label>
-                <input type="text" className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-white text-slate-900"
-                  value={newProductData.name || ''} onChange={e => setNewProductData({ ...newProductData, name: e.target.value })}
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Nome do Produto</label>
+                  <input type="text" className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-white text-slate-900"
+                    value={newProductData.name || ''} onChange={e => setNewProductData({ ...newProductData, name: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Cód. Barras (Opcional)</label>
+                  <div className="flex gap-2">
+                    <input type="text" placeholder="Leitor ou número..." className="w-full flex-1 px-4 py-2 border border-slate-200 rounded-lg bg-white text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                      value={newProductData.barcode || ''} onChange={e => setNewProductData({ ...newProductData, barcode: e.target.value })}
+                    />
+                    <button
+                      onClick={startCamera}
+                      className="px-3 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 font-bold flex items-center gap-1 shrink-0 transition-colors"
+                      title="Escanear com a câmera"
+                    >
+                      <Camera size={20} />
+                    </button>
+                  </div>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -1720,6 +1773,36 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
           </div>
         </div>
       )}
+
+      {/* --- CAMERA SCANNER MODAL --- */}
+      {showCameraModal && (
+        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[60] flex flex-col items-center justify-center p-4">
+          <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+            <div className="p-4 bg-slate-800 text-white flex justify-between items-center">
+              <h3 className="font-bold flex items-center gap-2">
+                <Camera size={20} className="text-blue-400" /> Escanear Código
+              </h3>
+              <button onClick={stopCamera} className="text-slate-300 hover:text-white transition-colors">
+                <X size={24} />
+              </button>
+            </div>
+            <div className="p-4 flex flex-col items-center justify-center bg-black relative">
+              <video
+                ref={videoRef}
+                className="w-full rounded-lg"
+                style={{ maxHeight: '60vh', objectFit: 'cover' }}
+              ></video>
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div className="w-3/4 h-32 border-2 border-red-500 rounded-lg opacity-50"></div>
+              </div>
+            </div>
+            <div className="p-4 text-center text-sm font-medium text-slate-500">
+              Aponte a câmera para o código de barras
+            </div>
+          </div>
+        </div>
+      )}
+
     </>
   );
 };

@@ -2,8 +2,9 @@ import React, { useState, useRef } from 'react';
 import { invoiceService } from '../services/invoiceService';
 import { Sale, Branch, Product, Customer, User, PaymentEntry } from '../types';
 import { hardwareBridge } from '../services/hardwareBridge';
-import { ShoppingCart, FileText, CheckCircle, Clock, X, Printer, Send, ScanBarcode, Search, Trash2, Plus, Minus, CreditCard, Banknote, QrCode, Bluetooth, ArrowRight, Store, Factory, Calculator, User as UserIcon, UserPlus, Edit, Save, ArrowLeft, Download } from 'lucide-react';
+import { ShoppingCart, FileText, CheckCircle, Clock, X, Printer, Send, ScanBarcode, Search, Trash2, Plus, Minus, CreditCard, Banknote, QrCode, Bluetooth, ArrowRight, Store, Factory, Calculator, User as UserIcon, UserPlus, Edit, Save, ArrowLeft, Download, Camera } from 'lucide-react';
 import html2canvas from 'html2canvas';
+import { BrowserMultiFormatReader } from '@zxing/library';
 import { getTodayDate } from '../services/utils';
 
 interface SalesProps {
@@ -153,6 +154,11 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
    const [posCategoryFilter, setPosCategoryFilter] = useState('ALL');
    const barcodeInputRef = useRef<HTMLInputElement>(null);
 
+   // --- CAMERA SCANNER STATE ---
+   const [showCameraModal, setShowCameraModal] = useState(false);
+   const videoRef = useRef<HTMLVideoElement>(null);
+   const codeReaderRef = useRef<BrowserMultiFormatReader | null>(null);
+
    // --- HISTORY SEARCH STATE ---
    const [historySearchTerm, setHistorySearchTerm] = useState('');
    const [statusFilter, setStatusFilter] = useState<'ALL' | 'Completed' | 'Pending' | 'Cancelled'>('ALL');
@@ -207,7 +213,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
    const filteredPosProducts = products.filter(p => {
       const normalizedSearchTerm = posSearchTerm.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
       const normalizedProductName = p.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-      
+
       const matchesSearch = normalizedProductName.includes(normalizedSearchTerm) || p.id.includes(posSearchTerm);
       const matchesCategory = posCategoryFilter === 'ALL' || p.category === posCategoryFilter;
 
@@ -384,7 +390,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
    const handleBarcodeSubmit = (e: React.KeyboardEvent) => {
       if (e.key === 'Enter') {
          const normalizedInput = barcodeInput.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-         const product = products.find(p => p.id === barcodeInput || p.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() === normalizedInput);
+         const product = products.find(p => p.id === barcodeInput || p.barcode === barcodeInput || p.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() === normalizedInput);
          if (product) {
             handleProductClick(product);
          } else {
@@ -392,6 +398,44 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
          }
       }
    };
+
+   const startCamera = async () => {
+      setShowCameraModal(true);
+      if (!codeReaderRef.current) {
+         codeReaderRef.current = new BrowserMultiFormatReader();
+      }
+
+      try {
+         const videoInputDevices = await codeReaderRef.current.listVideoInputDevices();
+         if (videoInputDevices.length > 0) {
+            const selectedDeviceId = videoInputDevices[0].deviceId;
+            codeReaderRef.current.decodeFromVideoDevice(null, videoRef.current, (result, err) => {
+               if (result) {
+                  const barcode = result.getText();
+                  setBarcodeInput(barcode);
+                  const normalizedInput = barcode.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+                  const product = products.find(p => p.id === barcode || p.barcode === barcode || p.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() === normalizedInput);
+                  if (product) {
+                     handleProductClick(product);
+                     stopCamera();
+                  } else {
+                     alert("Produto não encontrado.");
+                  }
+               }
+            });
+         }
+      } catch (err) {
+         console.error("Erro ao iniciar câmera", err);
+      }
+   };
+
+   const stopCamera = () => {
+      if (codeReaderRef.current) {
+         codeReaderRef.current.reset();
+      }
+      setShowCameraModal(false);
+   };
+
 
    const initiateCheckout = () => {
       if (cart.length === 0) return;
@@ -792,6 +836,13 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                               />
                            </div>
                            <button
+                              onClick={startCamera}
+                              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all shrink-0 bg-blue-100 text-blue-700 hover:bg-blue-200"
+                           >
+                              <Camera size={14} />
+                              <span className="hidden sm:inline">Câmera</span>
+                           </button>
+                           <button
                               onClick={handlePairScanner}
                               disabled={scannerStatus === 'CONNECTED'}
                               className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all shrink-0
@@ -799,7 +850,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                                     ? 'bg-green-100 text-green-700 cursor-default'
                                     : scannerStatus === 'CONNECTING'
                                        ? 'bg-amber-100 text-amber-700 animate-pulse'
-                                       : 'bg-blue-800 text-white hover:bg-blue-700'
+                                       : 'bg-slate-800 text-white hover:bg-slate-700'
                                  } `}
                            >
                               <Bluetooth size={14} />
@@ -1976,6 +2027,34 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
             </div>
          )}
 
+         {/* --- CAMERA SCANNER MODAL --- */}
+         {showCameraModal && (
+            <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-4">
+               <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+                  <div className="p-4 bg-slate-800 text-white flex justify-between items-center">
+                     <h3 className="font-bold flex items-center gap-2">
+                        <Camera size={20} className="text-blue-400" /> Leitor de Código de Barras
+                     </h3>
+                     <button onClick={stopCamera} className="text-slate-300 hover:text-white transition-colors">
+                        <X size={24} />
+                     </button>
+                  </div>
+                  <div className="p-4 flex flex-col items-center justify-center bg-black relative">
+                     <video
+                        ref={videoRef}
+                        className="w-full rounded-lg"
+                        style={{ maxHeight: '60vh', objectFit: 'cover' }}
+                     ></video>
+                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <div className="w-3/4 h-32 border-2 border-red-500 rounded-lg opacity-50"></div>
+                     </div>
+                  </div>
+                  <div className="p-4 text-center text-sm font-medium text-slate-500">
+                     Aponte a câmera para o código de barras
+                  </div>
+               </div>
+            </div>
+         )}
       </div>
    );
 };

@@ -55,6 +55,7 @@ export interface Product {
   image?: string; // URL da imagem do produto
   description?: string; // Descrição do produto
   options?: ProductOption[]; // Opções de personalização
+  barcode?: string; // Código de barras do produto
 
   // Production / Recipe
   recipe?: { ingredientId: string; quantity: number }[]; // Insumos gastos por unidade produzida

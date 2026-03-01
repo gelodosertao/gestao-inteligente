@@ -237,7 +237,8 @@ export const dbProducts = {
       recipeBatchSize: row.recipe_batch_size,
 
       operationalCost: row.operational_cost,
-      options: row.options
+      options: row.options,
+      barcode: row.barcode
     }));
   },
 
@@ -264,6 +265,7 @@ export const dbProducts = {
       operational_cost: product.operationalCost,
 
       options: product.options,
+      barcode: product.barcode,
       tenant_id: tenantId
     }]);
     if (error) throw error;
@@ -290,7 +292,8 @@ export const dbProducts = {
       recipe_batch_size: product.recipeBatchSize,
 
       operational_cost: product.operationalCost,
-      options: product.options
+      options: product.options,
+      barcode: product.barcode
     }).eq('id', product.id);
     if (error) throw error;
   },
