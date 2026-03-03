@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Product, Order, Branch, StoreSettings } from '../types';
-import { ShoppingBag, Minus, Plus, X, Search, MapPin, CreditCard, Send, CheckCircle, ChevronLeft, Store } from 'lucide-react';
+import { ShoppingBag, Minus, Plus, X, Search, MapPin, CreditCard, Send, CheckCircle, ChevronLeft, Store, ListOrdered } from 'lucide-react';
 import { dbProducts, dbSettings, dbOrders, dbCustomers } from '../services/db';
 import { getTodayDate } from '../services/utils';
 
@@ -34,7 +34,7 @@ const OnlineMenu: React.FC<OnlineMenuProps> = ({ onBack }) => {
     const [customizationQty, setCustomizationQty] = useState(1);
 
     // Checkout State
-    const [step, setStep] = useState<'MENU' | 'CART' | 'CHECKOUT' | 'SUCCESS'>('MENU');
+    const [step, setStep] = useState<'MENU' | 'CART' | 'CHECKOUT' | 'SUCCESS' | 'TRACKING'>('MENU');
     const [customerName, setCustomerName] = useState('');
     const [customerPhone, setCustomerPhone] = useState('');
     const [deliveryMethod, setDeliveryMethod] = useState<'DELIVERY' | 'PICKUP'>('DELIVERY');
@@ -43,6 +43,10 @@ const OnlineMenu: React.FC<OnlineMenuProps> = ({ onBack }) => {
     const [paymentMethod, setPaymentMethod] = useState<'PIX' | 'CARD' | 'CASH'>('PIX');
     const [changeFor, setChangeFor] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
+
+    // Tracking State
+    const [myOrders, setMyOrders] = useState<Order[]>([]);
+    const [isLoadingOrders, setIsLoadingOrders] = useState(false);
 
     const [deliveryFee, setDeliveryFee] = useState(0);
     const [isCalculatingFee, setIsCalculatingFee] = useState(false);
@@ -55,6 +59,27 @@ const OnlineMenu: React.FC<OnlineMenuProps> = ({ onBack }) => {
     // Refs for scrolling
     const categoryScrollRef = useRef<HTMLDivElement>(null);
     const addressTypingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+    // --- LOAD MY ORDERS ---
+    const loadMyOrders = async () => {
+        const savedOrderIds = JSON.parse(localStorage.getItem('om_orderIds') || '[]');
+        if (savedOrderIds.length === 0) {
+            setMyOrders([]);
+            return;
+        }
+        setIsLoadingOrders(true);
+        try {
+            const params = new URLSearchParams(window.location.search);
+            const tenantId = params.get('tenantId') || '00000000-0000-0000-0000-000000000000';
+            const allOrders = await dbOrders.getAll(tenantId);
+            const filtered = allOrders.filter(o => savedOrderIds.includes(o.id));
+            setMyOrders(filtered.sort((a, b) => b.createdAt - a.createdAt).slice(0, 10));
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setIsLoadingOrders(false);
+        }
+    };
 
     // --- SEARCH CEP ---
     const handleCepSearch = async (currentCep: string) => {
@@ -374,20 +399,70 @@ const OnlineMenu: React.FC<OnlineMenuProps> = ({ onBack }) => {
     // Improved Customization State Management
     // We will use a list of selected choices
     const handleOptionSelect = (optionName: string, choice: { name: string, priceChange?: number }, type: 'radio' | 'checkbox' | 'text') => {
+        const isSemAlcool = choice.name === 'SEM ÁLCOOL' || optionName === 'SEM ÁLCOOL';
+        const isAlcohol = optionName === 'FEITO COM' || optionName.toUpperCase().includes('LICOR') || choice.name.toUpperCase().includes('VODKA') || choice.name.toUpperCase().includes('CACHAÇA') || choice.name.toUpperCase().includes('ABSOLUT');
+
         if (type === 'radio') {
-            setSelectedOptions(prev => ({
-                ...prev,
-                [optionName]: { choiceName: choice.name, priceChange: choice.priceChange || 0 }
-            }));
+            setSelectedOptions(prev => {
+                if (prev[optionName]?.choiceName === choice.name) {
+                    const newState: any = { ...prev };
+                    delete newState[optionName];
+                    return newState;
+                }
+
+                const newState: any = {
+                    ...prev,
+                    [optionName]: { choiceName: choice.name, priceChange: choice.priceChange || 0, optionGroup: optionName }
+                };
+
+                if (isSemAlcool) {
+                    Object.keys(newState).forEach(k => {
+                        const val = newState[k];
+                        const group = val.optionGroup?.toUpperCase() || k.toUpperCase();
+                        const choiceN = val.choiceName?.toUpperCase() || '';
+                        if (group === 'FEITO COM' || group.includes('LICOR') || choiceN.includes('VODKA') || choiceN.includes('CACHAÇA') || choiceN.includes('ABSOLUT')) {
+                            delete newState[k];
+                        }
+                    });
+                } else if (isAlcohol) {
+                    const semAlcoolKey = 'SEM ÁLCOOL:SEM ÁLCOOL';
+                    if (newState[semAlcoolKey]) delete newState[semAlcoolKey];
+                    if (newState['SEM ÁLCOOL']) delete newState['SEM ÁLCOOL'];
+                }
+
+                return newState;
+            });
         } else {
             // Checkbox: toggle
             const key = `${optionName}:${choice.name}`;
+
+            const isSemAlcool = choice.name === 'SEM ÁLCOOL' || optionName === 'SEM ÁLCOOL';
+            const isAlcohol = optionName === 'FEITO COM' || optionName.toUpperCase().includes('LICOR') || choice.name.toUpperCase().includes('VODKA') || choice.name.toUpperCase().includes('CACHAÇA') || choice.name.toUpperCase().includes('ABSOLUT');
+
             setSelectedOptions(prev => {
                 const newState = { ...prev };
                 if (newState[key]) {
                     delete newState[key];
                 } else {
                     newState[key] = { choiceName: choice.name, priceChange: choice.priceChange || 0, isCheckbox: true, optionGroup: optionName };
+
+                    if (isSemAlcool) {
+                        // Remove alcohol options when Sem Álcool is selected
+                        Object.keys(newState).forEach(k => {
+                            const val = newState[k];
+                            const group = val.optionGroup?.toUpperCase() || '';
+                            const choiceN = val.choiceName?.toUpperCase() || '';
+                            if (group === 'FEITO COM' || group.includes('LICOR') || choiceN.includes('VODKA') || choiceN.includes('CACHAÇA') || choiceN.includes('ABSOLUT')) {
+                                delete newState[k];
+                            }
+                        });
+                    } else if (isAlcohol) {
+                        // Remove 'Sem Álcool' when alcohol is selected
+                        const semAlcoolKey = 'SEM ÁLCOOL:SEM ÁLCOOL';
+                        if (newState[semAlcoolKey]) delete newState[semAlcoolKey];
+                        // If there's any other radio variation of SEM ÁLCOOL, remove them too
+                        if (newState['SEM ÁLCOOL']) delete newState['SEM ÁLCOOL'];
+                    }
                 }
                 return newState;
             });
@@ -405,6 +480,12 @@ const OnlineMenu: React.FC<OnlineMenuProps> = ({ onBack }) => {
         // Validate required options
         const missingOptions = customizationProduct!.options?.filter(opt => {
             if (!opt.required) return false;
+
+            // Allow bypassing 'FEITO COM' if 'SEM ÁLCOOL' is selected
+            const hasSemAlcool = selectedOptions['SEM ÁLCOOL:SEM ÁLCOOL'] || selectedOptions['SEM ÁLCOOL'];
+            if (opt.name === 'FEITO COM' && hasSemAlcool) {
+                return false;
+            }
 
             if (opt.type === 'radio') {
                 return !selectedOptions[opt.name];
@@ -463,6 +544,12 @@ const OnlineMenu: React.FC<OnlineMenuProps> = ({ onBack }) => {
             const params = new URLSearchParams(window.location.search);
             const tenantId = params.get('tenantId') || '00000000-0000-0000-0000-000000000000';
             await dbOrders.add(newOrder, tenantId);
+
+            const savedOrderIds = JSON.parse(localStorage.getItem('om_orderIds') || '[]');
+            if (!savedOrderIds.includes(newOrder.id)) {
+                savedOrderIds.push(newOrder.id);
+                localStorage.setItem('om_orderIds', JSON.stringify(savedOrderIds));
+            }
 
             localStorage.setItem('om_customerName', customerName);
             localStorage.setItem('om_customerPhone', customerPhone);
@@ -568,6 +655,15 @@ const OnlineMenu: React.FC<OnlineMenuProps> = ({ onBack }) => {
                     className="w-full max-w-xs bg-slate-900 text-white py-4 rounded-xl font-bold shadow-lg hover:bg-slate-800 transition-all"
                 >
                     Fazer Novo Pedido
+                </button>
+                <button
+                    onClick={() => {
+                        setStep('TRACKING');
+                        loadMyOrders();
+                    }}
+                    className="w-full max-w-xs bg-slate-100 text-slate-800 py-4 rounded-xl font-bold shadow-sm hover:bg-slate-200 transition-all mt-3"
+                >
+                    Acompanhar Pedido
                 </button>
             </div>
         );
@@ -705,6 +801,66 @@ const OnlineMenu: React.FC<OnlineMenuProps> = ({ onBack }) => {
         );
     }
 
+    // 4. TRACKING SCREEN
+    if (step === 'TRACKING') {
+        return (
+            <div className="min-h-screen bg-slate-50 flex flex-col md:max-w-md mx-auto animate-in slide-in-from-right duration-300 relative pb-10 shadow-xl">
+                <div className="bg-white p-4 sticky top-0 z-30 shadow-sm border-b border-slate-100 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <button onClick={() => setStep('MENU')} className="p-2 -ml-2 hover:bg-slate-50 rounded-full text-slate-600">
+                            <ChevronLeft size={24} />
+                        </button>
+                        <h1 className="font-bold text-lg text-slate-800">Acompanhar Pedidos</h1>
+                    </div>
+                    <button onClick={loadMyOrders} className="text-sm font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg active:scale-95 transition-all outline-none">Atualizar</button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                    {isLoadingOrders ? (
+                        <div className="text-center py-10 text-slate-400 animate-pulse font-medium">Carregando pedidos...</div>
+                    ) : myOrders.length === 0 ? (
+                        <div className="text-center py-10 text-slate-400 font-medium">
+                            Você ainda não tem pedidos recentes.<br /><br />
+                            <button onClick={() => setStep('MENU')} className="text-blue-600 font-bold underline">Voltar ao Cardápio</button>
+                        </div>
+                    ) : (
+                        myOrders.map(order => (
+                            <div key={order.id} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col gap-3">
+                                <div className="flex justify-between items-start">
+                                    <div>
+                                        <span className="text-xs font-black text-slate-400 tracking-wider">PEDIDO #{order.id.split('-')[0].toUpperCase()}</span>
+                                        <p className="font-bold text-slate-800 mt-1">{new Date(order.createdAt).toLocaleDateString('pt-BR')} às {new Date(order.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p>
+                                    </div>
+                                    <div className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${order.status === 'PENDING' ? 'bg-orange-100 text-orange-700' :
+                                            order.status === 'PREPARING' ? 'bg-blue-100 text-blue-700' :
+                                                order.status === 'READY' ? 'bg-emerald-100 text-emerald-700' :
+                                                    order.status === 'DELIVERED' ? 'bg-slate-200 text-slate-700' :
+                                                        'bg-red-100 text-red-700'
+                                        }`}>
+                                        {order.status === 'PENDING' ? 'Aguardando' :
+                                            order.status === 'PREPARING' ? 'Em Preparo' :
+                                                order.status === 'READY' ? 'Pronto' :
+                                                    order.status === 'DELIVERED' ? (order.deliveryMethod === 'DELIVERY' ? 'Saiu p/ Entrega' : 'Entregue') :
+                                                        'Cancelado'}
+                                    </div>
+                                </div>
+                                <div className="border-t border-slate-100 pt-3">
+                                    {order.items.map((item, idx) => (
+                                        <p key={idx} className="text-sm text-slate-600 mb-1"><span className="font-bold text-slate-800">{item.quantity}x</span> {item.productName}</p>
+                                    ))}
+                                </div>
+                                <div className="border-t border-slate-100 pt-3 flex justify-between items-center text-sm">
+                                    <span className="text-slate-500 font-medium tracking-tight">Total do Pedido</span>
+                                    <span className="font-black text-slate-900 text-lg">{formatCurrency(order.total)}</span>
+                                </div>
+                            </div>
+                        ))
+                    )}
+                </div>
+            </div>
+        );
+    }
+
     // 3. MAIN MENU SCREEN (Default)
     return (
         <div className="min-h-screen bg-slate-50 pb-28 md:pb-0 relative font-sans">
@@ -820,7 +976,17 @@ const OnlineMenu: React.FC<OnlineMenuProps> = ({ onBack }) => {
                 )}
 
                 <div className={`relative z-10 ${settings?.coverImage ? 'pt-10' : 'bg-white shadow-sm border-b border-slate-100'}`}>
-                    <div className="px-5 py-4 flex flex-col items-center gap-2 text-center">
+                    <div className="px-5 py-4 flex flex-col items-center gap-2 text-center relative">
+                        <button
+                            onClick={() => {
+                                setStep('TRACKING');
+                                loadMyOrders();
+                            }}
+                            className={`absolute top-4 right-5 p-2 rounded-full backdrop-blur-md shadow-sm transition-all hover:scale-105 active:scale-95 ${settings?.coverImage ? 'bg-black/30 text-white' : 'bg-slate-100 text-slate-700'}`}
+                            title="Acompanhar Meus Pedidos"
+                        >
+                            <ListOrdered size={20} />
+                        </button>
                         <h1 className={`font-black text-2xl tracking-tight ${settings?.coverImage ? 'text-white' : 'text-slate-800'}`}>
                             {settings?.storeName || 'Gelo do Sertão'}
                         </h1>
