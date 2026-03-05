@@ -391,7 +391,8 @@ export const dbSales = {
       changeAmount: row.change_amount,
       amountPaid: row.amount_paid,
       paymentHistory: row.payment_history,
-      createdAt: row.created_at
+      createdAt: row.created_at,
+      deliveryFee: row.delivery_fee
     }));
   },
 
@@ -412,6 +413,7 @@ export const dbSales = {
       amount_paid: sale.amountPaid,
       payment_history: sale.paymentHistory,
       created_at: sale.createdAt,
+      delivery_fee: sale.deliveryFee,
       tenant_id: tenantId
     };
 
@@ -437,7 +439,8 @@ export const dbSales = {
       cash_received: sale.cashReceived,
       change_amount: sale.changeAmount,
       amount_paid: sale.amountPaid,
-      payment_history: sale.paymentHistory
+      payment_history: sale.paymentHistory,
+      delivery_fee: sale.deliveryFee
     };
 
     if (sale.paymentSplits) {
@@ -702,7 +705,8 @@ export const dbOrders = {
       total: row.total,
       status: row.status,
       branch: row.branch,
-      createdAt: row.created_at
+      createdAt: row.created_at,
+      deliveryFee: row.delivery_fee
     }));
   },
 
@@ -720,6 +724,7 @@ export const dbOrders = {
       status: order.status,
       branch: order.branch,
       created_at: order.createdAt,
+      delivery_fee: order.deliveryFee,
       tenant_id: tenantId
     }]);
     if (error) throw error;

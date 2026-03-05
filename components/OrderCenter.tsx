@@ -244,14 +244,15 @@ const OrderCenter: React.FC<OrderCenterProps> = ({ onBack, tenantId }) => {
                     date: getTodayDate(),
                     createdAt: new Date().toISOString(),
                     customerName: order.customerName,
-                    total: order.total,
+                    total: order.total + (order.deliveryFee || 0),
                     branch: order.branch,
                     status: 'Completed',
                     paymentMethod: order.paymentMethod === 'PIX' ? 'Pix' : order.paymentMethod === 'CARD' ? 'Credit' : 'Cash',
                     hasInvoice: false,
                     items: order.items,
                     cashReceived: undefined,
-                    changeAmount: undefined
+                    changeAmount: undefined,
+                    deliveryFee: order.deliveryFee
                 };
                 await dbSales.add(newSale, tenantId);
                 // alert("Venda registrada no financeiro!"); // Less intrusive
@@ -398,9 +399,21 @@ const OrderCenter: React.FC<OrderCenterProps> = ({ onBack, tenantId }) => {
                                                                 </li>
                                                             ))}
                                                         </ul>
-                                                        <div className="mt-2 pt-2 border-t border-slate-200 flex justify-between items-center">
-                                                            <span className="text-xs text-slate-500 font-medium">Total do Pedido</span>
-                                                            <span className="font-bold text-slate-800 text-base">{order.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                                                        <div className="mt-2 pt-2 border-t border-slate-200 space-y-1">
+                                                            <div className="flex justify-between items-center text-xs text-slate-500 font-medium">
+                                                                <span>Subtotal</span>
+                                                                <span>{order.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                                                            </div>
+                                                            {order.deliveryFee > 0 && (
+                                                                <div className="flex justify-between items-center text-xs text-slate-500 font-medium">
+                                                                    <span>Taxa de Entrega</span>
+                                                                    <span>{order.deliveryFee.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                                                                </div>
+                                                            )}
+                                                            <div className="flex justify-between items-center pt-1 border-t border-slate-100 italic">
+                                                                <span className="text-sm font-bold text-slate-800">Total do Pedido</span>
+                                                                <span className="font-bold text-slate-800 text-base">{(order.total + (order.deliveryFee || 0)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                                                            </div>
                                                         </div>
                                                     </div>
 

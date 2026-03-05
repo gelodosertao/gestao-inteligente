@@ -1970,7 +1970,19 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                   </table>
                </div>
 
-               <div className="text-right mb-4">
+               <div className="text-right mb-4 space-y-1">
+                  {lastCompletedSale.deliveryFee && lastCompletedSale.deliveryFee > 0 && (
+                     <div className="flex justify-between items-center text-[10px]">
+                        <span>Itens:</span>
+                        <span>{formatCurrency(lastCompletedSale.total - lastCompletedSale.deliveryFee)}</span>
+                     </div>
+                  )}
+                  {lastCompletedSale.deliveryFee && lastCompletedSale.deliveryFee > 0 && (
+                     <div className="flex justify-between items-center text-[10px]">
+                        <span>Frete:</span>
+                        <span>{formatCurrency(lastCompletedSale.deliveryFee)}</span>
+                     </div>
+                  )}
                   <p><strong>Total: {formatCurrency(lastCompletedSale.total)}</strong></p>
                   <p className="text-[9px]">Pagamento: {lastCompletedSale.paymentMethod === 'Credit' ? 'Crédito' : lastCompletedSale.paymentMethod === 'Debit' ? 'Débito' : lastCompletedSale.paymentMethod === 'Pix' ? 'PIX' : 'Dinheiro'}</p>
                </div>
@@ -2032,7 +2044,19 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                </div>
 
                <div className="text-right mb-6 space-y-1">
-                  <p className="text-xl font-bold">Total: {formatCurrency(saleToDownload.total)}</p>
+                  {saleToDownload.deliveryFee && saleToDownload.deliveryFee > 0 && (
+                     <div className="flex justify-between items-center text-[10px]">
+                        <span>Subtotal Itens:</span>
+                        <span>{formatCurrency(saleToDownload.total - saleToDownload.deliveryFee)}</span>
+                     </div>
+                  )}
+                  {saleToDownload.deliveryFee && saleToDownload.deliveryFee > 0 && (
+                     <div className="flex justify-between items-center text-[10px]">
+                        <span>Taxa de Entrega:</span>
+                        <span>{formatCurrency(saleToDownload.deliveryFee)}</span>
+                     </div>
+                  )}
+                  <p className="text-xl font-bold border-t border-black pt-1">Total: {formatCurrency(saleToDownload.total)}</p>
                   <p className="text-xs">Forma de Pagamento: {saleToDownload.paymentMethod}</p>
                </div>
 
