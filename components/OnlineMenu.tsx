@@ -266,6 +266,21 @@ const OnlineMenu: React.FC<OnlineMenuProps> = ({ onBack }) => {
         const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
         const matchesCategory = selectedCategory === 'Todos' || p.category === selectedCategory;
         return matchesSearch && matchesCategory;
+    }).sort((a, b) => {
+        if (selectedCategory === 'Todos') {
+            const getWeight = (cat: string) => {
+                if (cat === 'Caipirinha') return 1;
+                if (cat === 'Caipiroska Premium') return 2;
+                return 99;
+            };
+            const wA = getWeight(a.category);
+            const wB = getWeight(b.category);
+            if (wA !== wB) return wA - wB;
+            // Se tiverem o mesmo peso (ex: ambas são Caipirinhas), ordena por preço crescente
+            return a.priceFilial - b.priceFilial;
+        }
+        // Se estiver dentro de uma categoria específica, pode ordenar apenas pelo preço ou nome
+        return a.priceFilial - b.priceFilial || a.name.localeCompare(b.name);
     });
 
     const getCartQuantity = (productId: string) => {
