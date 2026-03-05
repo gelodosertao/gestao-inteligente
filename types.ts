@@ -163,6 +163,7 @@ export interface Order {
   status: 'PENDING' | 'PREPARING' | 'READY' | 'DELIVERED' | 'CANCELLED';
   branch: Branch;
   createdAt: number;
+  deliveryFee?: number;
 }
 
 export interface Customer {

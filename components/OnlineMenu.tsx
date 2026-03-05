@@ -597,6 +597,7 @@ const OnlineMenu: React.FC<OnlineMenuProps> = ({ onBack }) => {
                     notes: item.notes
                 })),
                 total: cartTotal,
+                deliveryFee: deliveryMethod === 'DELIVERY' ? deliveryFee : 0,
                 status: 'PENDING',
                 branch: Branch.FILIAL,
                 createdAt: Date.now()

@@ -487,16 +487,20 @@ const OrderCenter: React.FC<OrderCenterProps> = ({ onBack, tenantId }) => {
                                 <div key={i} className="mb-1 leading-tight">
                                     <div className="flex justify-between font-bold">
                                         <span>{item.quantity}x {item.productName}</span>
+                                        <span>{(item.quantity * item.priceAtSale).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                                    </div>
+                                    <div className="text-[8px] text-gray-500 pl-4">
+                                        Unitário: {item.priceAtSale.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                     </div>
                                     {item.selectedOptions && item.selectedOptions.length > 0 && (
-                                        <div className="pl-2 text-[9px] text-gray-700">
+                                        <div className="pl-4 text-[9px] text-gray-700">
                                             {item.selectedOptions.map((opt, oIdx) => (
-                                                <div key={oIdx}>+ {opt.choiceName}</div>
+                                                <div key={oIdx}>+ {opt.choiceName} ({opt.priceChange.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })})</div>
                                             ))}
                                         </div>
                                     )}
                                     {item.notes && (
-                                        <div className="pl-2 text-[9px] italic">Obs: {item.notes}</div>
+                                        <div className="pl-4 text-[9px] italic text-orange-700">Obs: {item.notes}</div>
                                     )}
                                 </div>
                             ))}
@@ -509,9 +513,19 @@ const OrderCenter: React.FC<OrderCenterProps> = ({ onBack, tenantId }) => {
                             </div>
                         )}
 
-                        <div className="flex justify-between items-center font-bold text-sm mt-3 border-t border-dashed border-black pt-1">
-                            <span>Total:</span>
-                            <span>{orderToPrint.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                        <div className="space-y-1 mt-3 border-t border-dashed border-black pt-2">
+                            <div className="flex justify-between items-center text-[10px]">
+                                <span>Subtotal Itens:</span>
+                                <span>{orderToPrint.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                            </div>
+                            <div className="flex justify-between items-center text-[10px]">
+                                <span>Taxa de Entrega:</span>
+                                <span>{(orderToPrint.deliveryFee || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                            </div>
+                            <div className="flex justify-between items-center font-bold text-sm pt-1 border-t border-black">
+                                <span>TOTAL GERAL:</span>
+                                <span>{(orderToPrint.total + (orderToPrint.deliveryFee || 0)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                            </div>
                         </div>
                         <div className="text-left text-[9px] mt-1">
                             Pagamento: {orderToPrint.paymentMethod}
