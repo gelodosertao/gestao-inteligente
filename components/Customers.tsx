@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { User, Customer, Branch } from '../types';
 import { Users, Plus, Upload, Search, Trash2, Save, X, FileText, Edit, ArrowLeft, ArrowUpDown, ArrowUp, ArrowDown, Building2 } from 'lucide-react';
 import { read, utils } from 'xlsx';
+import { getFixedFeeByNeighborhood } from '../services/utils';
 
 interface CustomersProps {
     customers: Customer[];
@@ -35,6 +36,7 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
     const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
     const [newCustomer, setNewCustomer] = useState<Partial<Customer>>({ branch: Branch.MATRIZ });
     const [cepInput, setCepInput] = useState('');
+    const [suggestedFee, setSuggestedFee] = useState<number | null>(null);
     const [sortConfig, setSortConfig] = useState<{ key: keyof Customer; direction: 'asc' | 'desc' } | null>({ key: 'segment', direction: 'asc' });
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -88,6 +90,10 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
 
             const fullAddress = `${data.logradouro}, ${data.bairro}, ${data.localidade} - ${data.uf}`;
 
+            // Identify fee
+            const fee = getFixedFeeByNeighborhood(fullAddress);
+            setSuggestedFee(fee);
+
             if (isEditing && editingCustomer) {
                 setEditingCustomer({
                     ...editingCustomer,
@@ -129,6 +135,7 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
         setShowAddModal(false);
         setNewCustomer({ branch: Branch.MATRIZ });
         setCepInput('');
+        setSuggestedFee(null);
     };
 
     const handleUpdateCustomerSave = () => {
@@ -137,6 +144,7 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
         setShowEditModal(false);
         setEditingCustomer(null);
         setCepInput('');
+        setSuggestedFee(null);
     };
 
     const openEditModal = (customer: Customer) => {
@@ -539,6 +547,12 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
                                     >
                                         Buscar CEP
                                     </button>
+                                    {suggestedFee !== null && (
+                                        <div className="flex-1 bg-green-50 border border-green-200 rounded-lg px-3 py-1 flex items-center justify-between animate-in zoom-in-95">
+                                            <span className="text-[10px] font-bold text-green-700 uppercase">Frete Fixo</span>
+                                            <span className="font-bold text-green-600 text-sm">R$ {suggestedFee.toFixed(2)}</span>
+                                        </div>
+                                    )}
                                 </div>
                                 <input
                                     type="text"
@@ -684,6 +698,12 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
                                     >
                                         Buscar CEP
                                     </button>
+                                    {suggestedFee !== null && (
+                                        <div className="flex-1 bg-green-50 border border-green-200 rounded-lg px-3 py-1 flex items-center justify-between animate-in zoom-in-95">
+                                            <span className="text-[10px] font-bold text-green-700 uppercase">Frete Fixo</span>
+                                            <span className="font-bold text-green-600 text-sm">R$ {suggestedFee.toFixed(2)}</span>
+                                        </div>
+                                    )}
                                 </div>
                                 <input
                                     type="text"

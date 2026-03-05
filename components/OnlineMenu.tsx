@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Product, Order, Branch, StoreSettings } from '../types';
 import { ShoppingBag, Minus, Plus, X, Search, MapPin, CreditCard, Send, CheckCircle, ChevronLeft, Store, ListOrdered, Package } from 'lucide-react';
 import { dbProducts, dbSettings, dbOrders, dbCustomers } from '../services/db';
-import { getTodayDate } from '../services/utils';
+import { getTodayDate, getFixedFeeByNeighborhood } from '../services/utils';
 
 interface CartItem {
     id: string; // Unique Cart ID
@@ -139,6 +139,14 @@ const OnlineMenu: React.FC<OnlineMenuProps> = ({ onBack }) => {
     }, [address, deliveryMethod, settings]);
 
     const calculateDeliveryFee = async (inputAddress: string) => {
+        // Prioritize Fixed Fees by Neighborhood
+        const fixedFee = getFixedFeeByNeighborhood(inputAddress);
+        if (fixedFee !== null) {
+            setDeliveryFee(fixedFee);
+            setIsCalculatingFee(false);
+            return;
+        }
+
         if (!settings?.deliveryPerKm) {
             setDeliveryFee(settings?.deliveryBaseFee || 0);
             setIsCalculatingFee(false);
