@@ -31,6 +31,18 @@
     gtag('js', new Date());
 
     gtag('config', 'G-7TCLWLDDCN');
+
+    // Global listener for Chunk Load Errors (Deployment Fix)
+    window.addEventListener('error', function (e) {
+      const message = e.message || '';
+      const isChunkError = /Failed to fetch dynamically imported module|Loading chunk|error loading dynamically imported module/.test(message);
+      if (isChunkError) {
+        if (!sessionStorage.getItem('chunk_error_reload')) {
+          sessionStorage.setItem('chunk_error_reload', 'true');
+          window.location.reload();
+        }
+      }
+    }, true);
   </script>
 
   <link rel="icon"
