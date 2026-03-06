@@ -967,7 +967,15 @@ const OnlineMenu: React.FC<OnlineMenuProps> = ({ onBack }) => {
 
     // 3. MAIN MENU SCREEN (Default)
     return (
-        <div className="min-h-screen bg-slate-50 pb-28 md:pb-0 relative font-sans">
+        <div
+            className="min-h-screen bg-slate-50 pb-28 md:pb-0 relative font-sans transition-all duration-700"
+            style={settings?.backgroundImage ? {
+                backgroundImage: `url(${settings.backgroundImage})`,
+                backgroundAttachment: 'fixed',
+                backgroundSize: 'cover',
+                backgroundPosition: 'center'
+            } : {}}
+        >
             {/* Toast */}
             {toastMessage && (
                 <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[100] bg-red-600/95 backdrop-blur text-white px-6 py-3 rounded-full text-sm font-bold shadow-xl animate-in fade-in slide-in-from-top-4 text-center">
