@@ -16,6 +16,7 @@ const MenuConfig: React.FC<MenuConfigProps> = ({ onBack, tenantId }) => {
         phone: '',
         address: '',
         openingHours: '',
+        businessHours: [],
         coverImage: '',
         backgroundImage: '',
         logoImage: '',
@@ -31,8 +32,21 @@ const MenuConfig: React.FC<MenuConfigProps> = ({ onBack, tenantId }) => {
     const loadSettings = async () => {
         try {
             const data = await dbSettings.get(tenantId);
+            const defaultHours = [
+                { day: 'Segunda-feira', isOpen: true, open: '08:00', close: '22:00' },
+                { day: 'Terça-feira', isOpen: true, open: '08:00', close: '22:00' },
+                { day: 'Quarta-feira', isOpen: true, open: '08:00', close: '22:00' },
+                { day: 'Quinta-feira', isOpen: true, open: '08:00', close: '22:00' },
+                { day: 'Sexta-feira', isOpen: true, open: '08:00', close: '22:00' },
+                { day: 'Sábado', isOpen: true, open: '08:00', close: '22:00' },
+                { day: 'Domingo', isOpen: true, open: '08:00', close: '22:00' },
+            ];
+
             if (data) {
-                setSettings(data);
+                setSettings({
+                    ...data,
+                    businessHours: data.businessHours || defaultHours
+                });
             } else {
                 // Defaults
                 setSettings({
@@ -41,6 +55,7 @@ const MenuConfig: React.FC<MenuConfigProps> = ({ onBack, tenantId }) => {
                     phone: '5577998129383',
                     address: '',
                     openingHours: 'Seg-Sex: 08:00 - 18:00',
+                    businessHours: defaultHours,
                     coverImage: '',
                     backgroundImage: '',
                     logoImage: '',
@@ -53,6 +68,12 @@ const MenuConfig: React.FC<MenuConfigProps> = ({ onBack, tenantId }) => {
         } finally {
             setIsLoading(false);
         }
+    };
+
+    const updateBusinessDay = (index: number, field: string, value: any) => {
+        const newHours = [...(settings.businessHours || [])];
+        newHours[index] = { ...newHours[index], [field]: value };
+        setSettings({ ...settings, businessHours: newHours });
     };
 
     const handleSave = async () => {
@@ -221,7 +242,7 @@ const MenuConfig: React.FC<MenuConfigProps> = ({ onBack, tenantId }) => {
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">Horário de Funcionamento</label>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Horário de Funcionamento (Display)</label>
                         <div className="flex items-center gap-2">
                             <Clock size={16} className="text-slate-400" />
                             <input
@@ -232,6 +253,53 @@ const MenuConfig: React.FC<MenuConfigProps> = ({ onBack, tenantId }) => {
                                 placeholder="Seg-Sex: 08h às 18h"
                             />
                         </div>
+                        <p className="text-xs text-slate-400 mt-1">Texto exibido no topo do cardápio.</p>
+                    </div>
+                </div>
+
+                {/* Structured Hours */}
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 space-y-4">
+                    <h3 className="font-bold text-slate-700 flex items-center gap-2">
+                        <Clock size={20} className="text-orange-600" /> Horário de Funcionamento (Lógica)
+                    </h3>
+                    <p className="text-xs text-slate-500">O cardapio fechará automaticamente fora destes horários.</p>
+
+                    <div className="space-y-3">
+                        {settings.businessHours?.map((day, idx) => (
+                            <div key={day.day} className="flex items-center justify-between p-3 rounded-lg border border-slate-100 bg-slate-50/50">
+                                <div className="flex items-center gap-3">
+                                    <input
+                                        type="checkbox"
+                                        checked={day.isOpen}
+                                        onChange={e => updateBusinessDay(idx, 'isOpen', e.target.checked)}
+                                        className="w-4 h-4 text-blue-600 rounded cursor-pointer"
+                                    />
+                                    <span className={`text-sm font-medium ${day.isOpen ? 'text-slate-800' : 'text-slate-400'}`}>
+                                        {day.day}
+                                    </span>
+                                </div>
+
+                                {day.isOpen ? (
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            type="time"
+                                            value={day.open}
+                                            onChange={e => updateBusinessDay(idx, 'open', e.target.value)}
+                                            className="px-2 py-1 text-xs border border-slate-200 rounded outline-none focus:ring-1 focus:ring-blue-500"
+                                        />
+                                        <span className="text-slate-400 text-xs">até</span>
+                                        <input
+                                            type="time"
+                                            value={day.close}
+                                            onChange={e => updateBusinessDay(idx, 'close', e.target.value)}
+                                            className="px-2 py-1 text-xs border border-slate-200 rounded outline-none focus:ring-1 focus:ring-blue-500"
+                                        />
+                                    </div>
+                                ) : (
+                                    <span className="text-xs font-bold text-red-400 uppercase">Fechado</span>
+                                )}
+                            </div>
+                        ))}
                     </div>
                 </div>
 

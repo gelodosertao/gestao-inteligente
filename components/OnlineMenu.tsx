@@ -306,8 +306,33 @@ const OnlineMenu: React.FC<OnlineMenuProps> = ({ onBack }) => {
 
     const cartCount = cart.reduce((acc, item) => acc + item.quantity, 0);
 
+    const isStoreOpen = () => {
+        if (!settings || !settings.businessHours || settings.businessHours.length === 0) return true;
+
+        const now = new Date();
+        const dayOfWeek = now.getDay(); // 0 (Dom) a 6 (Sáb)
+
+        // Map JS getDay() to our businessHours array (starts with Segunda-feira)
+        // 0 (Dom) -> index 6
+        // 1 (Seg) -> index 0
+        // ...
+        const index = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+        const dayConfig = settings.businessHours[index];
+
+        if (!dayConfig || !dayConfig.isOpen) return false;
+
+        const currentTime = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+        return currentTime >= dayConfig.open && currentTime <= dayConfig.close;
+    };
+
+    const isOpen = isStoreOpen();
+
     // --- ACTIONS ---
     const handleProductClick = (product: Product) => {
+        if (!isOpen) {
+            setToastMessage("Desculpe, estamos fechados no momento.");
+            return;
+        }
         if (product.options && product.options.length > 0) {
             // Open Customization Modal
             setCustomizationProduct(product);
@@ -575,6 +600,11 @@ const OnlineMenu: React.FC<OnlineMenuProps> = ({ onBack }) => {
                 alert(`Por questões de segurança, aguarde mais ${tempoRestanteSegundos} segundos antes de enviar um novo pedido.`);
                 return;
             }
+        }
+
+        if (!isOpen) {
+            alert("Desculpe, a loja acabou de fechar. Não é mais possível enviar pedidos no momento.");
+            return;
         }
 
         setIsProcessing(true);
@@ -1081,10 +1111,15 @@ const OnlineMenu: React.FC<OnlineMenuProps> = ({ onBack }) => {
                         </p>
 
                         <div className="mt-2 flex items-center gap-3 flex-wrap justify-center w-full">
-                            {settings?.openingHours && (
+                            {isOpen ? (
                                 <div className="flex items-center gap-1.5 text-xs font-bold text-green-700 bg-green-400/20 backdrop-blur-md px-4 py-2 rounded-full shadow-sm">
                                     <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
                                     Aberto Agora
+                                </div>
+                            ) : (
+                                <div className="flex items-center gap-1.5 text-xs font-bold text-red-700 bg-red-400/20 backdrop-blur-md px-4 py-2 rounded-full shadow-sm">
+                                    <span className="w-2 h-2 rounded-full bg-red-500"></span>
+                                    Fechado no Momento
                                 </div>
                             )}
                             <button
@@ -1184,7 +1219,9 @@ const OnlineMenu: React.FC<OnlineMenuProps> = ({ onBack }) => {
                                             </span>
 
                                             <button
-                                                className="w-8 h-8 flex items-center justify-center bg-blue-50 text-blue-600 rounded-full hover:bg-blue-600 hover:text-white active:scale-95 transition-all shadow-sm group-hover:bg-blue-600 group-hover:text-white"
+                                                className={`w-8 h-8 flex items-center justify-center rounded-full transition-all shadow-sm ${isOpen
+                                                    ? 'bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white active:scale-95 group-hover:bg-blue-600 group-hover:text-white'
+                                                    : 'bg-slate-100 text-slate-400 cursor-not-allowed'}`}
                                             >
                                                 <Plus size={18} strokeWidth={3} />
                                             </button>

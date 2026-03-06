@@ -64,6 +64,13 @@ export interface Product {
   operationalCost?: number; // Custo operacional extra por unidade (energia, mão de obra rateada)
 }
 
+export interface BusinessDay {
+  day: string;
+  isOpen: boolean;
+  open: string;
+  close: string;
+}
+
 export interface StoreSettings {
   id: string; // usually 'default'
   storeName: string;
@@ -72,7 +79,8 @@ export interface StoreSettings {
   coverImage?: string;
   backgroundImage?: string;
   logoImage?: string;
-  openingHours: string; // e.g. "Seg-Sex: 08h-18h"
+  openingHours: string; // Display text like "Seg-Sex: 08h-18h"
+  businessHours?: BusinessDay[]; // Structured hours for logic
   primaryColor?: string; // Hex code
   facebookPixelId?: string;
   googleTagId?: string;
