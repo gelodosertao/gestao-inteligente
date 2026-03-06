@@ -251,22 +251,15 @@ const OnlineMenu: React.FC<OnlineMenuProps> = ({ onBack }) => {
         // if (settings.facebookPixelId) { ... }
 
         // 2. Google Tag (gtag.js)
+        // Now handled in index.html to ensure global coverage
+        /*
         if (settings.googleTagId) {
             const scriptId = 'google-analytics-script';
             if (!document.getElementById(scriptId)) {
-                const script = document.createElement('script');
-                script.id = scriptId;
-                script.async = true;
-                script.src = `https://www.googletagmanager.com/gtag/js?id=${settings.googleTagId}`;
-                document.head.appendChild(script);
-
-                (window as any).dataLayer = (window as any).dataLayer || [];
-                function gtag(...args: any[]) { (window as any).dataLayer.push(args); }
-                (window as any).gtag = gtag;
-                gtag('js', new Date());
-                gtag('config', settings.googleTagId);
+                // ... logic removed ...
             }
         }
+        */
     }, [settings]);
 
     // --- HELPERS ---

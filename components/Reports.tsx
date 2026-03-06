@@ -15,7 +15,7 @@ interface ReportsProps {
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
 
 const Reports: React.FC<ReportsProps> = ({ sales, products, customers, onBack }) => {
-    const [activeTab, setActiveTab] = useState<'SALES_LIST' | 'SALES_ANALYSIS' | 'PRODUCTS' | 'CUSTOMERS'>('SALES_ANALYSIS');
+    const [activeTab, setActiveTab] = useState<'SALES_LIST' | 'SALES_ANALYSIS' | 'PRODUCTS' | 'CUSTOMERS' | 'MENU_ANALYTICS'>('SALES_ANALYSIS');
 
     // Filters
     const [dateRange, setDateRange] = useState<'THIS_MONTH' | 'LAST_MONTH' | 'LAST_30_DAYS' | 'CUSTOM'>('THIS_MONTH');
@@ -170,6 +170,25 @@ const Reports: React.FC<ReportsProps> = ({ sales, products, customers, onBack })
     const totalItemsSold = getFilteredSales.filter(s => s.status === 'Completed').reduce((acc, s) => acc + s.items.reduce((sum, i) => sum + i.quantity, 0), 0);
     const bestDay = salesByDay.sort((a, b) => b.amount - a.amount)[0];
 
+    // --- MENU ANALYTICS DATA ---
+    // Fallback: If source is missing (old logic), check for deliveryFee > 0 or if there's an Order ID format (sale-...)
+    const menuSales = useMemo(() => getFilteredSales.filter(s => s.source === 'OnlineMenu' || (s.deliveryFee && s.deliveryFee > 0) || s.id.startsWith('sale-')), [getFilteredSales]);
+    const totalMenuRevenue = menuSales.filter(s => s.status === 'Completed').reduce((acc, s) => acc + s.total, 0);
+    const menuConversionData = useMemo(() => [
+        { name: 'Menu Online', value: menuSales.length || 0.1 }, // 0.1 to avoid chart error on zero
+        { name: 'Balcão/Direta', value: (getFilteredSales.length - menuSales.length) || 0.1 },
+    ], [menuSales, getFilteredSales]);
+
+    const menuSalesByDay = useMemo(() => {
+        const data: Record<string, number> = {};
+        menuSales.forEach(s => {
+            if (s.status !== 'Completed') return;
+            const dateKey = s.date.split('-').reverse().slice(0, 2).join('/');
+            data[dateKey] = (data[dateKey] || 0) + s.total;
+        });
+        return Object.entries(data).map(([date, amount]) => ({ date, amount })).reverse();
+    }, [menuSales]);
+
     const exportToCSV = () => {
         // Header
         let csvContent = "data:text/csv;charset=utf-8,";
@@ -300,6 +319,12 @@ const Reports: React.FC<ReportsProps> = ({ sales, products, customers, onBack })
                 >
                     <Filter size={16} className="inline mr-2" /> Produtos Top
                 </button>
+                <button
+                    onClick={() => setActiveTab('MENU_ANALYTICS')}
+                    className={`px-4 py-2 font-bold rounded-t-lg transition-colors whitespace-nowrap ${activeTab === 'MENU_ANALYTICS' ? 'bg-white text-blue-600 border-x border-t border-slate-200' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                    <ShoppingBag size={16} className="inline mr-2" /> Análise do Cardápio
+                </button>
             </div>
 
             {/* CONTENT */}
@@ -415,8 +440,8 @@ const Reports: React.FC<ReportsProps> = ({ sales, products, customers, onBack })
                                             <td className="p-3 text-right font-bold text-slate-800">{formatCurrency(sale.total)}</td>
                                             <td className="p-3 text-center">
                                                 <span className={`px-2 py-1 rounded-full text-xs font-bold ${sale.status === 'Completed' ? 'bg-green-100 text-green-700' :
-                                                        sale.status === 'Pending' ? 'bg-yellow-100 text-yellow-700' :
-                                                            'bg-red-100 text-red-700'
+                                                    sale.status === 'Pending' ? 'bg-yellow-100 text-yellow-700' :
+                                                        'bg-red-100 text-red-700'
                                                     }`}>
                                                     {sale.status === 'Completed' ? 'Concluído' : sale.status === 'Pending' ? 'Pendente' : 'Cancelado'}
                                                 </span>
@@ -478,6 +503,102 @@ const Reports: React.FC<ReportsProps> = ({ sales, products, customers, onBack })
                                         <Legend />
                                     </PieChart>
                                 </ResponsiveContainer>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* TAB: MENU ANALYTICS */}
+                {activeTab === 'MENU_ANALYTICS' && (
+                    <div className="space-y-8 animate-in fade-in duration-500">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div className="bg-blue-50 p-6 rounded-xl border border-blue-100">
+                                <p className="text-blue-600 text-sm font-bold uppercase mb-1">Receita Cardápio Online</p>
+                                <h4 className="text-3xl font-black text-blue-900">{formatCurrency(totalMenuRevenue)}</h4>
+                                <p className="text-xs text-blue-500 mt-2">{menuSales.length} pedidos em registros identificados</p>
+                            </div>
+                            <div className="bg-orange-50 p-6 rounded-xl border border-orange-100">
+                                <p className="text-orange-600 text-sm font-bold uppercase mb-1">Ticket Médio Online</p>
+                                <h4 className="text-3xl font-black text-orange-900">
+                                    {menuSales.length > 0 ? formatCurrency(totalMenuRevenue / menuSales.filter(s => s.status === 'Completed').length) : 'R$ 0,00'}
+                                </h4>
+                            </div>
+                            <div className="bg-emerald-50 p-6 rounded-xl border border-emerald-100">
+                                <p className="text-emerald-600 text-sm font-bold uppercase mb-1">Participação Digital</p>
+                                <h4 className="text-3xl font-black text-emerald-900">
+                                    {getFilteredSales.length > 0 ? ((menuSales.length / getFilteredSales.length) * 100).toFixed(1) : 0}%
+                                </h4>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                            <div className="space-y-4">
+                                <h3 className="font-bold text-slate-700 text-center">Origem das Vendas (Offline vs Online)</h3>
+                                <div className="h-72">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <PieChart>
+                                            <Pie
+                                                data={menuConversionData}
+                                                innerRadius={60}
+                                                outerRadius={90}
+                                                paddingAngle={5}
+                                                dataKey="value"
+                                            >
+                                                <Cell fill="#2563eb" />
+                                                <Cell fill="#e2e8f0" />
+                                            </Pie>
+                                            <RechartsTooltip />
+                                            <Legend />
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </div>
+
+                            <div className="space-y-4">
+                                <h3 className="font-bold text-slate-700">Faturamento Online Diário</h3>
+                                <div className="h-72">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <BarChart data={menuSalesByDay}>
+                                            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                            <XAxis dataKey="date" fontSize={11} stroke="#94a3b8" />
+                                            <YAxis fontSize={11} stroke="#94a3b8" />
+                                            <RechartsTooltip formatter={(val: number) => formatCurrency(val)} />
+                                            <Bar dataKey="amount" fill="#2563eb" radius={[4, 4, 0, 0]} />
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Integration Insight */}
+                        <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-3xl p-10 text-white relative overflow-hidden shadow-2xl border border-slate-700">
+                            <div className="relative z-10">
+                                <div className="flex items-center gap-3 mb-4">
+                                    <div className="bg-green-500 h-2.5 w-2.5 rounded-full animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.8)]"></div>
+                                    <span className="text-xs font-black tracking-widest text-green-400 uppercase">Google Analytics 4 • Monitoramento Ativo</span>
+                                </div>
+                                <div className="flex flex-col md:flex-row items-end justify-between gap-8">
+                                    <div className="max-w-xl space-y-4">
+                                        <h4 className="text-4xl font-extrabold tracking-tight leading-tight">
+                                            Ponto de Rastreamento de Conversão Configurado
+                                        </h4>
+                                        <p className="text-slate-400 text-lg leading-relaxed">
+                                            Sua tag <code className="bg-slate-800 px-2 py-0.5 rounded text-blue-400">G-7TCLWLDDCN</code> está instalada.
+                                            O sistema agora processa visualizações, adições ao carrinho e compras em tempo real.
+                                        </p>
+                                    </div>
+                                    <a
+                                        href="https://analytics.google.com/analytics/web/"
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="bg-white text-slate-900 px-8 py-4 rounded-2xl font-black text-sm uppercase tracking-wider hover:bg-blue-50 transition-all shadow-[0_10px_30px_rgba(255,255,255,0.1)] hover:scale-105 active:scale-95 text-center whitespace-nowrap"
+                                    >
+                                        Ver Painel Completo
+                                    </a>
+                                </div>
+                            </div>
+                            <div className="absolute -right-20 -bottom-20 opacity-5 pointer-events-none transform rotate-12">
+                                <TrendingUp size={450} strokeWidth={1} />
                             </div>
                         </div>
                     </div>

@@ -252,7 +252,8 @@ const OrderCenter: React.FC<OrderCenterProps> = ({ onBack, tenantId }) => {
                     items: order.items,
                     cashReceived: undefined,
                     changeAmount: undefined,
-                    deliveryFee: order.deliveryFee
+                    deliveryFee: order.deliveryFee,
+                    source: 'OnlineMenu'
                 };
                 await dbSales.add(newSale, tenantId);
                 // alert("Venda registrada no financeiro!"); // Less intrusive

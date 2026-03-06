@@ -119,6 +119,7 @@ export interface Sale {
   paymentHistory?: PaymentEntry[]; // Histórico
   createdAt?: string; // ISO Date String for proper sorting/time display
   deliveryFee?: number; // Taxa de entrega
+  source?: string; // Origem da venda (ex: 'OnlineMenu')
 }
 
 export interface SaleItem {
