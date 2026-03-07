@@ -575,8 +575,8 @@ const App: React.FC = () => {
         pendingOrdersCount={pendingOrdersCount}
       />
 
-      <main className={`flex-1 transition-all duration-300 pt-20 px-4 pb-4 md:p-4 lg:p-8 ${isSidebarCollapsed ? 'md:ml-20' : 'md:ml-20 lg:ml-64'}`}>
-        <div className="max-w-7xl mx-auto h-full">
+      <main className={`flex-1 transition-all duration-300 ${currentView === 'SALES' ? 'pt-16 p-0' : 'pt-20 px-4 pb-4 md:p-4 lg:p-8'} ${isSidebarCollapsed ? 'md:ml-20' : 'md:ml-20 lg:ml-64'}`}>
+        <div className={`${currentView === 'SALES' ? 'w-full px-2' : 'max-w-7xl mx-auto'} h-full pb-4`}>
           {renderContent()}
         </div>
       </main>

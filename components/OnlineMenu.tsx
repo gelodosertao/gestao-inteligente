@@ -1117,26 +1117,30 @@ const OnlineMenu: React.FC<OnlineMenuProps> = ({ onBack }) => {
 
                         {/* Footer */}
                         <div className="p-4 border-t border-slate-100 bg-white shadow-[0_-5px_20px_rgba(0,0,0,0.05)]">
-                            {!customizationProduct.options?.some(opt => opt.type === 'checkbox' && ['GELO', 'CIGARRO', 'PALHEIRO'].some(kw => opt.name.toUpperCase().includes(kw) || customizationProduct.name.toUpperCase().includes(kw))) && (
-                                <div className="flex justify-between items-center mb-4 text-sm font-medium text-slate-500">
-                                    <span>Quantidade</span>
-                                    <div className="flex items-center gap-3 bg-slate-100 rounded-lg p-1">
-                                        <button onClick={() => setCustomizationQty(Math.max(1, customizationQty - 1))} className="w-8 h-8 flex items-center justify-center bg-white rounded shadow-sm text-slate-600"><Minus size={16} /></button>
-                                        <span className="w-6 text-center font-bold text-slate-900">{customizationQty}</span>
-                                        <button onClick={() => setCustomizationQty(customizationQty + 1)} className="w-8 h-8 flex items-center justify-center bg-slate-900 text-white rounded shadow-sm"><Plus size={16} /></button>
+                            {/* Total Price and Add Button */}
+                            <div className="pt-6 border-t border-slate-100 flex flex-col gap-4">
+                                {/* Only show global quantity if no item with its own quantity is selected */}
+                                {!Object.values(selectedOptions).some((o: any) => ['GELO', 'CIGARRO', 'PALHEIRO'].some(kw => (o.optionGroup || '').toUpperCase().includes(kw) || (o.choiceName || '').toUpperCase().includes(kw))) && (
+                                    <div className="flex justify-between items-center mb-2 text-sm font-black text-slate-500 uppercase tracking-widest">
+                                        <span>Quantidade do Produto</span>
+                                        <div className="flex items-center gap-3 bg-slate-100 rounded-2xl p-1.5 shadow-inner">
+                                            <button onClick={() => setCustomizationQty(Math.max(1, customizationQty - 1))} className="w-10 h-10 flex items-center justify-center bg-white rounded-xl shadow-sm text-slate-600 active:scale-90 transition-all border border-slate-200"><Minus size={18} strokeWidth={3} /></button>
+                                            <span className="w-8 text-center font-black text-xl text-slate-900 tabular-nums">{customizationQty}</span>
+                                            <button onClick={() => setCustomizationQty(customizationQty + 1)} className="w-10 h-10 flex items-center justify-center bg-slate-900 text-white rounded-xl shadow-lg active:scale-90 transition-all"><Plus size={18} strokeWidth={3} /></button>
+                                        </div>
                                     </div>
-                                </div>
-                            )}
-                            <button
-                                onClick={confirmCustomization}
-                                style={{ backgroundColor: settings?.primaryColor || '#0f172a' }}
-                                className="w-full text-white py-4 rounded-xl font-bold text-lg shadow-lg hover:opacity-90 active:scale-[0.98] transition-all flex justify-between px-6"
-                            >
-                                <span>Adicionar</span>
-                                <span>{formatCurrency(
-                                    (customizationProduct.priceFilial + Object.values(selectedOptions).reduce((s: number, o: any) => s + ((o.priceChange * (o.quantity || 1)) || 0), 0)) * customizationQty
-                                )}</span>
-                            </button>
+                                )}
+                                <button
+                                    onClick={confirmCustomization}
+                                    style={{ backgroundColor: settings?.primaryColor || '#0f172a' }}
+                                    className="w-full text-white py-4 rounded-xl font-bold text-lg shadow-lg hover:opacity-90 active:scale-[0.98] transition-all flex justify-between px-6"
+                                >
+                                    <span>Adicionar</span>
+                                    <span>{formatCurrency(
+                                        (customizationProduct.priceFilial + Object.values(selectedOptions).reduce((s: number, o: any) => s + ((o.priceChange * (o.quantity || 1)) || 0), 0)) * customizationQty
+                                    )}</span>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
