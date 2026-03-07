@@ -806,17 +806,17 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
             // --- POS (POINT OF SALE) VIEW ---
             <div className="relative h-[calc(100vh-140px)] md:h-[calc(100vh-12rem)] pb-4 md:pb-0 flex flex-col">
                {/* Unified Top Header: Branches, Search & Scanner */}
-               <div className="bg-white p-3 md:p-4 rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.05)] border border-slate-100 mb-4 shrink-0 overflow-hidden relative">
+               <div className="bg-white p-3 md:p-4 rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.05)] border border-slate-100 mb-4 shrink-0 relative z-[60]">
                   <div className="flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-4">
                      <div className="flex bg-slate-100/80 p-1.5 rounded-2xl shadow-inner gap-1 shrink-0">
                         <button
-                           onClick={() => { setSelectedBranch(Branch.FILIAL); setCart([]); setIsWholesale(false); }}
+                           onClick={() => { setSelectedBranch(Branch.FILIAL); setCart([]); setIsWholesale(false); setPosCategoryFilter('ALL'); setPosSearchTerm(''); }}
                            className={`flex-1 md:flex-none px-6 py-2.5 rounded-xl font-black transition-all text-xs flex items-center justify-center gap-2 ${selectedBranch === Branch.FILIAL ? 'bg-orange-500 text-white shadow-[0_4px_12px_rgba(249,115,22,0.3)]' : 'text-slate-500 hover:bg-white hover:text-slate-700'}`}
                         >
                            <Store size={18} /> VAREJO
                         </button>
                         <button
-                           onClick={() => { setSelectedBranch(Branch.MATRIZ); setCart([]); setIsWholesale(true); }}
+                           onClick={() => { setSelectedBranch(Branch.MATRIZ); setCart([]); setIsWholesale(true); setPosCategoryFilter('ALL'); setPosSearchTerm(''); }}
                            className={`flex-1 md:flex-none px-6 py-2.5 rounded-xl font-black transition-all text-xs flex items-center justify-center gap-2 ${selectedBranch === Branch.MATRIZ ? 'bg-blue-600 text-white shadow-[0_4px_12px_rgba(37,99,235,0.3)]' : 'text-slate-500 hover:bg-white hover:text-slate-700'}`}
                         >
                            <Factory size={18} /> ATACADO
@@ -824,11 +824,12 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                      </div>
 
                      <div className="flex gap-3 w-full lg:flex-1 max-w-5xl relative">
-                        <div className="relative flex-1 group">
+                        <div className="relative flex-1 group z-[60]">
                            <Search size={24} className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400 group-focus-within:text-orange-500 transition-colors" />
                            <input
                               ref={barcodeInputRef}
                               type="text"
+
                               value={posSearchTerm}
                               onChange={(e) => setPosSearchTerm(e.target.value)}
                               onKeyDown={handleSearchKeyDown}
