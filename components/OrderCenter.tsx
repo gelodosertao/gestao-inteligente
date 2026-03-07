@@ -509,7 +509,7 @@ const OrderCenter: React.FC<OrderCenterProps> = ({ onBack, tenantId }) => {
                                     {item.selectedOptions && item.selectedOptions.length > 0 && (
                                         <div className="pl-4 text-[9px] text-gray-700">
                                             {item.selectedOptions.map((opt, oIdx) => (
-                                                <div key={oIdx}>+ {opt.choiceName} ({opt.priceChange.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })})</div>
+                                                <div key={oIdx}>+ {opt.choiceName}</div>
                                             ))}
                                         </div>
                                     )}

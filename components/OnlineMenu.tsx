@@ -572,15 +572,23 @@ const OnlineMenu: React.FC<OnlineMenuProps> = ({ onBack }) => {
     };
 
     const confirmCustomization = () => {
-        // Collect options
-        const optionsList = Object.entries(selectedOptions).map(([key, val]: any) => {
-            const qty = val.quantity && val.quantity > 1 ? val.quantity : 1;
-            return {
-                optionName: val.optionGroup || key, // For checkbox, use group name
-                choiceName: qty > 1 ? `${qty}x ${val.choiceName}` : val.choiceName,
-                priceChange: val.priceChange * qty
-            };
+        // Collect options and ensure no duplicates by using a unique combination key
+        const optionsMap = new Map();
+
+        Object.entries(selectedOptions).forEach(([key, val]: any) => {
+            const qty = val.quantity && val.quantity >= 1 ? val.quantity : 1;
+            const optionGroupName = val.optionGroup || key.split(':')[0] || key;
+            const choiceName = val.choiceName;
+            const uniqueKey = `${optionGroupName}:${choiceName}`;
+
+            optionsMap.set(uniqueKey, {
+                optionName: optionGroupName,
+                choiceName: qty > 1 ? `${qty}x ${choiceName}` : choiceName,
+                priceChange: (val.priceChange || 0) * qty
+            });
         });
+
+        const optionsList = Array.from(optionsMap.values());
 
         // Validate required options
         const missingOptions = customizationProduct!.options?.filter(opt => {
