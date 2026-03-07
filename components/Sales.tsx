@@ -1030,8 +1030,8 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                                              <span className="text-[10px] font-black text-orange-500 bg-orange-50 px-2 py-0.5 rounded-full uppercase tracking-widest">{item.product.category}</span>
                                              {item.isPack && <span className="text-[10px] font-black text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full uppercase tracking-widest">Fardo</span>}
                                           </div>
-                                          <h4 className="font-black text-xl md:text-2xl text-slate-900 leading-tight truncate">{item.product.name}</h4>
-                                          <p className="text-base text-slate-400 font-black tracking-tight">{formatCurrency(getProductPrice(item))} <span className="text-xs opacity-60">por {item.product.unit}</span></p>
+                                          <h4 className="font-black text-2xl md:text-3xl lg:text-4xl text-slate-900 leading-tight truncate">{item.product.name}</h4>
+                                          <p className="text-lg md:text-xl text-slate-500 font-black tracking-tight mt-1">{formatCurrency(getProductPrice(item))} <span className="text-sm opacity-60">por {item.product.unit}</span></p>
                                        </div>
 
                                        <div className="flex items-center gap-4 bg-slate-100/50 p-2 rounded-2xl group-hover:bg-orange-50 transition-colors">
@@ -1052,7 +1052,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
 
                                        <div className="text-right min-w-[200px]">
                                           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Subtotal Item</span>
-                                          <span className="font-black text-3xl md:text-4xl text-slate-900 tracking-tighter tabular-nums">
+                                          <span className="font-black text-2xl md:text-4xl text-slate-900 tracking-tighter tabular-nums">
                                              {formatCurrency(item.quantity * getProductPrice(item))}
                                           </span>
                                        </div>
@@ -1071,22 +1071,22 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                         </div>
 
                         {/* Mega Checkout Section */}
-                        <div className="p-6 md:p-8 bg-white border-t-4 border-slate-100 shadow-[0_-20px_50px_rgba(0,0,0,0.05)] flex flex-col xl:flex-row justify-between items-center gap-8 relative z-20">
-                           <div className="flex flex-wrap justify-center md:justify-start gap-12 w-full xl:w-auto">
+                        <div className="p-4 md:p-6 bg-white border-t-4 border-slate-100 shadow-[0_-15px_40px_rgba(0,0,0,0.05)] flex flex-col xl:flex-row justify-between items-center gap-6 relative z-20">
+                           <div className="flex flex-wrap justify-center md:justify-start gap-8 w-full xl:w-auto">
                               <div className="flex flex-col">
-                                 <span className="text-[12px] font-black text-slate-400 uppercase tracking-[0.3em] mb-2">Total Bruto</span>
-                                 <span className="text-4xl font-black text-slate-500 tracking-tighter tabular-nums decoration-slate-300 line-through opacity-50">{formatCurrency(subtotal)}</span>
+                                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Total Bruto</span>
+                                 <span className="text-2xl font-black text-slate-500 tracking-tighter tabular-nums decoration-slate-300 line-through opacity-60">{formatCurrency(subtotal)}</span>
                               </div>
 
                               <div className="flex flex-col">
-                                 <span className="text-[12px] font-black text-orange-500 uppercase tracking-[0.3em] mb-2">Desconto (R$)</span>
+                                 <span className="text-[10px] font-black text-orange-500 uppercase tracking-[0.2em] mb-1">Desconto (R$)</span>
                                  <div className="relative group">
-                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xl font-black text-orange-400">R$</span>
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-lg font-black text-orange-400">R$</span>
                                     <input
                                        type="number"
                                        value={discount}
                                        onChange={(e) => setDiscount(e.target.value)}
-                                       className="w-44 bg-orange-50/50 border-2 border-orange-100 rounded-2xl pl-12 pr-4 py-4 text-3xl font-black text-orange-700 outline-none focus:ring-4 focus:ring-orange-100 focus:bg-white transition-all tabular-nums"
+                                       className="w-32 bg-orange-50/50 border-2 border-orange-100 rounded-xl pl-10 pr-3 py-2 text-2xl font-black text-orange-700 outline-none focus:ring-2 focus:ring-orange-200 focus:bg-white transition-all tabular-nums"
                                        placeholder="0,00"
                                     />
                                  </div>
@@ -1094,22 +1094,21 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                            </div>
 
                            <div className="flex flex-col items-center xl:items-end w-full xl:flex-1">
-                              <div className="flex items-center gap-3 mb-1">
-                                 <div className="w-3 h-3 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.5)]"></div>
-                                 <span className="text-sm font-black text-slate-900 uppercase tracking-[0.5em]">VALOR TOTAL A PAGAR</span>
+                              <div className="flex items-center gap-2 mb-1">
+                                 <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.5)]"></div>
+                                 <span className="text-[10px] md:text-xs font-black text-slate-900 uppercase tracking-[0.3em]">VALOR TOTAL A PAGAR</span>
                               </div>
-                              <span className="text-[8rem] xl:text-[10rem] font-black text-slate-900 tracking-tighter leading-[0.85] tabular-nums drop-shadow-sm">
-                                 {formatCurrency(cartTotal).replace('R$', '').trim()}
-                                 <span className="text-4xl font-black text-slate-400 ml-2 uppercase align-middle">BRL</span>
+                              <span className="text-5xl md:text-6xl xl:text-[5.5rem] font-black text-slate-900 tracking-tighter leading-none tabular-nums drop-shadow-sm">
+                                 {formatCurrency(cartTotal)}
                               </span>
                            </div>
 
                            <button
                               onClick={initiateCheckout}
                               disabled={cart.length === 0}
-                              className="w-full xl:w-auto px-16 py-10 bg-slate-900 text-white rounded-[2.5rem] font-black text-4xl shadow-[0_15px_40px_rgba(0,0,0,0.2)] hover:bg-orange-500 hover:shadow-orange-200 hover:-translate-y-3 active:translate-y-0 active:scale-95 transition-all flex items-center justify-center gap-6 group disabled:opacity-30 disabled:hover:scale-100 disabled:hover:bg-slate-900"
+                              className="w-full xl:w-auto px-10 py-6 md:px-12 md:py-8 bg-slate-900 text-white rounded-[2rem] font-black text-2xl md:text-3xl shadow-[0_10px_30px_rgba(0,0,0,0.15)] hover:bg-orange-500 hover:shadow-[0_10px_30px_rgba(249,115,22,0.3)] hover:-translate-y-2 active:translate-y-0 active:scale-95 transition-all flex items-center justify-center gap-4 group disabled:opacity-30 disabled:hover:scale-100 disabled:hover:bg-slate-900"
                            >
-                              RECEBER <Send size={48} className="group-hover:translate-x-2 transition-transform" />
+                              RECEBER <Send size={28} className="group-hover:translate-x-2 transition-transform" />
                            </button>
                         </div>
                      </div>
