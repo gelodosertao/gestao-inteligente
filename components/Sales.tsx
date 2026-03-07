@@ -1019,7 +1019,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                         </button>
                         <span className="font-bold text-slate-700">Voltar aos Produtos</span>
                      </div>
-                     <div className={`p-5 text-white flex justify-between items-center gap-4 ${selectedBranch === Branch.MATRIZ ? 'bg-blue-800' : 'bg-orange-500'} `}>
+                     <div className={`p-4 text-white flex justify-between items-center gap-3 ${selectedBranch === Branch.MATRIZ ? 'bg-blue-800' : 'bg-orange-500'} `}>
                         <div className="flex items-center gap-3 shrink-0">
                            <div className="bg-white/20 p-2 rounded-xl">
                               <ShoppingCart size={24} className="text-white" />
@@ -1102,7 +1102,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                            </div>
                         ) : (
                            cart.map((item) => (
-                              <div key={`${item.product.id}-${item.negotiatedPrice}`} className="bg-white p-5 md:p-7 rounded-[2rem] border-2 border-slate-100 shadow-sm flex flex-col md:flex-row items-center gap-6 group hover:border-blue-200 transition-all">
+                              <div key={`${item.product.id}-${item.negotiatedPrice}`} className="bg-white p-4 md:p-5 rounded-2xl border-2 border-slate-100 shadow-sm flex flex-col md:flex-row items-center gap-4 group hover:border-blue-200 transition-all">
                                  <div className="flex-1 w-full min-w-0">
                                     <div className="flex items-center gap-2 mb-1">
                                        <span className="text-[10px] font-black bg-slate-100 text-slate-500 px-2 py-0.5 rounded-md uppercase tracking-widest">{item.product.category}</span>
@@ -1123,23 +1123,23 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                                     <div className="flex items-center gap-2 bg-slate-100 p-2 rounded-[1.5rem] w-full md:w-auto justify-center">
                                        <button
                                           onClick={() => updateQuantity(item.product.id, -1, item.negotiatedPrice, item.isPack)}
-                                          className="w-14 h-14 flex items-center justify-center bg-white rounded-2xl text-slate-600 shadow-md active:scale-90"
+                                          className="w-10 h-10 flex items-center justify-center bg-white rounded-2xl text-slate-600 shadow-md active:scale-90"
                                        >
-                                          <Minus size={24} strokeWidth={3} />
+                                          <Minus size={18} strokeWidth={3} />
                                        </button>
-                                       <span className="w-16 text-center font-black text-3xl text-slate-900">{item.quantity}</span>
+                                       <span className="w-12 text-center font-black text-2xl text-slate-900">{item.quantity}</span>
                                        <button
                                           onClick={() => updateQuantity(item.product.id, 1, item.negotiatedPrice, item.isPack)}
-                                          className="w-14 h-14 flex items-center justify-center bg-slate-900 text-white rounded-2xl shadow-xl active:scale-95"
+                                          className="w-10 h-10 flex items-center justify-center bg-slate-900 text-white rounded-2xl shadow-xl active:scale-95"
                                        >
-                                          <Plus size={24} strokeWidth={3} />
+                                          <Plus size={18} strokeWidth={3} />
                                        </button>
                                     </div>
 
                                     {/* Subtotal of the Item */}
                                     <div className="flex flex-col items-end min-w-[150px]">
                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Item</span>
-                                       <span className="font-black text-3xl text-slate-900 tracking-tighter">
+                                       <span className="font-black text-2xl text-slate-900 tracking-tighter">
                                           {formatCurrency(item.quantity * getProductPrice(item))}
                                        </span>
                                     </div>
@@ -1158,8 +1158,8 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
 
 
                      {/* Cart Totals & Checkout Section - MASSIVE UI */}
-                     <div className="p-6 md:p-10 bg-white border-t-2 border-slate-100 shadow-[0_-20px_50px_rgba(0,0,0,0.05)]">
-                        <div className="flex flex-col md:flex-row justify-between items-center gap-8 mb-8">
+                     <div className="p-4 md:p-6 bg-white border-t-2 border-slate-100 shadow-[0_-10px_30px_rgba(0,0,0,0.03)]">
+                        <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-4">
                            <div className="flex flex-col md:flex-row gap-10 w-full md:w-auto">
                               <div className="flex flex-col">
                                  <span className="text-xs uppercase tracking-widest font-black text-slate-400 mb-1">Subtotal</span>
@@ -1182,7 +1182,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
 
                            <div className="flex flex-col items-center md:items-end w-full md:w-auto">
                               <span className="text-xs uppercase tracking-[0.4em] font-black text-orange-500 mb-1 animate-pulse">TOTAL A PAGAR</span>
-                              <span className="text-5xl md:text-8xl font-black text-slate-900 tracking-tighter drop-shadow-sm">
+                              <span className="text-4xl md:text-5xl lg:text-7xl font-black text-slate-900 tracking-tighter drop-shadow-sm leading-none">
                                  {formatCurrency(cartTotal)}
                               </span>
                            </div>
@@ -1191,9 +1191,9 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                         <button
                            onClick={initiateCheckout}
                            disabled={cart.length === 0}
-                           className={`w-full py-8 md:py-10 rounded-[2.5rem] font-black text-3xl md:text-4xl shadow-2xl hover:-translate-y-2 active:translate-y-0 active:scale-[0.98] transition-all disabled:opacity-30 disabled:grayscale flex items-center justify-center gap-6 ${selectedBranch === Branch.MATRIZ ? 'bg-blue-700 text-white shadow-blue-500/30' : 'bg-orange-500 text-white shadow-orange-500/30'} `}
+                           className={`w-full py-4 md:py-6 rounded-2xl font-black text-2xl md:text-3xl shadow-2xl hover:-translate-y-2 active:translate-y-0 active:scale-[0.98] transition-all disabled:opacity-30 disabled:grayscale flex items-center justify-center gap-6 ${selectedBranch === Branch.MATRIZ ? 'bg-blue-700 text-white shadow-blue-500/30' : 'bg-orange-500 text-white shadow-orange-500/30'} `}
                         >
-                           FINALIZAR VENDA <Send size={32} />
+                           FINALIZAR VENDA <Send size={24} />
                         </button>
                         <p className="text-center text-xs text-slate-400 font-black uppercase tracking-[0.3em] mt-6">Atalho Rápido: Tecla F2</p>
                      </div>
