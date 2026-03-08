@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, Role } from '../types';
 import { dbUsers } from '../services/db';
-import { Save, Shield, Globe, Users, Key, FileBadge, CheckCircle, CreditCard, QrCode, Smartphone, Server, Database, Download, Cloud, Trash2, X, Plus } from 'lucide-react';
+import { Save, Shield, Globe, Users, Key, FileBadge, CheckCircle, CreditCard, QrCode, Smartphone, Server, Database, Download, Cloud, Trash2, X, Plus, Edit } from 'lucide-react';
 import { MOCK_PRODUCTS, MOCK_SALES, MOCK_FINANCIALS } from '../constants';
 import { getTodayDate } from '../services/utils';
 import { ALL_MENU_ITEMS } from './AppSidebar';
@@ -20,6 +20,7 @@ const Settings: React.FC<SettingsProps> = ({ currentUser, onResetData }) => {
    const [users, setUsers] = useState<User[]>([]);
    const [showUserModal, setShowUserModal] = useState(false);
    const [newUser, setNewUser] = useState<{ name: string, email: string, role: Role, password: string, allowedModules: string[] }>({ name: '', email: '', role: 'OPERATOR', password: '', allowedModules: [] });
+   const [editingUserId, setEditingUserId] = useState<string | null>(null);
 
    // Password Change State
    const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -84,23 +85,48 @@ const Settings: React.FC<SettingsProps> = ({ currentUser, onResetData }) => {
    };
 
    const handleAddUser = async () => {
-      if (!newUser.name || !newUser.email || !newUser.password) {
-         alert("Preencha todos os campos.");
+      if (!newUser.name || !newUser.email || (!editingUserId && !newUser.password)) {
+         alert("Preencha todos os campos obrigatórios.");
          return;
       }
       setLoading(true);
       try {
-         await dbUsers.register(newUser, currentUser.tenantId);
-         setSuccessMsg('Usuário cadastrado com sucesso!');
+         if (editingUserId) {
+            const userToUpdate = users.find(u => u.id === editingUserId);
+            if (!userToUpdate) throw new Error("Usuário não encontrado.");
+            await dbUsers.update({
+               ...userToUpdate,
+               name: newUser.name,
+               role: newUser.role,
+               allowedModules: newUser.allowedModules
+            });
+            setSuccessMsg('Usuário atualizado com sucesso!');
+         } else {
+            await dbUsers.register(newUser, currentUser.tenantId);
+            setSuccessMsg('Usuário cadastrado com sucesso!');
+         }
          setShowUserModal(false);
          setNewUser({ name: '', email: '', role: 'OPERATOR', password: '', allowedModules: [] });
+         setEditingUserId(null);
          loadUsers(); // Refresh list
          setTimeout(() => setSuccessMsg(''), 3000);
       } catch (error: any) {
-         alert(error.message || "Erro ao criar usuário.");
+         alert(error.message || "Erro ao salvar usuário.");
       } finally {
          setLoading(false);
       }
+   };
+
+   const openEditUser = (user: User) => {
+      setNewUser({
+         name: user.name,
+         email: user.email,
+         role: user.role,
+         password: '',
+         allowedModules: user.allowedModules || []
+      });
+      setEditingUserId(user.id);
+      setShowUserModal(true);
    };
 
    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -365,7 +391,11 @@ const Settings: React.FC<SettingsProps> = ({ currentUser, onResetData }) => {
                            <p className="text-sm text-slate-500">Controle quem tem acesso e quais permissões.</p>
                         </div>
                         <button
-                           onClick={() => setShowUserModal(true)}
+                           onClick={() => {
+                              setEditingUserId(null);
+                              setNewUser({ name: '', email: '', role: 'OPERATOR', password: '', allowedModules: [] });
+                              setShowUserModal(true);
+                           }}
                            className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2"
                         >
                            <Plus size={16} /> Adicionar Usuário
@@ -398,6 +428,13 @@ const Settings: React.FC<SettingsProps> = ({ currentUser, onResetData }) => {
                                     </td>
                                     <td className="p-4 text-right"><span className="text-green-600 font-bold">Ativo</span></td>
                                     <td className="p-4 text-right flex justify-end gap-2">
+                                       <button
+                                          onClick={() => openEditUser(user)}
+                                          className="p-2 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
+                                          title="Editar Usuário"
+                                       >
+                                          <Edit size={18} />
+                                       </button>
                                        <button
                                           onClick={() => {
                                              setPasswordData({ userId: user.id, newPassword: '' });
@@ -535,9 +572,9 @@ const Settings: React.FC<SettingsProps> = ({ currentUser, onResetData }) => {
                <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
                   <div className="p-4 bg-orange-500 text-white flex justify-between items-center">
                      <h3 className="font-bold flex items-center gap-2">
-                        <Users size={20} /> Novo Usuário
+                        <Users size={20} /> {editingUserId ? 'Editar Usuário' : 'Novo Usuário'}
                      </h3>
-                     <button onClick={() => setShowUserModal(false)}><X size={20} /></button>
+                     <button onClick={() => { setShowUserModal(false); setEditingUserId(null); setNewUser({ name: '', email: '', role: 'OPERATOR', password: '', allowedModules: [] }); }}><X size={20} /></button>
                   </div>
 
                   <div className="p-6 space-y-4">
@@ -555,7 +592,8 @@ const Settings: React.FC<SettingsProps> = ({ currentUser, onResetData }) => {
                         <label className="block text-sm font-medium text-slate-700 mb-1">E-mail Corporativo</label>
                         <input
                            type="email"
-                           className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-white text-slate-900"
+                           disabled={!!editingUserId}
+                           className={`w-full px-4 py-2 border border-slate-200 rounded-lg ${editingUserId ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : 'bg-white text-slate-900'}`}
                            value={newUser.email}
                            onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
                         />
@@ -574,15 +612,17 @@ const Settings: React.FC<SettingsProps> = ({ currentUser, onResetData }) => {
                         </select>
                      </div>
 
-                     <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">Senha Inicial</label>
-                        <input
-                           type="password"
-                           className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-white text-slate-900"
-                           value={newUser.password}
-                           onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-                        />
-                     </div>
+                     {!editingUserId && (
+                        <div>
+                           <label className="block text-sm font-medium text-slate-700 mb-1">Senha Inicial</label>
+                           <input
+                              type="password"
+                              className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-white text-slate-900"
+                              value={newUser.password}
+                              onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                           />
+                        </div>
+                     )}
 
                      {newUser.role !== 'ADMIN' && currentUser.role === 'ADMIN' && (
                         <div>
@@ -615,7 +655,7 @@ const Settings: React.FC<SettingsProps> = ({ currentUser, onResetData }) => {
                            onClick={handleAddUser}
                            className="w-full bg-blue-800 hover:bg-blue-700 text-white py-3 rounded-xl font-bold shadow-lg shadow-blue-900/20"
                         >
-                           Criar Conta
+                           {editingUserId ? 'Salvar Alterações' : 'Criar Conta'}
                         </button>
                      </div>
                   </div>
