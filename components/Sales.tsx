@@ -1123,8 +1123,8 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
 
          {/* --- PACK SELECTION MODAL --- */}
          {showPackSelectionModal && pendingProduct && (
-            <div className="fixed inset-0 bg-blue-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-               <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
+            <div className="fixed inset-0 bg-blue-900/60 backdrop-blur-sm z-50 flex items-start justify-center pt-10 pb-4 px-4 overflow-y-auto animate-in fade-in duration-200">
+               <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden mb-10">
                   <div className="p-4 bg-purple-600 text-white flex justify-between items-center">
                      <h3 className="font-bold flex items-center gap-2">
                         <Store size={20} /> Selecione a Unidade
@@ -1176,8 +1176,8 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
          {/* --- WHOLESALE PRICE NEGOTIATION MODAL --- */}
          {
             showPriceModal && pendingProduct && (
-               <div className="fixed inset-0 bg-blue-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-                  <div className="bg-white w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden">
+               <div className="fixed inset-0 bg-blue-900/60 backdrop-blur-sm z-50 flex items-start justify-center pt-10 pb-4 px-4 overflow-y-auto animate-in fade-in duration-200">
+                  <div className="bg-white w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden mb-10">
                      <div className="p-4 bg-blue-800 text-white flex justify-between items-center">
                         <h3 className="font-bold flex items-center gap-2">
                            <Calculator size={20} /> Negociar Atacado
@@ -1241,8 +1241,8 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
          {/* --- PAYMENT MODAL --- */}
          {
             showPaymentModal && (
-               <div className="fixed inset-0 bg-blue-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-                  <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+               <div className="fixed inset-0 bg-blue-900/60 backdrop-blur-sm z-50 flex items-start justify-center pt-10 pb-4 px-4 overflow-y-auto animate-in fade-in duration-200">
+                  <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden flex flex-col mb-10">
 
                      <div className="p-4 bg-blue-900 text-white flex justify-between items-center">
                         <h3 className="font-bold flex items-center gap-2">
@@ -1501,8 +1501,8 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
          {/* Invoice Modal (Existing - For History) */}
          {
             selectedSaleForInvoice && (
-               <div className="fixed inset-0 bg-blue-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-                  <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
+               <div className="fixed inset-0 bg-blue-900/50 backdrop-blur-sm z-50 flex items-start justify-center pt-10 pb-4 px-4 overflow-y-auto animate-in fade-in duration-200">
+                  <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden mb-10">
                      <div className="p-4 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
                         <h3 className="font-bold text-slate-800 flex items-center gap-2">
                            <FileText size={18} className="text-blue-600" /> Emissão de NF-e
@@ -1585,8 +1585,8 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
          {/* --- EDIT SALE MODAL --- */}
          {
             showEditSaleModal && editingSale && (
-               <div className="fixed inset-0 bg-blue-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-                  <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden">
+               <div className="fixed inset-0 bg-blue-900/60 backdrop-blur-sm z-50 flex items-start justify-center pt-10 pb-4 px-4 overflow-y-auto animate-in fade-in duration-200">
+                  <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden mb-10">
                      <div className="p-4 bg-blue-900 text-white flex justify-between items-center">
                         <h3 className="font-bold flex items-center gap-2">
                            <Edit size={20} className="text-orange-400" /> Editar Venda #{editingSale.id}
@@ -1717,8 +1717,8 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
          {/* --- CUSTOMER SELECTION MODAL --- */}
          {
             showCustomerModal && (
-               <div className="fixed inset-0 bg-blue-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-                  <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
+               <div className="fixed inset-0 bg-blue-900/60 backdrop-blur-sm z-50 flex items-start justify-center pt-10 pb-4 px-4 overflow-y-auto animate-in fade-in duration-200">
+                  <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col mb-10 max-h-[80vh]">
                      <div className="p-4 bg-slate-800 text-white flex justify-between items-center">
                         <h3 className="font-bold flex items-center gap-2">
                            <UserIcon size={20} className="text-orange-400" /> Selecionar Cliente
@@ -1834,8 +1834,8 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
          {/* --- DEBT PAYMENT MODAL --- */}
          {
             showDebtModal && selectedDebtSale && (
-               <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-                  <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+               <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-start justify-center pt-10 pb-4 px-4 overflow-y-auto animate-in fade-in duration-200">
+                  <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col mb-10">
                      <div className="p-4 bg-orange-600 text-white flex justify-between items-center">
                         <h3 className="font-bold flex items-center gap-2">
                            <Banknote size={20} /> Registrar Pagamento de Fiado
@@ -1992,8 +1992,8 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
 
          {/* --- CAMERA SCANNER MODAL --- */}
          {showCameraModal && (
-            <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-4">
-               <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+            <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex flex-col items-start justify-center pt-10 pb-4 px-4 overflow-y-auto">
+               <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col mb-10 mx-auto">
                   <div className="p-4 bg-slate-800 text-white flex justify-between items-center">
                      <h3 className="font-bold flex items-center gap-2">
                         <Camera size={20} className="text-blue-400" /> Leitor de Código de Barras
