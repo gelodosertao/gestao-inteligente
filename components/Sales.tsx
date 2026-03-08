@@ -1006,7 +1006,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                         </div>
 
                         {/* Cart Area */}
-                        <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-4 bg-slate-50/30 scrollbar-thin scrollbar-thumb-orange-200">
+                        <div className="flex-1 overflow-y-auto p-3 md:p-6 space-y-2.5 bg-slate-50/30 scrollbar-thin scrollbar-thumb-orange-200">
                            {cart.length === 0 ? (
                               <div className="h-full flex flex-col items-center justify-center text-slate-300">
                                  <div className="relative mb-6">
@@ -1021,7 +1021,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                            ) : (
                               <div className="max-w-7xl mx-auto w-full space-y-3">
                                  {cart.map(item => (
-                                    <div key={`${item.product.id}-${item.negotiatedPrice}`} className="bg-white p-5 md:p-6 rounded-[1.5rem] border border-slate-100 shadow-sm flex items-center gap-6 hover:border-orange-300 hover:shadow-xl hover:-translate-y-0.5 transition-all group relative overflow-hidden">
+                                    <div key={`${item.product.id}-${item.negotiatedPrice}`} className="bg-white p-3 md:p-4 rounded-[1rem] border border-slate-100 shadow-sm flex items-center gap-4 hover:border-orange-300 hover:shadow-lg hover:-translate-y-0.5 transition-all group relative overflow-hidden">
                                        {/* Decorative accent */}
                                        <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-orange-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
 
@@ -1030,8 +1030,8 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                                              <span className="text-[10px] font-black text-orange-500 bg-orange-50 px-2 py-0.5 rounded-full uppercase tracking-widest">{item.product.category}</span>
                                              {item.isPack && <span className="text-[10px] font-black text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full uppercase tracking-widest">Fardo</span>}
                                           </div>
-                                          <h4 className="font-black text-2xl md:text-3xl lg:text-4xl text-slate-900 leading-tight truncate">{item.product.name}</h4>
-                                          <p className="text-lg md:text-xl text-slate-500 font-black tracking-tight mt-1">{formatCurrency(getProductPrice(item))} <span className="text-sm opacity-60">por {item.product.unit}</span></p>
+                                          <h4 className="font-black text-xl md:text-2xl lg:text-3xl text-slate-900 leading-tight truncate">{item.product.name}</h4>
+                                          <p className="text-sm md:text-base text-slate-500 font-bold tracking-tight mt-0.5">{formatCurrency(getProductPrice(item))} <span className="text-xs opacity-60">por {item.product.unit}</span></p>
                                        </div>
 
                                        <div className="flex items-center gap-4 bg-slate-100/50 p-2 rounded-2xl group-hover:bg-orange-50 transition-colors">
@@ -1050,19 +1050,19 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                                           </button>
                                        </div>
 
-                                       <div className="text-right min-w-[200px]">
-                                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Subtotal Item</span>
-                                          <span className="font-black text-2xl md:text-4xl text-slate-900 tracking-tighter tabular-nums">
+                                       <div className="text-right min-w-[120px] md:min-w-[160px]">
+                                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-0.5">Subtotal Item</span>
+                                          <span className="font-black text-xl md:text-3xl text-slate-900 tracking-tighter tabular-nums">
                                              {formatCurrency(item.quantity * getProductPrice(item))}
                                           </span>
                                        </div>
 
                                        <button
                                           onClick={() => removeFromCart(item.product.id, item.negotiatedPrice, item.isPack)}
-                                          className="p-4 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-2xl transition-all opacity-0 group-hover:opacity-100"
+                                          className="p-3 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all md:opacity-0 group-hover:opacity-100"
                                           title="Remover do Carrinho"
                                        >
-                                          <Trash2 size={24} />
+                                          <Trash2 size={20} />
                                        </button>
                                     </div>
                                  ))}
@@ -1070,46 +1070,48 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                            )}
                         </div>
 
-                        {/* Mega Checkout Section */}
-                        <div className="p-3 md:p-4 bg-white border-t-4 border-slate-100 shadow-[0_-10px_30px_rgba(0,0,0,0.05)] flex flex-col xl:flex-row justify-between items-center gap-4 relative z-20">
-                           <div className="flex flex-wrap justify-center md:justify-start gap-6 w-full xl:w-auto">
+                        {/* Compact Checkout Section */}
+                        <div className="p-3 md:px-5 md:py-3 bg-white border-t border-slate-200 shadow-[0_-5px_15px_rgba(0,0,0,0.05)] flex flex-col md:flex-row justify-between items-center gap-3 relative z-20 shrink-0">
+                           <div className="flex items-center justify-between w-full md:w-auto gap-4 md:gap-8">
                               <div className="flex flex-col">
-                                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Total Bruto</span>
-                                 <span className="text-xl md:text-2xl font-black text-slate-500 tracking-tighter tabular-nums decoration-slate-300 line-through opacity-60">{formatCurrency(subtotal)}</span>
+                                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Total Bruto</span>
+                                 <span className="text-base md:text-lg font-black text-slate-500 tracking-tighter tabular-nums decoration-slate-300 line-through opacity-60">{formatCurrency(subtotal)}</span>
                               </div>
 
                               <div className="flex flex-col">
-                                 <span className="text-[10px] font-black text-orange-500 uppercase tracking-[0.2em] mb-1">Desconto (R$)</span>
+                                 <span className="text-[10px] font-black text-orange-500 uppercase tracking-widest mb-0.5">Desconto (R$)</span>
                                  <div className="relative group">
-                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-black text-orange-400">R$</span>
+                                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-black text-orange-400">R$</span>
                                     <input
                                        type="number"
                                        value={discount}
                                        onChange={(e) => setDiscount(e.target.value)}
-                                       className="w-28 bg-orange-50/50 border border-orange-100 rounded-lg pl-8 pr-2 py-1.5 text-xl font-black text-orange-700 outline-none focus:ring-2 focus:ring-orange-200 focus:bg-white transition-all tabular-nums"
+                                       className="w-24 bg-orange-50/50 border border-orange-100 rounded-lg pl-7 pr-1.5 py-1 text-sm font-black text-orange-700 outline-none focus:ring-2 focus:ring-orange-200 focus:bg-white transition-all tabular-nums"
                                        placeholder="0,00"
                                     />
                                  </div>
                               </div>
                            </div>
 
-                           <div className="flex flex-col items-center xl:items-end w-full xl:flex-1">
-                              <div className="flex items-center gap-1.5 mb-0.5">
-                                 <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.5)]"></div>
-                                 <span className="text-[10px] font-black text-slate-900 uppercase tracking-[0.3em]">TOTAL A PAGAR</span>
+                           <div className="flex items-center justify-between w-full md:w-auto gap-4 mt-2 md:mt-0">
+                              <div className="flex flex-col items-start md:items-end flex-1 md:flex-none">
+                                 <div className="flex items-center gap-1.5 mb-0.5">
+                                    <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.5)]"></div>
+                                    <span className="text-[9px] md:text-[10px] font-black text-slate-900 uppercase tracking-[0.2em]">A PAGAR</span>
+                                 </div>
+                                 <span className="text-3xl md:text-4xl xl:text-5xl font-black text-slate-900 tracking-tighter leading-none tabular-nums drop-shadow-sm">
+                                    {formatCurrency(cartTotal)}
+                                 </span>
                               </div>
-                              <span className="text-4xl md:text-5xl xl:text-6xl font-black text-slate-900 tracking-tighter leading-none tabular-nums drop-shadow-sm">
-                                 {formatCurrency(cartTotal)}
-                              </span>
-                           </div>
 
-                           <button
-                              onClick={initiateCheckout}
-                              disabled={cart.length === 0}
-                              className="w-full xl:w-auto px-6 py-4 md:px-8 md:py-6 bg-slate-900 text-white rounded-[1.5rem] font-black text-xl md:text-2xl shadow-lg hover:bg-orange-500 hover:shadow-orange-500/30 hover:-translate-y-1.5 active:translate-y-0 active:scale-95 transition-all flex items-center justify-center gap-3 group disabled:opacity-30 disabled:hover:scale-100 disabled:hover:bg-slate-900"
-                           >
-                              RECEBER <Send size={24} className="group-hover:translate-x-1.5 transition-transform" />
-                           </button>
+                              <button
+                                 onClick={initiateCheckout}
+                                 disabled={cart.length === 0}
+                                 className="flex items-center justify-center px-5 py-3 md:px-6 md:py-3 bg-slate-900 text-white rounded-xl font-black text-base md:text-lg shadow-lg hover:bg-orange-500 hover:shadow-orange-500/30 active:scale-95 transition-all gap-2 group disabled:opacity-30 disabled:hover:scale-100 disabled:hover:bg-slate-900 shrink-0"
+                              >
+                                 RECEBER <Send size={18} className="group-hover:translate-x-1 transition-transform" />
+                              </button>
+                           </div>
                         </div>
                      </div>
                   </div>
