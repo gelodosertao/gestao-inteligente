@@ -806,7 +806,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
             // --- POS (POINT OF SALE) VIEW ---
             <div className="relative h-[calc(100vh-140px)] md:h-[calc(100vh-12rem)] pb-4 md:pb-0 flex flex-col">
                {/* Unified Top Header: Branches, Search & Scanner */}
-               <div className="bg-white p-3 md:p-4 rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.05)] border border-slate-100 mb-4 shrink-0 relative z-[60]">
+               <div className="bg-white p-3 md:p-4 rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.05)] border border-slate-100 mb-4 shrink-0 relative z-40">
                   <div className="flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-4">
                      <div className="flex bg-slate-100/80 p-1.5 rounded-2xl shadow-inner gap-1 shrink-0">
                         <button
@@ -824,7 +824,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                      </div>
 
                      <div className="flex gap-3 w-full lg:flex-1 max-w-5xl relative">
-                        <div className="relative flex-1 group z-[60]">
+                        <div className="relative flex-1 group z-40">
                            <Search size={24} className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400 group-focus-within:text-orange-500 transition-colors" />
                            <input
                               ref={barcodeInputRef}
@@ -1071,22 +1071,22 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                         </div>
 
                         {/* Mega Checkout Section */}
-                        <div className="p-4 md:p-6 bg-white border-t-4 border-slate-100 shadow-[0_-15px_40px_rgba(0,0,0,0.05)] flex flex-col xl:flex-row justify-between items-center gap-6 relative z-20">
-                           <div className="flex flex-wrap justify-center md:justify-start gap-8 w-full xl:w-auto">
+                        <div className="p-3 md:p-4 bg-white border-t-4 border-slate-100 shadow-[0_-10px_30px_rgba(0,0,0,0.05)] flex flex-col xl:flex-row justify-between items-center gap-4 relative z-20">
+                           <div className="flex flex-wrap justify-center md:justify-start gap-6 w-full xl:w-auto">
                               <div className="flex flex-col">
                                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Total Bruto</span>
-                                 <span className="text-2xl font-black text-slate-500 tracking-tighter tabular-nums decoration-slate-300 line-through opacity-60">{formatCurrency(subtotal)}</span>
+                                 <span className="text-xl md:text-2xl font-black text-slate-500 tracking-tighter tabular-nums decoration-slate-300 line-through opacity-60">{formatCurrency(subtotal)}</span>
                               </div>
 
                               <div className="flex flex-col">
                                  <span className="text-[10px] font-black text-orange-500 uppercase tracking-[0.2em] mb-1">Desconto (R$)</span>
                                  <div className="relative group">
-                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-lg font-black text-orange-400">R$</span>
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-black text-orange-400">R$</span>
                                     <input
                                        type="number"
                                        value={discount}
                                        onChange={(e) => setDiscount(e.target.value)}
-                                       className="w-32 bg-orange-50/50 border-2 border-orange-100 rounded-xl pl-10 pr-3 py-2 text-2xl font-black text-orange-700 outline-none focus:ring-2 focus:ring-orange-200 focus:bg-white transition-all tabular-nums"
+                                       className="w-28 bg-orange-50/50 border border-orange-100 rounded-lg pl-8 pr-2 py-1.5 text-xl font-black text-orange-700 outline-none focus:ring-2 focus:ring-orange-200 focus:bg-white transition-all tabular-nums"
                                        placeholder="0,00"
                                     />
                                  </div>
@@ -1094,11 +1094,11 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                            </div>
 
                            <div className="flex flex-col items-center xl:items-end w-full xl:flex-1">
-                              <div className="flex items-center gap-2 mb-1">
-                                 <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.5)]"></div>
-                                 <span className="text-[10px] md:text-xs font-black text-slate-900 uppercase tracking-[0.3em]">VALOR TOTAL A PAGAR</span>
+                              <div className="flex items-center gap-1.5 mb-0.5">
+                                 <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.5)]"></div>
+                                 <span className="text-[10px] font-black text-slate-900 uppercase tracking-[0.3em]">TOTAL A PAGAR</span>
                               </div>
-                              <span className="text-5xl md:text-6xl xl:text-[5.5rem] font-black text-slate-900 tracking-tighter leading-none tabular-nums drop-shadow-sm">
+                              <span className="text-4xl md:text-5xl xl:text-6xl font-black text-slate-900 tracking-tighter leading-none tabular-nums drop-shadow-sm">
                                  {formatCurrency(cartTotal)}
                               </span>
                            </div>
@@ -1106,9 +1106,9 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                            <button
                               onClick={initiateCheckout}
                               disabled={cart.length === 0}
-                              className="w-full xl:w-auto px-10 py-6 md:px-12 md:py-8 bg-slate-900 text-white rounded-[2rem] font-black text-2xl md:text-3xl shadow-[0_10px_30px_rgba(0,0,0,0.15)] hover:bg-orange-500 hover:shadow-[0_10px_30px_rgba(249,115,22,0.3)] hover:-translate-y-2 active:translate-y-0 active:scale-95 transition-all flex items-center justify-center gap-4 group disabled:opacity-30 disabled:hover:scale-100 disabled:hover:bg-slate-900"
+                              className="w-full xl:w-auto px-6 py-4 md:px-8 md:py-6 bg-slate-900 text-white rounded-[1.5rem] font-black text-xl md:text-2xl shadow-lg hover:bg-orange-500 hover:shadow-orange-500/30 hover:-translate-y-1.5 active:translate-y-0 active:scale-95 transition-all flex items-center justify-center gap-3 group disabled:opacity-30 disabled:hover:scale-100 disabled:hover:bg-slate-900"
                            >
-                              RECEBER <Send size={28} className="group-hover:translate-x-2 transition-transform" />
+                              RECEBER <Send size={24} className="group-hover:translate-x-1.5 transition-transform" />
                            </button>
                         </div>
                      </div>
