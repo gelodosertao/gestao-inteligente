@@ -916,16 +916,30 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
 
                      {/* Cart Right Side */}
                      <div className="lg:col-span-2 bg-slate-900 rounded-[2rem] shadow-2xl flex flex-col overflow-hidden h-full">
-                        <div className="p-4 bg-blue-700 text-white flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-lg flex-wrap">
-                           <div className="flex items-center gap-3 w-full sm:w-auto">
+                        <div className="p-4 bg-blue-700 text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-lg flex-wrap">
+                           <div className="flex items-center gap-3 w-full md:w-auto">
                               <Factory size={24} />
                               <span className="font-black text-lg uppercase tracking-tighter">Pedido de Atacado</span>
                            </div>
-                           <div className="flex items-center gap-3 w-full sm:w-auto">
+
+                           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
+                              {/* DEPOSIT SELECTION (ATACADO) */}
+                              <div className="flex items-center bg-blue-800/80 p-1 rounded-xl shadow-inner border border-blue-600/50">
+                                 <span className="text-[10px] font-black tracking-widest uppercase px-2 text-blue-300">Estoque:</span>
+                                 <select
+                                    value={selectedDeposit}
+                                    onChange={(e) => setSelectedDeposit(e.target.value as 'Ibotirama' | 'Barreiras')}
+                                    className="bg-transparent text-white text-xs font-bold font-black outline-none cursor-pointer pr-2 focus:ring-0"
+                                 >
+                                    <option value="Ibotirama" className="text-slate-900 font-bold">Ibotirama</option>
+                                    <option value="Barreiras" className="text-slate-900 font-bold">Barreiras</option>
+                                 </select>
+                              </div>
+
                               {/* CUSTOMER SELECTION BUTTON (ATACADO) */}
                               <button
                                  onClick={() => setShowCustomerModal(true)}
-                                 className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-blue-800 hover:bg-blue-600 px-4 py-2 rounded-xl text-sm font-black transition-all border border-blue-500 shadow-sm group"
+                                 className="flex items-center justify-center gap-2 bg-blue-800 hover:bg-blue-600 px-4 py-2 rounded-xl text-sm font-black transition-all border border-blue-500 shadow-sm group"
                               >
                                  <UserIcon size={18} className="group-hover:scale-110 transition-transform" />
                                  {selectedCustomer ? (
@@ -934,13 +948,10 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                                     'Vincular Cliente'
                                  )}
                               </button>
-                              <span className="hidden sm:inline-block px-4 py-1.5 bg-blue-900/50 rounded-full text-xs font-black tracking-widest border border-blue-600">
-                                 {cart.length} ITENS
-                              </span>
                            </div>
                         </div>
 
-                        <div className="flex-1 overflow-y-auto p-5 space-y-3 bg-slate-900/50 scrollbar-thin scrollbar-thumb-blue-800">
+                        <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-3 md:space-y-4 bg-slate-900/50 scrollbar-thin scrollbar-thumb-blue-800">
                            {cart.length === 0 ? (
                               <div className="h-full flex flex-col items-center justify-center text-slate-700 opacity-50">
                                  <Package size={80} strokeWidth={0.5} className="mb-4" />
@@ -948,23 +959,29 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                               </div>
                            ) : (
                               cart.map(item => (
-                                 <div key={`${item.product.id}-${item.negotiatedPrice}`} className="bg-slate-800/80 backdrop-blur-md p-5 rounded-2xl border border-white/5 flex items-center gap-4 hover:border-blue-500/50 transition-all group">
-                                    <div className="flex-1 min-w-0 pr-2">
-                                       <h4 className="font-black text-sm sm:text-base text-white break-words leading-tight">{item.product.name}</h4>
-                                       <p className="text-[10px] sm:text-xs text-blue-400 font-black uppercase tracking-widest mt-1">{formatCurrency(getProductPrice(item))} / un</p>
-                                    </div>
-                                    <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2 bg-white/5 p-1 rounded-xl">
-                                       <div className="flex items-center">
-                                          <button onClick={() => updateQuantity(item.product.id, -1, item.negotiatedPrice, item.isPack)} className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center bg-slate-700 text-white rounded-lg hover:bg-slate-600 transition-colors"><Minus size={14} strokeWidth={3} /></button>
-                                          <span className="w-8 sm:w-10 text-center font-black text-lg sm:text-xl text-white tabular-nums">{item.quantity}</span>
-                                          <button onClick={() => updateQuantity(item.product.id, 1, item.negotiatedPrice, item.isPack)} className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center bg-blue-600 text-white rounded-lg shadow-lg hover:bg-blue-500 transition-colors"><Plus size={14} strokeWidth={3} /></button>
+                                 <div key={`${item.product.id}-${item.negotiatedPrice}`} className="bg-slate-800/80 backdrop-blur-md p-4 md:p-5 rounded-2xl border border-white/10 shadow-[0_4px_15px_rgba(0,0,0,0.2)] flex flex-col md:flex-row md:items-center gap-4 md:gap-6 hover:border-blue-500/80 hover:bg-slate-800 transition-all group">
+                                    <div className="flex-1 min-w-0 pr-2 pb-2 md:pb-0 border-b border-white/5 md:border-b-0">
+                                       <div className="flex items-center gap-2 mb-1.5">
+                                          <span className="text-[10px] font-black text-blue-400 bg-blue-900/50 px-2 py-0.5 rounded-sm uppercase tracking-widest border border-blue-800/50">{item.product.category}</span>
                                        </div>
+                                       <h4 className="font-black text-lg md:text-xl xl:text-2xl text-white break-words leading-tight">{item.product.name}</h4>
+                                       <p className="text-xs md:text-sm text-blue-400 font-bold tracking-widest mt-1 opacity-80">{formatCurrency(getProductPrice(item))} / un</p>
                                     </div>
-                                    <div className="text-right min-w-[90px] sm:min-w-[110px]">
-                                       <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest block mb-0.5">Total</span>
-                                       <span className="font-black text-lg sm:text-2xl text-white tracking-tighter tabular-nums">{formatCurrency(item.quantity * getProductPrice(item))}</span>
+
+                                    <div className="flex items-center justify-between md:justify-end gap-6 w-full md:w-auto pt-2 md:pt-0">
+                                       <div className="flex items-center gap-2 bg-slate-900/60 p-1.5 rounded-xl border border-white/5">
+                                          <button onClick={() => updateQuantity(item.product.id, -1, item.negotiatedPrice, item.isPack)} className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center bg-slate-700 text-white rounded-lg hover:bg-slate-600 active:scale-90 transition-all"><Minus size={18} strokeWidth={3} /></button>
+                                          <span className="w-12 md:w-16 text-center font-black text-xl md:text-2xl text-white tabular-nums">{item.quantity}</span>
+                                          <button onClick={() => updateQuantity(item.product.id, 1, item.negotiatedPrice, item.isPack)} className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center bg-blue-600 text-white rounded-lg shadow-[0_4px_12px_rgba(37,99,235,0.4)] hover:bg-blue-500 active:scale-90 transition-all"><Plus size={18} strokeWidth={3} /></button>
+                                       </div>
+
+                                       <div className="text-right min-w-[100px] md:min-w-[130px]">
+                                          <span className="text-[9px] md:text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-0.5">Total Item</span>
+                                          <span className="font-black text-2xl md:text-3xl text-white tracking-tighter tabular-nums text-shadow-sm">{formatCurrency(item.quantity * getProductPrice(item))}</span>
+                                       </div>
+
+                                       <button onClick={() => removeFromCart(item.product.id, item.negotiatedPrice, item.isPack)} className="text-rose-400 p-3 hover:bg-rose-500/20 hover:text-rose-300 rounded-xl transition-all md:opacity-0 md:-translate-x-4 group-hover:opacity-100 group-hover:translate-x-0 outline-none" title="Remover Item"><Trash2 size={24} /></button>
                                     </div>
-                                    <button onClick={() => removeFromCart(item.product.id, item.negotiatedPrice, item.isPack)} className="text-rose-400 p-2 hover:bg-rose-500/10 rounded-xl transition-all opacity-40 group-hover:opacity-100"><Trash2 size={24} /></button>
                                  </div>
                               ))
                            )}
