@@ -988,29 +988,29 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                         </div>
 
                         {/* Totals Section */}
-                        <div className="p-8 bg-slate-900 border-t border-white/10 shadow-[0_-20px_50px_rgba(0,0,0,0.3)]">
-                           <div className="flex flex-col md:flex-row justify-between items-center gap-6 mb-8">
-                              <div className="flex gap-10">
+                        <div className="p-4 bg-slate-900 border-t border-white/10 shadow-[0_-10px_30px_rgba(0,0,0,0.3)] shrink-0 z-10">
+                           <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-4">
+                              <div className="flex gap-6">
                                  <div className="flex flex-col">
-                                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Subtotal</span>
-                                    <span className="text-xl font-black text-slate-400 line-through opacity-50 tabular-nums">{formatCurrency(subtotal)}</span>
+                                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Subtotal</span>
+                                    <span className="text-lg font-black text-slate-400 line-through opacity-50 tabular-nums">{formatCurrency(subtotal)}</span>
                                  </div>
                                  <div className="flex flex-col">
-                                    <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-1">Desconto Aplicado</span>
+                                    <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-0.5">Desconto Aplicado</span>
                                     <div className="flex items-center gap-2 relative">
                                        <span className="absolute left-3 text-blue-500 font-black">R$</span>
-                                       <input type="number" value={discount} onChange={(e) => setDiscount(e.target.value)} className="w-28 bg-white/5 border border-white/10 rounded-xl pl-9 pr-3 py-2 text-xl font-black text-white outline-none focus:border-blue-500 transition-all tabular-nums" />
+                                       <input type="number" value={discount} onChange={(e) => setDiscount(e.target.value)} className="w-24 bg-white/5 border border-white/10 rounded-lg pl-8 pr-2 py-1.5 text-lg font-black text-white outline-none focus:border-blue-500 transition-all tabular-nums" />
                                     </div>
                                  </div>
                               </div>
                               <div className="text-center md:text-right">
-                                 <span className="text-xs font-black text-blue-500 uppercase tracking-[0.5em] block mb-2">TOTAL FINAL DO LOTE</span>
-                                 <span className="text-7xl font-black text-white tracking-tighter leading-none tabular-nums drop-shadow-[0_0_20px_rgba(37,99,235,0.3)]">
+                                 <span className="text-[10px] font-black text-blue-500 uppercase tracking-[0.3em] block mb-1">TOTAL FINAL</span>
+                                 <span className="text-4xl lg:text-5xl font-black text-white tracking-tighter leading-none tabular-nums drop-shadow-[0_0_15px_rgba(37,99,235,0.3)]">
                                     {formatCurrency(cartTotal)}
                                  </span>
                               </div>
                            </div>
-                           <button onClick={initiateCheckout} disabled={cart.length === 0} className="w-full py-8 bg-blue-600 text-white rounded-3xl font-black text-3xl shadow-2xl hover:bg-blue-500 hover:shadow-blue-200/20 hover:-translate-y-2 active:translate-y-0 active:scale-95 transition-all flex items-center justify-center gap-6 group disabled:opacity-20 disabled:hover:translate-y-0 text-center uppercase">CONCLUIR ATACADO <Send size={32} className="group-hover:translate-x-2 transition-transform" /></button>
+                           <button onClick={initiateCheckout} disabled={cart.length === 0} className="w-full py-4 bg-blue-600 text-white rounded-2xl font-black text-xl lg:text-2xl shadow-xl hover:bg-blue-500 hover:shadow-blue-500/20 hover:-translate-y-1 active:translate-y-0 active:scale-[0.98] transition-all flex items-center justify-center gap-4 group disabled:opacity-30 disabled:hover:translate-y-0 text-center uppercase tracking-wide">CONCLUIR PEDIDO <Send size={24} className="group-hover:translate-x-2 transition-transform" /></button>
                         </div>
                      </div>
                   </div>
