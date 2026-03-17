@@ -1,6 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { Product, Sale, Customer, User, Branch, SaleItem } from '../types';
-import { ShoppingCart, LogOut, User as UserIcon, Plus, Minus, Search, CheckCircle, ArrowLeft, History, Store, MapPin, Edit, Trash2, Save, X } from 'lucide-react';
+import { ShoppingCart, LogOut, User as UserIcon, Plus, Minus, Search, CheckCircle, ArrowLeft, History, Store, MapPin, Edit, Trash2, Save, X, Printer, Check } from 'lucide-react';
+import html2canvas from 'html2canvas';
+import { hardwareBridge } from '../services/hardwareBridge';
 
 interface WholesalePOSProps {
     products: Product[];
@@ -46,6 +48,9 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
 
     // Customer Management Mode
     const [showAddCustomerModal, setShowAddCustomerModal] = useState(false);
+    const [lastCompletedSale, setLastCompletedSale] = useState<Sale | null>(null);
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [isPrinting, setIsPrinting] = useState(false);
     const [newCustomer, setNewCustomer] = useState<Partial<Customer>>({
         name: '',
         cpfCnpj: '',
@@ -201,11 +206,11 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
             total: cartTotal,
             items: saleItems,
             branch: Branch.MATRIZ,
-            status: 'Pending', // Envia como Pendente para o ADM conferir estoque e pagamento
+            status: 'Pending',
             paymentMethod,
             hasInvoice: false,
             source: 'WHOLESALE_POS',
-            amountPaid: 0, // Inicia como 0, pois o ADM confirma recebimento
+            amountPaid: 0,
             sellerId: currentUser.id,
             sellerName: currentUser.name,
             sellerRole: currentUser.role,
@@ -214,15 +219,52 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
 
         try {
             await onAddSale(newSale);
-            alert("Pedido lançado com sucesso!");
+            setLastCompletedSale(newSale);
             setCart([]);
             setSelectedCustomer(null);
             setIsCheckingOut(false);
-            setActiveTab('CATALOG');
+            setShowSuccessModal(true);
         } catch (e) {
             console.error(e);
             alert("Erro ao lançar pedido.");
         }
+    };
+
+    const handlePrint = async (saleToPrint: Sale) => {
+        setLastCompletedSale(saleToPrint);
+        setIsPrinting(true);
+
+        // Wait for state to update and layout to render
+        setTimeout(async () => {
+            const receiptElement = document.getElementById('wholesale-receipt');
+            if (!receiptElement) {
+                setIsPrinting(false);
+                return;
+            }
+
+            try {
+                const canvas = await html2canvas(receiptElement, {
+                    scale: 2,
+                    backgroundColor: '#ffffff'
+                });
+                const image = canvas.toDataURL("image/jpeg", 0.9);
+
+                const printedNatively = hardwareBridge.printReceipt(image);
+
+                if (printedNatively) {
+                    alert("Enviado para impressora!");
+                } else {
+                    alert("Hardware de impressão não detectado. O cupom foi gerado.");
+                    // Fallback: download image if not native? 
+                    // Actually, the user asked for image print on Smart2, which hardwareBridge handles.
+                }
+            } catch (e) {
+                console.error("Erro ao imprimir", e);
+                alert("Erro ao gerar imagem para impressão.");
+            } finally {
+                setIsPrinting(false);
+            }
+        }, 300);
     };
 
     const updateEditingItem = (index: number, field: string, value: any) => {
@@ -596,9 +638,9 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                                             <div className="flex items-center gap-2 mb-1">
                                                 <h4 className="font-bold text-slate-800">{sale.customerName}</h4>
                                                 <span className={`text-[9px] font-black px-1.5 py-0.5 rounded uppercase ${sale.status === 'Pending' ? 'bg-orange-100 text-orange-700' :
-                                                        sale.status === 'Completed' ? 'bg-green-100 text-green-700' :
-                                                            sale.status === 'Finalizado pela Fábrica' ? 'bg-blue-100 text-blue-700' :
-                                                                'bg-slate-100 text-slate-600'
+                                                    sale.status === 'Completed' ? 'bg-green-100 text-green-700' :
+                                                        sale.status === 'Finalizado pela Fábrica' ? 'bg-blue-100 text-blue-700' :
+                                                            'bg-slate-100 text-slate-600'
                                                     }`}>
                                                     {sale.status === 'Pending' ? 'Pendente' :
                                                         sale.status === 'Completed' ? 'Concluído' :
@@ -621,6 +663,12 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                                         </div>
                                         {/* Edit / Delete Buttons */}
                                         <div className="flex gap-2">
+                                            <button
+                                                onClick={() => handlePrint(sale)}
+                                                className="p-1 px-2 text-xs bg-blue-50 hover:bg-blue-100 text-blue-600 rounded flex items-center gap-1 font-bold transition-all border border-blue-100"
+                                            >
+                                                <Printer size={12} /> Imprimir
+                                            </button>
                                             {onUpdateSale && (
                                                 <button
                                                     onClick={() => { setEditingSale({ ...sale }); setShowEditSaleModal(true); }}
@@ -891,6 +939,84 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                                 className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-2xl font-black text-lg shadow-xl shadow-blue-900/20 transition-all flex items-center justify-center gap-2 mt-2"
                             >
                                 <Plus size={24} /> Concluir Cadastro
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Hidden Receipt for Printing */}
+            <div id="wholesale-receipt" className={`fixed -left-[1000px] top-0 bg-white p-4 w-[280px] text-slate-800 ${isPrinting ? '' : 'hidden'}`}>
+                <div className="text-center mb-4 border-b border-slate-200 pb-2">
+                    <h3 className="font-black text-lg uppercase">Gelo do Sertão</h3>
+                    <p className="text-[10px] font-bold">CNPJ: 49.344.385/0001-44</p>
+                    <p className="text-[10px]">Ibotirama - BA</p>
+                </div>
+
+                <div className="text-center mb-4 border-b border-slate-200 pb-2">
+                    <p className="text-xs font-black uppercase">Pedido de Atacado</p>
+                    <p className="text-[10px] tracking-widest">{lastCompletedSale?.id.substring(0, 8).toUpperCase()}</p>
+                    <p className="text-[10px]">{lastCompletedSale?.createdAt ? new Date(lastCompletedSale.createdAt).toLocaleString('pt-BR') : new Date().toLocaleString('pt-BR')}</p>
+                </div>
+
+                <div className="mb-4 text-[10px] space-y-0.5">
+                    <p><strong>CLIENTE:</strong> {lastCompletedSale?.customerName.toUpperCase()}</p>
+                    <p><strong>VENDEDOR:</strong> {lastCompletedSale?.sellerName?.toUpperCase()}</p>
+                    <p><strong>STATUS:</strong> {lastCompletedSale?.status.toUpperCase()}</p>
+                </div>
+
+                <table className="w-full text-[10px] mb-4 border-b border-slate-100">
+                    <thead>
+                        <tr className="border-b border-slate-200 uppercase">
+                            <th className="text-left py-1">Item</th>
+                            <th className="text-center py-1">Qtd</th>
+                            <th className="text-right py-1">Vlr</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                        {lastCompletedSale?.items.map((item, idx) => (
+                            <tr key={idx}>
+                                <td className="py-1">{item.productName}</td>
+                                <td className="py-1 text-center font-bold">x{item.quantity}</td>
+                                <td className="py-1 text-right">R$ {(item.priceAtSale * item.quantity).toFixed(2)}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+
+                <div className="text-right space-y-1">
+                    <p className="text-xs font-black">TOTAL PEDIDO: R$ {lastCompletedSale?.total.toFixed(2)}</p>
+                    <p className="text-[10px] uppercase">Forma de Pagto: {lastCompletedSale?.paymentMethod}</p>
+                </div>
+
+                <div className="mt-8 text-center border-t-2 border-dashed border-slate-200 pt-4 pb-8">
+                    <p className="text-[10px] font-black uppercase">Obrigado pela preferência!</p>
+                    <p className="text-[8px] mt-2 italic">Sistema Gelo do Sertão • Gestão Inteligente</p>
+                </div>
+            </div>
+
+            {/* Success Modal */}
+            {showSuccessModal && (
+                <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[100] flex items-center justify-center p-4">
+                    <div className="bg-white w-full max-w-sm rounded-3xl p-8 text-center animate-in zoom-in duration-300 shadow-2xl">
+                        <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6">
+                            <Check size={40} strokeWidth={3} />
+                        </div>
+                        <h2 className="text-2xl font-black text-slate-800 mb-2">Pedido Realizado!</h2>
+                        <p className="text-slate-500 font-medium mb-8">O pedido foi enviado para conferência administrativa.</p>
+
+                        <div className="space-y-3">
+                            <button
+                                onClick={() => lastCompletedSale && handlePrint(lastCompletedSale)}
+                                className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-2xl font-black flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20 active:scale-95 transition-all text-lg"
+                            >
+                                <Printer size={20} /> Imprimir Pedido
+                            </button>
+                            <button
+                                onClick={() => { setShowSuccessModal(false); setActiveTab('CATALOG'); }}
+                                className="w-full bg-slate-100 hover:bg-slate-200 text-slate-600 py-4 rounded-2xl font-black active:scale-95 transition-all"
+                            >
+                                Voltar para Início
                             </button>
                         </div>
                     </div>
