@@ -43,12 +43,14 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
     const [showEditSaleModal, setShowEditSaleModal] = useState(false);
     const [editingSale, setEditingSale] = useState<Sale | null>(null);
 
-    // Filter products for Wholesale (only ones with stock Matriz? Or just all, and let them search)
+    // Filter products for Wholesale (only allow "Gelo" products)
     const filteredProducts = useMemo(() => {
-        return products.filter(p =>
-            p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            p.category.toLowerCase().includes(searchTerm.toLowerCase())
-        ).sort((a, b) => a.category.localeCompare(b.category));
+        return products.filter(p => {
+            const isGelo = p.name.toLowerCase().includes('gelo') || p.category.toLowerCase().includes('gelo');
+            const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                p.category.toLowerCase().includes(searchTerm.toLowerCase());
+            return isGelo && matchesSearch;
+        }).sort((a, b) => a.category.localeCompare(b.category));
     }, [products, searchTerm]);
 
     // My Sales History
