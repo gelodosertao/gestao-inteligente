@@ -394,7 +394,12 @@ export const dbSales = {
       amountPaid: row.amount_paid,
       paymentHistory: row.payment_history,
       createdAt: row.created_at,
-      deliveryFee: row.delivery_fee
+      deliveryFee: row.delivery_fee,
+      source: row.source,
+      sellerId: row.seller_id,
+      sellerName: row.seller_name,
+      sellerRole: row.seller_role,
+      commissionAmount: row.commission_amount
     }));
   },
 
@@ -416,6 +421,11 @@ export const dbSales = {
       payment_history: sale.paymentHistory,
       created_at: sale.createdAt,
       delivery_fee: sale.deliveryFee,
+      source: sale.source,
+      seller_id: sale.sellerId,
+      seller_name: sale.sellerName,
+      seller_role: sale.sellerRole,
+      commission_amount: sale.commissionAmount,
       tenant_id: tenantId
     };
 
@@ -442,7 +452,12 @@ export const dbSales = {
       change_amount: sale.changeAmount,
       amount_paid: sale.amountPaid,
       payment_history: sale.paymentHistory,
-      delivery_fee: sale.deliveryFee
+      delivery_fee: sale.deliveryFee,
+      source: sale.source,
+      seller_id: sale.sellerId,
+      seller_name: sale.sellerName,
+      seller_role: sale.sellerRole,
+      commission_amount: sale.commissionAmount
     };
 
     if (sale.paymentSplits) {
