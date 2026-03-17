@@ -285,45 +285,56 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                     const currentStock = matrizDeposit === 'Ibotirama' ? product.stockMatrizIbotirama : product.stockMatrizBarreiras;
 
                     return (
-                        <div key={product.id} className="bg-white p-3 rounded-xl shadow-sm border border-slate-100 flex flex-col justify-between">
+                        <div
+                            key={product.id}
+                            onClick={() => !cartItem && addToCart(product)}
+                            className={`bg-white p-3 rounded-2xl shadow-sm border-2 transition-all group flex flex-col justify-between cursor-pointer ${cartItem ? 'border-blue-500 ring-4 ring-blue-50' : 'border-slate-100 hover:border-blue-300 hover:shadow-xl active:scale-95'}`}
+                        >
                             <div>
-                                <p className="text-xs text-orange-500 font-bold uppercase tracking-wider mb-1">{product.category}</p>
-                                <h3 className="font-bold text-slate-800 leading-tight mb-1">{product.name}</h3>
-                                <p className="text-sm font-bold text-green-600 mb-2">
+                                <div className="flex justify-between items-start mb-1">
+                                    <p className="text-[10px] text-blue-500 font-black uppercase tracking-widest">{product.category}</p>
+                                    {cartItem && (
+                                        <div className="bg-blue-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full animate-bounce">
+                                            {cartItem.quantity} No Carrinho
+                                        </div>
+                                    )}
+                                </div>
+                                <h3 className="font-bold text-slate-800 leading-tight mb-1 text-sm group-hover:text-blue-700 transition-colors">{product.name}</h3>
+                                <p className="text-lg font-black text-slate-900 mb-2 tracking-tighter">
                                     R$ {getProductPrice(product).toFixed(2)}
-                                    {product.category === 'Gelo Sabor' && <span className="text-[10px] text-orange-500 ml-1">dinâmico</span>}
+                                    {product.category === 'Gelo Sabor' && <span className="text-[10px] text-orange-500 ml-1 font-bold italic">dinâmico</span>}
                                 </p>
-                                <p className="text-xs text-slate-500 mb-3 flex items-center gap-1">
-                                    <MapPin size={12} /> Est: {currentStock} {product.unit}
+                                <p className="text-[10px] text-slate-400 mb-3 flex items-center gap-1 font-bold">
+                                    <MapPin size={12} className="text-slate-300" /> Sto: <span className={currentStock > 0 ? 'text-emerald-500' : 'text-rose-500'}>{currentStock}</span>
                                 </p>
                             </div>
 
                             {cartItem ? (
-                                <div className="flex flex-col gap-1">
+                                <div className="flex flex-col gap-1 mt-auto" onClick={(e) => e.stopPropagation()}>
                                     {product.category === 'Gelo Sabor' && (
                                         <div className="flex gap-1 mb-1">
-                                            <button onClick={() => updateQuantity(product.id, cartItem.quantity + 10)} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-bold py-1 rounded">+10</button>
-                                            <button onClick={() => updateQuantity(product.id, cartItem.quantity + 20)} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-bold py-1 rounded">+20</button>
+                                            <button onClick={() => updateQuantity(product.id, cartItem.quantity + 10)} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-black py-1.5 rounded-lg transition-all">+10</button>
+                                            <button onClick={() => updateQuantity(product.id, cartItem.quantity + 50)} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-black py-1.5 rounded-lg transition-all">+50</button>
                                         </div>
                                     )}
-                                    <div className="flex items-center justify-between bg-orange-50 rounded-lg p-1 border border-orange-100">
-                                        <button onClick={() => updateQuantity(product.id, cartItem.quantity - 1)} className="w-8 h-8 flex items-center justify-center bg-white text-orange-600 rounded shadow-sm font-bold active:scale-95">-</button>
+                                    <div className="flex items-center justify-between bg-blue-50 rounded-xl p-1.5 border border-blue-100 shadow-inner">
+                                        <button onClick={() => updateQuantity(product.id, cartItem.quantity - 1)} className="w-9 h-9 flex items-center justify-center bg-white text-blue-600 rounded-lg shadow-sm font-black active:scale-90 transition-all border border-blue-100">-</button>
                                         <input
                                             type="number"
                                             value={cartItem.quantity || ''}
                                             onChange={(e) => updateQuantity(product.id, parseInt(e.target.value) || 0)}
                                             onFocus={(e) => e.target.select()}
-                                            className="w-10 text-center font-bold text-orange-800 bg-transparent outline-none hide-arrows"
+                                            className="w-12 text-center font-black text-blue-900 bg-transparent outline-none hide-arrows text-lg"
                                         />
-                                        <button onClick={() => updateQuantity(product.id, cartItem.quantity + 1)} className="w-8 h-8 flex items-center justify-center bg-orange-500 text-white rounded shadow-sm font-bold active:scale-95">+</button>
+                                        <button onClick={() => updateQuantity(product.id, cartItem.quantity + 1)} className="w-9 h-9 flex items-center justify-center bg-blue-600 text-white rounded-lg shadow-lg font-black active:scale-90 transition-all shadow-blue-200">+</button>
                                     </div>
                                 </div>
                             ) : (
                                 <button
-                                    onClick={() => updateQuantity(product.id, 1)}
-                                    className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-bold text-sm transition-all flex items-center justify-center gap-1 active:scale-95"
+                                    onClick={(e) => { e.stopPropagation(); addToCart(product); }}
+                                    className="w-full py-3 bg-slate-900 text-white rounded-xl font-black text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 hover:bg-blue-600 hover:shadow-xl shadow-blue-200 active:scale-90 group-hover:bg-blue-600"
                                 >
-                                    <Plus size={16} /> Adicionar
+                                    <Plus size={16} strokeWidth={3} /> Adicionar
                                 </button>
                             )}
                         </div>
