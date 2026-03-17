@@ -19,7 +19,7 @@ export const ALL_MENU_ITEMS = [
   { id: 'DASHBOARD', label: 'Dashboard', icon: LayoutDashboard, roles: ['ADMIN'] },
   { id: 'INVENTORY', label: 'Estoque', icon: Package, roles: ['ADMIN', 'OPERATOR'] },
   { id: 'PRODUCTION', label: 'Produção', icon: Factory, roles: ['ADMIN', 'FACTORY'] },
-  { id: 'SALES', label: 'Vendas', icon: ShoppingCart, roles: ['ADMIN', 'OPERATOR'] },
+  { id: 'SALES', label: 'PDV Adega', icon: ShoppingCart, roles: ['ADMIN', 'OPERATOR'] },
   { id: 'ORDER_CENTER', label: 'Central de Pedidos', icon: Truck, roles: ['ADMIN', 'OPERATOR'] },
   { id: 'CUSTOMERS', label: 'Clientes', icon: Users, roles: ['ADMIN', 'OPERATOR'] },
   { id: 'PRICING', label: 'Custos', icon: Calculator, roles: ['ADMIN'] },
