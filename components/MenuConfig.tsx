@@ -155,12 +155,12 @@ const MenuConfig: React.FC<MenuConfigProps> = ({ onBack, tenantId }) => {
                         <div className="flex gap-2">
                             <input
                                 readOnly
-                                value={`${window.location.origin}${window.location.pathname}?menu=true&tenantId=${tenantId}`}
+                                value={`${window.location.origin}/cardapio-adega?tenantId=${tenantId}`}
                                 className="flex-1 px-4 py-3 border border-blue-200 rounded-lg bg-white text-slate-600 text-sm font-mono shadow-sm"
                             />
                             <button
                                 onClick={() => {
-                                    navigator.clipboard.writeText(`${window.location.origin}${window.location.pathname}?menu=true&tenantId=${tenantId}`);
+                                    navigator.clipboard.writeText(`${window.location.origin}/cardapio-adega?tenantId=${tenantId}`);
                                     alert("Link copiado para a área de transferência!");
                                 }}
                                 className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-bold transition-colors shadow-sm flex items-center gap-2"
@@ -178,14 +178,14 @@ const MenuConfig: React.FC<MenuConfigProps> = ({ onBack, tenantId }) => {
 
                     <div className="bg-white p-2 rounded-lg border border-slate-100 shadow-inner mb-4">
                         <img
-                            src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(`${window.location.origin}${window.location.pathname}?menu=true&tenantId=${tenantId}`)}`}
+                            src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(`${window.location.origin}/cardapio-adega?tenantId=${tenantId}`)}`}
                             alt="QR Code do Cardápio"
                             className="w-32 h-32 object-contain"
                         />
                     </div>
 
                     <a
-                        href={`https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(`${window.location.origin}${window.location.pathname}?menu=true&tenantId=${tenantId}`)}`}
+                        href={`https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(`${window.location.origin}/cardapio-adega?tenantId=${tenantId}`)}`}
                         download="qrcode-loja.png"
                         target="_blank"
                         rel="noreferrer"
