@@ -282,18 +282,40 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                     backgroundColor: '#ffffff'
                 });
 
-                // Convert to PNG and trigger download
-                canvas.toBlob((blob) => {
+                // Convert to PNG and trigger Share/Download
+                canvas.toBlob(async (blob) => {
                     if (!blob) return;
-                    const url = URL.createObjectURL(blob);
+
+                    const fileName = `pedido-${saleToPrint.id.substring(0, 8)}.png`;
+                    const file = new File([blob], fileName, { type: 'image/png' });
+
+                    // Tentativa 1: Web Share API NATIVA do Android/iOS (mais eficaz em PWA/Maquininha)
+                    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                        try {
+                            await navigator.share({
+                                files: [file],
+                                title: 'Cupom de Pedido',
+                                text: 'Cupom de pedido Atacado',
+                            });
+                            return; // Sucesso com share nativo!
+                        } catch (err) {
+                            console.log('Share cancelado ou falhou', err);
+                        }
+                    }
+
+                    // Tentativa 2: Exibir a imagem em nova aba (Permite "Pressionar e Salvar" ou imprimir direto pelo browser)
+                    const dataUrl = URL.createObjectURL(blob);
+
+                    // Tentativa 3: Download convencional de PWA
                     const a = document.createElement('a');
-                    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19);
-                    a.href = url;
-                    a.download = `pedido-${saleToPrint.id.substring(0, 8)}-${timestamp}.png`;
+                    a.href = dataUrl;
+                    a.download = fileName;
                     document.body.appendChild(a);
                     a.click();
                     document.body.removeChild(a);
-                    URL.revokeObjectURL(url);
+
+                    setTimeout(() => URL.revokeObjectURL(dataUrl), 100);
+
                 }, 'image/png');
 
             } catch (e) {
