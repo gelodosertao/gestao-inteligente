@@ -99,7 +99,8 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
             if (existing) {
                 return prev.map(item => item.product.id === product.id ? { ...item, quantity: item.quantity + 1 } : item);
             }
-            return [...prev, { product, quantity: 1 }];
+            const initialQuantity = product.category === 'Gelo Sabor' ? 10 : 1;
+            return [...prev, { product, quantity: initialQuantity }];
         });
     };
 
@@ -343,7 +344,7 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                                         </div>
                                     )}
                                     <div className="flex items-center justify-between bg-blue-50 rounded-xl p-1.5 border border-blue-100 shadow-inner">
-                                        <button onClick={() => updateQuantity(product.id, cartItem.quantity - 1)} className="w-9 h-9 flex items-center justify-center bg-white text-blue-600 rounded-lg shadow-sm font-black active:scale-90 transition-all border border-blue-100">-</button>
+                                        <button onClick={() => updateQuantity(product.id, cartItem.quantity - (product.category === 'Gelo Sabor' ? 10 : 1))} className="w-9 h-9 flex items-center justify-center bg-white text-blue-600 rounded-lg shadow-sm font-black active:scale-90 transition-all border border-blue-100">-</button>
                                         <input
                                             type="number"
                                             value={cartItem.quantity || ''}
@@ -351,7 +352,7 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                                             onFocus={(e) => e.target.select()}
                                             className="w-12 text-center font-black text-blue-900 bg-transparent outline-none hide-arrows text-lg"
                                         />
-                                        <button onClick={() => updateQuantity(product.id, cartItem.quantity + 1)} className="w-9 h-9 flex items-center justify-center bg-blue-600 text-white rounded-lg shadow-lg font-black active:scale-90 transition-all shadow-blue-200">+</button>
+                                        <button onClick={() => updateQuantity(product.id, cartItem.quantity + (product.category === 'Gelo Sabor' ? 10 : 1))} className="w-9 h-9 flex items-center justify-center bg-blue-600 text-white rounded-lg shadow-lg font-black active:scale-90 transition-all shadow-blue-200">+</button>
                                     </div>
                                 </div>
                             ) : (
@@ -494,7 +495,7 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                                 </p>
                             </div>
                             <div className="flex items-center gap-2 bg-slate-50 rounded-lg p-1 border border-slate-100">
-                                <button onClick={() => updateQuantity(item.product.id, item.quantity - 1)} className="w-8 h-8 flex items-center justify-center text-slate-500 font-bold text-xl active:scale-95">-</button>
+                                <button onClick={() => updateQuantity(item.product.id, item.quantity - (item.product.category === 'Gelo Sabor' ? 10 : 1))} className="w-8 h-8 flex items-center justify-center text-slate-500 font-bold text-xl active:scale-95">-</button>
                                 <input
                                     type="number"
                                     value={item.quantity || ''}
@@ -502,7 +503,7 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                                     onFocus={(e) => e.target.select()}
                                     className="w-10 text-center font-bold text-slate-800 bg-transparent outline-none hide-arrows"
                                 />
-                                <button onClick={() => updateQuantity(item.product.id, item.quantity + 1)} className="w-8 h-8 flex items-center justify-center text-orange-500 font-bold text-xl active:scale-95">+</button>
+                                <button onClick={() => updateQuantity(item.product.id, item.quantity + (item.product.category === 'Gelo Sabor' ? 10 : 1))} className="w-8 h-8 flex items-center justify-center text-orange-500 font-bold text-xl active:scale-95">+</button>
                             </div>
                         </div>
                     ))}
