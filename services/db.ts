@@ -529,7 +529,9 @@ export const dbCustomers = {
       city: row.city,
       state: row.state,
       segment: row.segment,
-      branch: row.branch as Branch
+      branch: row.branch as Branch,
+      creatorId: row.creator_id,
+      creatorName: row.creator_name
     }));
   },
 
@@ -545,6 +547,8 @@ export const dbCustomers = {
       state: customer.state,
       segment: customer.segment,
       branch: customer.branch,
+      creator_id: customer.creatorId,
+      creator_name: customer.creatorName,
       tenant_id: tenantId
     }]);
     if (error) throw error;
@@ -563,6 +567,8 @@ export const dbCustomers = {
       state: c.state,
       segment: c.segment,
       branch: c.branch,
+      creator_id: c.creatorId,
+      creator_name: c.creatorName,
       tenant_id: tenantId
     }));
     const { error } = await supabase.from('customers').insert(rows);
@@ -579,7 +585,9 @@ export const dbCustomers = {
       city: customer.city,
       state: customer.state,
       segment: customer.segment,
-      branch: customer.branch
+      branch: customer.branch,
+      creator_id: customer.creatorId,
+      creator_name: customer.creatorName
     }).eq('id', customer.id);
     if (error) throw error;
   },

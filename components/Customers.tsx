@@ -42,10 +42,16 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // ... existing functions ...
-    const filteredCustomers = customers.filter(c =>
-        c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        c.cpfCnpj?.includes(searchTerm)
-    );
+    const filteredCustomers = customers.filter(c => {
+        const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            c.cpfCnpj?.includes(searchTerm);
+
+        const isAdmin = currentUser.role === 'ADMIN';
+        const isSupervisor = currentUser.role === 'WHOLESALE_SUPERVISOR';
+
+        if (isAdmin || isSupervisor) return matchesSearch;
+        return matchesSearch && c.creatorId === currentUser.id;
+    });
 
     const handleSort = (key: keyof Customer) => {
         let direction: 'asc' | 'desc' = 'asc';
@@ -129,7 +135,9 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
             segment: newCustomer.segment || '',
             city: newCustomer.city || '',
             state: newCustomer.state || '',
-            branch: newCustomer.branch
+            branch: newCustomer.branch,
+            creatorId: currentUser.id,
+            creatorName: currentUser.name
         };
 
         onAddCustomer(customer);
@@ -383,6 +391,9 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
                                         {sortConfig?.key === 'state' && (sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}
                                     </div>
                                 </th>
+                                {(currentUser.role === 'ADMIN' || currentUser.role === 'WHOLESALE_SUPERVISOR') && (
+                                    <th className="px-6 py-3">Vendedor</th>
+                                )}
                                 <th className="px-6 py-3 text-right">Ações</th>
                             </tr>
                         </thead>
@@ -417,6 +428,13 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
                                         <td className="px-6 py-3">{customer.phone || '-'}</td>
                                         <td className="px-6 py-3 font-bold text-blue-800 bg-blue-50/30">{customer.city || '-'}</td>
                                         <td className="px-6 py-3">{customer.state || '-'}</td>
+                                        {(currentUser.role === 'ADMIN' || currentUser.role === 'WHOLESALE_SUPERVISOR') && (
+                                            <td className="px-6 py-3">
+                                                <span className="text-[10px] font-bold text-slate-500 uppercase block">
+                                                    {customer.creatorName?.split(' ')[0] || 'Sistema'}
+                                                </span>
+                                            </td>
+                                        )}
                                         <td className="px-6 py-3 text-right flex justify-end gap-2">
                                             {currentUser.role === 'ADMIN' && (
                                                 <button

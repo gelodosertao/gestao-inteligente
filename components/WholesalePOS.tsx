@@ -43,6 +43,27 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
     const [showEditSaleModal, setShowEditSaleModal] = useState(false);
     const [editingSale, setEditingSale] = useState<Sale | null>(null);
 
+    // Customer Management Mode
+    const [showAddCustomerModal, setShowAddCustomerModal] = useState(false);
+    const [newCustomer, setNewCustomer] = useState<Partial<Customer>>({
+        name: '',
+        cpfCnpj: '',
+        phone: '',
+        address: '',
+        city: '',
+        state: 'BA',
+        segment: ''
+    });
+
+    // Filter customers: Sellers only see their own, Admins/Supervisors see all
+    const myCustomers = useMemo(() => {
+        const isAdmin = currentUser.role === 'ADMIN';
+        const isSupervisor = currentUser.role === 'WHOLESALE_SUPERVISOR';
+
+        if (isAdmin || isSupervisor) return customers;
+        return customers.filter(c => c.creatorId === currentUser.id);
+    }, [customers, currentUser]);
+
     // Filter products for Wholesale (only Gelo Cubo and Gelo Sabor)
     const filteredProducts = useMemo(() => {
         return products.filter(p => {
@@ -121,6 +142,34 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
     };
 
     const cartTotal = cart.reduce((acc, item) => acc + (getProductPrice(item.product) * item.quantity), 0);
+
+    const handleRegisterCustomer = async () => {
+        if (!newCustomer.name) return alert("O nome do cliente é obrigatório!");
+
+        const customerToSave: Customer = {
+            id: crypto.randomUUID(),
+            name: newCustomer.name || '',
+            cpfCnpj: newCustomer.cpfCnpj,
+            phone: newCustomer.phone,
+            address: newCustomer.address,
+            city: newCustomer.city,
+            state: newCustomer.state,
+            segment: newCustomer.segment,
+            creatorId: currentUser.id,
+            creatorName: currentUser.name,
+            branch: Branch.MATRIZ
+        };
+
+        try {
+            await onAddCustomer(customerToSave);
+            setSelectedCustomer(customerToSave);
+            setShowAddCustomerModal(false);
+            setNewCustomer({ name: '', cpfCnpj: '', phone: '', address: '', city: '', state: 'BA', segment: '' });
+        } catch (e) {
+            console.error(e);
+            alert("Erro ao cadastrar cliente.");
+        }
+    };
 
     const handleFinishSale = async () => {
         if (cart.length === 0) return alert("Carrinho vazio!");
@@ -347,20 +396,44 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                     <div className="space-y-6">
                         {/* Customer Selection */}
                         <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
-                            <label className="block text-sm font-bold text-slate-700 mb-3">Cliente (Atacado)</label>
+                            <div className="flex justify-between items-center mb-3">
+                                <label className="block text-sm font-bold text-slate-700">Cliente (Atacado)</label>
+                                <button
+                                    onClick={() => setShowAddCustomerModal(true)}
+                                    className="text-xs bg-orange-50 text-orange-600 px-2 py-1 rounded-md font-bold flex items-center gap-1 hover:bg-orange-100 transition-all border border-orange-100"
+                                >
+                                    <Plus size={12} /> Novo Cliente
+                                </button>
+                            </div>
+
                             <select
-                                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-orange-500 font-medium text-slate-700"
+                                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-orange-500 font-medium text-slate-700 mb-2"
                                 value={selectedCustomer?.id || ''}
                                 onChange={(e) => {
-                                    const c = customers.find(cus => cus.id === e.target.value);
+                                    const c = myCustomers.find(cus => cus.id === e.target.value);
                                     setSelectedCustomer(c || null);
                                 }}
                             >
                                 <option value="">-- Selecione o Cliente --</option>
-                                {customers.map(c => (
+                                {myCustomers.map(c => (
                                     <option key={c.id} value={c.id}>{c.name} {c.city ? `(${c.city})` : ''}</option>
                                 ))}
                             </select>
+
+                            {selectedCustomer && (
+                                <div className="mt-2 p-2 bg-blue-50 rounded-lg border border-blue-100 flex items-center gap-2">
+                                    <div className="bg-blue-600 text-white p-1.5 rounded-full">
+                                        <UserIcon size={14} />
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="text-xs font-bold text-blue-900">{selectedCustomer.name}</p>
+                                        <p className="text-[10px] text-blue-600 font-medium">{selectedCustomer.city || 'Cidade não informada'} • {selectedCustomer.phone || 'Sem telefone'}</p>
+                                    </div>
+                                    <button onClick={() => setSelectedCustomer(null)} className="text-blue-400 hover:text-blue-600">
+                                        <X size={16} />
+                                    </button>
+                                </div>
+                            )}
                         </div>
 
                         {/* Payment Method */}
@@ -696,6 +769,103 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                                 className="w-full bg-green-500 hover:bg-green-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-green-900/10 mt-2 active:scale-95 transition-all"
                             >
                                 <Save size={20} /> Salvar Alterações
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal de Cadastro de Cliente */}
+            {showAddCustomerModal && (
+                <div className="fixed inset-0 bg-blue-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4 animate-in fade-in duration-200">
+                    <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+                        <div className="p-4 bg-blue-900 text-white flex justify-between items-center">
+                            <h3 className="font-bold flex items-center gap-2">
+                                <UserIcon size={20} /> Cadastrar Cliente
+                            </h3>
+                            <button onClick={() => setShowAddCustomerModal(false)}><X size={20} /></button>
+                        </div>
+
+                        <div className="p-6 space-y-4 overflow-y-auto">
+                            <div>
+                                <label className="block text-xs font-black text-slate-500 uppercase mb-1">Nome / Razão Social</label>
+                                <input
+                                    type="text"
+                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold"
+                                    placeholder="Ex: Mercadinho do João"
+                                    value={newCustomer.name}
+                                    onChange={(e) => setNewCustomer({ ...newCustomer, name: e.target.value })}
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block text-xs font-black text-slate-500 uppercase mb-1">CPF / CNPJ</label>
+                                    <input
+                                        type="text"
+                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold text-sm"
+                                        placeholder="000.000.000-00"
+                                        value={newCustomer.cpfCnpj}
+                                        onChange={(e) => setNewCustomer({ ...newCustomer, cpfCnpj: e.target.value })}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-black text-slate-500 uppercase mb-1">Telefone</label>
+                                    <input
+                                        type="text"
+                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold text-sm"
+                                        placeholder="(77) 9..."
+                                        value={newCustomer.phone}
+                                        onChange={(e) => setNewCustomer({ ...newCustomer, phone: e.target.value })}
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-black text-slate-500 uppercase mb-1">Endereço</label>
+                                <input
+                                    type="text"
+                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold"
+                                    placeholder="Rua, Número, Bairro"
+                                    value={newCustomer.address}
+                                    onChange={(e) => setNewCustomer({ ...newCustomer, address: e.target.value })}
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block text-xs font-black text-slate-500 uppercase mb-1">Cidade</label>
+                                    <input
+                                        type="text"
+                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold"
+                                        placeholder="Cidade"
+                                        value={newCustomer.city}
+                                        onChange={(e) => setNewCustomer({ ...newCustomer, city: e.target.value })}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-black text-slate-500 uppercase mb-1">Segmento</label>
+                                    <select
+                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold"
+                                        value={newCustomer.segment}
+                                        onChange={(e) => setNewCustomer({ ...newCustomer, segment: e.target.value })}
+                                    >
+                                        <option value="">Selecione...</option>
+                                        <option value="Mercado">Mercado</option>
+                                        <option value="Posto">Posto</option>
+                                        <option value="Conveniência">Conveniência</option>
+                                        <option value="Restaurante">Restaurante</option>
+                                        <option value="Evento">Evento</option>
+                                        <option value="Outros">Outros</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <button
+                                onClick={handleRegisterCustomer}
+                                className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-2xl font-black text-lg shadow-xl shadow-blue-900/20 transition-all flex items-center justify-center gap-2 mt-2"
+                            >
+                                <Plus size={24} /> Concluir Cadastro
                             </button>
                         </div>
                     </div>

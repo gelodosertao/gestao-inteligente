@@ -191,6 +191,8 @@ export interface Customer {
   city?: string;
   state?: string;
   branch?: Branch;
+  creatorId?: string;   // ID of the user who registered the customer
+  creatorName?: string; // Name of the user who registered the customer
 }
 
 export interface StockMovement {
