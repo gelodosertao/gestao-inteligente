@@ -284,9 +284,6 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                                     R$ {getProductPrice(product).toFixed(2)}
                                     {product.category === 'Gelo Sabor' && <span className="text-[10px] text-orange-500 ml-1 font-bold italic">dinâmico</span>}
                                 </p>
-                                <p className="text-[10px] text-slate-400 mb-3 flex items-center gap-1 font-bold">
-                                    <MapPin size={12} className="text-slate-300" /> Sto Total: <span className={totalStock > 0 ? 'text-emerald-500' : 'text-rose-500'}>{totalStock}</span>
-                                </p>
                             </div>
 
                             {cartItem ? (
