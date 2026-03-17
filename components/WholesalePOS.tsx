@@ -29,6 +29,7 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
 }) => {
     const [activeTab, setActiveTab] = useState<'CATALOG' | 'CART' | 'HISTORY'>('CATALOG');
     const [searchTerm, setSearchTerm] = useState('');
+    const [categoryFilter, setCategoryFilter] = useState<'ALL' | 'Gelo Cubo' | 'Gelo Sabor'>('ALL');
 
     // Cart State
     const [cart, setCart] = useState<{ product: Product, quantity: number }[]>([]);
@@ -43,15 +44,16 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
     const [showEditSaleModal, setShowEditSaleModal] = useState(false);
     const [editingSale, setEditingSale] = useState<Sale | null>(null);
 
-    // Filter products for Wholesale (only allow "Gelo" products)
+    // Filter products for Wholesale (only Gelo Cubo and Gelo Sabor)
     const filteredProducts = useMemo(() => {
         return products.filter(p => {
-            const isGelo = p.name.toLowerCase().includes('gelo') || p.category.toLowerCase().includes('gelo');
-            const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                p.category.toLowerCase().includes(searchTerm.toLowerCase());
-            return isGelo && matchesSearch;
+            const isWholesaleCategory = p.category === 'Gelo Cubo' || p.category === 'Gelo Sabor';
+            const matchesCategory = categoryFilter === 'ALL' || p.category === categoryFilter;
+            const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
+
+            return isWholesaleCategory && matchesCategory && matchesSearch;
         }).sort((a, b) => a.category.localeCompare(b.category));
-    }, [products, searchTerm]);
+    }, [products, searchTerm, categoryFilter]);
 
     // My Sales History
     const mySales = useMemo(() => {
@@ -228,14 +230,38 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
             </div>
 
             <div className="relative mb-6">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-                <input
-                    type="text"
-                    placeholder="Buscar produto..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 bg-white border-2 border-slate-100 rounded-xl focus:border-orange-500 outline-none transition-all shadow-sm"
-                />
+                <label className="block text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider">Filtrar por Categoria</label>
+                <div className="flex bg-slate-100 rounded-2xl p-1 gap-1 border border-slate-200 shadow-inner mb-3">
+                    <button
+                        onClick={() => setCategoryFilter('ALL')}
+                        className={`flex-1 py-2.5 text-xs font-black rounded-xl transition-all ${categoryFilter === 'ALL' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-200'}`}
+                    >
+                        TODOS
+                    </button>
+                    <button
+                        onClick={() => setCategoryFilter('Gelo Cubo')}
+                        className={`flex-1 py-2.5 text-xs font-black rounded-xl transition-all ${categoryFilter === 'Gelo Cubo' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-200'}`}
+                    >
+                        CUBO
+                    </button>
+                    <button
+                        onClick={() => setCategoryFilter('Gelo Sabor')}
+                        className={`flex-1 py-2.5 text-xs font-black rounded-xl transition-all ${categoryFilter === 'Gelo Sabor' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-200'}`}
+                    >
+                        SABOR
+                    </button>
+                </div>
+
+                <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+                    <input
+                        type="text"
+                        placeholder={`Buscar em ${categoryFilter === 'ALL' ? 'Gelo Atacado' : categoryFilter}...`}
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full pl-10 pr-4 py-3 bg-white border-2 border-slate-100 rounded-xl focus:border-blue-500 outline-none transition-all shadow-sm"
+                    />
+                </div>
             </div>
 
             {/* Display Current Tier Info for Gelo Sabor */}
