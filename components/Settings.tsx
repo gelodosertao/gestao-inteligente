@@ -595,7 +595,7 @@ const Settings: React.FC<SettingsProps> = ({ currentUser, onResetData }) => {
                            disabled={!!editingUserId}
                            className={`w-full px-4 py-2 border border-slate-200 rounded-lg ${editingUserId ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : 'bg-white text-slate-900'}`}
                            value={newUser.email}
-                           onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                           onChange={(e) => setNewUser({ ...newUser, email: e.target.value.toLowerCase().trim() })}
                         />
                      </div>
 
