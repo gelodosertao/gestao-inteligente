@@ -70,28 +70,31 @@ const VisitorLanding: React.FC = () => {
             <section className="py-24 px-4 bg-[#020617] relative">
                 <div className="max-w-7xl mx-auto">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                        <div className="bg-white/5 backdrop-blur-sm p-8 rounded-3xl border border-white/10 hover:border-blue-500/50 transition-all duration-500 group">
-                            <div className="bg-blue-500/20 w-16 h-16 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                                <Droplets className="text-blue-400" size={32} />
+                        <div className="bg-white/10 backdrop-blur-xl p-8 rounded-[32px] border border-white/20 hover:border-blue-500/50 transition-all duration-500 group relative overflow-hidden shadow-[inset_0_1px_1px_rgba(255,255,255,0.3),0_20px_40px_rgba(0,0,0,0.4)]">
+                            <div className="bg-gradient-to-br from-blue-400/30 to-blue-600/10 w-20 h-20 rounded-2xl flex items-center justify-center mb-6 shadow-[0_10px_20px_rgba(59,130,246,0.3)] group-hover:scale-110 group-hover:rotate-3 transition-transform duration-500 relative">
+                                <Droplets className="text-blue-200 drop-shadow-[0_2px_10px_rgba(255,255,255,0.5)]" size={40} />
+                                <div className="absolute inset-0 bg-white/10 rounded-2xl -z-1 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                             </div>
                             <h3 className="text-2xl font-bold mb-4">Qualidade Diamante</h3>
-                            <p className="text-slate-400 leading-relaxed">Água 100% filtrada e purificada. Nosso gelo é cristalino e não altera o sabor da sua bebida.</p>
+                            <p className="text-slate-400 leading-relaxed font-medium">Água 100% filtrada e purificada. Nosso gelo é cristalino e não altera o sabor da sua bebida.</p>
                         </div>
 
-                        <div className="bg-white/5 backdrop-blur-sm p-8 rounded-3xl border border-white/10 hover:border-orange-500/50 transition-all duration-500 group">
-                            <div className="bg-orange-500/20 w-16 h-16 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                                <Truck className="text-orange-400" size={32} />
+                        <div className="bg-white/10 backdrop-blur-xl p-8 rounded-[32px] border border-white/20 hover:border-orange-500/50 transition-all duration-500 group relative overflow-hidden shadow-[inset_0_1px_1px_rgba(255,255,255,0.3),0_20px_40px_rgba(0,0,0,0.4)]">
+                            <div className="bg-gradient-to-br from-orange-400/30 to-orange-600/10 w-20 h-20 rounded-2xl flex items-center justify-center mb-6 shadow-[0_10px_20px_rgba(249,115,22,0.3)] group-hover:scale-110 group-hover:-rotate-3 transition-transform duration-500 relative">
+                                <Truck className="text-orange-200 drop-shadow-[0_2px_10px_rgba(255,255,255,0.5)]" size={40} />
+                                <div className="absolute inset-0 bg-white/10 rounded-2xl -z-1 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                             </div>
                             <h3 className="text-2xl font-bold mb-4">Logística Ágil</h3>
-                            <p className="text-slate-400 leading-relaxed">Frota própria refrigerada para garantir que o gelo chegue em perfeitas condições até você.</p>
+                            <p className="text-slate-400 leading-relaxed font-medium">Frota própria refrigerada para garantir que o gelo chegue em perfeitas condições até você.</p>
                         </div>
 
-                        <div className="bg-white/5 backdrop-blur-sm p-8 rounded-3xl border border-white/10 hover:border-green-500/50 transition-all duration-500 group">
-                            <div className="bg-green-500/20 w-16 h-16 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                                <ShieldCheck className="text-green-400" size={32} />
+                        <div className="bg-white/10 backdrop-blur-xl p-8 rounded-[32px] border border-white/20 hover:border-green-500/50 transition-all duration-500 group relative overflow-hidden shadow-[inset_0_1px_1px_rgba(255,255,255,0.3),0_20px_40px_rgba(0,0,0,0.4)]">
+                            <div className="bg-gradient-to-br from-green-400/30 to-green-600/10 w-20 h-20 rounded-2xl flex items-center justify-center mb-6 shadow-[0_10px_20px_rgba(34,197,94,0.3)] group-hover:scale-110 group-hover:rotate-6 transition-transform duration-500 relative">
+                                <ShieldCheck className="text-green-200 drop-shadow-[0_2px_10px_rgba(255,255,255,0.5)]" size={40} />
+                                <div className="absolute inset-0 bg-white/10 rounded-2xl -z-1 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                             </div>
                             <h3 className="text-2xl font-bold mb-4">Segurança Alimentar</h3>
-                            <p className="text-slate-400 leading-relaxed">Processos rigorosos de higienização seguindo todas as normas da vigilância sanitária.</p>
+                            <p className="text-slate-400 leading-relaxed font-medium">Processos rigorosos de higienização seguindo todas as normas da vigilância sanitária.</p>
                         </div>
                     </div>
                 </div>
@@ -107,18 +110,20 @@ const VisitorLanding: React.FC = () => {
 
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8">
                         {[
-                            { name: 'Gelo em Cubos', desc: 'Ideal para drinks e copos', icon: Snowflake },
-                            { name: 'Gelo em Escama', desc: 'Conservação de alimentos', icon: Droplets },
-                            { name: 'Gelo em Barra', desc: 'Alta durabilidade', icon: ShieldCheck },
-                            { name: 'Adega Completa', desc: 'As melhores marcas', icon: ShoppingBag },
+                            { name: 'Gelo em Cubos', desc: 'Ideal para drinks e copos', icon: Snowflake, color: 'blue' },
+                            { name: 'Gelo em Escama', desc: 'Conservação de alimentos', icon: Droplets, color: 'cyan' },
+                            { name: 'Gelo em Barra', desc: 'Alta durabilidade', icon: ShieldCheck, color: 'indigo' },
+                            { name: 'Adega Completa', desc: 'As melhores marcas', icon: ShoppingBag, color: 'orange' },
                         ].map((prod, i) => (
                             <div key={i} className="group cursor-default">
-                                <div className="bg-gradient-to-br from-white/10 to-transparent p-6 rounded-3xl border border-white/5 group-hover:border-blue-500/30 transition-all text-center space-y-4">
+                                <div className="bg-gradient-to-br from-white/15 to-white/5 p-8 rounded-[40px] border border-white/10 group-hover:border-blue-500/30 transition-all duration-500 text-center space-y-4 shadow-[0_10px_30px_rgba(0,0,0,0.3)] relative">
                                     <div className="flex justify-center">
-                                        <prod.icon className="text-blue-400 group-hover:animate-pulse" size={40} />
+                                        <div className="bg-white/10 p-5 rounded-3xl shadow-[inset_0_1px_1px_rgba(255,255,255,0.4),0_10px_20px_rgba(0,0,0,0.2)] group-hover:scale-125 transition-transform duration-500">
+                                            <prod.icon className="text-blue-300 drop-shadow-[0_2px_5px_rgba(59,130,246,0.5)]" size={44} strokeWidth={1.5} />
+                                        </div>
                                     </div>
-                                    <h4 className="font-bold text-lg">{prod.name}</h4>
-                                    <p className="text-slate-500 text-sm">{prod.desc}</p>
+                                    <h4 className="font-black text-lg tracking-tight">{prod.name}</h4>
+                                    <p className="text-slate-500 text-sm font-medium">{prod.desc}</p>
                                 </div>
                             </div>
                         ))}
@@ -144,13 +149,15 @@ const VisitorLanding: React.FC = () => {
                     <div className="space-y-6">
                         <h4 className="font-bold text-lg text-blue-400">Localização</h4>
                         <div className="space-y-4">
-                            <div className="flex gap-3 text-slate-400 items-start">
-                                <MapPin className="shrink-0 text-orange-500" size={18} />
-                                <span className="text-sm italic">Matriz: Barreiras - BA</span>
-                            </div>
-                            <div className="flex gap-3 text-slate-400 items-start">
-                                <MapPin className="shrink-0 text-orange-500" size={18} />
-                                <span className="text-sm italic">Filial: Ibotirama - BA</span>
+                            <div className="space-y-4">
+                                <div className="flex gap-3 text-slate-400 items-start">
+                                    <MapPin className="shrink-0 text-orange-500" size={18} />
+                                    <span className="text-sm font-bold tracking-tight">Barreiras - BA</span>
+                                </div>
+                                <div className="flex gap-3 text-slate-400 items-start">
+                                    <MapPin className="shrink-0 text-orange-500" size={18} />
+                                    <span className="text-sm font-bold tracking-tight">Ibotirama - BA</span>
+                                </div>
                             </div>
                         </div>
                     </div>
