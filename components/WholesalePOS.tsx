@@ -268,7 +268,7 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
         setLastCompletedSale(saleToPrint);
         setIsPrinting(true);
 
-        // Wait for state to update and layout to render
+        // Wait for DOM to render the hidden receipt element
         setTimeout(async () => {
             const receiptElement = document.getElementById('wholesale-receipt');
             if (!receiptElement) {
@@ -278,23 +278,27 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
 
             try {
                 const canvas = await html2canvas(receiptElement, {
-                    scale: 2,
+                    scale: 3, // Higher scale = sharper image for printing
                     backgroundColor: '#ffffff'
                 });
-                const image = canvas.toDataURL("image/jpeg", 0.9);
 
-                const printedNatively = hardwareBridge.printReceipt(image);
+                // Convert to PNG and trigger download
+                canvas.toBlob((blob) => {
+                    if (!blob) return;
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19);
+                    a.href = url;
+                    a.download = `pedido-${saleToPrint.id.substring(0, 8)}-${timestamp}.png`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                }, 'image/png');
 
-                if (printedNatively) {
-                    alert("Enviado para impressora!");
-                } else {
-                    alert("Hardware de impressão não detectado. O cupom foi gerado.");
-                    // Fallback: download image if not native? 
-                    // Actually, the user asked for image print on Smart2, which hardwareBridge handles.
-                }
             } catch (e) {
-                console.error("Erro ao imprimir", e);
-                alert("Erro ao gerar imagem para impressão.");
+                console.error('Erro ao gerar imagem do cupom', e);
+                alert('Erro ao gerar imagem do cupom.');
             } finally {
                 setIsPrinting(false);
             }
