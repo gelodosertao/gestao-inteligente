@@ -765,8 +765,8 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                               )}
                            </div>
                            <div className="flex gap-1.5 flex-wrap justify-start md:justify-end">
-                              <span className={`px-2 py-1 rounded-md text-[10px] md:text-xs font-bold border flex items-center gap-1 ${sale.status === 'Completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : sale.status === 'Pending' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-red-50 text-red-700 border-red-200'} `}>
-                                 {sale.status === 'Completed' ? 'Concluído' : sale.status === 'Pending' ? 'Pendente' : 'Cancelado'}
+                              <span className={`px-2 py-1 rounded-md text-[10px] md:text-xs font-bold border flex items-center gap-1 ${sale.status === 'Completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : sale.status === 'Finalizado pela Fábrica' ? 'bg-blue-50 text-blue-700 border-blue-200' : sale.status === 'Pending' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-red-50 text-red-700 border-red-200'} `}>
+                                 {sale.status === 'Completed' ? 'Concluído' : sale.status === 'Finalizado pela Fábrica' ? 'Finalizado Fábrica' : sale.status === 'Pending' ? 'Pendente' : 'Cancelado'}
                               </span>
                               <span className={`px-2 py-1 rounded-md text-[10px] md:text-xs font-bold border flex items-center gap-1 ${sale.hasInvoice ? 'bg-green-50 text-green-700 border-green-200' : 'bg-orange-50 text-orange-700 border-orange-200'} `}>
                                  {sale.hasInvoice ? <CheckCircle size={10} /> : <Clock size={10} />}
@@ -778,12 +778,26 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                            </div>
                            <div className="flex flex-wrap gap-2 mt-3 md:justify-end w-full">
                               {sale.status === 'Pending' && (
-                                 <button
-                                    onClick={() => openDebtPaymentModal(sale)}
-                                    className="flex-1 md:flex-none justify-center text-xs font-bold text-orange-700 flex items-center gap-1.5 cursor-pointer bg-orange-50 px-3 py-2 rounded-lg hover:bg-orange-100 transition-colors border border-orange-200 shadow-sm"
-                                 >
-                                    <Banknote size={14} /> Receber
-                                 </button>
+                                 <>
+                                    <button
+                                       onClick={() => openDebtPaymentModal(sale)}
+                                       className="flex-1 md:flex-none justify-center text-xs font-bold text-orange-700 flex items-center gap-1.5 cursor-pointer bg-orange-50 px-3 py-2 rounded-lg hover:bg-orange-100 transition-colors border border-orange-200 shadow-sm"
+                                    >
+                                       <Banknote size={14} /> Receber
+                                    </button>
+                                    {currentUser.role === 'ADMIN' && sale.source === 'WHOLESALE_POS' && (
+                                       <button
+                                          onClick={() => {
+                                             if (confirm("Confirmar recebimento deste pedido de atacado? Status mudará para 'Finalizado pela Fábrica'.")) {
+                                                onUpdateSale({ ...sale, status: 'Finalizado pela Fábrica' });
+                                             }
+                                          }}
+                                          className="flex-1 md:flex-none justify-center text-xs font-bold text-white flex items-center gap-1.5 cursor-pointer bg-emerald-600 px-3 py-2 rounded-lg hover:bg-emerald-700 transition-colors shadow-sm"
+                                       >
+                                          <CheckCircle size={14} /> Confirmar Recebimento
+                                       </button>
+                                    )}
+                                 </>
                               )}
                               {!sale.hasInvoice ? (
                                  <button
@@ -1700,6 +1714,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                               >
                                  <option value="Completed">Concluído</option>
                                  <option value="Pending">Pendente</option>
+                                 <option value="Finalizado pela Fábrica">Finalizado pela Fábrica</option>
                                  <option value="Cancelled">Cancelado</option>
                               </select>
                            </div>
@@ -1733,18 +1748,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                            </div>
                         )}
 
-                        <div>
-                           <label className="block text-sm font-bold text-slate-700 mb-1">Status</label>
-                           <select
-                              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
-                              value={editingSale.status}
-                              onChange={(e) => setEditingSale({ ...editingSale, status: e.target.value as any })}
-                           >
-                              <option value="Completed">Concluída</option>
-                              <option value="Pending">Pendente</option>
-                              <option value="Cancelled">Cancelada</option>
-                           </select>
-                        </div>
+
 
                         <div className="border-t border-slate-200 pt-4 mt-2">
                            <label className="block text-sm font-bold text-slate-700 mb-2">Itens do Pedido</label>

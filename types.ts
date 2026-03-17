@@ -106,7 +106,7 @@ export interface Sale {
   items: SaleItem[];
   branch: Branch;
   matrizDeposit?: 'Ibotirama' | 'Barreiras';
-  status: 'Completed' | 'Pending' | 'Cancelled';
+  status: 'Completed' | 'Pending' | 'Cancelled' | 'Finalizado pela Fábrica';
   paymentMethod: 'Pix' | 'Credit' | 'Debit' | 'Cash' | 'Split';
   paymentSplits?: { method: 'Pix' | 'Credit' | 'Debit' | 'Cash', amount: number }[];
   hasInvoice: boolean; // NF-e emitted

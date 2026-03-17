@@ -164,14 +164,14 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
   // Current Month Data (Legacy for BI)
   const biData = useMemo(() => {
     const currentMonthSales = filteredSales.filter(s => isSameMonth(s.date, currentMonth, currentYear));
-    const currentMonthRevenue = currentMonthSales.filter(s => s.status === 'Completed').reduce((acc, curr) => acc + curr.total, 0);
+    const currentMonthRevenue = currentMonthSales.filter(s => s.status === 'Completed' || s.status === 'Finalizado pela Fábrica').reduce((acc, curr) => acc + curr.total, 0);
     return { currentMonthRevenue };
   }, [filteredSales, currentMonth, currentYear]);
 
   // Current Period Data
   const periodData = useMemo(() => {
     const currentPeriodSales = filteredSales.filter(s => isInRange(s.date, periodStart, periodEnd));
-    const currentPeriodRevenue = currentPeriodSales.filter(s => s.status === 'Completed').reduce((acc, curr) => acc + curr.total, 0);
+    const currentPeriodRevenue = currentPeriodSales.filter(s => s.status === 'Completed' || s.status === 'Finalizado pela Fábrica').reduce((acc, curr) => acc + curr.total, 0);
     const currentPeriodPending = currentPeriodSales.filter(s => s.status === 'Pending').reduce((acc, curr) => acc + (curr.total - (curr.amountPaid || 0)), 0);
     const currentPeriodExpenses = filteredFinancials.filter(f => f.type === 'Expense' && isInRange(f.date, periodStart, periodEnd)).reduce((acc, curr) => acc + curr.amount, 0);
     const currentPeriodNetResult = currentPeriodRevenue - currentPeriodExpenses;
@@ -185,7 +185,7 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
   // Previous Period Data (for trends)
   const prevPeriodData = useMemo(() => {
     const prevPeriodSalesRaw = sales.filter(s => (selectedBranch === 'ALL' || s.branch === selectedBranch) && isInRange(s.date, prevStart, prevEnd));
-    const prevPeriodRevenue = prevPeriodSalesRaw.filter(s => s.status === 'Completed').reduce((acc, curr) => acc + curr.total, 0);
+    const prevPeriodRevenue = prevPeriodSalesRaw.filter(s => s.status === 'Completed' || s.status === 'Finalizado pela Fábrica').reduce((acc, curr) => acc + curr.total, 0);
     const prevPeriodPending = prevPeriodSalesRaw.filter(s => s.status === 'Pending').reduce((acc, curr) => acc + (curr.total - (curr.amountPaid || 0)), 0);
     const prevPeriodExpenses = financials.filter(f => (selectedBranch === 'ALL' || f.branch === selectedBranch) && f.type === 'Expense' && isInRange(f.date, prevStart, prevEnd)).reduce((acc, curr) => acc + curr.amount, 0);
     const prevPeriodNetResult = prevPeriodRevenue - prevPeriodExpenses;

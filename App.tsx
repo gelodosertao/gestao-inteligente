@@ -362,7 +362,10 @@ const App: React.FC = () => {
     setSales(prev => prev.map(s => s.id === updatedSale.id ? updatedSale : s));
 
     // If it was Pending/Cancelled and now it's Completed, we should deduct stock and record financial
-    if (oldSale && oldSale.status !== 'Completed' && updatedSale.status === 'Completed') {
+    const finalizeStatuses = ['Completed', 'Finalizado pela Fábrica'];
+    const isFinalizing = oldSale && !finalizeStatuses.includes(oldSale.status) && finalizeStatuses.includes(updatedSale.status);
+
+    if (isFinalizing) {
       const soldQuantities: Record<string, number> = {};
       updatedSale.items.forEach(item => {
         const product = products.find(p => p.id === item.productId);

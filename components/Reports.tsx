@@ -79,7 +79,7 @@ const Reports: React.FC<ReportsProps> = ({ sales, products, customers, onBack })
     const salesByPaymentMethod = useMemo(() => {
         const data: Record<string, number> = {};
         getFilteredSales.forEach(s => {
-            if (s.status !== 'Completed') return;
+            if (s.status !== 'Completed' && s.status !== 'Finalizado pela Fábrica') return;
 
             if (s.paymentMethod === 'Split' && s.paymentSplits) {
                 s.paymentSplits.forEach(split => {
@@ -101,7 +101,7 @@ const Reports: React.FC<ReportsProps> = ({ sales, products, customers, onBack })
     const salesByDay = useMemo(() => {
         const data: Record<string, number> = {};
         getFilteredSales.forEach(s => {
-            if (s.status !== 'Completed') return;
+            if (s.status !== 'Completed' && s.status !== 'Finalizado pela Fábrica') return;
             const dateKey = s.date.split('-').reverse().slice(0, 2).join('/'); // DD/MM
             data[dateKey] = (data[dateKey] || 0) + s.total;
         });
@@ -129,7 +129,7 @@ const Reports: React.FC<ReportsProps> = ({ sales, products, customers, onBack })
         const data = new Array(7).fill(0);
 
         getFilteredSales.forEach(s => {
-            if (s.status !== 'Completed') return;
+            if (s.status !== 'Completed' && s.status !== 'Finalizado pela Fábrica') return;
             const [y, m, d] = s.date.split('-').map(Number);
             const date = new Date(y, m - 1, d);
             data[date.getDay()] += s.total;
@@ -143,7 +143,7 @@ const Reports: React.FC<ReportsProps> = ({ sales, products, customers, onBack })
         const productSales: Record<string, { name: string, qty: number, total: number }> = {};
 
         getFilteredSales.forEach(s => {
-            if (s.status !== 'Completed') return;
+            if (s.status !== 'Completed' && s.status !== 'Finalizado pela Fábrica') return;
             s.items.forEach(item => {
                 if (!productSales[item.productId]) {
                     productSales[item.productId] = { name: item.productName, qty: 0, total: 0 };
@@ -170,17 +170,17 @@ const Reports: React.FC<ReportsProps> = ({ sales, products, customers, onBack })
     }, [getFilteredSales, searchTerm]);
 
     // Calculate Totals for Summary Cards
-    const totalRevenue = getFilteredSales.filter(s => s.status === 'Completed').reduce((acc, s) => acc + s.total, 0);
-    const totalticket = getFilteredSales.filter(s => s.status === 'Completed').length > 0
-        ? totalRevenue / getFilteredSales.filter(s => s.status === 'Completed').length
+    const totalRevenue = getFilteredSales.filter(s => s.status === 'Completed' || s.status === 'Finalizado pela Fábrica').reduce((acc, s) => acc + s.total, 0);
+    const totalticket = getFilteredSales.filter(s => s.status === 'Completed' || s.status === 'Finalizado pela Fábrica').length > 0
+        ? totalRevenue / getFilteredSales.filter(s => s.status === 'Completed' || s.status === 'Finalizado pela Fábrica').length
         : 0;
-    const totalItemsSold = getFilteredSales.filter(s => s.status === 'Completed').reduce((acc, s) => acc + s.items.reduce((sum, i) => sum + i.quantity, 0), 0);
+    const totalItemsSold = getFilteredSales.filter(s => s.status === 'Completed' || s.status === 'Finalizado pela Fábrica').reduce((acc, s) => acc + s.items.reduce((sum, i) => sum + i.quantity, 0), 0);
     const bestDay = salesByDay.sort((a, b) => b.amount - a.amount)[0];
 
     // --- MENU ANALYTICS DATA ---
     // Fallback: If source is missing (old logic), check for deliveryFee > 0 or if there's an Order ID format (sale-...)
     const menuSales = useMemo(() => getFilteredSales.filter(s => s.source === 'OnlineMenu' || (s.deliveryFee && s.deliveryFee > 0) || s.id.startsWith('sale-')), [getFilteredSales]);
-    const totalMenuRevenue = menuSales.filter(s => s.status === 'Completed').reduce((acc, s) => acc + s.total, 0);
+    const totalMenuRevenue = menuSales.filter(s => s.status === 'Completed' || s.status === 'Finalizado pela Fábrica').reduce((acc, s) => acc + s.total, 0);
     const menuConversionData = useMemo(() => [
         { name: 'Menu Online', value: menuSales.length || 0.1 }, // 0.1 to avoid chart error on zero
         { name: 'Balcão/Direta', value: (getFilteredSales.length - menuSales.length) || 0.1 },
@@ -189,7 +189,7 @@ const Reports: React.FC<ReportsProps> = ({ sales, products, customers, onBack })
     const menuSalesByDay = useMemo(() => {
         const data: Record<string, number> = {};
         menuSales.forEach(s => {
-            if (s.status !== 'Completed') return;
+            if (s.status !== 'Completed' && s.status !== 'Finalizado pela Fábrica') return;
             const dateKey = s.date.split('-').reverse().slice(0, 2).join('/');
             data[dateKey] = (data[dateKey] || 0) + s.total;
         });
@@ -447,10 +447,11 @@ const Reports: React.FC<ReportsProps> = ({ sales, products, customers, onBack })
                                             <td className="p-3 text-right font-bold text-slate-800">{formatCurrency(sale.total)}</td>
                                             <td className="p-3 text-center">
                                                 <span className={`px-2 py-1 rounded-full text-xs font-bold ${sale.status === 'Completed' ? 'bg-green-100 text-green-700' :
-                                                    sale.status === 'Pending' ? 'bg-yellow-100 text-yellow-700' :
-                                                        'bg-red-100 text-red-700'
+                                                    sale.status === 'Finalizado pela Fábrica' ? 'bg-blue-100 text-blue-700' :
+                                                        sale.status === 'Pending' ? 'bg-yellow-100 text-yellow-700' :
+                                                            'bg-red-100 text-red-700'
                                                     }`}>
-                                                    {sale.status === 'Completed' ? 'Concluído' : sale.status === 'Pending' ? 'Pendente' : 'Cancelado'}
+                                                    {sale.status === 'Completed' ? 'Concluído' : sale.status === 'Finalizado pela Fábrica' ? 'Finalizado Fábrica' : sale.status === 'Pending' ? 'Pendente' : 'Cancelado'}
                                                 </span>
                                             </td>
                                         </tr>

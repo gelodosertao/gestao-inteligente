@@ -30,6 +30,7 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
     const [activeTab, setActiveTab] = useState<'CATALOG' | 'CART' | 'HISTORY'>('CATALOG');
     const [searchTerm, setSearchTerm] = useState('');
     const [categoryFilter, setCategoryFilter] = useState<'ALL' | 'Gelo Cubo' | 'Gelo Sabor'>('ALL');
+    const [monthFilter, setMonthFilter] = useState(new Date().toISOString().substring(0, 7)); // YYYY-MM
 
     // Cart State
     const [cart, setCart] = useState<{ product: Product, quantity: number }[]>([]);
@@ -79,6 +80,11 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
         // Only consider Wholesale sales
         let relevantSales = sales.filter(s => s.source === 'WHOLESALE_POS');
 
+        // Filter by Month
+        if (monthFilter) {
+            relevantSales = relevantSales.filter(s => (s.createdAt || s.date).startsWith(monthFilter));
+        }
+
         if (currentUser.role === 'WHOLESALE_SUPERVISOR') {
             // Supervisor sees their own and representative sales
             return relevantSales.filter(s => s.sellerId === currentUser.id || s.sellerRole === 'WHOLESALE_REPRESENTATIVE')
@@ -91,7 +97,7 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
 
         // Admins can see all if they somehow use the POS
         return relevantSales.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
-    }, [sales, currentUser]);
+    }, [sales, currentUser, monthFilter]);
 
     const addToCart = (product: Product) => {
         setCart(prev => {
@@ -548,9 +554,17 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
 
         return (
             <div className="p-4 pb-24">
-                <h2 className="text-2xl font-black text-slate-800 mb-6 flex items-center gap-2">
-                    <History /> Minhas Vendas
-                </h2>
+                <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-2xl font-black text-slate-800 flex items-center gap-2">
+                        <History /> Minhas Vendas
+                    </h2>
+                    <input
+                        type="month"
+                        value={monthFilter}
+                        onChange={(e) => setMonthFilter(e.target.value)}
+                        className="text-xs font-bold bg-white border border-slate-200 rounded-lg px-2 py-1 outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                </div>
 
                 <div className="bg-green-600 text-white p-4 rounded-xl shadow-lg mb-6">
                     <p className="text-sm font-medium text-green-100 uppercase tracking-widest mb-1">Total de Comissões</p>
@@ -579,7 +593,18 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                                 <div key={sale.id} className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 relative">
                                     <div className="flex justify-between items-start mb-2">
                                         <div>
-                                            <h4 className="font-bold text-slate-800">{sale.customerName}</h4>
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <h4 className="font-bold text-slate-800">{sale.customerName}</h4>
+                                                <span className={`text-[9px] font-black px-1.5 py-0.5 rounded uppercase ${sale.status === 'Pending' ? 'bg-orange-100 text-orange-700' :
+                                                        sale.status === 'Completed' ? 'bg-green-100 text-green-700' :
+                                                            sale.status === 'Finalizado pela Fábrica' ? 'bg-blue-100 text-blue-700' :
+                                                                'bg-slate-100 text-slate-600'
+                                                    }`}>
+                                                    {sale.status === 'Pending' ? 'Pendente' :
+                                                        sale.status === 'Completed' ? 'Concluído' :
+                                                            sale.status === 'Finalizado pela Fábrica' ? 'Finalizado Fábrica' : sale.status}
+                                                </span>
+                                            </div>
                                             <p className="text-xs text-slate-500">{new Date(sale.createdAt || sale.date).toLocaleString('pt-BR')}</p>
                                         </div>
                                         <div className="text-right">
