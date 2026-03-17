@@ -132,7 +132,9 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
             priceAtSale: getProductPrice(product),
         }));
 
-        const commissionRate = currentUser.role === 'WHOLESALE_SUPERVISOR' ? 0.05 : currentUser.role === 'WHOLESALE_REPRESENTATIVE' ? 0.03 : 0;
+        const isSupervisor = currentUser.role === 'WHOLESALE_SUPERVISOR';
+        const isRepresentative = currentUser.role === 'WHOLESALE_REPRESENTATIVE';
+        const commissionRate = isSupervisor ? 0.05 : isRepresentative ? 0.03 : 0;
         const commissionAmount = cartTotal * commissionRate;
 
         const newSale: Sale = {
@@ -483,7 +485,7 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                     <div className="space-y-4">
                         {mySales.map(sale => {
                             const isMySale = sale.sellerId === currentUser.id;
-                            const saleName = isMySale ? 'Sua Venda' : `Equipe: ${sale.sellerName?.split(' ')[0] || 'Vendedor'}`;
+                            const saleName = isMySale ? 'Sua Venda' : `Vendedor: ${sale.sellerName?.split(' ')[0] || 'Vendedor'}`;
                             const saleCommission = isMySale ? sale.total * (currentUser.role === 'WHOLESALE_SUPERVISOR' ? 0.05 : 0.03) : sale.total * 0.02;
 
                             return (
@@ -555,7 +557,7 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                 <div className="flex items-center gap-2">
                     <div className="text-right">
                         <p className="text-sm font-bold truncate max-w-[80px]">{currentUser.name.split(' ')[0]}</p>
-                        <p className="text-[10px] text-blue-300">{currentUser.role === 'WHOLESALE_SUPERVISOR' ? 'Supervisor' : 'Vendedor'}</p>
+                        <p className="text-[10px] text-blue-300">Vendedor</p>
                     </div>
                     <button onClick={onLogout} className="p-2 hover:bg-red-500/20 text-red-200 hover:text-red-100 rounded-full transition-colors" aria-label="Sair">
                         <LogOut size={18} />
