@@ -278,8 +278,8 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
 
             try {
                 const canvas = await html2canvas(receiptElement, {
-                    scale: 3, // Higher scale = sharper image for printing
-                    backgroundColor: '#ffffff'
+                    scale: 3,
+                    backgroundColor: '#0f172a'
                 });
 
                 // Convert to PNG and trigger Share/Download
@@ -1084,52 +1084,66 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
             )}
 
             {/* Hidden Receipt for Printing */}
-            <div id="wholesale-receipt" className={`fixed -left-[1000px] top-0 bg-white p-4 w-[280px] text-slate-800 ${isPrinting ? '' : 'hidden'}`}>
-                <div className="text-center mb-4 border-b border-slate-200 pb-2">
-                    <h3 className="font-black text-lg uppercase">Gelo do Sertão</h3>
-                    <p className="text-[10px] font-bold">CNPJ: 49.344.385/0001-44</p>
-                    <p className="text-[10px]">Ibotirama - BA</p>
+            <div id="wholesale-receipt" className={`fixed -left-[2000px] top-0 ${isPrinting ? '' : 'hidden'}`}
+                style={{ width: '380px', backgroundColor: '#0f172a', color: '#f1f5f9', fontFamily: 'Arial, Helvetica, sans-serif', padding: '24px', boxSizing: 'border-box' }}>
+
+                {/* Header */}
+                <div style={{ textAlign: 'center', borderBottom: '2px solid #334155', paddingBottom: '16px', marginBottom: '16px' }}>
+                    <h3 style={{ fontSize: '22px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '2px', margin: 0, color: '#ffffff' }}>Gelo do Sertão</h3>
+                    <p style={{ fontSize: '11px', fontWeight: 700, margin: '4px 0 0', color: '#94a3b8' }}>CNPJ: 49.344.385/0001-44</p>
+                    <p style={{ fontSize: '11px', margin: '2px 0 0', color: '#94a3b8' }}>Ibotirama - BA</p>
                 </div>
 
-                <div className="text-center mb-4 border-b border-slate-200 pb-2">
-                    <p className="text-xs font-black uppercase">Pedido de Atacado</p>
-                    <p className="text-[10px] tracking-widest">{lastCompletedSale?.id.substring(0, 8).toUpperCase()}</p>
-                    <p className="text-[10px]">{lastCompletedSale?.createdAt ? new Date(lastCompletedSale.createdAt).toLocaleString('pt-BR') : new Date().toLocaleString('pt-BR')}</p>
+                {/* Order Info */}
+                <div style={{ textAlign: 'center', borderBottom: '2px solid #334155', paddingBottom: '12px', marginBottom: '16px' }}>
+                    <p style={{ fontSize: '14px', fontWeight: 900, textTransform: 'uppercase', margin: 0, color: '#fb923c' }}>Pedido de Atacado</p>
+                    <p style={{ fontSize: '11px', letterSpacing: '3px', margin: '4px 0', color: '#64748b' }}>{lastCompletedSale?.id.substring(0, 8).toUpperCase()}</p>
+                    <p style={{ fontSize: '12px', margin: '2px 0 0', color: '#cbd5e1' }}>{lastCompletedSale?.createdAt ? new Date(lastCompletedSale.createdAt).toLocaleString('pt-BR') : new Date().toLocaleString('pt-BR')}</p>
                 </div>
 
-                <div className="mb-4 text-[10px] space-y-0.5">
-                    <p><strong>CLIENTE:</strong> {lastCompletedSale?.customerName.toUpperCase()}</p>
-                    <p><strong>VENDEDOR:</strong> {lastCompletedSale?.sellerName?.toUpperCase()}</p>
-                    <p><strong>STATUS:</strong> {lastCompletedSale?.status.toUpperCase()}</p>
+                {/* Customer / Seller Info */}
+                <div style={{ marginBottom: '16px', fontSize: '12px', lineHeight: '20px', color: '#e2e8f0' }}>
+                    <p style={{ margin: 0 }}><strong style={{ color: '#94a3b8' }}>CLIENTE:</strong> {lastCompletedSale?.customerName.toUpperCase()}</p>
+                    <p style={{ margin: 0 }}><strong style={{ color: '#94a3b8' }}>VENDEDOR:</strong> {lastCompletedSale?.sellerName?.toUpperCase() || 'ADM'}</p>
+                    <p style={{ margin: 0 }}><strong style={{ color: '#94a3b8' }}>STATUS:</strong> {lastCompletedSale?.status === 'Pending' ? 'PENDENTE' : lastCompletedSale?.status?.toUpperCase()}</p>
                 </div>
 
-                <table className="w-full text-[10px] mb-4 border-b border-slate-100">
+                {/* Items Table */}
+                <table style={{ width: '100%', fontSize: '12px', marginBottom: '16px', borderCollapse: 'collapse' }}>
                     <thead>
-                        <tr className="border-b border-slate-200 uppercase">
-                            <th className="text-left py-1">Item</th>
-                            <th className="text-center py-1">Qtd</th>
-                            <th className="text-right py-1">Vlr</th>
+                        <tr style={{ borderBottom: '2px solid #475569' }}>
+                            <th style={{ textAlign: 'left', padding: '6px 0', color: '#94a3b8', fontWeight: 900, textTransform: 'uppercase', fontSize: '10px', letterSpacing: '1px' }}>Item</th>
+                            <th style={{ textAlign: 'center', padding: '6px 4px', color: '#94a3b8', fontWeight: 900, textTransform: 'uppercase', fontSize: '10px', letterSpacing: '1px', whiteSpace: 'nowrap', width: '50px' }}>Qtd</th>
+                            <th style={{ textAlign: 'right', padding: '6px 0', color: '#94a3b8', fontWeight: 900, textTransform: 'uppercase', fontSize: '10px', letterSpacing: '1px', whiteSpace: 'nowrap', width: '90px' }}>Valor</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
+                    <tbody>
                         {lastCompletedSale?.items.map((item, idx) => (
-                            <tr key={idx}>
-                                <td className="py-1">{item.productName}</td>
-                                <td className="py-1 text-center font-bold">x{item.quantity}</td>
-                                <td className="py-1 text-right">R$ {(item.priceAtSale * item.quantity).toFixed(2)}</td>
+                            <tr key={idx} style={{ borderBottom: '1px solid #1e293b' }}>
+                                <td style={{ padding: '8px 4px 8px 0', color: '#e2e8f0', fontWeight: 600, lineHeight: '16px' }}>{item.productName}</td>
+                                <td style={{ padding: '8px 4px', textAlign: 'center', fontWeight: 900, color: '#ffffff', whiteSpace: 'nowrap' }}>{item.quantity}</td>
+                                <td style={{ padding: '8px 0 8px 4px', textAlign: 'right', fontWeight: 700, color: '#ffffff', whiteSpace: 'nowrap' }}>R$ {(item.priceAtSale * item.quantity).toFixed(2)}</td>
                             </tr>
                         ))}
                     </tbody>
                 </table>
 
-                <div className="text-right space-y-1">
-                    <p className="text-xs font-black">TOTAL PEDIDO: R$ {lastCompletedSale?.total.toFixed(2)}</p>
-                    <p className="text-[10px] uppercase">Forma de Pagto: {lastCompletedSale?.paymentMethod}</p>
+                {/* Totals */}
+                <div style={{ borderTop: '2px solid #475569', paddingTop: '12px', marginBottom: '8px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                        <span style={{ fontSize: '12px', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700 }}>Forma de Pagto</span>
+                        <span style={{ fontSize: '13px', fontWeight: 900, color: '#e2e8f0' }}>{lastCompletedSale?.paymentMethod === 'Cash' ? 'DINHEIRO' : lastCompletedSale?.paymentMethod === 'Pix' ? 'PIX' : lastCompletedSale?.paymentMethod?.toUpperCase()}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px', padding: '12px', backgroundColor: '#1e293b', borderRadius: '12px' }}>
+                        <span style={{ fontSize: '16px', fontWeight: 900, color: '#fb923c', textTransform: 'uppercase', letterSpacing: '2px' }}>Total</span>
+                        <span style={{ fontSize: '24px', fontWeight: 900, color: '#ffffff', letterSpacing: '-1px' }}>R$ {lastCompletedSale?.total.toFixed(2)}</span>
+                    </div>
                 </div>
 
-                <div className="mt-8 text-center border-t-2 border-dashed border-slate-200 pt-4 pb-8">
-                    <p className="text-[10px] font-black uppercase">Obrigado pela preferência!</p>
-                    <p className="text-[8px] mt-2 italic">Sistema Gelo do Sertão • Gestão Inteligente</p>
+                {/* Footer */}
+                <div style={{ marginTop: '24px', textAlign: 'center', borderTop: '2px dashed #334155', paddingTop: '16px', paddingBottom: '24px' }}>
+                    <p style={{ fontSize: '12px', fontWeight: 900, textTransform: 'uppercase', margin: 0, color: '#cbd5e1' }}>Obrigado pela preferência!</p>
+                    <p style={{ fontSize: '9px', marginTop: '8px', fontStyle: 'italic', color: '#64748b' }}>Sistema Gelo do Sertão • Gestão Inteligente</p>
                 </div>
             </div>
 
