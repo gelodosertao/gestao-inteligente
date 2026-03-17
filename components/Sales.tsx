@@ -808,7 +808,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                {/* Unified Top Header: Branches, Search & Scanner */}
                <div className="bg-white p-3 md:p-4 rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.05)] border border-slate-100 mb-4 shrink-0 relative z-40">
                   <div className="flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-4">
-                
+
                      <div className="flex gap-3 w-full lg:flex-1 max-w-5xl relative">
                         <div className="relative flex-1 group z-40">
                            <Search size={24} className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400 group-focus-within:text-orange-500 transition-colors" />
@@ -1029,7 +1029,6 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                      </div>
                   </div>
                </div>
-               )}
             </div>
          )}
 
