@@ -288,8 +288,8 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                 canvas.toBlob(async (blob) => {
                     if (!blob) return;
 
-                    const fileName = `pedido-${saleToPrint.id.substring(0, 8)}.jpg`;
-                    const file = new File([blob], fileName, { type: 'image/jpeg' });
+                    const fileName = `pedido-${saleToPrint.id.substring(0, 8)}.png`;
+                    const file = new File([blob], fileName, { type: 'image/png' });
 
                     // Compartilhamento nativa (maquininhas/celulares)
                     if (navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -313,7 +313,7 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                         document.body.removeChild(a);
                         setTimeout(() => URL.revokeObjectURL(dataUrl), 100);
                     }
-                }, 'image/jpeg', 0.95);
+                }, 'image/png');
 
             } catch (e) {
                 console.error('Erro na impressão', e);
@@ -1081,52 +1081,50 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
 
             {/* Hidden Receipt for Printing */}
             <div id="wholesale-receipt" className={`fixed -left-[2000px] top-0 ${isPrinting ? '' : 'hidden'}`}
-                style={{ width: '350px', backgroundColor: '#ffffff', color: '#000000', fontFamily: 'Arial, sans-serif', padding: '15px 10px', boxSizing: 'border-box', textAlign: 'center' }}>
+                style={{ width: '280px', backgroundColor: '#ffffff', color: '#000000', fontFamily: 'Arial, sans-serif', padding: '15px 20px', boxSizing: 'border-box' }}>
 
                 {/* Header */}
-                <div style={{ paddingBottom: '10px', marginBottom: '10px', borderBottom: '2px solid #000' }}>
-                    <p style={{ fontSize: '24px', fontWeight: 900, margin: 0, textTransform: 'uppercase' }}>Gelo do Sertão</p>
+                <div style={{ textAlign: 'center', paddingBottom: '12px', marginBottom: '10px', borderBottom: '2px solid #000' }}>
+                    <p style={{ fontSize: '22px', fontWeight: 900, margin: 0, textTransform: 'uppercase' }}>Gelo do Sertão</p>
                     <p style={{ fontSize: '12px', margin: '4px 0 0', fontWeight: 700 }}>CNPJ: 47.026.674/0001-29</p>
-                    <p style={{ fontSize: '11px', margin: '2px 0 0' }}>Ibotirama - BA</p>
+                    <p style={{ fontSize: '11px', margin: '1px 0 0' }}>Ibotirama - BA</p>
                 </div>
 
                 {/* Info */}
-                <div style={{ marginBottom: '10px', borderBottom: '1px dashed #666', paddingBottom: '8px' }}>
+                <div style={{ textAlign: 'center', marginBottom: '10px', borderBottom: '1px dashed #666', paddingBottom: '8px' }}>
                     <p style={{ fontSize: '14px', fontWeight: 900, margin: 0 }}>PEDIDO ATACADO</p>
                     <p style={{ fontSize: '11px', margin: '3px 0', fontWeight: 700 }}>#{lastCompletedSale?.id.substring(0, 8).toUpperCase()}</p>
                     <p style={{ fontSize: '12px', margin: 0 }}>{lastCompletedSale?.createdAt ? new Date(lastCompletedSale.createdAt).toLocaleString('pt-BR') : new Date().toLocaleString('pt-BR')}</p>
                 </div>
 
                 {/* Client/Seller */}
-                <div style={{ fontSize: '13px', marginBottom: '10px', lineHeight: '20px', textAlign: 'left', paddingLeft: '5px' }}>
-                    <p style={{ margin: '0 0 2px' }}><span style={{ fontWeight: 800 }}>CLI:</span> {lastCompletedSale?.customerName.toUpperCase()}</p>
-                    <p style={{ margin: '0 0 2px' }}><span style={{ fontWeight: 800 }}>VEND:</span> {lastCompletedSale?.sellerName?.split(' ')[0].toUpperCase() || 'ADM'}</p>
-                    <p style={{ margin: 0 }}><span style={{ fontWeight: 800 }}>PAGTO:</span> {lastCompletedSale?.paymentMethod === 'Pix' ? 'PIX' : lastCompletedSale?.paymentMethod === 'Cash' ? 'DINHEIRO' : lastCompletedSale?.paymentMethod.toUpperCase()}</p>
+                <div style={{ fontSize: '13px', marginBottom: '12px', lineHeight: '18px' }}>
+                    <p style={{ margin: '0 0 3px' }}><span style={{ fontWeight: 800 }}>CLI:</span> {lastCompletedSale?.customerName.toUpperCase()}</p>
+                    <p style={{ margin: '0 0 3px' }}><span style={{ fontWeight: 800 }}>VEND:</span> {lastCompletedSale?.sellerName?.split(' ')[0].toUpperCase() || 'ADM'}</p>
+                    <p style={{ margin: 0 }}><span style={{ fontWeight: 800 }}>PAG:</span> {lastCompletedSale?.paymentMethod === 'Pix' ? 'PIX' : lastCompletedSale?.paymentMethod === 'Cash' ? 'DINHEIRO' : lastCompletedSale?.paymentMethod.toUpperCase()}</p>
                 </div>
 
                 {/* Items */}
                 <div style={{ borderTop: '2px solid #000', borderBottom: '2px solid #000', paddingTop: '10px', paddingBottom: '10px', marginBottom: '10px' }}>
                     {lastCompletedSale?.items.map((item, idx) => (
-                        <div key={idx} style={{ marginBottom: '10px', textAlign: 'left' }}>
+                        <div key={idx} style={{ marginBottom: '12px' }}>
                             <p style={{ fontSize: '15px', fontWeight: 800, margin: '0 0 2px' }}>{item.productName.toUpperCase()}</p>
-                            <div style={{ fontSize: '14px', display: 'flex', justifyContent: 'space-between', fontWeight: 600 }}>
-                                <span>{item.quantity} un x R$ {item.priceAtSale.toFixed(2)}</span>
-                                <span style={{ fontWeight: 900 }}>R$ {(item.priceAtSale * item.quantity).toFixed(2)}</span>
-                            </div>
+                            <p style={{ fontSize: '13px', margin: 0, fontWeight: 600 }}>{item.quantity} un x R$ {item.priceAtSale.toFixed(2)}</p>
+                            <p style={{ fontSize: '15px', fontWeight: 900, textAlign: 'right', margin: '2px 0 0' }}>= R$ {(item.priceAtSale * item.quantity).toFixed(2)}</p>
                         </div>
                     ))}
                 </div>
 
                 {/* Total */}
-                <div style={{ textAlign: 'right', marginTop: '10px', marginBottom: '12px' }}>
-                    <p style={{ fontSize: '11px', fontWeight: 900, margin: '0 0 2px' }}>TOTAL DO PEDIDO</p>
-                    <p style={{ fontSize: '32px', fontWeight: 900, margin: 0 }}>R$ {lastCompletedSale?.total.toFixed(2)}</p>
+                <div style={{ textAlign: 'right', marginTop: '10px', marginBottom: '15px' }}>
+                    <p style={{ fontSize: '12px', fontWeight: 900, margin: '0 0 2px' }}>TOTAL DO PEDIDO</p>
+                    <p style={{ fontSize: '30px', fontWeight: 900, margin: 0 }}>R$ {lastCompletedSale?.total.toFixed(2)}</p>
                 </div>
 
                 {/* Footer */}
-                <div style={{ borderTop: '1px dashed #000', paddingTop: '10px' }}>
-                    <p style={{ fontSize: '14px', fontWeight: 900, margin: 0 }}>Obrigado pela preferência!</p>
-                    <p style={{ fontSize: '10px', margin: '5px 0 0', fontStyle: 'italic' }}>Gelo do Sertão · Gestão Inteligente</p>
+                <div style={{ textAlign: 'center', borderTop: '1px dashed #000', paddingTop: '10px' }}>
+                    <p style={{ fontSize: '13px', fontWeight: 900, margin: 0 }}>Obrigado pela preferência!</p>
+                    <p style={{ fontSize: '10px', margin: '4px 0 0', fontStyle: 'italic' }}>Gelo do Sertão · Gestão Inteligente</p>
                 </div>
             </div>
 
