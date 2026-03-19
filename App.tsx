@@ -607,7 +607,7 @@ const App: React.FC = () => {
       case 'CASH_CLOSING':
         return <Financial records={financials} sales={sales} products={products} cashClosings={cashClosings} onAddRecord={handleAddFinancialRecord} onUpdateRecord={handleUpdateFinancialRecord} onDeleteRecord={handleDeleteFinancialRecord} onAddCashClosing={handleAddCashClosing} onDeleteCashClosing={handleDeleteCashClosing} currentUser={currentUser} onBack={() => setCurrentView('DASHBOARD')} />;
       case 'FINANCIAL':
-        if (currentUser?.role !== 'ADMIN') return <Dashboard products={products} sales={sales} financials={financials} customers={customers} onNavigate={setCurrentView} />;
+        if (currentUser?.role !== 'ADMIN' && !(currentUser?.allowedModules || []).includes('FINANCIAL')) return <Dashboard products={products} sales={sales} financials={financials} customers={customers} onNavigate={setCurrentView} />;
         return <Financial records={financials} sales={sales} products={products} cashClosings={cashClosings} onAddRecord={handleAddFinancialRecord} onUpdateRecord={handleUpdateFinancialRecord} onDeleteRecord={handleDeleteFinancialRecord} onAddCashClosing={handleAddCashClosing} onDeleteCashClosing={handleDeleteCashClosing} currentUser={currentUser} onBack={() => setCurrentView('DASHBOARD')} />;
       case 'AI_INSIGHTS':
         return <AIAssistant products={products} sales={sales} financials={financials} onBack={() => setCurrentView('DASHBOARD')} />;

@@ -33,16 +33,16 @@ export const ALL_MENU_ITEMS = [
 const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, setView, currentUser, onLogout, isCollapsed, toggleSidebar, isMobileMenuOpen, closeMobileMenu, pendingOrdersCount }) => {
 
   const visibleItems = ALL_MENU_ITEMS.filter(item => {
-    // 1. Admin always has full access (unless restricted by some other logic, but usually Admin = Root)
+    // 1. Admin always has full access
     if (currentUser.role === 'ADMIN') return true;
 
-    // 2. If user has specific allowed modules defined, adhere STRICTLY to them
-    if (currentUser.allowedModules && currentUser.allowedModules.length > 0) {
-      return currentUser.allowedModules.includes(item.id);
-    }
+    // 2. Role-based defaults
+    const isRoleDefault = item.roles.includes(currentUser.role);
 
-    // 3. Fallback for legacy users (no allowedModules set): use Role-based defaults
-    return item.roles.includes(currentUser.role);
+    // 3. Specifically allowed modules (explicit override or addition)
+    const isSpecificallyAllowed = (currentUser.allowedModules || []).includes(item.id);
+
+    return isRoleDefault || isSpecificallyAllowed;
   });
 
   return (
@@ -135,7 +135,11 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, setView, currentUs
             <div className="flex-1 overflow-hidden">
               <p className="text-sm font-semibold truncate text-white">{currentUser.name}</p>
               <p className="text-[10px] text-blue-300 uppercase tracking-wider">
-                {currentUser.role === 'ADMIN' ? 'Sócio Admin' : currentUser.role === 'FACTORY' ? 'Fábrica' : 'Operador'}
+                {currentUser.role === 'ADMIN' ? 'Sócio Admin' :
+                  currentUser.role === 'FACTORY' ? 'Fábrica' :
+                    currentUser.role === 'WHOLESALE_SUPERVISOR' ? 'Supervisor' :
+                      currentUser.role === 'WHOLESALE_REPRESENTATIVE' ? 'Representante' :
+                        'Operador'}
               </p>
             </div>
             <button onClick={onLogout} className="text-blue-300 hover:text-rose-400 transition-colors p-1" title="Sair">
