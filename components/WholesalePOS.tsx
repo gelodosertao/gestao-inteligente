@@ -278,7 +278,7 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
 
             try {
                 const canvas = await html2canvas(receiptElement, {
-                    scale: 3,
+                    scale: 2,
                     backgroundColor: '#0f172a'
                 });
 
@@ -1085,39 +1085,39 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
 
             {/* Hidden Receipt for Printing */}
             <div id="wholesale-receipt" className={`fixed -left-[2000px] top-0 ${isPrinting ? '' : 'hidden'}`}
-                style={{ width: '280px', backgroundColor: '#0f172a', color: '#e2e8f0', fontFamily: 'Arial, sans-serif', padding: '14px', boxSizing: 'border-box', wordBreak: 'break-word' as const, overflow: 'hidden' }}>
+                style={{ width: '190px', backgroundColor: '#0f172a', color: '#e2e8f0', fontFamily: 'Arial, sans-serif', padding: '8px', boxSizing: 'border-box', wordBreak: 'break-word' as const, overflow: 'hidden' }}>
 
                 {/* Header */}
-                <div style={{ textAlign: 'center', paddingBottom: '10px', marginBottom: '10px', borderBottom: '1px solid #334155' }}>
-                    <p style={{ fontSize: '16px', fontWeight: 900, margin: 0, color: '#fff', textTransform: 'uppercase', letterSpacing: '1px' }}>Gelo do Sertão</p>
-                    <p style={{ fontSize: '9px', margin: '4px 0 0', color: '#64748b' }}>CNPJ: 47.026.674/0001-29</p>
-                    <p style={{ fontSize: '9px', margin: '2px 0 0', color: '#64748b' }}>Ibotirama-BA</p>
+                <div style={{ textAlign: 'center', paddingBottom: '6px', marginBottom: '6px', borderBottom: '1px solid #334155' }}>
+                    <p style={{ fontSize: '13px', fontWeight: 900, margin: 0, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Gelo do Sertão</p>
+                    <p style={{ fontSize: '7px', margin: '3px 0 0', color: '#64748b' }}>CNPJ: 47.026.674/0001-29</p>
+                    <p style={{ fontSize: '7px', margin: '1px 0 0', color: '#64748b' }}>Ibotirama-BA</p>
                 </div>
 
                 {/* Order */}
-                <div style={{ textAlign: 'center', paddingBottom: '8px', marginBottom: '10px', borderBottom: '1px solid #334155' }}>
-                    <p style={{ fontSize: '12px', fontWeight: 900, margin: 0, color: '#fb923c', textTransform: 'uppercase' }}>Pedido Atacado</p>
-                    <p style={{ fontSize: '9px', margin: '3px 0', color: '#64748b', letterSpacing: '1px' }}>#{lastCompletedSale?.id.substring(0, 8).toUpperCase()}</p>
-                    <p style={{ fontSize: '10px', margin: 0, color: '#94a3b8' }}>{lastCompletedSale?.createdAt ? new Date(lastCompletedSale.createdAt).toLocaleString('pt-BR') : new Date().toLocaleString('pt-BR')}</p>
+                <div style={{ textAlign: 'center', paddingBottom: '6px', marginBottom: '6px', borderBottom: '1px solid #334155' }}>
+                    <p style={{ fontSize: '10px', fontWeight: 900, margin: 0, color: '#fb923c', textTransform: 'uppercase' }}>Pedido Atacado</p>
+                    <p style={{ fontSize: '7px', margin: '2px 0', color: '#64748b', letterSpacing: '0.5px' }}>#{lastCompletedSale?.id.substring(0, 8).toUpperCase()}</p>
+                    <p style={{ fontSize: '8px', margin: 0, color: '#94a3b8' }}>{lastCompletedSale?.createdAt ? new Date(lastCompletedSale.createdAt).toLocaleString('pt-BR') : new Date().toLocaleString('pt-BR')}</p>
                 </div>
 
                 {/* Client/Seller */}
-                <div style={{ textAlign: 'center', fontSize: '10px', marginBottom: '10px', lineHeight: '16px', color: '#cbd5e1' }}>
+                <div style={{ textAlign: 'center', fontSize: '8px', marginBottom: '6px', lineHeight: '13px', color: '#cbd5e1' }}>
                     <p style={{ margin: 0, wordBreak: 'break-word' as const }}><span style={{ color: '#64748b' }}>Cliente:</span> {lastCompletedSale?.customerName}</p>
                     <p style={{ margin: 0 }}><span style={{ color: '#64748b' }}>Vendedor:</span> {lastCompletedSale?.sellerName || 'ADM'}</p>
                     <p style={{ margin: 0 }}><span style={{ color: '#64748b' }}>Status:</span> {lastCompletedSale?.status === 'Pending' ? 'Pendente' : lastCompletedSale?.status}</p>
                 </div>
 
                 {/* Items - vertical stacked, centered, no cut-off */}
-                <div style={{ borderTop: '1px solid #334155', borderBottom: '1px solid #334155', paddingTop: '8px', paddingBottom: '4px', marginBottom: '10px' }}>
-                    <p style={{ fontSize: '8px', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', letterSpacing: '1px', margin: '0 0 6px', textAlign: 'center' }}>Itens do Pedido</p>
+                <div style={{ borderTop: '1px solid #334155', borderBottom: '1px solid #334155', paddingTop: '6px', paddingBottom: '2px', marginBottom: '6px' }}>
+                    <p style={{ fontSize: '6px', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 4px', textAlign: 'center' }}>Itens do Pedido</p>
                     {lastCompletedSale?.items.map((item, idx) => (
-                        <div key={idx} style={{ marginBottom: '8px', textAlign: 'center' }}>
-                            <p style={{ fontSize: '11px', fontWeight: 700, margin: 0, color: '#fff', lineHeight: '14px', wordBreak: 'break-word' as const }}>{item.productName}</p>
-                            <p style={{ fontSize: '10px', margin: '2px 0 0', color: '#94a3b8' }}>
+                        <div key={idx} style={{ marginBottom: '6px', textAlign: 'center' }}>
+                            <p style={{ fontSize: '9px', fontWeight: 700, margin: 0, color: '#fff', lineHeight: '12px', wordBreak: 'break-word' as const }}>{item.productName}</p>
+                            <p style={{ fontSize: '8px', margin: '1px 0 0', color: '#94a3b8' }}>
                                 {item.quantity} un × R$ {item.priceAtSale.toFixed(2)}
                             </p>
-                            <p style={{ fontSize: '11px', margin: '1px 0 0', color: '#fff', fontWeight: 900 }}>
+                            <p style={{ fontSize: '9px', margin: '1px 0 0', color: '#fff', fontWeight: 900 }}>
                                 = R$ {(item.priceAtSale * item.quantity).toFixed(2)}
                             </p>
                         </div>
@@ -1125,20 +1125,20 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                 </div>
 
                 {/* Payment + Total */}
-                <div style={{ textAlign: 'center', marginBottom: '10px' }}>
-                    <p style={{ fontSize: '10px', color: '#94a3b8', margin: '0 0 4px' }}>
+                <div style={{ textAlign: 'center', marginBottom: '6px' }}>
+                    <p style={{ fontSize: '8px', color: '#94a3b8', margin: '0 0 3px' }}>
                         Pagamento: <span style={{ color: '#e2e8f0', fontWeight: 700 }}>{lastCompletedSale?.paymentMethod === 'Cash' ? 'Dinheiro' : lastCompletedSale?.paymentMethod === 'Pix' ? 'PIX' : lastCompletedSale?.paymentMethod}</span>
                     </p>
-                    <div style={{ backgroundColor: '#1e293b', borderRadius: '8px', padding: '10px', marginTop: '6px' }}>
-                        <p style={{ fontSize: '9px', fontWeight: 900, color: '#fb923c', textTransform: 'uppercase', letterSpacing: '1px', margin: '0 0 4px' }}>Total do Pedido</p>
-                        <p style={{ fontSize: '22px', fontWeight: 900, color: '#fff', margin: 0, letterSpacing: '-1px' }}>R$ {lastCompletedSale?.total.toFixed(2)}</p>
+                    <div style={{ backgroundColor: '#1e293b', borderRadius: '6px', padding: '8px', marginTop: '4px' }}>
+                        <p style={{ fontSize: '7px', fontWeight: 900, color: '#fb923c', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 2px' }}>Total do Pedido</p>
+                        <p style={{ fontSize: '18px', fontWeight: 900, color: '#fff', margin: 0, letterSpacing: '-1px' }}>R$ {lastCompletedSale?.total.toFixed(2)}</p>
                     </div>
                 </div>
 
                 {/* Footer */}
-                <div style={{ textAlign: 'center', borderTop: '1px dashed #334155', paddingTop: '10px', paddingBottom: '12px' }}>
-                    <p style={{ fontSize: '10px', fontWeight: 700, margin: 0, color: '#94a3b8' }}>Obrigado pela preferência!</p>
-                    <p style={{ fontSize: '7px', margin: '4px 0 0', color: '#475569', fontStyle: 'italic' }}>Gelo do Sertão · Gestão Inteligente</p>
+                <div style={{ textAlign: 'center', borderTop: '1px dashed #334155', paddingTop: '6px', paddingBottom: '8px' }}>
+                    <p style={{ fontSize: '8px', fontWeight: 700, margin: 0, color: '#94a3b8' }}>Obrigado pela preferência!</p>
+                    <p style={{ fontSize: '6px', margin: '3px 0 0', color: '#475569', fontStyle: 'italic' }}>Gelo do Sertão · Gestão Inteligente</p>
                 </div>
             </div>
 
