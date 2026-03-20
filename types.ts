@@ -162,7 +162,7 @@ export interface User {
   allowedModules?: string[]; // IDs of modules the user can access
 }
 
-export type ViewState = 'DASHBOARD' | 'INVENTORY' | 'SALES' | 'FINANCIAL' | 'CASH_CLOSING' | 'AI_INSIGHTS' | 'SETTINGS' | 'CUSTOMERS' | 'PRICING' | 'ONLINE_MENU' | 'MENU_CONFIG' | 'PRODUCTION' | 'ORDER_CENTER' | 'REPORTS' | 'WHOLESALE_POS';
+export type ViewState = 'DASHBOARD' | 'INVENTORY' | 'SALES' | 'FINANCIAL' | 'CASH_CLOSING' | 'AI_INSIGHTS' | 'SETTINGS' | 'CUSTOMERS' | 'PRICING' | 'ONLINE_MENU' | 'MENU_CONFIG' | 'PRODUCTION' | 'ORDER_CENTER' | 'REPORTS' | 'WHOLESALE_POS' | 'CRM';
 
 export interface Order {
   id: string;
@@ -237,4 +237,54 @@ export interface CashClosing {
   difference: number; // Sobra ou Falta
   notes?: string;
   closedBy: string; // User name
+}
+
+// --- CRM MODULE ---
+
+export type CrmLeadStatus = 'NOVO' | 'CONTATO' | 'PROPOSTA' | 'FECHADO' | 'PERDIDO';
+export type CrmChannel = 'WhatsApp' | 'Instagram' | 'Facebook' | 'Indicação' | 'Site' | 'Outros';
+export type CrmInteractionType = 'NOTA' | 'WHATSAPP' | 'LIGACAO' | 'EMAIL' | 'REUNIAO';
+export type CrmTaskStatus = 'PENDENTE' | 'CONCLUIDA' | 'CANCELADA';
+
+export interface CrmLead {
+  id: string;
+  tenantId: string;
+  name: string;
+  phone?: string;
+  email?: string;
+  company?: string;
+  city?: string;
+  channel: CrmChannel;
+  status: CrmLeadStatus;
+  estimatedValue: number;
+  notes?: string;
+  responsibleId?: string;
+  responsibleName?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CrmInteraction {
+  id: string;
+  tenantId: string;
+  leadId: string;
+  type: CrmInteractionType;
+  content: string;
+  userId?: string;
+  userName?: string;
+  createdAt: string;
+}
+
+export interface CrmTask {
+  id: string;
+  tenantId: string;
+  leadId?: string;
+  title: string;
+  description?: string;
+  dueDate?: string;
+  status: CrmTaskStatus;
+  responsibleId?: string;
+  responsibleName?: string;
+  createdAt: string;
+  updatedAt: string;
 }

@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Package, ShoppingCart, DollarSign, Sparkles, Settings, LogOut, Sun, Users, Calculator, ChevronLeft, ChevronRight, Factory, Globe, Truck, PieChart, Lock } from 'lucide-react';
+import { LayoutDashboard, Package, ShoppingCart, DollarSign, Sparkles, Settings, LogOut, Sun, Users, Calculator, ChevronLeft, ChevronRight, Factory, Globe, Truck, PieChart, Lock, TrendingUp } from 'lucide-react';
 import { ViewState, User } from '../types';
 
 interface AppSidebarProps {
@@ -26,6 +26,7 @@ export const ALL_MENU_ITEMS = [
   { id: 'FINANCIAL', label: 'Financeiro', icon: DollarSign, roles: ['ADMIN'] },
   { id: 'CASH_CLOSING', label: 'Fechar Caixa', icon: Lock, roles: ['OPERATOR'] },
   { id: 'REPORTS', label: 'Relatórios', icon: PieChart, roles: ['ADMIN'] },
+  { id: 'CRM', label: 'CRM / Marketing', icon: TrendingUp, roles: ['ADMIN'] },
   { id: 'MENU_CONFIG', label: 'Site / Cardápio', icon: Globe, roles: ['ADMIN'] },
   { id: 'WHOLESALE_POS', label: 'PDV Atacado', icon: ShoppingCart, roles: ['ADMIN', 'WHOLESALE_SUPERVISOR', 'WHOLESALE_REPRESENTATIVE'] },
 ];

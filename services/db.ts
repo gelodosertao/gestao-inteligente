@@ -786,3 +786,199 @@ export const dbOrders = {
     if (error) throw error;
   }
 };
+
+// --- CRM ---
+import type { CrmLead, CrmInteraction, CrmTask } from '../types';
+
+export const dbCrm = {
+  // LEADS
+  async getLeads(tenantId: string): Promise<CrmLead[]> {
+    const { data, error } = await supabase
+      .from('crm_leads')
+      .select('*')
+      .eq('tenant_id', tenantId)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return (data || []).map((row: any) => ({
+      id: row.id,
+      tenantId: row.tenant_id,
+      name: row.name,
+      phone: row.phone,
+      email: row.email,
+      company: row.company,
+      city: row.city,
+      channel: row.channel,
+      status: row.status,
+      estimatedValue: row.estimated_value || 0,
+      notes: row.notes,
+      responsibleId: row.responsible_id,
+      responsibleName: row.responsible_name,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+  },
+
+  async addLead(lead: Omit<CrmLead, 'id' | 'createdAt' | 'updatedAt'>, tenantId: string): Promise<CrmLead> {
+    const { data, error } = await supabase
+      .from('crm_leads')
+      .insert([{
+        name: lead.name,
+        phone: lead.phone,
+        email: lead.email,
+        company: lead.company,
+        city: lead.city,
+        channel: lead.channel,
+        status: lead.status,
+        estimated_value: lead.estimatedValue,
+        notes: lead.notes,
+        responsible_id: lead.responsibleId,
+        responsible_name: lead.responsibleName,
+        tenant_id: tenantId,
+      }])
+      .select()
+      .single();
+    if (error) throw error;
+    return {
+      id: data.id, tenantId: data.tenant_id, name: data.name, phone: data.phone,
+      email: data.email, company: data.company, city: data.city, channel: data.channel,
+      status: data.status, estimatedValue: data.estimated_value || 0, notes: data.notes,
+      responsibleId: data.responsible_id, responsibleName: data.responsible_name,
+      createdAt: data.created_at, updatedAt: data.updated_at,
+    };
+  },
+
+  async updateLead(lead: CrmLead): Promise<void> {
+    const { error } = await supabase
+      .from('crm_leads')
+      .update({
+        name: lead.name,
+        phone: lead.phone,
+        email: lead.email,
+        company: lead.company,
+        city: lead.city,
+        channel: lead.channel,
+        status: lead.status,
+        estimated_value: lead.estimatedValue,
+        notes: lead.notes,
+        responsible_id: lead.responsibleId,
+        responsible_name: lead.responsibleName,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', lead.id);
+    if (error) throw error;
+  },
+
+  async deleteLead(id: string): Promise<void> {
+    const { error } = await supabase.from('crm_leads').delete().eq('id', id);
+    if (error) throw error;
+  },
+
+  // INTERACTIONS
+  async getInteractions(leadId: string): Promise<CrmInteraction[]> {
+    const { data, error } = await supabase
+      .from('crm_interactions')
+      .select('*')
+      .eq('lead_id', leadId)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return (data || []).map((row: any) => ({
+      id: row.id,
+      tenantId: row.tenant_id,
+      leadId: row.lead_id,
+      type: row.type,
+      content: row.content,
+      userId: row.user_id,
+      userName: row.user_name,
+      createdAt: row.created_at,
+    }));
+  },
+
+  async addInteraction(interaction: Omit<CrmInteraction, 'id' | 'createdAt'>, tenantId: string): Promise<CrmInteraction> {
+    const { data, error } = await supabase
+      .from('crm_interactions')
+      .insert([{
+        lead_id: interaction.leadId,
+        type: interaction.type,
+        content: interaction.content,
+        user_id: interaction.userId,
+        user_name: interaction.userName,
+        tenant_id: tenantId,
+      }])
+      .select()
+      .single();
+    if (error) throw error;
+    return {
+      id: data.id, tenantId: data.tenant_id, leadId: data.lead_id,
+      type: data.type, content: data.content, userId: data.user_id,
+      userName: data.user_name, createdAt: data.created_at,
+    };
+  },
+
+  // TASKS
+  async getTasks(tenantId: string): Promise<CrmTask[]> {
+    const { data, error } = await supabase
+      .from('crm_tasks')
+      .select('*')
+      .eq('tenant_id', tenantId)
+      .order('due_date', { ascending: true });
+    if (error) throw error;
+    return (data || []).map((row: any) => ({
+      id: row.id,
+      tenantId: row.tenant_id,
+      leadId: row.lead_id,
+      title: row.title,
+      description: row.description,
+      dueDate: row.due_date,
+      status: row.status,
+      responsibleId: row.responsible_id,
+      responsibleName: row.responsible_name,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+  },
+
+  async addTask(task: Omit<CrmTask, 'id' | 'createdAt' | 'updatedAt'>, tenantId: string): Promise<CrmTask> {
+    const { data, error } = await supabase
+      .from('crm_tasks')
+      .insert([{
+        lead_id: task.leadId || null,
+        title: task.title,
+        description: task.description,
+        due_date: task.dueDate || null,
+        status: task.status,
+        responsible_id: task.responsibleId,
+        responsible_name: task.responsibleName,
+        tenant_id: tenantId,
+      }])
+      .select()
+      .single();
+    if (error) throw error;
+    return {
+      id: data.id, tenantId: data.tenant_id, leadId: data.lead_id,
+      title: data.title, description: data.description, dueDate: data.due_date,
+      status: data.status, responsibleId: data.responsible_id,
+      responsibleName: data.responsible_name, createdAt: data.created_at, updatedAt: data.updated_at,
+    };
+  },
+
+  async updateTask(task: CrmTask): Promise<void> {
+    const { error } = await supabase
+      .from('crm_tasks')
+      .update({
+        title: task.title,
+        description: task.description,
+        due_date: task.dueDate || null,
+        status: task.status,
+        responsible_id: task.responsibleId,
+        responsible_name: task.responsibleName,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', task.id);
+    if (error) throw error;
+  },
+
+  async deleteTask(id: string): Promise<void> {
+    const { error } = await supabase.from('crm_tasks').delete().eq('id', id);
+    if (error) throw error;
+  },
+};

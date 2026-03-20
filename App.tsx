@@ -25,6 +25,7 @@ const Reports = React.lazy(() => import('./components/Reports'));
 // Lazy loaded WholesalePOS
 const WholesalePOS = React.lazy(() => import('./components/WholesalePOS'));
 const VisitorLanding = React.lazy(() => import('./components/VisitorLanding'));
+const CRM = React.lazy(() => import('./components/CRM'));
 
 const App: React.FC = () => {
   const navigate = useNavigate();
@@ -48,6 +49,7 @@ const App: React.FC = () => {
     if (path.startsWith('/gestao/configuracoes')) return 'SETTINGS';
     if (path.startsWith('/gestao/site')) return 'MENU_CONFIG';
     if (path.startsWith('/gestao/ai')) return 'AI_INSIGHTS';
+    if (path.startsWith('/gestao/crm')) return 'CRM';
     if (path === '/gestao') return 'DASHBOARD';
     return 'DASHBOARD';
   }, [location.pathname]);
@@ -69,6 +71,7 @@ const App: React.FC = () => {
       case 'SETTINGS': navigate('/gestao/configuracoes'); break;
       case 'MENU_CONFIG': navigate('/gestao/site'); break;
       case 'AI_INSIGHTS': navigate('/gestao/ai'); break;
+      case 'CRM': navigate('/gestao/crm'); break;
       default: navigate('/gestao');
     }
   };
@@ -620,6 +623,8 @@ const App: React.FC = () => {
         return <OrderCenter onBack={() => setCurrentView('DASHBOARD')} tenantId={currentUser!.tenantId} />;
       case 'SETTINGS':
         return <Settings currentUser={currentUser!} onResetData={handleResetData} />;
+      case 'CRM':
+        return <CRM currentUser={currentUser!} onBack={() => setCurrentView('DASHBOARD')} />;
       default:
         return <Dashboard products={products} sales={sales} financials={financials} customers={customers} onNavigate={setCurrentView} />;
     }
