@@ -16,19 +16,19 @@ interface AppSidebarProps {
 
 // Define menu structure based on roles (exported for use in Settings)
 export const ALL_MENU_ITEMS = [
-  { id: 'DASHBOARD', label: 'Dashboard', icon: LayoutDashboard, roles: ['ADMIN'] },
-  { id: 'INVENTORY', label: 'Estoque', icon: Package, roles: ['ADMIN', 'OPERATOR'] },
-  { id: 'PRODUCTION', label: 'Produção', icon: Factory, roles: ['ADMIN', 'FACTORY'] },
-  { id: 'SALES', label: 'PDV Adega', icon: ShoppingCart, roles: ['ADMIN', 'OPERATOR'] },
   { id: 'ORDER_CENTER', label: 'Central de Pedidos', icon: Truck, roles: ['ADMIN', 'OPERATOR'] },
   { id: 'CUSTOMERS', label: 'Clientes', icon: Users, roles: ['ADMIN', 'OPERATOR'] },
-  { id: 'PRICING', label: 'Custos', icon: Calculator, roles: ['ADMIN'] },
-  { id: 'FINANCIAL', label: 'Financeiro', icon: DollarSign, roles: ['ADMIN'] },
-  { id: 'CASH_CLOSING', label: 'Fechar Caixa', icon: Lock, roles: ['OPERATOR'] },
-  { id: 'REPORTS', label: 'Relatórios', icon: PieChart, roles: ['ADMIN'] },
   { id: 'CRM', label: 'CRM / Marketing', icon: TrendingUp, roles: ['ADMIN'] },
-  { id: 'MENU_CONFIG', label: 'Site / Cardápio', icon: Globe, roles: ['ADMIN'] },
+  { id: 'PRICING', label: 'Custos', icon: Calculator, roles: ['ADMIN'] },
+  { id: 'DASHBOARD', label: 'Dashboard', icon: LayoutDashboard, roles: ['ADMIN'] },
+  { id: 'INVENTORY', label: 'Estoque', icon: Package, roles: ['ADMIN', 'OPERATOR'] },
+  { id: 'CASH_CLOSING', label: 'Fechar Caixa', icon: Lock, roles: ['OPERATOR'] },
+  { id: 'FINANCIAL', label: 'Financeiro', icon: DollarSign, roles: ['ADMIN'] },
+  { id: 'SALES', label: 'PDV Adega', icon: ShoppingCart, roles: ['ADMIN', 'OPERATOR'] },
   { id: 'WHOLESALE_POS', label: 'PDV Atacado', icon: ShoppingCart, roles: ['ADMIN', 'WHOLESALE_SUPERVISOR', 'WHOLESALE_REPRESENTATIVE'] },
+  { id: 'PRODUCTION', label: 'Produção', icon: Factory, roles: ['ADMIN', 'FACTORY'] },
+  { id: 'REPORTS', label: 'Relatórios', icon: PieChart, roles: ['ADMIN'] },
+  { id: 'MENU_CONFIG', label: 'Site / Cardápio', icon: Globe, roles: ['ADMIN'] },
 ];
 
 const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, setView, currentUser, onLogout, isCollapsed, toggleSidebar, isMobileMenuOpen, closeMobileMenu, pendingOrdersCount }) => {
