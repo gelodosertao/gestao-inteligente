@@ -183,6 +183,66 @@ const LeadFormModal: React.FC<LeadFormModalProps> = ({ initial, currentUser, onS
     );
 };
 
+// ─── MODAL: SEND EMAIL ────────────────────────────────────────────────────────
+interface SendEmailModalProps {
+    lead: CrmLead;
+    onSend: (subject: string, body: string) => Promise<void>;
+    onClose: () => void;
+}
+
+const SendEmailModal: React.FC<SendEmailModalProps> = ({ lead, onSend, onClose }) => {
+    const [subject, setSubject] = useState(`Apresentação Gelo do Sertão para ${lead.name}`);
+    const [body, setBody] = useState(`Olá ${lead.name},\n\nTudo bem?\n\nMeu nome é [Seu Nome], falo em nome da Gelo do Sertão...\n\nQualquer dúvida, estou à disposição!\n\nAtenciosamente,\nEquipe Gelo do Sertão`);
+    const [sending, setSending] = useState(false);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setSending(true);
+        try {
+            await onSend(subject, body.replace(/\n/g, '<br/>'));
+            onClose();
+        } catch (e: any) {
+            alert(e.message);
+        } finally {
+            setSending(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
+            <form onSubmit={handleSubmit} className="bg-white rounded-2xl w-full max-w-lg shadow-2xl flex flex-col">
+                <div className="flex items-center justify-between p-6 border-b border-slate-100">
+                    <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2"><Mail size={18} /> Enviar E-mail</h2>
+                    <button type="button" onClick={onClose} className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg"><X size={18} /></button>
+                </div>
+                <div className="p-6 space-y-4">
+                    <div>
+                        <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Para</label>
+                        <input type="text" className="mt-1 w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-500 cursor-not-allowed" readOnly value={`${lead.name} <${lead.email}>`} />
+                    </div>
+                    <div>
+                        <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Assunto</label>
+                        <input type="text" className="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" required
+                            value={subject} onChange={e => setSubject(e.target.value)} />
+                    </div>
+                    <div>
+                        <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Mensagem</label>
+                        <textarea rows={6} className="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" required
+                            value={body} onChange={e => setBody(e.target.value)} />
+                    </div>
+                </div>
+                <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-3 rounded-b-2xl">
+                    <button type="button" onClick={onClose} className="px-4 py-2 border border-slate-300 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100">Cancelar</button>
+                    <button type="submit" disabled={sending} className="px-4 py-2 bg-blue-600 rounded-lg text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2">
+                        {sending ? <Loader2 size={16} className="animate-spin" /> : <Mail size={16} />}
+                        {sending ? 'Enviando...' : 'Enviar E-mail'}
+                    </button>
+                </div>
+            </form>
+        </div>
+    );
+};
+
 // ─── MODAL: LEAD DETAIL ───────────────────────────────────────────────────────
 
 interface LeadDetailModalProps {
@@ -194,11 +254,12 @@ interface LeadDetailModalProps {
     onDelete: () => void;
     onAddInteraction: (type: CrmInteractionType, content: string) => void;
     onStatusChange: (status: CrmLeadStatus) => void;
+    onOpenEmail: () => void;
     loadingInteractions: boolean;
 }
 
 const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
-    lead, interactions, currentUser, onClose, onEdit, onDelete, onAddInteraction, onStatusChange, loadingInteractions
+    lead, interactions, currentUser, onClose, onEdit, onDelete, onAddInteraction, onStatusChange, onOpenEmail, loadingInteractions
 }) => {
     const [intType, setIntType] = useState<CrmInteractionType>('NOTA');
     const [intContent, setIntContent] = useState('');
@@ -248,9 +309,15 @@ const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
                             </div>
                         )}
                         {lead.email && (
-                            <div className="flex items-center gap-2 text-sm">
-                                <Mail size={14} className="text-slate-400" />
-                                <span className="text-slate-700 truncate">{lead.email}</span>
+                            <div className="flex items-center justify-between text-sm col-span-2 md:col-span-1 border border-slate-100 bg-white p-2 rounded-lg">
+                                <div className="flex items-center gap-2 overflow-hidden">
+                                    <Mail size={14} className="text-slate-400 shrink-0" />
+                                    <span className="text-slate-700 truncate min-w-0" title={lead.email}>{lead.email}</span>
+                                </div>
+                                <button onClick={onOpenEmail}
+                                    className="bg-blue-50 text-blue-600 text-[10px] font-bold px-2 py-1 rounded hover:bg-blue-100 transition-colors shrink-0 ml-2">
+                                    ENVIAR
+                                </button>
                             </div>
                         )}
                         {lead.city && (
@@ -496,6 +563,7 @@ const CRM: React.FC<CRMProps> = ({ currentUser, onBack }) => {
     const [selectedLead, setSelectedLead] = useState<CrmLead | null>(null);
     const [showTaskForm, setShowTaskForm] = useState(false);
     const [editingTask, setEditingTask] = useState<CrmTask | null>(null);
+    const [showEmailForm, setShowEmailForm] = useState(false);
 
     // Filters
     const [searchLeads, setSearchLeads] = useState('');
@@ -558,6 +626,15 @@ const CRM: React.FC<CRMProps> = ({ currentUser, onBack }) => {
         if (idx < FUNNEL_COLUMNS.length - 1) {
             await handleStatusChange(lead, FUNNEL_COLUMNS[idx + 1].status);
         }
+    };
+
+    const handleSendEmail = async (subject: string, body: string) => {
+        if (!selectedLead || !selectedLead.email) return;
+        await dbCrm.sendEmail(selectedLead.email, subject, body);
+
+        // Automatically log the interaction
+        await handleAddInteraction('EMAIL', `Assunto: ${subject}\n\nEnviado via sistema.`);
+        alert('E-mail enviado com sucesso!');
     };
 
     // ── Interaction CRUD ──
@@ -891,6 +968,15 @@ const CRM: React.FC<CRMProps> = ({ currentUser, onBack }) => {
                     onDelete={() => handleDeleteLead(selectedLead)}
                     onAddInteraction={handleAddInteraction}
                     onStatusChange={(status) => handleStatusChange(selectedLead, status)}
+                    onOpenEmail={() => setShowEmailForm(true)}
+                />
+            )}
+
+            {showEmailForm && selectedLead && (
+                <SendEmailModal
+                    lead={selectedLead}
+                    onClose={() => setShowEmailForm(false)}
+                    onSend={handleSendEmail}
                 />
             )}
 

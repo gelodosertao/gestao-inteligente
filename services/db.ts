@@ -981,4 +981,14 @@ export const dbCrm = {
     const { error } = await supabase.from('crm_tasks').delete().eq('id', id);
     if (error) throw error;
   },
+
+  // EMAIL SENDING (via Supabase Edge Function + Resend)
+  async sendEmail(to: string, subject: string, html: string): Promise<void> {
+    const { error } = await supabase.functions.invoke('send-email', {
+      body: { to, subject, html }
+    });
+
+    // Fallback error handling if Edge Function fails
+    if (error) throw new Error(error.message || 'Erro ao comunicar com o servidor de e-mail.');
+  },
 };

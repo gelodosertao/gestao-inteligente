@@ -681,6 +681,8 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                </div>
 
                {sales.filter(sale => {
+                  if (sale.source === 'WHOLESALE_POS') return false;
+
                   const matchesSearch = sale.customerName.toLowerCase().includes(historySearchTerm.toLowerCase()) ||
                      sale.id.includes(historySearchTerm) ||
                      sale.total.toString().includes(historySearchTerm);

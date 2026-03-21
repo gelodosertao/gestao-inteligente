@@ -734,6 +734,15 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                                                 <span className="text-[9px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-medium uppercase">{sale.paymentMethod}</span>
                                             </div>
                                             <div className="flex gap-1">
+                                                {isAdmin && sale.status === 'Pending' && onUpdateSale && (
+                                                    <button onClick={() => {
+                                                        if (window.confirm("Confirmar pedido de " + sale.customerName + "? Status mudará para 'Concluído'.")) {
+                                                            onUpdateSale({ ...sale, status: 'Completed', date: new Date().toISOString().split('T')[0] });
+                                                        }
+                                                    }} className="p-1 px-2 text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded flex items-center gap-1 font-bold border border-emerald-200">
+                                                        <CheckCircle size={11} /> Confirmar
+                                                    </button>
+                                                )}
                                                 <button onClick={() => handlePrint(sale)} className="p-1 px-2 text-xs bg-blue-50 hover:bg-blue-100 text-blue-600 rounded flex items-center gap-1 font-bold border border-blue-100">
                                                     <Printer size={11} />
                                                 </button>
