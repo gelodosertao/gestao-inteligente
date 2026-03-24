@@ -102,12 +102,13 @@ const App: React.FC = () => {
         // Only navigate if NOT in menu mode and currently at root or login
         if (!isMenuMode && (location.pathname === '/' || location.pathname === '/login')) {
           let initialView: ViewState = 'DASHBOARD';
-          if (user.allowedModules && user.allowedModules.length > 0) {
+          if (user.role === 'WHOLESALE_SUPERVISOR' || user.role === 'WHOLESALE_REPRESENTATIVE') {
+            initialView = 'WHOLESALE_POS';
+          } else if (user.allowedModules && user.allowedModules.length > 0) {
             initialView = user.allowedModules[0] as ViewState;
           } else {
             if (user.role === 'FACTORY') initialView = 'PRODUCTION';
             else if (user.role === 'OPERATOR') initialView = 'SALES';
-            else if (user.role === 'WHOLESALE_SUPERVISOR' || user.role === 'WHOLESALE_REPRESENTATIVE') initialView = 'WHOLESALE_POS';
           }
           setCurrentView(initialView);
         }
@@ -517,12 +518,13 @@ const App: React.FC = () => {
   const handleLogin = (user: User) => {
     setCurrentUser(user);
     let initialView: ViewState = 'DASHBOARD';
-    if (user.allowedModules && user.allowedModules.length > 0) {
+    if (user.role === 'WHOLESALE_SUPERVISOR' || user.role === 'WHOLESALE_REPRESENTATIVE') {
+      initialView = 'WHOLESALE_POS';
+    } else if (user.allowedModules && user.allowedModules.length > 0) {
       initialView = user.allowedModules[0] as ViewState;
     } else {
       if (user.role === 'FACTORY') initialView = 'PRODUCTION';
       else if (user.role === 'OPERATOR') initialView = 'SALES';
-      else if (user.role === 'WHOLESALE_SUPERVISOR' || user.role === 'WHOLESALE_REPRESENTATIVE') initialView = 'WHOLESALE_POS';
     }
     setCurrentView(initialView);
   };
