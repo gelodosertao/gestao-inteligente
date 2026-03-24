@@ -135,14 +135,16 @@ body {
 
   /* Position the receipt at the top-left */
   #printable-receipt,
-  #wholesale-receipt {
+  #wholesale-receipt,
+  #printable-order-receipt {
     position: absolute;
     left: 0;
+    right: 0;
     top: 0;
-    width: 58mm;
-    /* Standard thermal paper width */
-    padding: 2mm;
-    margin: 0;
+    width: 48mm;
+    /* Reduzido para evitar cortes nas bordas da impressora 58mm */
+    margin: 0 auto;
+    padding: 1mm;
     color: black !important;
     background: white !important;
   }
