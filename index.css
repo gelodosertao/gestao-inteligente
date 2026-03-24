@@ -141,8 +141,8 @@ body {
     left: 0;
     right: 0;
     top: 0;
-    width: 48mm;
-    /* Reduzido para evitar cortes nas bordas da impressora 58mm */
+    width: 40mm;
+    /* Reduzido drasticamente para garantir margens de segurança na impressora 58mm */
     margin: 0 auto;
     padding: 1mm;
     color: black !important;

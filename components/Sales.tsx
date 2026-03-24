@@ -1347,7 +1347,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                               </div>
 
                               {/* Simulated Thermal Receipt */}
-                              <div id="receipt-content" className="bg-yellow-50 border border-yellow-100 p-2 rounded-none font-mono text-[10px] text-black mb-6 shadow-inner overflow-hidden mx-auto w-[48mm] shrink-0">
+                              <div id="receipt-content" className="bg-yellow-50 border border-yellow-100 p-2 px-[2mm] rounded-none font-mono text-[10px] text-black mb-6 shadow-inner overflow-hidden mx-auto w-[40mm] shrink-0">
                                  <div className="text-center mb-4 border-b border-yellow-200 pb-4">
                                     <h2 className="font-bold text-[11px] uppercase leading-tight whitespace-pre-wrap">
                                        {selectedBranch === Branch.FILIAL ? 'Gelo do Sertão |\nAdega & Drinks' : 'Gelo do Sertão Ltda'}
@@ -1715,7 +1715,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
          {/* --- HIDDEN THERMAL RECEIPT (Visible only on Print or Download) --- */}
          <div id="printable-receipt" className={saleToDownload ? "fixed top-0 left-0 z-[-1] opacity-0" : "hidden"}>
             {(lastCompletedSale || selectedSaleForInvoice || saleToDownload) && (
-               <div id="printable-receipt-content" className="p-1 bg-white w-[48mm] mx-auto text-[10px] font-mono text-black">
+               <div id="printable-receipt-content" className="p-1 px-[2mm] bg-white w-[40mm] mx-auto text-[10px] font-mono text-black">
                   <div className="text-center mb-2 border-b border-black pb-2">
                      <h2 className="font-bold text-[11px] uppercase leading-tight whitespace-pre-wrap">
                         {(lastCompletedSale || selectedSaleForInvoice || saleToDownload)?.branch === Branch.FILIAL ? 'Gelo do Sertão |\nAdega & Drinks' : 'Gelo do Sertão Ltda'}

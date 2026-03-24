@@ -80,8 +80,10 @@ const OrderCenter: React.FC<OrderCenterProps> = ({ onBack, tenantId }) => {
 
                 try {
                     const canvas = await html2canvas(receiptElement, {
-                        scale: 2,
-                        backgroundColor: '#ffffff'
+                        scale: 3, // Aumentado para melhor nitidez
+                        backgroundColor: '#ffffff',
+                        logging: false,
+                        useCORS: true
                     });
                     const image = canvas.toDataURL("image/jpeg", 0.9);
                     const printedNatively = hardwareBridge.printReceipt(image);
@@ -89,7 +91,7 @@ const OrderCenter: React.FC<OrderCenterProps> = ({ onBack, tenantId }) => {
                     if (printedNatively) {
                         alert("Enviado para impressora da maquininha!");
                     } else {
-                        const imgWidth = 48; // mm (ajustado de 58)
+                        const imgWidth = 40; // mm (reduzido para segurança total)
                         const pageHeight = (canvas.height * imgWidth) / canvas.width;
                         const pdf = new jsPDF({
                             orientation: "portrait",
@@ -481,7 +483,7 @@ const OrderCenter: React.FC<OrderCenterProps> = ({ onBack, tenantId }) => {
             {/* --- HIDDEN THERMAL RECEIPT (Visible only on Print or Download) --- */}
             {orderToPrint && (
                 <div id="printable-order-receipt" className="fixed top-0 left-0 -z-50 opacity-0 pointer-events-none">
-                    <div id="printable-order-receipt-content" className="p-1 bg-white w-[48mm] mx-auto text-[10px] font-mono text-black">
+                    <div id="printable-order-receipt-content" className="p-1 px-[2mm] bg-white w-[40mm] mx-auto text-[10px] font-mono text-black">
                         <div className="text-center mb-2 border-b border-black pb-2">
                             <h2 className="font-bold text-[11px] uppercase leading-tight whitespace-pre-wrap">
                                 {orderToPrint.branch === Branch.FILIAL ? 'Gelo do Sertão |\nAdega & Drinks' : 'GELO DO SERTÃO'}
