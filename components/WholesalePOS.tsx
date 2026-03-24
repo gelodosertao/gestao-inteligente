@@ -608,7 +608,7 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                                 <label className="block text-sm font-bold text-yellow-700 mb-2">Atribuir ao Vendedor (ADM)</label>
                                 <select className="w-full p-3 bg-yellow-50 border border-yellow-200 rounded-lg outline-none focus:border-yellow-400 font-medium text-slate-700" value={assignedSellerId} onChange={e => setAssignedSellerId(e.target.value)}>
                                     <option value="">-- Lançar como ADM --</option>
-                                    {sellerOptions.map(s => <option key={s.id} value={s.id}>{s.name} ({s.role === 'WHOLESALE_SUPERVISOR' ? 'Supervisor' : 'Representante'})</option>)}
+                                    {sellerOptions.map(s => <option key={s.id} value={s.id}>{s.name} ({s.role === 'WHOLESALE_SUPERVISOR' ? 'Representante' : 'Representante'})</option>)}
                                 </select>
                             </div>
                         )}
@@ -764,7 +764,7 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                                 <p className="text-xs font-black text-slate-500 uppercase tracking-widest">Comissão por Vendedor</p>
                             </div>
                             {sellerSummary.map(s => {
-                                const roleLabel = s.role === 'WHOLESALE_SUPERVISOR' ? 'Supervisor (5%)' : s.role === 'WHOLESALE_REPRESENTATIVE' ? 'Representante (3%)' : 'ADM';
+                                const roleLabel = s.role === 'WHOLESALE_SUPERVISOR' ? 'Representante (5%)' : s.role === 'WHOLESALE_REPRESENTATIVE' ? 'Representante (3%)' : 'ADM';
                                 return (
                                     <div key={s.id} className="flex items-center justify-between px-4 py-3 border-b border-slate-50 last:border-0">
                                         <div>

@@ -138,7 +138,7 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, setView, currentUs
               <p className="text-[10px] text-blue-300 uppercase tracking-wider">
                 {currentUser.role === 'ADMIN' ? 'Sócio Admin' :
                   currentUser.role === 'FACTORY' ? 'Fábrica' :
-                    currentUser.role === 'WHOLESALE_SUPERVISOR' ? 'Supervisor' :
+                    currentUser.role === 'WHOLESALE_SUPERVISOR' ? 'Representante' :
                       currentUser.role === 'WHOLESALE_REPRESENTATIVE' ? 'Representante' :
                         'Operador'}
               </p>

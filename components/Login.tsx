@@ -134,8 +134,8 @@ const Login: React.FC<LoginProps> = ({ onLogin, onOpenMenu }) => {
                   <option value="OPERATOR">Operador (Caixa/Estoque)</option>
                   <option value="FACTORY">Fábrica (Produção)</option>
                   <option value="ADMIN">Administrador (Sócio)</option>
-                  <option value="WHOLESALE_SUPERVISOR">Supervisor (Atacado)</option>
-                  <option value="WHOLESALE_REPRESENTATIVE">Vendedor (Atacado)</option>
+                  <option value="WHOLESALE_SUPERVISOR">Representante (Super)</option>
+                  <option value="WHOLESALE_REPRESENTATIVE">Representante (Vendedor)</option>
                 </select>
               </div>
               <button type="submit" disabled={loading} className="w-full bg-orange-500 hover:bg-orange-600 text-white py-3 rounded-xl font-bold text-lg shadow-lg shadow-orange-900/20 transition-all mt-4 flex justify-center">

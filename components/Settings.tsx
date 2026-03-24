@@ -427,8 +427,8 @@ const Settings: React.FC<SettingsProps> = ({ currentUser, onResetData }) => {
                                           }`}>
                                           {user.role === 'ADMIN' ? 'ADMINISTRADOR' :
                                              user.role === 'FACTORY' ? 'FÁBRICA' :
-                                                user.role === 'WHOLESALE_SUPERVISOR' ? 'SUPERVISOR' :
-                                                   user.role === 'WHOLESALE_REPRESENTATIVE' ? 'VENDEDOR' :
+                                                user.role === 'WHOLESALE_SUPERVISOR' ? 'REPRESENTANTE (S)' :
+                                                   user.role === 'WHOLESALE_REPRESENTATIVE' ? 'REPRESENTANTE' :
                                                       'OPERATOR'}
                                        </span>
                                     </td>
@@ -614,8 +614,8 @@ const Settings: React.FC<SettingsProps> = ({ currentUser, onResetData }) => {
                         >
                            <option value="OPERATOR">Operador (PDV/Estoque)</option>
                            <option value="FACTORY">Fábrica (Produção)</option>
-                           <option value="WHOLESALE_SUPERVISOR">Supervisor (Atacado)</option>
-                           <option value="WHOLESALE_REPRESENTATIVE">Vendedor (Atacado)</option>
+                           <option value="WHOLESALE_SUPERVISOR">Representante (Super)</option>
+                           <option value="WHOLESALE_REPRESENTATIVE">Representante (Vendedor)</option>
                            <option value="ADMIN">Administrador (Total)</option>
                         </select>
                      </div>
