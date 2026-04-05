@@ -8,7 +8,7 @@ DECLARE
   caller_role TEXT;
 BEGIN
   -- Busca a role do usuário logado na tabela app_users
-  SELECT role INTO caller_role FROM public.app_users WHERE id = auth.uid()::text;
+  SELECT role INTO caller_role FROM public.app_users WHERE id = auth.uid();
   RETURN COALESCE(caller_role = 'ADMIN', false);
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -35,13 +35,11 @@ USING (public.is_admin());
 -- Permite que usuários editem a si mesmos (já existia, garantindo que continue lá)
 DROP POLICY IF EXISTS "Users can update their own profile" ON public.app_users;
 CREATE POLICY "Users can update their own profile" ON public.app_users 
-FOR UPDATE TO authenticated 
-USING (auth.uid()::text = id);
+FOR UPDATE TO authenticated  USING (auth.uid() = id);
 
 DROP POLICY IF EXISTS "Users can insert their own profile" ON public.app_users;
 CREATE POLICY "Users can insert their own profile" ON public.app_users 
-FOR INSERT TO authenticated 
-WITH CHECK (auth.uid()::text = id);
+FOR INSERT TO authenticated  WITH CHECK (auth.uid() = id);
 
 
 -- 3. Cria RPCs para ações sensíveis nativas do Supabase Auth
@@ -55,7 +53,7 @@ BEGIN
   END IF;
 
   -- 1. Remove do app_users (se existir)
-  DELETE FROM public.app_users WHERE id = target_user_id::text;
+  DELETE FROM public.app_users WHERE id = target_user_id;
   
   -- 2. Remove do Supabase Auth
   DELETE FROM auth.users WHERE id = target_user_id;
@@ -80,6 +78,6 @@ BEGIN
   -- Opcional: Atualiza o campo password no app_users (para manter consistência com versões antigas)
   UPDATE public.app_users
   SET password = COALESCE(new_password, '')
-  WHERE id = target_user_id::text;
+  WHERE id = target_user_id;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
