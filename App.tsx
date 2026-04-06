@@ -102,7 +102,7 @@ const App: React.FC = () => {
         // Only navigate if NOT in menu mode and currently at root or login
         if (!isMenuMode && (location.pathname === '/' || location.pathname === '/login')) {
           let initialView: ViewState = 'DASHBOARD';
-          if (user.role === 'WHOLESALE_REPRESENTATIVE') {
+          if (user.role === 'WHOLESALE_SUPERVISOR' || user.role === 'WHOLESALE_REPRESENTATIVE') {
             initialView = 'WHOLESALE_POS';
           } else if (user.allowedModules && user.allowedModules.length > 0) {
             initialView = user.allowedModules[0] as ViewState;
@@ -520,7 +520,7 @@ const App: React.FC = () => {
   const handleLogin = (user: User) => {
     setCurrentUser(user);
     let initialView: ViewState = 'DASHBOARD';
-    if (user.role === 'WHOLESALE_REPRESENTATIVE') {
+    if (user.role === 'WHOLESALE_SUPERVISOR' || user.role === 'WHOLESALE_REPRESENTATIVE') {
       initialView = 'WHOLESALE_POS';
     } else if (user.allowedModules && user.allowedModules.length > 0) {
       initialView = user.allowedModules[0] as ViewState;
@@ -545,7 +545,7 @@ const App: React.FC = () => {
   const renderContent = () => {
     if (isLoading) {
       return (
-        <div className="bg-gai-navy p-10 text-center relative overflow-hidden flex flex-col items-center justify-center text-slate-500 gap-4">
+        <div className="h-full flex flex-col items-center justify-center text-slate-500 gap-4">
           <Loader2 size={48} className="animate-spin text-orange-500" />
           <p>Sincronizando dados com a Nuvem...</p>
         </div>
@@ -564,7 +564,7 @@ const App: React.FC = () => {
             <br />
             -- Exemplo de comando rápido para criar a tabela de empresas:<br />
             create table if not exists tenants (id uuid default gen_random_uuid() primary key, name text not null);<br />
-            insert into tenants (id, name) select '00000000-0000-0000-0000-000000000000', 'G.AI - Gestão Auto Inteligente' where not exists (select 1 from tenants where id = '00000000-0000-0000-0000-000000000000');
+            insert into tenants (id, name) select '00000000-0000-0000-0000-000000000000', 'Gelo do Sertão' where not exists (select 1 from tenants where id = '00000000-0000-0000-0000-000000000000');
           </div>
           <div className="flex gap-4 justify-center mt-6">
             <button onClick={() => loadDataFromCloud()} className="bg-red-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-red-700">
@@ -669,22 +669,22 @@ const App: React.FC = () => {
                   onLogout={handleLogout}
                   onUpdateSale={handleUpdateSale}
                   onDeleteSale={handleDeleteSale}
-                  onBack={currentUser.role === 'ADMIN' || currentUser.role === 'WHOLESALE_REPRESENTATIVE' ? () => navigate('/gestao') : undefined}
+                  onBack={currentUser.role === 'ADMIN' || currentUser.role === 'WHOLESALE_SUPERVISOR' ? () => navigate('/gestao') : undefined}
                 />
               </Suspense>
             } />
 
             <Route path="*" element={
               <div className="flex min-h-screen bg-slate-50 text-slate-900 font-sans">
-                {/* Mobile Header (Hidden on Desktop) */}
-                <div className="md:hidden fixed top-0 left-0 right-0 h-16 bg-gai-navy z-40 flex items-center px-4 shadow-md">
+                {/* Mobile Header */}
+                <div className="md:hidden fixed top-0 left-0 right-0 h-16 bg-blue-900 z-40 flex items-center px-4 shadow-md">
                   <button
                     onClick={() => setIsMobileMenuOpen(true)}
-                    className="text-white p-2 hover:bg-gai-tech/20 rounded-lg"
+                    className="text-white p-2 hover:bg-blue-800 rounded-lg"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
                   </button>
-                  <span className="ml-4 text-white font-bold text-xl tracking-tight">{currentUser?.tenantName || 'G.AI'}</span>
+                  <span className="ml-4 text-white font-bold text-lg">Gelo do Sertão</span>
                 </div>
 
                 <AppSidebar

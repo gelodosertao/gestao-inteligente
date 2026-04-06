@@ -105,14 +105,11 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
     const [isPrinting, setIsPrinting] = useState(false);
     const [newCustomer, setNewCustomer] = useState<Partial<Customer>>({
         name: '',
-        establishmentName: '',
-        responsibleName: '',
         cpfCnpj: '',
         phone: '',
         address: '',
         city: '',
         state: 'BA',
-        zipCode: '',
         segment: ''
     });
 
@@ -142,7 +139,11 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
             relevantSales = relevantSales.filter(s => (s.date || s.createdAt).startsWith(monthFilter));
         }
         if (isAdmin) return relevantSales.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
-        // Any representative
+        if (currentUser.role === 'WHOLESALE_SUPERVISOR') {
+            return relevantSales.filter(s => s.sellerId === currentUser.id || s.sellerRole === 'WHOLESALE_REPRESENTATIVE')
+                .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+        }
+        // WHOLESALE_REPRESENTATIVE — only their own
         return relevantSales.filter(s => s.sellerId === currentUser.id)
             .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
     }, [sales, currentUser, monthFilter, isAdmin]);
@@ -154,7 +155,7 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
         mySales.forEach(s => {
             const sid = s.sellerId || 'unknown';
             if (!map[sid]) map[sid] = { name: s.sellerName || 'Desconhecido', role: s.sellerRole || '', total: 0, commission: 0, count: 0 };
-            const rate = 0.05; // 5% flat for all sellers
+            const rate = s.sellerRole === 'WHOLESALE_SUPERVISOR' ? 0.05 : s.sellerRole === 'WHOLESALE_REPRESENTATIVE' ? 0.03 : 0;
             map[sid].total += s.total;
             map[sid].commission += s.commissionAmount ?? (s.total * rate);
             map[sid].count += 1;
@@ -236,12 +237,9 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
         const customerToSave: Customer = {
             id: crypto.randomUUID(),
             name: newCustomer.name || '',
-            establishmentName: newCustomer.establishmentName,
-            responsibleName: newCustomer.responsibleName,
             cpfCnpj: newCustomer.cpfCnpj,
             phone: newCustomer.phone,
             address: newCustomer.address,
-            zipCode: newCustomer.zipCode,
             city: newCustomer.city,
             state: newCustomer.state,
             segment: newCustomer.segment,
@@ -256,7 +254,7 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
             setCustomerSearchQuery(customerToSave.name);
             setShowAddCustomerModal(false);
             setShowInlineCustomer(false); // close inline panel too
-            setNewCustomer({ name: '', establishmentName: '', responsibleName: '', cpfCnpj: '', phone: '', address: '', zipCode: '', city: '', state: 'BA', segment: '' });
+            setNewCustomer({ name: '', cpfCnpj: '', phone: '', address: '', city: '', state: 'BA', segment: '' });
         } catch (e) {
             console.error(e);
             alert("Erro ao cadastrar cliente.");
@@ -283,7 +281,7 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
             if (found) { effectiveSellerId = found.id; effectiveSellerName = found.name; effectiveSellerRole = found.role; }
         }
 
-        const commissionRate = 0.05; // Flat 5% for all sellers
+        const commissionRate = effectiveSellerRole === 'WHOLESALE_SUPERVISOR' ? 0.05 : effectiveSellerRole === 'WHOLESALE_REPRESENTATIVE' ? 0.03 : 0;
         const finalTotal = Math.max(cartTotal - (adminDiscount || 0), 0);
         const commissionAmount = finalTotal * commissionRate;
 
@@ -401,7 +399,7 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
         if (!editingSale || !onUpdateSale) return;
 
         const total = editingSale.items.reduce((acc, item) => acc + (item.priceAtSale * item.quantity), 0);
-        const commissionRate = 0.05; // 5% flat for all sellers
+        const commissionRate = editingSale.sellerRole === 'WHOLESALE_SUPERVISOR' ? 0.05 : editingSale.sellerRole === 'WHOLESALE_REPRESENTATIVE' ? 0.03 : 0;
         const commissionAmount = total * commissionRate;
 
         try {
@@ -556,7 +554,7 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                 const f = sellerOptions.find(s => s.id === assignedSellerId);
                 if (f) displayRole = f.role;
             }
-            const displayCommissionRate = 0.05; // Flat 5% for all sellers
+            const displayCommissionRate = displayRole === 'WHOLESALE_SUPERVISOR' ? 0.05 : displayRole === 'WHOLESALE_REPRESENTATIVE' ? 0.03 : 0;
 
             return (
                 <div className="p-4 pb-28 animate-in fade-in slide-in-from-right-4 duration-300">
@@ -585,22 +583,16 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                                     <p className="text-xs font-black text-blue-700 uppercase tracking-widest">Cadastro Rápido de Cliente</p>
                                     <input type="text" placeholder="Nome / Razão Social *" className="w-full px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-400" value={newCustomer.name} onChange={e => setNewCustomer({ ...newCustomer, name: e.target.value })} />
                                     <div className="grid grid-cols-2 gap-2">
-                                        <input type="text" placeholder="Nome Fantasia / Estabelecimento" className="px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-400" value={newCustomer.establishmentName} onChange={e => setNewCustomer({ ...newCustomer, establishmentName: e.target.value })} />
-                                        <input type="text" placeholder="Nome do Responsável" className="px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-400" value={newCustomer.responsibleName} onChange={e => setNewCustomer({ ...newCustomer, responsibleName: e.target.value })} />
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-2">
                                         <input type="text" placeholder="Telefone" className="px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" value={newCustomer.phone} onChange={e => setNewCustomer({ ...newCustomer, phone: e.target.value })} />
-                                        <input type="text" placeholder="CEP" className="px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" value={newCustomer.zipCode} onChange={e => setNewCustomer({ ...newCustomer, zipCode: e.target.value })} />
-                                    </div>
-                                    <input type="text" placeholder="Endereço Completo" className="w-full px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" value={newCustomer.address} onChange={e => setNewCustomer({ ...newCustomer, address: e.target.value })} />
-                                    <div className="grid grid-cols-2 gap-2">
                                         <input type="text" placeholder="Cidade" className="px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" value={newCustomer.city} onChange={e => setNewCustomer({ ...newCustomer, city: e.target.value })} />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <input type="text" placeholder="CPF / CNPJ" className="px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" value={newCustomer.cpfCnpj} onChange={e => setNewCustomer({ ...newCustomer, cpfCnpj: e.target.value })} />
                                         <select className="px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" value={newCustomer.segment} onChange={e => setNewCustomer({ ...newCustomer, segment: e.target.value })}>
                                             <option value="">Segmento</option>
                                             {CUSTOMER_SEGMENTS.map(s => <option key={s} value={s}>{s}</option>)}
                                         </select>
                                     </div>
-                                    <input type="text" placeholder="CPF / CNPJ" className="w-full px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" value={newCustomer.cpfCnpj} onChange={e => setNewCustomer({ ...newCustomer, cpfCnpj: e.target.value })} />
                                     <button onClick={handleRegisterCustomer} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-black flex items-center justify-center gap-2 active:scale-95 transition-all text-sm">
                                         <Check size={16} /> Salvar e Selecionar Cliente
                                     </button>
@@ -663,7 +655,7 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                                 <label className="block text-sm font-bold text-yellow-700 mb-2">Atribuir ao Vendedor (ADM)</label>
                                 <select className="w-full p-3 bg-yellow-50 border border-yellow-200 rounded-lg outline-none focus:border-yellow-400 font-medium text-slate-700" value={assignedSellerId} onChange={e => setAssignedSellerId(e.target.value)}>
                                     <option value="">-- Lançar como ADM --</option>
-                                    {sellerOptions.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                    {sellerOptions.map(s => <option key={s.id} value={s.id}>{s.name} ({s.role === 'WHOLESALE_SUPERVISOR' ? 'Representante' : 'Representante'})</option>)}
                                 </select>
                             </div>
                         )}
@@ -835,7 +827,7 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                                 <p className="text-xs font-black text-slate-500 uppercase tracking-widest">Comissão por Vendedor</p>
                             </div>
                             {sellerSummary.map(s => {
-                                const roleLabel = 'Vendedor (5%)';
+                                const roleLabel = s.role === 'WHOLESALE_SUPERVISOR' ? 'Representante (5%)' : s.role === 'WHOLESALE_REPRESENTATIVE' ? 'Representante (3%)' : 'ADM';
                                 return (
                                     <div key={s.id} className="flex items-center justify-between px-4 py-3 border-b border-slate-50 last:border-0">
                                         <div>
@@ -855,7 +847,7 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                     ) : (
                         <div className="space-y-3">
                             {mySales.map(sale => {
-                                const rate = 0.05;
+                                const rate = sale.sellerRole === 'WHOLESALE_SUPERVISOR' ? 0.05 : sale.sellerRole === 'WHOLESALE_REPRESENTATIVE' ? 0.03 : 0;
                                 const commission = sale.commissionAmount ?? (sale.total * rate);
                                 return (
                                     <div key={sale.id} className="bg-white p-3 rounded-xl shadow-sm border border-slate-100">
@@ -917,7 +909,9 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
         let teamCommissionTotal = 0;
         mySales.forEach(s => {
             if (s.sellerId === currentUser.id) {
-                ownCommissionTotal += s.total * 0.05;
+                ownCommissionTotal += s.total * (currentUser.role === 'WHOLESALE_SUPERVISOR' ? 0.05 : 0.03);
+            } else if (currentUser.role === 'WHOLESALE_SUPERVISOR' && s.sellerRole === 'WHOLESALE_REPRESENTATIVE') {
+                teamCommissionTotal += s.total * 0.02;
             }
         });
         const totalCommission = ownCommissionTotal + teamCommissionTotal;
@@ -933,6 +927,12 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                 <div className="bg-green-600 text-white p-4 rounded-xl shadow-lg mb-6">
                     <p className="text-sm font-medium text-green-100 uppercase tracking-widest mb-1">Total de Comissões</p>
                     <p className="text-3xl font-black">R$ {totalCommission.toFixed(2)}</p>
+                    {currentUser.role === 'WHOLESALE_SUPERVISOR' && teamCommissionTotal > 0 && (
+                        <div className="mt-4 pt-3 border-t border-green-500/50 flex justify-between text-xs font-bold text-green-100">
+                            <span>Próprias (5%): R$ {ownCommissionTotal.toFixed(2)}</span>
+                            <span>Equipe (2%): R$ {teamCommissionTotal.toFixed(2)}</span>
+                        </div>
+                    )}
                 </div>
 
                 {mySales.length === 0 ? (
@@ -942,7 +942,7 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                         {mySales.map(sale => {
                             const isMySale = sale.sellerId === currentUser.id;
                             const saleName = isMySale ? 'Sua Venda' : `Vendedor: ${sale.sellerName?.split(' ')[0] || 'Vendedor'}`;
-                            const saleCommission = isMySale ? sale.total * 0.05 : 0;
+                            const saleCommission = isMySale ? sale.total * (currentUser.role === 'WHOLESALE_SUPERVISOR' ? 0.05 : 0.03) : sale.total * 0.02;
                             return (
                                 <div key={sale.id} className="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
                                     <div className="flex justify-between items-start mb-2">
@@ -1159,38 +1159,26 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                         </div>
 
                         <div className="p-6 space-y-4 overflow-y-auto">
-                            <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label className="block text-xs font-black text-slate-500 uppercase mb-1">Razão Social *</label>
-                                    <input
-                                        type="text"
-                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold"
-                                        placeholder="Nome oficial"
-                                        value={newCustomer.name}
-                                        onChange={(e) => setNewCustomer({ ...newCustomer, name: e.target.value })}
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-black text-slate-500 uppercase mb-1">Nome Fantasia</label>
-                                    <input
-                                        type="text"
-                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold"
-                                        placeholder="Estabelecimento"
-                                        value={newCustomer.establishmentName}
-                                        onChange={(e) => setNewCustomer({ ...newCustomer, establishmentName: e.target.value })}
-                                    />
-                                </div>
+                            <div>
+                                <label className="block text-xs font-black text-slate-500 uppercase mb-1">Nome / Razão Social</label>
+                                <input
+                                    type="text"
+                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold"
+                                    placeholder="Ex: Mercadinho do João"
+                                    value={newCustomer.name}
+                                    onChange={(e) => setNewCustomer({ ...newCustomer, name: e.target.value })}
+                                />
                             </div>
 
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
-                                    <label className="block text-xs font-black text-slate-500 uppercase mb-1">Responsável</label>
+                                    <label className="block text-xs font-black text-slate-500 uppercase mb-1">CPF / CNPJ</label>
                                     <input
                                         type="text"
-                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold"
-                                        placeholder="Nome do dono/gerente"
-                                        value={newCustomer.responsibleName}
-                                        onChange={(e) => setNewCustomer({ ...newCustomer, responsibleName: e.target.value })}
+                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold text-sm"
+                                        placeholder="000.000.000-00"
+                                        value={newCustomer.cpfCnpj}
+                                        onChange={(e) => setNewCustomer({ ...newCustomer, cpfCnpj: e.target.value })}
                                     />
                                 </div>
                                 <div>
@@ -1205,31 +1193,8 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label className="block text-xs font-black text-slate-500 uppercase mb-1">CEP</label>
-                                    <input
-                                        type="text"
-                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold text-sm"
-                                        placeholder="00000-000"
-                                        value={newCustomer.zipCode}
-                                        onChange={(e) => setNewCustomer({ ...newCustomer, zipCode: e.target.value })}
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-black text-slate-500 uppercase mb-1">Cidade</label>
-                                    <input
-                                        type="text"
-                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold"
-                                        placeholder="Cidade"
-                                        value={newCustomer.city}
-                                        onChange={(e) => setNewCustomer({ ...newCustomer, city: e.target.value })}
-                                    />
-                                </div>
-                            </div>
-
                             <div>
-                                <label className="block text-xs font-black text-slate-500 uppercase mb-1">Endereço Completo</label>
+                                <label className="block text-xs font-black text-slate-500 uppercase mb-1">Endereço</label>
                                 <input
                                     type="text"
                                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold"
@@ -1241,13 +1206,13 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
 
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
-                                    <label className="block text-xs font-black text-slate-500 uppercase mb-1">CPF / CNPJ</label>
+                                    <label className="block text-xs font-black text-slate-500 uppercase mb-1">Cidade</label>
                                     <input
                                         type="text"
-                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold text-sm"
-                                        placeholder="000.000.000-00"
-                                        value={newCustomer.cpfCnpj}
-                                        onChange={(e) => setNewCustomer({ ...newCustomer, cpfCnpj: e.target.value })}
+                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold"
+                                        placeholder="Cidade"
+                                        value={newCustomer.city}
+                                        onChange={(e) => setNewCustomer({ ...newCustomer, city: e.target.value })}
                                     />
                                 </div>
                                 <div>

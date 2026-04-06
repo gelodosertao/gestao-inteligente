@@ -124,10 +124,7 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
             state: newCustomer.state || '',
             branch: newCustomer.branch,
             creatorId: currentUser.id,
-            creatorName: currentUser.name,
-            responsibleName: newCustomer.responsibleName || '',
-            establishmentName: newCustomer.establishmentName || '',
-            zipCode: newCustomer.zipCode || ''
+            creatorName: currentUser.name
         };
 
         onAddCustomer(customer);
@@ -381,7 +378,7 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
                                         {sortConfig?.key === 'state' && (sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}
                                     </div>
                                 </th>
-                                {(currentUser.role === 'ADMIN') && (
+                                {(currentUser.role === 'ADMIN' || currentUser.role === 'WHOLESALE_SUPERVISOR') && (
                                     <th className="px-6 py-3">Vendedor</th>
                                 )}
                                 <th className="px-6 py-3 text-right">Ações</th>
@@ -418,7 +415,7 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
                                         <td className="px-6 py-3">{customer.phone || '-'}</td>
                                         <td className="px-6 py-3 font-bold text-blue-800 bg-blue-50/30">{customer.city || '-'}</td>
                                         <td className="px-6 py-3">{customer.state || '-'}</td>
-                                        {currentUser.role === 'ADMIN' && (
+                                        {(currentUser.role === 'ADMIN' || currentUser.role === 'WHOLESALE_SUPERVISOR') && (
                                             <td className="px-6 py-3">
                                                 <span className="text-[10px] font-bold text-slate-500 uppercase block">
                                                     {customer.creatorName?.split(' ')[0] || 'Sistema'}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Package, ShoppingCart, DollarSign, Sparkles, Settings, LogOut, Users, Calculator, ChevronLeft, ChevronRight, Factory, Globe, Truck, PieChart, Lock, TrendingUp, Store } from 'lucide-react';
+import { LayoutDashboard, Package, ShoppingCart, DollarSign, Sparkles, Settings, LogOut, Sun, Users, Calculator, ChevronLeft, ChevronRight, Factory, Globe, Truck, PieChart, Lock, TrendingUp, Store } from 'lucide-react';
 import { ViewState, User } from '../types';
 
 interface AppSidebarProps {
@@ -25,7 +25,7 @@ export const ALL_MENU_ITEMS = [
   { id: 'CASH_CLOSING', label: 'Fechar Caixa', icon: Lock, roles: ['OPERATOR'] },
   { id: 'FINANCIAL', label: 'Financeiro', icon: DollarSign, roles: ['ADMIN'] },
   { id: 'SALES', label: 'PDV Adega', icon: Store, roles: ['ADMIN', 'OPERATOR'] },
-  { id: 'WHOLESALE_POS', label: 'PDV Atacado', icon: ShoppingCart, roles: ['ADMIN', 'WHOLESALE_REPRESENTATIVE'] },
+  { id: 'WHOLESALE_POS', label: 'PDV Atacado', icon: ShoppingCart, roles: ['ADMIN', 'WHOLESALE_SUPERVISOR', 'WHOLESALE_REPRESENTATIVE'] },
   { id: 'PRODUCTION', label: 'Produção', icon: Factory, roles: ['ADMIN', 'FACTORY'] },
   { id: 'REPORTS', label: 'Relatórios', icon: PieChart, roles: ['ADMIN'] },
   { id: 'MENU_CONFIG', label: 'Site / Cardápio', icon: Globe, roles: ['ADMIN'] },
@@ -59,74 +59,53 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, setView, currentUs
       {/* SIDEBAR (Desktop & Mobile Drawer) */}
       <div className={`
         fixed left-0 top-0 z-50 h-screen flex flex-col 
-        bg-gai-navy text-white shadow-2xl border-r border-white/5
+        bg-blue-900 text-white shadow-xl border-r border-blue-800
         transition-all duration-300 ease-in-out
         ${isMobileMenuOpen ? 'translate-x-0 w-64' : '-translate-x-full md:translate-x-0'}
         ${isCollapsed ? 'md:w-20' : 'md:w-64'}
       `}>
-        <div className="flex flex-col items-center justify-center relative shrink-0 transition-all duration-300">
-          <div className={`w-full bg-white flex flex-col items-center border-b border-slate-200 transition-all duration-500 ${isCollapsed ? 'p-1.5 h-20' : 'p-6 h-48'}`}>
-            {/* Logo Container - Persists on Collapse */}
-            <div className={`relative z-10 w-full h-full flex items-center justify-center select-none duration-500`}>
-              <img
-                src="/logo_gai.png"
-                alt="G.AI"
-                className={`object-contain transition-all duration-500 drop-shadow-sm ${isCollapsed ? 'max-h-[66px] max-w-[90%] w-auto' : 'max-h-32 w-auto'}`}
-              />
-            </div>
+        <div className="p-4 flex flex-col items-center justify-center border-b border-blue-800 h-28 relative overflow-hidden shrink-0">
+          {/* Logo Image */}
+          <div className="relative z-10 flex flex-col items-center select-none">
+            <img src="/logo.png" alt="Gelo do Sertão" className="h-16 w-auto object-contain drop-shadow-md" />
+          </div>
+          <div className="absolute -right-4 -top-4 text-orange-500 opacity-10 rotate-12">
+            <Sun size={80} />
           </div>
 
-          {/* Company Name Section */}
-          {!isCollapsed && currentUser?.tenantName && (
-            <div className="w-full bg-gai-navy pt-4 pb-2 text-center animate-in slide-in-from-top-2 duration-700">
-              <p className="text-[10px] font-black text-gai-cyan tracking-[0.3em] uppercase opacity-90 leading-none">
-                {currentUser.tenantName}
-              </p>
-            </div>
-          )}
-
-          {/* Sparkles Clipped Separately */}
-          <div className="absolute -right-6 -top-6 text-gai-tech opacity-5 rotate-12 pointer-events-none overflow-hidden h-40 w-40">
-            <Sparkles size={100} />
-          </div>
-
-          {/* Toggle Button - NOW FULLY VISIBLE */}
+          {/* Toggle Button (Desktop Only) */}
           <button
             onClick={toggleSidebar}
-            className={`hidden md:flex absolute z-50 top-1/2 -right-4 -translate-y-1/2 
-              w-8 h-8 rounded-full bg-gai-navy text-white shadow-xl
-              items-center justify-center hover:bg-gai-tech transition-all duration-300
-              border border-white/20
-            `}
+            className="hidden md:flex absolute bottom-2 right-2 text-blue-300 hover:text-white bg-blue-950/50 p-1 rounded-full transition-colors"
             title={isCollapsed ? "Expandir Menu" : "Recolher Menu"}
           >
-            {isCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
+            {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
           </button>
         </div>
 
-        <nav className="flex-1 py-6 px-3 space-y-1.5 overflow-y-auto overflow-x-hidden scrollbar-hide">
+        <nav className="flex-1 py-6 px-2 lg:px-4 space-y-2 overflow-y-auto overflow-x-hidden">
           {visibleItems.map((item) => {
             const isActive = currentView === item.id;
             return (
               <button
                 key={item.id}
                 onClick={() => setView(item.id as ViewState)}
-                className={`w-full flex items-center justify-start gap-3 p-3 rounded-xl transition-all duration-300 group relative
+                className={`w-full flex items-center justify-start gap-3 p-3 rounded-xl transition-all duration-200 group relative
                   ${isActive
-                    ? 'bg-gai-tech text-white shadow-lg shadow-gai-tech/20'
-                    : 'text-slate-400 hover:bg-white/5 hover:text-white'
+                    ? 'bg-orange-500 text-white shadow-lg shadow-orange-900/40'
+                    : 'text-blue-200 hover:bg-blue-800 hover:text-white'
                   }
                   ${isCollapsed ? 'md:justify-center' : ''}
                 `}
                 title={isCollapsed ? item.label : ''}
               >
-                <item.icon size={20} className={`shrink-0 transition-transform duration-300 ${isActive ? 'text-white scale-110' : 'group-hover:scale-110'}`} />
-                <span className={`font-semibold text-sm whitespace-nowrap transition-all duration-300 ${isCollapsed ? 'md:opacity-0 md:w-0' : 'opacity-100'}`}>{item.label}</span>
-                {isActive && <div className={`absolute right-3 w-1 h-4 rounded-full bg-white/30 ${isCollapsed ? 'md:hidden' : 'block'}`} />}
+                <item.icon size={20} className={`shrink-0 ${isActive ? 'text-white' : 'text-blue-300 group-hover:text-white'}`} />
+                <span className={`font-medium whitespace-nowrap ${isCollapsed ? 'md:hidden' : 'block'}`}>{item.label}</span>
+                {isActive && <div className={`absolute right-3 w-1.5 h-1.5 rounded-full bg-white animate-pulse ${isCollapsed ? 'md:hidden' : 'block'}`} />}
 
                 {/* Pending Badge */}
                 {item.id === 'ORDER_CENTER' && (pendingOrdersCount || 0) > 0 && (
-                  <div className={`absolute right-2 bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-lg border border-white/20 animate-pulse ${isCollapsed ? 'top-1 right-1' : ''}`}>
+                  <div className={`absolute right-2 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-sm animate-pulse ${isCollapsed ? 'top-1 right-1' : ''}`}>
                     {pendingOrdersCount}
                   </div>
                 )}
@@ -135,39 +114,43 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, setView, currentUs
           })}
         </nav>
 
-        <div className="p-4 border-t border-white/5 space-y-3 bg-black/10 shrink-0">
+        <div className="p-4 border-t border-blue-800 space-y-2 bg-blue-950/30 shrink-0">
           {currentUser.role === 'ADMIN' && (
             <button
               onClick={() => setView('SETTINGS')}
-              className={`w-full flex items-center justify-start gap-3 p-2.5 rounded-xl transition-all 
-                ${currentView === 'SETTINGS' ? 'bg-white/10 text-gai-tech' : 'text-slate-400 hover:text-white hover:bg-white/5'}
+              className={`w-full flex items-center justify-start gap-3 p-2 rounded-lg transition-colors 
+                ${currentView === 'SETTINGS' ? 'bg-blue-800 text-orange-400' : 'text-blue-300 hover:text-white hover:bg-blue-800'}
                 ${isCollapsed ? 'md:justify-center' : ''}
               `}
               title={isCollapsed ? "Configurações" : ''}
             >
               <Settings size={20} className="shrink-0" />
-              <span className={`text-sm font-semibold whitespace-nowrap ${isCollapsed ? 'md:hidden' : 'block'}`}>Ajustes G.AI</span>
+              <span className={`text-sm font-medium whitespace-nowrap ${isCollapsed ? 'md:hidden' : 'block'}`}>Configurações</span>
             </button>
           )}
 
-          <div className={`flex items-center gap-3 pt-1 ${isCollapsed ? 'md:hidden' : ''}`}>
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-gai-tech to-gai-navy flex items-center justify-center font-bold text-white shadow-lg border border-white/10 shrink-0">
+          <div className={`flex items-center gap-3 pt-2 ${isCollapsed ? 'md:hidden' : ''}`}>
+            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-orange-400 to-orange-600 flex items-center justify-center font-bold text-white shadow-sm border-2 border-blue-800 shrink-0">
               {currentUser.avatarInitials}
             </div>
             <div className="flex-1 overflow-hidden">
-              <p className="text-sm font-bold truncate text-white leading-tight">{currentUser.name}</p>
-              <p className="text-[10px] text-gai-cyan font-black uppercase tracking-widest opacity-70">
-                {currentUser.role}
+              <p className="text-sm font-semibold truncate text-white">{currentUser.name}</p>
+              <p className="text-[10px] text-blue-300 uppercase tracking-wider">
+                {currentUser.role === 'ADMIN' ? 'Sócio Admin' :
+                  currentUser.role === 'FACTORY' ? 'Fábrica' :
+                    currentUser.role === 'WHOLESALE_SUPERVISOR' ? 'Representante' :
+                      currentUser.role === 'WHOLESALE_REPRESENTATIVE' ? 'Representante' :
+                        'Operador'}
               </p>
             </div>
-            <button onClick={onLogout} className="text-slate-500 hover:text-rose-400 transition-colors p-1" title="Sair">
+            <button onClick={onLogout} className="text-blue-300 hover:text-rose-400 transition-colors p-1" title="Sair">
               <LogOut size={18} />
             </button>
           </div>
 
           {/* Collapsed User Icon (Desktop Only) */}
-          <div className={`hidden ${isCollapsed ? 'md:flex' : ''} justify-center pt-1`}>
-            <button onClick={onLogout} className="text-slate-500 hover:text-rose-400" title="Sair">
+          <div className={`hidden ${isCollapsed ? 'md:flex' : ''} justify-center pt-2`}>
+            <button onClick={onLogout} className="text-blue-300 hover:text-rose-400" title="Sair">
               <LogOut size={20} />
             </button>
           </div>
