@@ -127,6 +127,12 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
     // Filter products for Wholesale (only Gelo Cubo and Gelo Sabor)
     const filteredProducts = useMemo(() => {
         return products.filter(p => {
+            const isAdmin = currentUser.role === 'ADMIN';
+            const isMarlisson = currentUser.name.toLowerCase().includes('marlisson');
+
+            // Regra: Gelo Cubo só para Marlisson ou Admin
+            if (p.category === 'Gelo Cubo' && !isAdmin && !isMarlisson) return false;
+
             const isWholesaleCategory = p.category === 'Gelo Cubo' || p.category === 'Gelo Sabor';
             const matchesCategory = categoryFilter === 'ALL' || p.category === categoryFilter;
             const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -433,12 +439,14 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                     >
                         TODOS
                     </button>
-                    <button
-                        onClick={() => setCategoryFilter('Gelo Cubo')}
-                        className={`flex-1 py-2.5 text-xs font-black rounded-xl transition-all ${categoryFilter === 'Gelo Cubo' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-200'}`}
-                    >
-                        CUBO
-                    </button>
+                    {(isAdmin || currentUser.name.toLowerCase().includes('marlisson')) && (
+                        <button
+                            onClick={() => setCategoryFilter('Gelo Cubo')}
+                            className={`flex-1 py-2.5 text-xs font-black rounded-xl transition-all ${categoryFilter === 'Gelo Cubo' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-200'}`}
+                        >
+                            CUBO
+                        </button>
+                    )}
                     <button
                         onClick={() => setCategoryFilter('Gelo Sabor')}
                         className={`flex-1 py-2.5 text-xs font-black rounded-xl transition-all ${categoryFilter === 'Gelo Sabor' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-200'}`}
