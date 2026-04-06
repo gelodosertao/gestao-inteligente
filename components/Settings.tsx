@@ -421,15 +421,13 @@ const Settings: React.FC<SettingsProps> = ({ currentUser, onResetData }) => {
                                     <td className="p-4">
                                        <span className={`px-2 py-1 rounded text-xs font-bold ${user.role === 'ADMIN' ? 'bg-blue-100 text-blue-700' :
                                           user.role === 'FACTORY' ? 'bg-purple-100 text-purple-700' :
-                                             user.role === 'WHOLESALE_SUPERVISOR' ? 'bg-indigo-100 text-indigo-700' :
-                                                user.role === 'WHOLESALE_REPRESENTATIVE' ? 'bg-emerald-100 text-emerald-700' :
-                                                   'bg-orange-100 text-orange-700'
+                                             user.role === 'WHOLESALE_REPRESENTATIVE' ? 'bg-emerald-100 text-emerald-700' :
+                                                'bg-orange-100 text-orange-700'
                                           }`}>
                                           {user.role === 'ADMIN' ? 'ADMINISTRADOR' :
                                              user.role === 'FACTORY' ? 'FÁBRICA' :
-                                                user.role === 'WHOLESALE_SUPERVISOR' ? 'REPRESENTANTE (S)' :
-                                                   user.role === 'WHOLESALE_REPRESENTATIVE' ? 'REPRESENTANTE' :
-                                                      'OPERATOR'}
+                                                user.role === 'WHOLESALE_REPRESENTATIVE' ? 'REPRESENTANTE' :
+                                                   'OPERATOR'}
                                        </span>
                                     </td>
                                     <td className="p-4 text-right"><span className="text-green-600 font-bold">Ativo</span></td>
@@ -614,7 +612,6 @@ const Settings: React.FC<SettingsProps> = ({ currentUser, onResetData }) => {
                         >
                            <option value="OPERATOR">Operador (PDV/Estoque)</option>
                            <option value="FACTORY">Fábrica (Produção)</option>
-                           <option value="WHOLESALE_SUPERVISOR">Representante (Super)</option>
                            <option value="WHOLESALE_REPRESENTATIVE">Representante (Vendedor)</option>
                            <option value="ADMIN">Administrador (Total)</option>
                         </select>
