@@ -59,13 +59,13 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, setView, currentUs
       {/* SIDEBAR (Desktop & Mobile Drawer) */}
       <div className={`
         fixed left-0 top-0 z-50 h-screen flex flex-col 
-        bg-slate-900 text-white shadow-2xl border-r border-white/5
+        bg-gai-navy text-white shadow-2xl border-r border-white/5
         transition-all duration-300 ease-in-out
         ${isMobileMenuOpen ? 'translate-x-0 w-64' : '-translate-x-full md:translate-x-0'}
         ${isCollapsed ? 'md:w-20' : 'md:w-64'}
       `}>
         <div className="flex flex-col items-center justify-center relative shrink-0 transition-all duration-300">
-          <div className={`w-full bg-white flex flex-col items-center border-b border-slate-200 transition-all duration-500 ${isCollapsed ? 'p-1.5 h-20' : 'p-6 h-48'}`}>
+          <div className={`w-full bg-white flex flex-col items-center border-b border-slate-200 transition-all duration-500 ${isCollapsed ? 'p-1.5 h-16' : 'p-4 h-32'}`}>
             {/* Logo Container - Persists on Collapse */}
             <div className={`relative z-10 w-full h-full flex items-center justify-center select-none duration-500`}>
               <img
@@ -78,8 +78,8 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, setView, currentUs
 
           {/* Company Name Section */}
           {!isCollapsed && (
-            <div className="w-full bg-slate-900 pt-4 pb-2 text-center animate-in slide-in-from-top-2 duration-700">
-              <p className="text-[10px] font-black text-orange-400 tracking-[0.3em] uppercase opacity-90 leading-none">
+            <div className="w-full pt-4 pb-2 text-center animate-in slide-in-from-top-2 duration-700">
+              <p className="text-[10px] font-black text-gai-tech tracking-[0.3em] uppercase opacity-90 leading-none">
                 GELO DO SERTÃO
               </p>
             </div>
@@ -113,7 +113,7 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, setView, currentUs
                 onClick={() => setView(item.id as ViewState)}
                 className={`w-full flex items-center justify-start gap-3 p-3 rounded-xl transition-all duration-300 group relative
                   ${isActive
-                    ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20'
+                    ? 'bg-gai-tech text-white shadow-lg shadow-gai-tech/20'
                     : 'text-slate-400 hover:bg-white/5 hover:text-white'
                   }
                   ${isCollapsed ? 'md:justify-center' : ''}
@@ -140,7 +140,7 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, setView, currentUs
             <button
               onClick={() => setView('SETTINGS')}
               className={`w-full flex items-center justify-start gap-3 p-2.5 rounded-xl transition-all 
-                ${currentView === 'SETTINGS' ? 'bg-white/10 text-orange-400' : 'text-slate-400 hover:text-white hover:bg-white/5'}
+                ${currentView === 'SETTINGS' ? 'bg-white/10 text-gai-tech' : 'text-slate-400 hover:text-white hover:bg-white/5'}
                 ${isCollapsed ? 'md:justify-center' : ''}
               `}
               title={isCollapsed ? "Configurações" : ''}
@@ -151,12 +151,12 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, setView, currentUs
           )}
 
           <div className={`flex items-center gap-3 pt-1 ${isCollapsed ? 'md:hidden' : ''}`}>
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-400 to-slate-900 flex items-center justify-center font-bold text-white shadow-lg border border-white/10 shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-gai-tech to-gai-navy flex items-center justify-center font-bold text-white shadow-lg border border-white/10 shrink-0">
               {currentUser.avatarInitials}
             </div>
             <div className="flex-1 overflow-hidden">
               <p className="text-sm font-bold truncate text-white leading-tight">{currentUser.name}</p>
-              <p className="text-[10px] text-orange-400 font-black uppercase tracking-widest opacity-70">
+              <p className="text-[10px] text-gai-tech font-black uppercase tracking-widest opacity-70">
                 {currentUser.role}
               </p>
             </div>

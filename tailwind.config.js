@@ -7,7 +7,12 @@ export default {
         "./services/**/*.{js,ts,jsx,tsx}",
     ],
     theme: {
-        extend: {},
+        extend: {
+            colors: {
+                'gai-navy': '#0f172a',
+                'gai-tech': '#f59e0b', // Gold/Orange matching Gelo do Sertão
+            }
+        },
     },
     plugins: [],
 }
