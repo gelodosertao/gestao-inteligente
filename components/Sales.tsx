@@ -808,7 +808,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
             </div>
          ) : (
             // --- PDV VAREJO (POINT OF SALE) --- DESIGN FIEL À REFERÊNCIA ---
-            <div className="h-[calc(100vh-160px)] md:h-[calc(100vh-11rem)] flex overflow-hidden rounded-2xl shadow-xl border border-slate-200 bg-slate-100 animate-in fade-in duration-300">
+            <div className="h-[calc(100vh-160px)] md:h-[calc(100vh-11rem)] w-full max-w-full flex overflow-hidden rounded-2xl shadow-xl border border-slate-200 bg-slate-100 animate-in fade-in duration-300">
 
                {/* PAINEL ESQUERDO: PDV INFO & CARRINHO */}
                <div className="w-[280px] xl:w-[320px] shrink-0 flex flex-col bg-white border-r border-slate-200">
@@ -897,13 +897,33 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                </div>
 
                {/* PAINEL DIREITO: FILTROS E GRADE */}
-               <div className="flex-1 min-w-0 flex flex-col bg-white">
-                  <div className="bg-white border-b border-slate-200 shrink-0 shadow-sm z-10 overflow-x-auto no-scrollbar">
-                     <div className="flex px-1 h-12">
+               <div className="flex-1 min-w-0 flex flex-col bg-white overflow-hidden">
+                  <div className="w-full bg-white border-b border-slate-200 shrink-0 shadow-sm z-10 overflow-hidden">
+                     <div className="flex px-1 h-12 overflow-x-auto no-scrollbar scroll-smooth">
                         <button onClick={() => setPosCategoryFilter('ALL')} className={`shrink-0 px-5 h-full text-[11px] font-black uppercase tracking-widest border-b-4 transition-all whitespace-nowrap ${posCategoryFilter === 'ALL' ? 'border-orange-500 text-orange-600 bg-orange-50/30' : 'border-transparent text-slate-400 hover:text-slate-600'}`}>Todos</button>
                         {availableCategories.map(cat => (
                            <button key={cat} onClick={() => setPosCategoryFilter(cat)} className={`shrink-0 px-5 h-full text-[11px] font-black uppercase tracking-widest border-b-4 transition-all whitespace-nowrap ${posCategoryFilter === cat ? 'border-orange-500 text-orange-600 bg-orange-50/30' : 'border-transparent text-slate-400 hover:text-slate-600'}`}>{cat}</button>
                         ))}
+                     </div>
+
+                     {/* BARRA DE BUSCA NO TOPO */}
+                     <div className="bg-slate-50 px-4 py-2 flex items-center gap-3 border-t border-slate-100">
+                        <div className="relative flex-1 group">
+                           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-orange-500 transition-colors" />
+                           <input
+                              ref={barcodeInputRef}
+                              type="text"
+                              value={posSearchTerm}
+                              onChange={(e) => setPosSearchTerm(e.target.value)}
+                              onKeyDown={handleSearchKeyDown}
+                              placeholder="BUSCAR NOME OU BARRA (F2)..."
+                              className="w-full h-8 pl-9 pr-4 text-xs font-bold rounded-lg border border-slate-200 bg-white focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none transition-all shadow-sm"
+                           />
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                           <button onClick={startCamera} title="Abrir Câmera" className="h-8 w-8 flex items-center justify-center rounded-lg bg-white text-slate-400 hover:text-sky-600 border border-slate-200 transition-all active:scale-95"><Camera size={16} /></button>
+                           <button onClick={handlePairScanner} title="Conectar Scanner" className={`h-8 w-8 flex items-center justify-center rounded-lg transition-all border active:scale-95 ${scannerStatus === 'CONNECTED' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-slate-800 text-white border-slate-700'}`}><Bluetooth size={16} /></button>
+                        </div>
                      </div>
                   </div>
 
@@ -914,7 +934,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                            <p className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">Nenhum produto em {posCategoryFilter}</p>
                         </div>
                      ) : (
-                        <div className="grid grid-cols-2 gap-3 pb-4">
+                        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 pb-24">
                            {filteredPosProducts.map(product => {
                               const inCart = cart.find(c => c.product.id === product.id);
                               const stock = getProductStock(product);
