@@ -918,7 +918,20 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                   </div>
 
                   <div className="p-4 border-t border-slate-200 bg-gradient-to-t from-slate-50 to-white shrink-0 shadow-[0_-4px_20px_rgba(0,0,0,0.04)]">
-                     <div className="flex items-center justify-between mb-3">
+                     <div className="flex items-center justify-between mb-2">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Desconto (R$)</span>
+                        <div className="relative w-32">
+                           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-400">R$</span>
+                           <input
+                              type="number"
+                              className="w-full h-8 pl-8 pr-3 text-sm font-black text-right border border-slate-200 rounded-lg focus:border-orange-500 focus:ring-4 focus:ring-orange-100 outline-none transition-all placeholder:text-slate-300 bg-white"
+                              value={discount}
+                              onChange={(e) => setDiscount(e.target.value)}
+                              placeholder="0,00"
+                           />
+                        </div>
+                     </div>
+                     <div className="flex items-center justify-between mb-3 border-t border-slate-100 pt-3">
                         <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Total a Pagar</span>
                         <span className="text-3xl font-black text-slate-900 tabular-nums tracking-tighter">{formatCurrency(cartTotal)}</span>
                      </div>
