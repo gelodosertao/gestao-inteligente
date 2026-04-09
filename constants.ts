@@ -19,6 +19,24 @@ export const MOCK_USERS: User[] = [
   }
 ];
 
+export const CUSTOMER_SEGMENTS = [
+  'Adega',
+  'Ambulante',
+  'Atacadista',
+  'Bar',
+  'Conveniência',
+  'Distribuidora',
+  'Eventos',
+  'Geleiro',
+  'Mercadinho',
+  'Mercado',
+  'Posto',
+  'Restaurante',
+  'Supermercado',
+  'Cardápio Digital',
+  'Outros'
+];
+
 export const MOCK_PRODUCTS: Product[] = [];
 export const MOCK_SALES: Sale[] = [];
 export const MOCK_FINANCIALS: FinancialRecord[] = [];

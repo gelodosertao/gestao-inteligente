@@ -98,5 +98,5 @@ CREATE POLICY "Authenticated users can do everything on categories" ON categorie
 
 -- Políticas Especiais para Usuários (app_users)
 CREATE POLICY "Authenticated users can read all profiles" ON app_users FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Users can insert their own profile" ON app_users FOR INSERT TO authenticated WITH CHECK (auth.uid()::text = id);
-CREATE POLICY "Users can update their own profile" ON app_users FOR UPDATE TO authenticated USING (auth.uid()::text = id);
+CREATE POLICY "Users can insert their own profile" ON app_users FOR INSERT TO authenticated WITH CHECK (auth.uid() = id);
+CREATE POLICY "Users can update their own profile" ON app_users FOR UPDATE TO authenticated USING (auth.uid() = id);

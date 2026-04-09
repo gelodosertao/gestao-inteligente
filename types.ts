@@ -106,7 +106,7 @@ export interface Sale {
   items: SaleItem[];
   branch: Branch;
   matrizDeposit?: 'Ibotirama' | 'Barreiras';
-  status: 'Completed' | 'Pending' | 'Cancelled';
+  status: 'Completed' | 'Pending' | 'Cancelled' | 'Finalizado pela Fábrica';
   paymentMethod: 'Pix' | 'Credit' | 'Debit' | 'Cash' | 'Split';
   paymentSplits?: { method: 'Pix' | 'Credit' | 'Debit' | 'Cash', amount: number }[];
   hasInvoice: boolean; // NF-e emitted
@@ -120,6 +120,10 @@ export interface Sale {
   createdAt?: string; // ISO Date String for proper sorting/time display
   deliveryFee?: number; // Taxa de entrega
   source?: string; // Origem da venda (ex: 'OnlineMenu')
+  sellerId?: string; // ID of the user who made the sale
+  sellerName?: string; // Name of the user who made the sale
+  sellerRole?: string; // Role of the user who made the sale
+  commissionAmount?: number; // Calculated commission at the time of sale
 }
 
 export interface SaleItem {
@@ -146,7 +150,7 @@ export interface FinancialRecord {
   paymentMethod?: 'Pix' | 'Credit' | 'Debit' | 'Cash';
 }
 
-export type Role = 'ADMIN' | 'OPERATOR' | 'FACTORY';
+export type Role = 'ADMIN' | 'OPERATOR' | 'FACTORY' | 'WHOLESALE_REPRESENTATIVE';
 
 export interface User {
   id: string;
@@ -158,7 +162,7 @@ export interface User {
   allowedModules?: string[]; // IDs of modules the user can access
 }
 
-export type ViewState = 'DASHBOARD' | 'INVENTORY' | 'SALES' | 'FINANCIAL' | 'CASH_CLOSING' | 'AI_INSIGHTS' | 'SETTINGS' | 'CUSTOMERS' | 'PRICING' | 'ONLINE_MENU' | 'MENU_CONFIG' | 'PRODUCTION' | 'ORDER_CENTER' | 'REPORTS';
+export type ViewState = 'DASHBOARD' | 'INVENTORY' | 'SALES' | 'FINANCIAL' | 'CASH_CLOSING' | 'AI_INSIGHTS' | 'SETTINGS' | 'CUSTOMERS' | 'PRICING' | 'ONLINE_MENU' | 'MENU_CONFIG' | 'PRODUCTION' | 'ORDER_CENTER' | 'REPORTS' | 'WHOLESALE_POS' | 'CRM';
 
 export interface Order {
   id: string;
@@ -167,7 +171,7 @@ export interface Order {
   customerPhone?: string;
   address?: string;
   deliveryMethod: 'DELIVERY' | 'PICKUP';
-  paymentMethod: 'PIX' | 'CARD' | 'CASH';
+  paymentMethod: 'PIX' | 'CREDIT' | 'DEBIT' | 'CASH';
   items: SaleItem[];
   total: number;
   status: 'PENDING' | 'PREPARING' | 'READY' | 'DELIVERED' | 'CANCELLED';
@@ -187,6 +191,11 @@ export interface Customer {
   city?: string;
   state?: string;
   branch?: Branch;
+  creatorId?: string;   // ID of the user who registered the customer
+  creatorName?: string; // Name of the user who registered the customer
+  responsibleName?: string;
+  establishmentName?: string;
+  zipCode?: string;
 }
 
 export interface StockMovement {
@@ -231,4 +240,54 @@ export interface CashClosing {
   difference: number; // Sobra ou Falta
   notes?: string;
   closedBy: string; // User name
+}
+
+// --- CRM MODULE ---
+
+export type CrmLeadStatus = 'NOVO' | 'CONTATO' | 'PROPOSTA' | 'FECHADO' | 'PERDIDO';
+export type CrmChannel = 'WhatsApp' | 'Instagram' | 'Facebook' | 'Indicação' | 'Site' | 'Outros';
+export type CrmInteractionType = 'NOTA' | 'WHATSAPP' | 'LIGACAO' | 'EMAIL' | 'REUNIAO';
+export type CrmTaskStatus = 'PENDENTE' | 'CONCLUIDA' | 'CANCELADA';
+
+export interface CrmLead {
+  id: string;
+  tenantId: string;
+  name: string;
+  phone?: string;
+  email?: string;
+  company?: string;
+  city?: string;
+  channel: CrmChannel;
+  status: CrmLeadStatus;
+  estimatedValue: number;
+  notes?: string;
+  responsibleId?: string;
+  responsibleName?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CrmInteraction {
+  id: string;
+  tenantId: string;
+  leadId: string;
+  type: CrmInteractionType;
+  content: string;
+  userId?: string;
+  userName?: string;
+  createdAt: string;
+}
+
+export interface CrmTask {
+  id: string;
+  tenantId: string;
+  leadId?: string;
+  title: string;
+  description?: string;
+  dueDate?: string;
+  status: CrmTaskStatus;
+  responsibleId?: string;
+  responsibleName?: string;
+  createdAt: string;
+  updatedAt: string;
 }

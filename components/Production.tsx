@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Product, ProductionRecord, Shift, Branch, User, Category } from '../types';
+import { Product, ProductionRecord, Shift, Branch, User, Category, Sale } from '../types';
 import { dbProduction, dbProducts, dbStockMovements } from '../services/db';
 import { getTodayDate } from '../services/utils';
-import { Plus, Save, Clock, User as UserIcon, Package, Calendar, ArrowLeft, Trash2, Layers, History, Boxes, AlertTriangle, ArrowRightLeft, Calculator, Edit2 } from 'lucide-react';
+import { Plus, Save, Clock, User as UserIcon, Package, Calendar, ArrowLeft, Trash2, Layers, History, Boxes, AlertTriangle, ArrowRightLeft, Calculator, Edit2, Truck, CheckCircle } from 'lucide-react';
 
 interface ProductionProps {
     products: Product[];
@@ -294,6 +294,7 @@ const Production: React.FC<ProductionProps> = ({ products, currentUser, onUpdate
                     >
                         <Calculator size={16} /> Custo de Produção
                     </button>
+
                 </div>
             </div>
 
@@ -687,6 +688,8 @@ const Production: React.FC<ProductionProps> = ({ products, currentUser, onUpdate
                     </div>
                 </div>
             )}
+
+
         </div>
     );
 };

@@ -80,8 +80,10 @@ const OrderCenter: React.FC<OrderCenterProps> = ({ onBack, tenantId }) => {
 
                 try {
                     const canvas = await html2canvas(receiptElement, {
-                        scale: 2,
-                        backgroundColor: '#ffffff'
+                        scale: 3, // Aumentado para melhor nitidez
+                        backgroundColor: '#ffffff',
+                        logging: false,
+                        useCORS: true
                     });
                     const image = canvas.toDataURL("image/jpeg", 0.9);
                     const printedNatively = hardwareBridge.printReceipt(image);
@@ -89,7 +91,7 @@ const OrderCenter: React.FC<OrderCenterProps> = ({ onBack, tenantId }) => {
                     if (printedNatively) {
                         alert("Enviado para impressora da maquininha!");
                     } else {
-                        const imgWidth = 58; // mm
+                        const imgWidth = 40; // mm (reduzido para segurança total)
                         const pageHeight = (canvas.height * imgWidth) / canvas.width;
                         const pdf = new jsPDF({
                             orientation: "portrait",
@@ -247,7 +249,7 @@ const OrderCenter: React.FC<OrderCenterProps> = ({ onBack, tenantId }) => {
                     total: order.total + (order.deliveryFee || 0),
                     branch: order.branch,
                     status: 'Completed',
-                    paymentMethod: order.paymentMethod === 'PIX' ? 'Pix' : order.paymentMethod === 'CARD' ? 'Credit' : 'Cash',
+                    paymentMethod: order.paymentMethod === 'PIX' ? 'Pix' : order.paymentMethod === 'CREDIT' ? 'Credit' : order.paymentMethod === 'DEBIT' ? 'Debit' : 'Cash',
                     hasInvoice: false,
                     items: order.items,
                     cashReceived: undefined,
@@ -369,7 +371,7 @@ const OrderCenter: React.FC<OrderCenterProps> = ({ onBack, tenantId }) => {
                                                             {order.deliveryMethod === 'DELIVERY' ? 'Entrega' : 'Retirada'}
                                                         </span>
                                                         <span className="text-[10px] uppercase font-bold px-2 py-1 rounded-md flex items-center gap-1 bg-slate-100 text-slate-600">
-                                                            <DollarSign size={12} /> {order.paymentMethod}
+                                                            <DollarSign size={12} /> {order.paymentMethod === 'CREDIT' ? 'Crédito' : order.paymentMethod === 'DEBIT' ? 'Débito' : order.paymentMethod === 'CASH' ? 'Dinheiro' : order.paymentMethod}
                                                         </span>
                                                     </div>
 
@@ -481,7 +483,7 @@ const OrderCenter: React.FC<OrderCenterProps> = ({ onBack, tenantId }) => {
             {/* --- HIDDEN THERMAL RECEIPT (Visible only on Print or Download) --- */}
             {orderToPrint && (
                 <div id="printable-order-receipt" className="fixed top-0 left-0 -z-50 opacity-0 pointer-events-none">
-                    <div id="printable-order-receipt-content" className="p-2 bg-white w-[58mm] text-[10px] font-mono text-black">
+                    <div id="printable-order-receipt-content" className="p-1 px-[2mm] bg-white w-[40mm] mx-auto text-[10px] font-mono text-black">
                         <div className="text-center mb-2 border-b border-black pb-2">
                             <h2 className="font-bold text-[11px] uppercase leading-tight whitespace-pre-wrap">
                                 {orderToPrint.branch === Branch.FILIAL ? 'Gelo do Sertão |\nAdega & Drinks' : 'GELO DO SERTÃO'}
@@ -542,7 +544,7 @@ const OrderCenter: React.FC<OrderCenterProps> = ({ onBack, tenantId }) => {
                             </div>
                         </div>
                         <div className="text-left text-[9px] mt-1">
-                            Pagamento: {orderToPrint.paymentMethod}
+                            Pagamento: {orderToPrint.paymentMethod === 'CREDIT' ? 'Crédito' : orderToPrint.paymentMethod === 'DEBIT' ? 'Débito' : orderToPrint.paymentMethod === 'CASH' ? 'Dinheiro' : orderToPrint.paymentMethod}
                         </div>
 
                         <div className="border-t border-dashed border-black pt-2 mt-2 text-center text-[9px]">

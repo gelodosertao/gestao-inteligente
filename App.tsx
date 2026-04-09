@@ -1,4 +1,5 @@
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, Suspense, useMemo } from 'react';
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { ViewState, User, Product, Sale, FinancialRecord, Branch, Customer, CashClosing } from './types';
 import { MOCK_PRODUCTS, MOCK_SALES, MOCK_FINANCIALS } from './constants';
 import { dbProducts, dbSales, dbFinancials, dbCustomers, dbCashClosings, dbUsers } from './services/db';
@@ -21,13 +22,59 @@ const MenuConfig = React.lazy(() => import('./components/MenuConfig'));
 const Production = React.lazy(() => import('./components/Production'));
 const OrderCenter = React.lazy(() => import('./components/OrderCenter'));
 const Reports = React.lazy(() => import('./components/Reports'));
+// Lazy loaded WholesalePOS
+const WholesalePOS = React.lazy(() => import('./components/WholesalePOS'));
+const VisitorLanding = React.lazy(() => import('./components/VisitorLanding'));
+const CRM = React.lazy(() => import('./components/CRM'));
 
 const App: React.FC = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [currentView, setCurrentView] = useState<ViewState>(() => {
-    const params = new URLSearchParams(window.location.search);
-    return params.get('menu') === 'true' ? 'ONLINE_MENU' : 'DASHBOARD';
-  });
+
+  // Sync currentView with URL for backward compatibility with sidebar logic
+  const currentView = useMemo(() => {
+    const path = location.pathname;
+    if (path === '/pdv-atacado') return 'WHOLESALE_POS';
+    if (path === '/pdv-adega') return 'SALES';
+    if (path === '/cardapio-adega') return 'ONLINE_MENU';
+    if (path.startsWith('/gestao/estoque')) return 'INVENTORY';
+    if (path.startsWith('/gestao/financeiro')) return 'FINANCIAL';
+    if (path.startsWith('/gestao/fechamento-caixa')) return 'CASH_CLOSING';
+    if (path.startsWith('/gestao/clientes')) return 'CUSTOMERS';
+    if (path.startsWith('/gestao/producao')) return 'PRODUCTION';
+    if (path.startsWith('/gestao/relatorios')) return 'REPORTS';
+    if (path.startsWith('/gestao/pedidos')) return 'ORDER_CENTER';
+    if (path.startsWith('/gestao/custos')) return 'PRICING';
+    if (path.startsWith('/gestao/configuracoes')) return 'SETTINGS';
+    if (path.startsWith('/gestao/site')) return 'MENU_CONFIG';
+    if (path.startsWith('/gestao/ai')) return 'AI_INSIGHTS';
+    if (path.startsWith('/gestao/crm')) return 'CRM';
+    if (path === '/gestao') return 'DASHBOARD';
+    return 'DASHBOARD';
+  }, [location.pathname]);
+
+  const setCurrentView = (view: ViewState) => {
+    switch (view) {
+      case 'WHOLESALE_POS': navigate('/pdv-atacado'); break;
+      case 'SALES': navigate('/pdv-adega'); break;
+      case 'ONLINE_MENU': navigate('/cardapio-adega'); break;
+      case 'DASHBOARD': navigate('/gestao'); break;
+      case 'INVENTORY': navigate('/gestao/estoque'); break;
+      case 'FINANCIAL': navigate('/gestao/financeiro'); break;
+      case 'CASH_CLOSING': navigate('/gestao/fechamento-caixa'); break;
+      case 'CUSTOMERS': navigate('/gestao/clientes'); break;
+      case 'PRODUCTION': navigate('/gestao/producao'); break;
+      case 'REPORTS': navigate('/gestao/relatorios'); break;
+      case 'ORDER_CENTER': navigate('/gestao/pedidos'); break;
+      case 'PRICING': navigate('/gestao/custos'); break;
+      case 'SETTINGS': navigate('/gestao/configuracoes'); break;
+      case 'MENU_CONFIG': navigate('/gestao/site'); break;
+      case 'AI_INSIGHTS': navigate('/gestao/ai'); break;
+      case 'CRM': navigate('/gestao/crm'); break;
+      default: navigate('/gestao');
+    }
+  };
 
   // Data States
   const [products, setProducts] = useState<Product[]>([]);
@@ -45,18 +92,19 @@ const App: React.FC = () => {
 
   // --- AUTH & INITIAL DATA ---
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const isMenuMode = params.get('menu') === 'true';
+    const isMenuMode = location.pathname === '/cardapio-adega';
 
     // Check for active session on load
     dbUsers.getCurrentUser().then(user => {
       if (user) {
         setCurrentUser(user);
 
-        // Only change view if NOT in menu mode
-        if (!isMenuMode) {
+        // Only navigate if NOT in menu mode and currently at root or login
+        if (!isMenuMode && (location.pathname === '/' || location.pathname === '/login')) {
           let initialView: ViewState = 'DASHBOARD';
-          if (user.allowedModules && user.allowedModules.length > 0) {
+          if (user.role === 'WHOLESALE_REPRESENTATIVE' || (user.role as string) === 'WHOLESALE_SUPERVISOR') {
+            initialView = 'WHOLESALE_POS';
+          } else if (user.allowedModules && user.allowedModules.length > 0) {
             initialView = user.allowedModules[0] as ViewState;
           } else {
             if (user.role === 'FACTORY') initialView = 'PRODUCTION';
@@ -94,14 +142,15 @@ const App: React.FC = () => {
   const loadDataFromCloud = async () => {
     setIsLoading(true);
     setDbError(null);
+    const tenantId = currentUser?.tenantId || '00000000-0000-0000-0000-000000000000';
     try {
       // Parallel fetch for speed
       const [p, s, f, c, cc] = await Promise.all([
-        dbProducts.getAll(currentUser.tenantId),
-        dbSales.getAll(currentUser.tenantId),
-        dbFinancials.getAll(currentUser.tenantId),
-        dbCustomers.getAll(currentUser.tenantId),
-        dbCashClosings.getAll(currentUser.tenantId)
+        dbProducts.getAll(tenantId),
+        dbSales.getAll(tenantId),
+        dbFinancials.getAll(tenantId),
+        dbCustomers.getAll(tenantId),
+        dbCashClosings.getAll(tenantId)
       ]);
 
       setProducts(p.length > 0 ? p : []);
@@ -182,10 +231,14 @@ const App: React.FC = () => {
         if (newSale.branch === Branch.FILIAL) {
           return { ...prod, stockFilial: Math.max(0, prod.stockFilial - qtySold) };
         } else {
+          // For Matriz, only deduct if deposit is explicitly chosen
           if (newSale.matrizDeposit === 'Barreiras') {
             return { ...prod, stockMatrizBarreiras: Math.max(0, prod.stockMatrizBarreiras - qtySold) };
+          } else if (newSale.matrizDeposit === 'Ibotirama') {
+            return { ...prod, stockMatrizIbotirama: Math.max(0, prod.stockMatrizIbotirama - qtySold) };
           }
-          return { ...prod, stockMatrizIbotirama: Math.max(0, prod.stockMatrizIbotirama - qtySold) };
+          // If no deposit chosen (e.g. Pending from Wholesale POS), do not deduct yet
+          return prod;
         }
       }
       return prod;
@@ -201,7 +254,8 @@ const App: React.FC = () => {
         amount: newSale.total,
         type: 'Income',
         category: 'Vendas',
-        branch: newSale.branch
+        branch: newSale.branch,
+        paymentMethod: newSale.paymentMethod as any
       };
       setFinancials(prev => [newFinancial, ...prev]);
 
@@ -310,12 +364,73 @@ const App: React.FC = () => {
   };
 
   const handleUpdateSale = async (updatedSale: Sale) => {
+    const oldSale = sales.find(s => s.id === updatedSale.id);
     setSales(prev => prev.map(s => s.id === updatedSale.id ? updatedSale : s));
-    try {
-      await dbSales.update(updatedSale);
-    } catch (e) {
-      console.error(e);
-      alert("Erro ao atualizar venda no banco.");
+
+    // If it was Pending/Cancelled and now it's Completed, we should deduct stock and record financial
+    const finalizeStatuses = ['Completed', 'Finalizado pela Fábrica'];
+    const isFinalizing = oldSale && !finalizeStatuses.includes(oldSale.status) && finalizeStatuses.includes(updatedSale.status);
+
+    if (isFinalizing) {
+      const soldQuantities: Record<string, number> = {};
+      updatedSale.items.forEach(item => {
+        const product = products.find(p => p.id === item.productId);
+        if (product?.comboItems && product.comboItems.length > 0) {
+          product.comboItems.forEach(component => {
+            soldQuantities[component.productId] = (soldQuantities[component.productId] || 0) + (component.quantity * item.quantity);
+          });
+        } else {
+          soldQuantities[item.productId] = (soldQuantities[item.productId] || 0) + item.quantity;
+        }
+      });
+
+      const updatedProductsList = products.map(prod => {
+        const qtySold = soldQuantities[prod.id];
+        if (qtySold) {
+          if (updatedSale.branch === Branch.FILIAL) {
+            return { ...prod, stockFilial: Math.max(0, prod.stockFilial - qtySold) };
+          } else {
+            if (updatedSale.matrizDeposit === 'Barreiras') {
+              return { ...prod, stockMatrizBarreiras: Math.max(0, prod.stockMatrizBarreiras - qtySold) };
+            } else if (updatedSale.matrizDeposit === 'Ibotirama') {
+              return { ...prod, stockMatrizIbotirama: Math.max(0, prod.stockMatrizIbotirama - qtySold) };
+            }
+          }
+        }
+        return prod;
+      });
+      setProducts(updatedProductsList);
+
+      const newFinancial: FinancialRecord = {
+        id: crypto.randomUUID(),
+        date: updatedSale.date,
+        description: `Finalização Venda #${updatedSale.id} - ${updatedSale.customerName}`,
+        amount: updatedSale.total,
+        type: 'Income',
+        category: 'Vendas',
+        branch: updatedSale.branch,
+        paymentMethod: updatedSale.paymentMethod as any
+      };
+      setFinancials(prev => [newFinancial, ...prev]);
+
+      try {
+        await dbSales.update(updatedSale);
+        await dbFinancials.addBatch([newFinancial], currentUser!.tenantId);
+        for (const prodId of Object.keys(soldQuantities)) {
+          const product = updatedProductsList.find(p => p.id === prodId);
+          if (product) await dbProducts.update(product);
+        }
+      } catch (e) {
+        console.error("Erro ao atualizar stock/financeiro na finalização:", e);
+      }
+    } else {
+      // Just update the sale info
+      try {
+        await dbSales.update(updatedSale);
+      } catch (e) {
+        console.error(e);
+        alert("Erro ao atualizar venda no banco.");
+      }
     }
   };
 
@@ -405,7 +520,10 @@ const App: React.FC = () => {
   const handleLogin = (user: User) => {
     setCurrentUser(user);
     let initialView: ViewState = 'DASHBOARD';
-    if (user.allowedModules && user.allowedModules.length > 0) {
+    // Compatibilidade: Aceitar tanto a nova role quanto a antiga para redirecionamento
+    if (user.role === 'WHOLESALE_REPRESENTATIVE' || (user.role as string) === 'WHOLESALE_SUPERVISOR') {
+      initialView = 'WHOLESALE_POS';
+    } else if (user.allowedModules && user.allowedModules.length > 0) {
       initialView = user.allowedModules[0] as ViewState;
     } else {
       if (user.role === 'FACTORY') initialView = 'PRODUCTION';
@@ -422,15 +540,13 @@ const App: React.FC = () => {
     setFinancials([]);
   };
 
-  const renderContent = () => {
-    // Special case for Online Menu (Public)
-    if (currentView === 'ONLINE_MENU') {
-      return <OnlineMenu />;
-    }
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+  const renderContent = () => {
     if (isLoading) {
       return (
-        <div className="h-full flex flex-col items-center justify-center text-slate-500 gap-4">
+        <div className="bg-gai-navy p-10 text-center relative overflow-hidden flex flex-col items-center justify-center text-slate-500 gap-4">
           <Loader2 size={48} className="animate-spin text-orange-500" />
           <p>Sincronizando dados com a Nuvem...</p>
         </div>
@@ -449,7 +565,7 @@ const App: React.FC = () => {
             <br />
             -- Exemplo de comando rápido para criar a tabela de empresas:<br />
             create table if not exists tenants (id uuid default gen_random_uuid() primary key, name text not null);<br />
-            insert into tenants (id, name) select '00000000-0000-0000-0000-000000000000', 'Gelo do Sertão' where not exists (select 1 from tenants where id = '00000000-0000-0000-0000-000000000000');
+            insert into tenants (id, name) select '00000000-0000-0000-0000-000000000000', 'G.AI - Gestão Auto Inteligente' where not exists (select 1 from tenants where id = '00000000-0000-0000-0000-000000000000');
           </div>
           <div className="flex gap-4 justify-center mt-6">
             <button onClick={() => loadDataFromCloud()} className="bg-red-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-red-700">
@@ -500,89 +616,111 @@ const App: React.FC = () => {
       case 'CASH_CLOSING':
         return <Financial records={financials} sales={sales} products={products} cashClosings={cashClosings} onAddRecord={handleAddFinancialRecord} onUpdateRecord={handleUpdateFinancialRecord} onDeleteRecord={handleDeleteFinancialRecord} onAddCashClosing={handleAddCashClosing} onDeleteCashClosing={handleDeleteCashClosing} currentUser={currentUser} onBack={() => setCurrentView('DASHBOARD')} />;
       case 'FINANCIAL':
-        if (currentUser?.role !== 'ADMIN') return <Dashboard products={products} sales={sales} financials={financials} customers={customers} onNavigate={setCurrentView} />;
+        if (currentUser?.role !== 'ADMIN' && !(currentUser?.allowedModules || []).includes('FINANCIAL')) return <Dashboard products={products} sales={sales} financials={financials} customers={customers} onNavigate={setCurrentView} />;
         return <Financial records={financials} sales={sales} products={products} cashClosings={cashClosings} onAddRecord={handleAddFinancialRecord} onUpdateRecord={handleUpdateFinancialRecord} onDeleteRecord={handleDeleteFinancialRecord} onAddCashClosing={handleAddCashClosing} onDeleteCashClosing={handleDeleteCashClosing} currentUser={currentUser} onBack={() => setCurrentView('DASHBOARD')} />;
       case 'AI_INSIGHTS':
         return <AIAssistant products={products} sales={sales} financials={financials} onBack={() => setCurrentView('DASHBOARD')} />;
-
-      // ... imports
-
       case 'MENU_CONFIG':
-        return <MenuConfig onBack={() => setCurrentView('DASHBOARD')} tenantId={currentUser.tenantId} />;
+        return <MenuConfig onBack={() => setCurrentView('DASHBOARD')} tenantId={currentUser!.tenantId} />;
       case 'PRODUCTION':
-        return <Production products={products} currentUser={currentUser} onUpdateProduct={handleUpdateProduct} onAddProduct={handleAddProduct} onBack={() => setCurrentView('DASHBOARD')} />;
+        return <Production products={products} currentUser={currentUser!} onUpdateProduct={handleUpdateProduct} onAddProduct={handleAddProduct} onBack={() => setCurrentView('DASHBOARD')} />;
       case 'ORDER_CENTER':
-        return <OrderCenter onBack={() => setCurrentView('DASHBOARD')} tenantId={currentUser.tenantId} />;
+        return <OrderCenter onBack={() => setCurrentView('DASHBOARD')} tenantId={currentUser!.tenantId} />;
       case 'SETTINGS':
-        if (!currentUser) return null;
-        return <Settings currentUser={currentUser} onResetData={handleResetData} />;
+        return <Settings currentUser={currentUser!} onResetData={handleResetData} />;
+      case 'CRM':
+        return <CRM currentUser={currentUser!} onBack={() => setCurrentView('DASHBOARD')} />;
       default:
-        if (currentUser?.role !== 'ADMIN' && !(currentUser?.allowedModules || []).includes('DASHBOARD')) {
-          return (
-            <div className="flex flex-col items-center justify-center p-12 mt-10 bg-white rounded-2xl shadow-sm border border-slate-200">
-              <h2 className="text-2xl font-bold text-slate-800 mb-2">Acesso Restrito</h2>
-              <p className="text-slate-500">Você não tem permissão para visualizar o Dashboard geral.</p>
-            </div>
-          );
-        }
-        return <Dashboard products={products} sales={sales} financials={financials} customers={customers} />;
+        return <Dashboard products={products} sales={sales} financials={financials} customers={customers} onNavigate={setCurrentView} />;
     }
   };
 
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
-  // If viewing Online Menu, bypass login
-  if (currentView === 'ONLINE_MENU') {
-    return (
-      <Suspense fallback={<div className="h-screen w-screen flex items-center justify-center bg-slate-50"><Loader2 size={48} className="animate-spin text-orange-500" /></div>}>
-        <OnlineMenu />
-      </Suspense>
-    );
-  }
-
-  if (!currentUser) {
-    return (
-      <Suspense fallback={<div className="h-screen w-screen flex items-center justify-center bg-blue-900"><Loader2 size={48} className="animate-spin text-white" /></div>}>
-        <Login onLogin={handleLogin} onOpenMenu={() => setCurrentView('ONLINE_MENU')} />
-      </Suspense>
-    );
-  }
-
+  // Master Render Logic using Routes
   return (
-    <div className="flex min-h-screen bg-slate-50 text-slate-900 font-sans">
-      {/* Mobile Header */}
-      <div className="md:hidden fixed top-0 left-0 right-0 h-16 bg-blue-900 z-40 flex items-center px-4 shadow-md">
-        <button
-          onClick={() => setIsMobileMenuOpen(true)}
-          className="text-white p-2 hover:bg-blue-800 rounded-lg"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
-        </button>
-        <span className="ml-4 text-white font-bold text-lg">Gelo do Sertão</span>
-      </div>
+    <Routes>
+      {/* Public Route */}
+      <Route path="/cardapio-adega" element={
+        <Suspense fallback={<div className="h-screen w-screen flex items-center justify-center bg-slate-50"><Loader2 size={48} className="animate-spin text-orange-500" /></div>}>
+          <OnlineMenu />
+        </Suspense>
+      } />
 
-      <AppSidebar
-        currentView={currentView}
-        setView={(view) => {
-          setCurrentView(view);
-          setIsMobileMenuOpen(false); // Close mobile menu on navigate
-        }}
-        currentUser={currentUser}
-        onLogout={handleLogout}
-        isCollapsed={isSidebarCollapsed}
-        toggleSidebar={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-        isMobileMenuOpen={isMobileMenuOpen}
-        closeMobileMenu={() => setIsMobileMenuOpen(false)}
-        pendingOrdersCount={pendingOrdersCount}
-      />
+      {/* Login Route */}
+      <Route path="/login" element={
+        !currentUser ? (
+          <Suspense fallback={<div className="h-screen w-screen flex items-center justify-center bg-blue-900"><Loader2 size={48} className="animate-spin text-white" /></div>}>
+            <Login onLogin={handleLogin} onOpenMenu={() => navigate('/cardapio-adega')} />
+          </Suspense>
+        ) : <Navigate to="/gestao" replace />
+      } />
 
-      <main className={`flex-1 transition-all duration-300 ${currentView === 'SALES' ? 'pt-16 p-0' : 'pt-20 px-4 pb-4 md:p-4 lg:p-8'} ${isSidebarCollapsed ? 'md:ml-20' : 'md:ml-20 lg:ml-64'}`}>
-        <div className={`${currentView === 'SALES' ? 'w-full px-2' : 'max-w-7xl mx-auto'} h-full pb-4`}>
-          {renderContent()}
-        </div>
-      </main>
-    </div>
+      {/* Protected Routes */}
+      <Route path="/*" element={
+        !currentUser ? <Navigate to="/login" replace /> : (
+          <Routes>
+            <Route path="/pdv-atacado" element={
+              <Suspense fallback={<div className="h-screen w-screen flex items-center justify-center bg-slate-50"><Loader2 size={48} className="animate-spin text-orange-500" /></div>}>
+                <WholesalePOS
+                  products={products}
+                  sales={sales}
+                  customers={customers}
+                  currentUser={currentUser}
+                  onAddSale={handleAddSale}
+                  onAddCustomer={handleAddCustomer}
+                  onLogout={handleLogout}
+                  onUpdateSale={handleUpdateSale}
+                  onDeleteSale={handleDeleteSale}
+                  onBack={currentUser.role === 'ADMIN' || currentUser.role === 'WHOLESALE_REPRESENTATIVE' ? () => navigate('/gestao') : undefined}
+                />
+              </Suspense>
+            } />
+
+            <Route path="*" element={
+              <div className="flex min-h-screen bg-slate-50 text-slate-900 font-sans">
+                {/* Mobile Header (Hidden on Desktop) */}
+                <div className="md:hidden fixed top-0 left-0 right-0 h-16 bg-gai-navy z-40 flex items-center px-4 shadow-md">
+                  <button
+                    onClick={() => setIsMobileMenuOpen(true)}
+                    className="text-white p-2 hover:bg-gai-tech/20 rounded-lg"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                  </button>
+                  <span className="ml-4 text-white font-bold text-xl tracking-tight">GELO DO SERTÃO</span>
+                </div>
+
+                <AppSidebar
+                  currentView={currentView}
+                  setView={setCurrentView}
+                  currentUser={currentUser}
+                  onLogout={handleLogout}
+                  isCollapsed={isSidebarCollapsed}
+                  toggleSidebar={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                  isMobileMenuOpen={isMobileMenuOpen}
+                  closeMobileMenu={() => setIsMobileMenuOpen(false)}
+                  pendingOrdersCount={pendingOrdersCount}
+                />
+
+                <main className={`flex-1 transition-all duration-300 ${currentView === 'SALES' ? 'pt-16 p-0' : 'pt-20 px-4 pb-4 md:p-4 lg:p-8'} ${isSidebarCollapsed ? 'md:ml-20' : 'md:ml-20 lg:ml-64'}`}>
+                  <div className={`${currentView === 'SALES' ? 'w-full px-2' : 'max-w-7xl mx-auto'} h-full pb-4`}>
+                    {renderContent()}
+                  </div>
+                </main>
+              </div>
+            } />
+          </Routes>
+        )
+      } />
+
+      {/* Default Redirect / Root */}
+      <Route path="/" element={
+        <Suspense fallback={<div className="h-screen w-screen flex items-center justify-center bg-slate-900"><Loader2 size={48} className="animate-spin text-white" /></div>}>
+          <VisitorLanding />
+        </Suspense>
+      } />
+
+      {/* Catch-all to Gestao if logged in, else landing */}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 };
 

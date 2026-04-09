@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { User, Customer, Branch } from '../types';
 import { Users, Plus, Upload, Search, Trash2, Save, X, FileText, Edit, ArrowLeft, ArrowUpDown, ArrowUp, ArrowDown, Building2 } from 'lucide-react';
 import { read, utils } from 'xlsx';
+import { CUSTOMER_SEGMENTS } from '../constants';
 import { getFixedFeeByNeighborhood } from '../services/utils';
 
 interface CustomersProps {
@@ -14,20 +15,7 @@ interface CustomersProps {
     onBack: () => void;
 }
 
-const CUSTOMER_SEGMENTS = [
-    'Adega',
-    'Ambulante',
-    'Atacadista',
-    'Bar',
-    'Conveniência',
-    'Distribuidora',
-    'Eventos',
-    'Geleiro',
-    'Mercadinho',
-    'Restaurante',
-    'Supermercado',
-    'Cardápio Digital'
-];
+
 
 const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImportCustomers, currentUser, onUpdateCustomer, onDeleteCustomer, onBack }) => {
     // ... existing state ...
@@ -42,10 +30,15 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // ... existing functions ...
-    const filteredCustomers = customers.filter(c =>
-        c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        c.cpfCnpj?.includes(searchTerm)
-    );
+    const filteredCustomers = customers.filter(c => {
+        const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            c.cpfCnpj?.includes(searchTerm);
+
+        const isAdmin = currentUser.role === 'ADMIN';
+
+        if (isAdmin) return matchesSearch;
+        return matchesSearch && c.creatorId === currentUser.id;
+    });
 
     const handleSort = (key: keyof Customer) => {
         let direction: 'asc' | 'desc' = 'asc';
@@ -129,7 +122,12 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
             segment: newCustomer.segment || '',
             city: newCustomer.city || '',
             state: newCustomer.state || '',
-            branch: newCustomer.branch
+            branch: newCustomer.branch,
+            creatorId: currentUser.id,
+            creatorName: currentUser.name,
+            responsibleName: newCustomer.responsibleName || '',
+            establishmentName: newCustomer.establishmentName || '',
+            zipCode: newCustomer.zipCode || ''
         };
 
         onAddCustomer(customer);
@@ -383,6 +381,9 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
                                         {sortConfig?.key === 'state' && (sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}
                                     </div>
                                 </th>
+                                {(currentUser.role === 'ADMIN') && (
+                                    <th className="px-6 py-3">Vendedor</th>
+                                )}
                                 <th className="px-6 py-3 text-right">Ações</th>
                             </tr>
                         </thead>
@@ -417,6 +418,13 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
                                         <td className="px-6 py-3">{customer.phone || '-'}</td>
                                         <td className="px-6 py-3 font-bold text-blue-800 bg-blue-50/30">{customer.city || '-'}</td>
                                         <td className="px-6 py-3">{customer.state || '-'}</td>
+                                        {currentUser.role === 'ADMIN' && (
+                                            <td className="px-6 py-3">
+                                                <span className="text-[10px] font-bold text-slate-500 uppercase block">
+                                                    {customer.creatorName?.split(' ')[0] || 'Sistema'}
+                                                </span>
+                                            </td>
+                                        )}
                                         <td className="px-6 py-3 text-right flex justify-end gap-2">
                                             {currentUser.role === 'ADMIN' && (
                                                 <button
@@ -476,7 +484,7 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
                             </div>
 
                             <div>
-                                <label className="block text-sm font-bold text-slate-700 mb-1">Nome Completo</label>
+                                <label className="block text-sm font-bold text-slate-700 mb-1">Nome Fantasia / Cliente *</label>
                                 <input
                                     type="text"
                                     className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
@@ -484,6 +492,27 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
                                     onChange={(e) => setNewCustomer({ ...newCustomer, name: e.target.value })}
                                     autoFocus
                                 />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 mb-1">Nome do Estabelecimento / Razão Social</label>
+                                    <input
+                                        type="text"
+                                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                                        value={newCustomer.establishmentName || ''}
+                                        onChange={(e) => setNewCustomer({ ...newCustomer, establishmentName: e.target.value })}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 mb-1">Nome do Responsável</label>
+                                    <input
+                                        type="text"
+                                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                                        value={newCustomer.responsibleName || ''}
+                                        onChange={(e) => setNewCustomer({ ...newCustomer, responsibleName: e.target.value })}
+                                    />
+                                </div>
                             </div>
 
                             <div>

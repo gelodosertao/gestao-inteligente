@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { FinancialRecord, Branch, Sale, Product, CategoryItem, CashClosing, User } from '../types';
 import { dbCategories } from '../services/db';
-import { ArrowUpCircle, ArrowDownCircle, X, Plus, Calendar, DollarSign, Repeat, ArrowLeft, Building2, BarChart3, LineChart, Filter, Trash2, Lock, CheckCircle, AlertTriangle, Search } from 'lucide-react';
+import { ArrowUpCircle, ArrowDownCircle, X, Plus, Calendar, DollarSign, Repeat, ArrowLeft, Building2, BarChart3, LineChart, Filter, Trash2, Lock, CheckCircle, AlertTriangle, Search, Eye, EyeOff } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 import { getTodayDate } from '../services/utils';
 
@@ -28,6 +28,7 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
    const [customStartDate, setCustomStartDate] = useState(getTodayDate());
    const [customEndDate, setCustomEndDate] = useState(getTodayDate());
    const [searchTerm, setSearchTerm] = useState('');
+   const [isValuesVisible, setIsValuesVisible] = useState(true);
 
    // Cash Closing State
    const [closingDate, setClosingDate] = useState(getTodayDate());
@@ -578,6 +579,14 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
 
                   <div className="flex gap-2 shrink-0">
                      <button
+                        onClick={() => setIsValuesVisible(!isValuesVisible)}
+                        className={`p-2 rounded-lg font-bold flex items-center justify-center transition-all shadow-lg border outline-none ${isValuesVisible ? 'bg-white text-slate-400 border-slate-200 hover:text-orange-500' : 'bg-orange-500 text-white border-orange-400'}`}
+                        title={isValuesVisible ? "Esconder Valores" : "Mostrar Valores"}
+                     >
+                        {isValuesVisible ? <Eye size={18} /> : <EyeOff size={18} />}
+                     </button>
+
+                     <button
                         onClick={() => setShowAddModal(true)}
                         className="bg-blue-800 hover:bg-blue-700 text-white px-3 py-2 rounded-lg font-bold flex items-center gap-2 shadow-lg shadow-blue-900/10 transition-colors text-xs md:text-sm whitespace-nowrap"
                      >
@@ -764,14 +773,14 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
                         {/* 1. Receita Bruta */}
                         <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg border border-blue-100">
                            <span className="font-bold text-blue-900">(=) Receita Bruta de Vendas e/ou Serviços</span>
-                           <span className="font-bold text-blue-900">{formatCurrency(dreData.receitaBruta)}</span>
+                           <span className={`font-bold text-blue-900 transition-all duration-300 ${!isValuesVisible ? 'blur-md select-none' : ''}`}>{formatCurrency(dreData.receitaBruta)}</span>
                         </div>
 
                         {/* 2. Deduções */}
                         <div className="mt-2">
                            <div className="flex justify-between items-center px-4 py-1 text-rose-700 font-bold">
                               <span>(-) Deduções da Receita Bruta</span>
-                              <span>{formatCurrency(dreData.deducoes.total)}</span>
+                              <span className={`transition-all duration-300 ${!isValuesVisible ? 'blur-md select-none' : ''}`}>{formatCurrency(dreData.deducoes.total)}</span>
                            </div>
                            <div className="space-y-1 pl-6 text-sm">
                               <div className="flex justify-between text-slate-500 hover:bg-slate-50 border-l border-slate-200 pl-2">
@@ -796,13 +805,13 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
                         {/* 3. Receita Líquida */}
                         <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg border border-slate-200 mt-2">
                            <span className="font-bold text-slate-800">(=) Receita Líquida de Vendas e/ou Serviços</span>
-                           <span className="font-bold text-slate-800">{formatCurrency(dreData.receitaLiquida)}</span>
+                           <span className={`font-bold text-slate-800 transition-all duration-300 ${!isValuesVisible ? 'blur-md select-none' : ''}`}>{formatCurrency(dreData.receitaLiquida)}</span>
                         </div>
 
                         {/* 4. CMV */}
                         <div className="flex justify-between items-center px-4 py-2 text-rose-600 font-bold mt-2 hover:bg-rose-50 rounded-lg transition-colors">
                            <span>(-) Custo das Mercadorias Vendidas (CMV)</span>
-                           <span>{formatCurrency(dreData.cmv)}</span>
+                           <span className={`transition-all duration-300 ${!isValuesVisible ? 'blur-md select-none' : ''}`}>{formatCurrency(dreData.cmv)}</span>
                         </div>
 
                         <div className="border-t border-slate-200 my-2"></div>
@@ -810,7 +819,7 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
                         {/* 5. Resultado Bruto */}
                         <div className="flex justify-between items-center p-3 bg-slate-100 rounded-lg border border-slate-200 mt-2">
                            <span className="font-bold text-slate-800">(=) Resultado Bruto (Lucro Bruto)</span>
-                           <span className="font-bold text-slate-800">{formatCurrency(dreData.resultadoBruto)}</span>
+                           <span className={`font-bold text-slate-800 transition-all duration-300 ${!isValuesVisible ? 'blur-md select-none' : ''}`}>{formatCurrency(dreData.resultadoBruto)}</span>
                         </div>
 
                         {/* 6. Despesas Operacionais */}

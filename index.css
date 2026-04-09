@@ -2,6 +2,24 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer utilities {
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* Hide arrows from number inputs */
+  .hide-arrows::-webkit-outer-spin-button,
+  .hide-arrows::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  .hide-arrows[type=number] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+}
+
 body {
   font-family: 'Inter', sans-serif;
 }
@@ -18,8 +36,13 @@ body {
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 .slide-in-from-bottom-4 {
@@ -27,8 +50,15 @@ body {
 }
 
 @keyframes slideInUpSmall {
-  from { transform: translateY(1rem); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
+  from {
+    transform: translateY(1rem);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 .slide-in-from-right {
@@ -36,8 +66,13 @@ body {
 }
 
 @keyframes slideInRight {
-  from { transform: translateX(100%); }
-  to { transform: translateX(0); }
+  from {
+    transform: translateX(100%);
+  }
+
+  to {
+    transform: translateX(0);
+  }
 }
 
 .slide-in-from-top-2 {
@@ -45,8 +80,15 @@ body {
 }
 
 @keyframes slideInDownSmall {
-  from { transform: translateY(-0.5rem); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
+  from {
+    transform: translateY(-0.5rem);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 .slide-in-from-top-4 {
@@ -54,17 +96,25 @@ body {
 }
 
 @keyframes slideInDownMedium {
-  from { transform: translateY(-1rem); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
+  from {
+    transform: translateY(-1rem);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 /* Scrollbar hide utility */
 .scrollbar-hide::-webkit-scrollbar {
-    display: none;
+  display: none;
 }
+
 .scrollbar-hide {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 /* --- PRINT STYLES FOR THERMAL PRINTER --- */
@@ -77,23 +127,26 @@ body {
 
   /* Only show the receipt area */
   #printable-receipt,
-  #printable-receipt * {
+  #printable-receipt *,
+  #wholesale-receipt,
+  #wholesale-receipt * {
     visibility: visible;
   }
 
   /* Position the receipt at the top-left */
-  #printable-receipt {
+  #printable-receipt,
+  #wholesale-receipt,
+  #printable-order-receipt {
     position: absolute;
     left: 0;
+    right: 0;
     top: 0;
-    width: 58mm;
-    /* Standard thermal paper width */
-    padding: 0;
-    margin: 0;
-    font-family: 'Courier New', Courier, monospace;
-    /* Monospaced looks better on receipts */
-    color: black;
-    background: white;
+    width: 40mm;
+    /* Reduzido drasticamente para garantir margens de segurança na impressora 58mm */
+    margin: 0 auto;
+    padding: 1mm;
+    color: black !important;
+    background: white !important;
   }
 
   /* Remove browser headers/footers if possible (user setting dependent, but this helps) */

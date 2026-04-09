@@ -40,7 +40,7 @@ const OnlineMenu: React.FC<OnlineMenuProps> = ({ onBack }) => {
     const [deliveryMethod, setDeliveryMethod] = useState<'DELIVERY' | 'PICKUP'>('DELIVERY');
     const [address, setAddress] = useState('');
     const [referencePoint, setReferencePoint] = useState('');
-    const [paymentMethod, setPaymentMethod] = useState<'PIX' | 'CARD' | 'CASH'>('PIX');
+    const [paymentMethod, setPaymentMethod] = useState<'PIX' | 'CREDIT' | 'DEBIT' | 'CASH'>('PIX');
     const [changeFor, setChangeFor] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
 
@@ -735,7 +735,7 @@ const OnlineMenu: React.FC<OnlineMenuProps> = ({ onBack }) => {
             const methodText = deliveryMethod === 'DELIVERY' ? `Entrega 🛵` : 'Retirada 🏪';
             const addressText = deliveryMethod === 'DELIVERY' ? `\n📍 *Endereço:* ${fullAddress}` : '';
 
-            let paymentText = paymentMethod === 'PIX' ? 'Pix' : paymentMethod === 'CARD' ? 'Cartão' : 'Dinheiro';
+            let paymentText = paymentMethod === 'PIX' ? 'Pix' : paymentMethod === 'CREDIT' ? 'Cartão de Crédito' : paymentMethod === 'DEBIT' ? 'Cartão de Débito' : 'Dinheiro';
             if (paymentMethod === 'CASH' && changeFor) paymentText += ` (Troco para R$ ${changeFor})`;
 
             const message = `👋 Olá! Gostaria de fazer um pedido:\n\n*👤 Cliente:* ${customerName}\n*📱 Tel:* ${customerPhone}\n\n*🛒 Itens:*\n${itemsList}\n\n*📦 Entrega:* ${methodText} ${deliveryMethod === 'DELIVERY' && deliveryFee > 0 ? `(R$ ${deliveryFee.toFixed(2)})` : ''}${addressText}\n\n*💰 Total Geral:* ${formatCurrency(cartTotal + (deliveryMethod === 'DELIVERY' ? deliveryFee : 0))}\n*💳 Pagamento:* ${paymentText}`;
@@ -917,15 +917,15 @@ const OnlineMenu: React.FC<OnlineMenuProps> = ({ onBack }) => {
 
                     <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 space-y-4">
                         <h3 className="font-bold text-slate-800 flex items-center gap-2"><CreditCard size={18} className="text-blue-600" /> Pagamento</h3>
-                        <div className="grid grid-cols-3 gap-3">
-                            {[{ id: 'PIX', icon: '💠', label: 'Pix' }, { id: 'CARD', icon: '💳', label: 'Cartão' }, { id: 'CASH', icon: '💵', label: 'Dinheiro' }].map(method => (
+                        <div className="grid grid-cols-2 gap-3">
+                            {[{ id: 'PIX', icon: '💠', label: 'Pix' }, { id: 'CREDIT', icon: '💳', label: 'Crédito' }, { id: 'DEBIT', icon: '💳', label: 'Débito' }, { id: 'CASH', icon: '💵', label: 'Dinheiro' }].map(method => (
                                 <button key={method.id} onClick={() => setPaymentMethod(method.id as any)} className={`py-3 rounded-xl border-2 flex flex-col items-center gap-1 transition-all ${paymentMethod === method.id ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-transparent bg-slate-50 text-slate-500 hover:bg-slate-100'}`}>
                                     <span className="text-xl">{method.icon}</span><span className="text-xs font-bold">{method.label}</span>
                                 </button>
                             ))}
                         </div>
                         {paymentMethod === 'CASH' && (
-                            <input type="number" className="w-full bg-slate-50 border-0 rounded-xl px-4 py-3 text-slate-800 font-medium focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Troco para quanto?" value={changeFor} onChange={e => setChangeFor(e.target.value)} />
+                            <input type="number" className="w-full mt-3 bg-slate-50 border-0 rounded-xl px-4 py-3 text-slate-800 font-medium focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Troco para quanto?" value={changeFor} onChange={e => setChangeFor(e.target.value)} />
                         )}
                     </div>
                 </div>

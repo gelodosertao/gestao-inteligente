@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
-import { TrendingUp, Users, AlertTriangle, ArrowUpRight, X, Filter, Download, Calendar, DollarSign, ArrowDownCircle, Globe, ChevronLeft, ChevronRight } from 'lucide-react';
+import { TrendingUp, Users, AlertTriangle, ArrowUpRight, X, Filter, Download, Calendar, DollarSign, ArrowDownCircle, Globe, ChevronLeft, ChevronRight, Eye, EyeOff } from 'lucide-react';
 import { Product, Sale, FinancialRecord, Customer, Branch, ViewState } from '../types';
 
 interface DashboardProps {
@@ -15,13 +15,13 @@ interface DashboardProps {
 const COLORS = ['#f97316', '#1e40af', '#3b82f6', '#fb923c'];
 
 // Helper Components
-const Card = ({ title, value, icon, trend, color }: any) => {
+const Card = ({ title, value, icon, trend, color, isVisible }: any) => {
   const isNegative = value.toString().includes('-');
   return (
     <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between hover:shadow-md transition-shadow group">
       <div>
         <p className="text-sm font-medium text-slate-500 mb-1">{title}</p>
-        <h3 className={`text-2xl font-bold ${isNegative ? 'text-red-600' : 'text-slate-800'}`}>{value}</h3>
+        <h3 className={`text-2xl font-bold transition-all duration-300 ${isNegative ? 'text-red-600' : 'text-slate-800'} ${!isVisible ? 'blur-md select-none' : ''}`}>{value}</h3>
         {trend && (
           <span className={`text-xs font-medium px-2 py-0.5 rounded mt-2 inline-block ${trend.includes('-') ? 'text-red-600 bg-red-50' : 'text-emerald-600 bg-emerald-50'}`}>
             {trend}
@@ -41,6 +41,7 @@ const DollarSignIcon = () => (
 
 const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, customers, onNavigate }) => {
   const [showPowerBI, setShowPowerBI] = useState(false);
+  const [isValuesVisible, setIsValuesVisible] = useState(true);
   const [selectedBranch, setSelectedBranch] = useState<'ALL' | Branch>('ALL');
 
   // --- DATE FILTERING ---
@@ -164,14 +165,14 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
   // Current Month Data (Legacy for BI)
   const biData = useMemo(() => {
     const currentMonthSales = filteredSales.filter(s => isSameMonth(s.date, currentMonth, currentYear));
-    const currentMonthRevenue = currentMonthSales.filter(s => s.status === 'Completed').reduce((acc, curr) => acc + curr.total, 0);
+    const currentMonthRevenue = currentMonthSales.filter(s => s.status === 'Completed' || s.status === 'Finalizado pela Fábrica').reduce((acc, curr) => acc + curr.total, 0);
     return { currentMonthRevenue };
   }, [filteredSales, currentMonth, currentYear]);
 
   // Current Period Data
   const periodData = useMemo(() => {
     const currentPeriodSales = filteredSales.filter(s => isInRange(s.date, periodStart, periodEnd));
-    const currentPeriodRevenue = currentPeriodSales.filter(s => s.status === 'Completed').reduce((acc, curr) => acc + curr.total, 0);
+    const currentPeriodRevenue = currentPeriodSales.filter(s => s.status === 'Completed' || s.status === 'Finalizado pela Fábrica').reduce((acc, curr) => acc + curr.total, 0);
     const currentPeriodPending = currentPeriodSales.filter(s => s.status === 'Pending').reduce((acc, curr) => acc + (curr.total - (curr.amountPaid || 0)), 0);
     const currentPeriodExpenses = filteredFinancials.filter(f => f.type === 'Expense' && isInRange(f.date, periodStart, periodEnd)).reduce((acc, curr) => acc + curr.amount, 0);
     const currentPeriodNetResult = currentPeriodRevenue - currentPeriodExpenses;
@@ -185,7 +186,7 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
   // Previous Period Data (for trends)
   const prevPeriodData = useMemo(() => {
     const prevPeriodSalesRaw = sales.filter(s => (selectedBranch === 'ALL' || s.branch === selectedBranch) && isInRange(s.date, prevStart, prevEnd));
-    const prevPeriodRevenue = prevPeriodSalesRaw.filter(s => s.status === 'Completed').reduce((acc, curr) => acc + curr.total, 0);
+    const prevPeriodRevenue = prevPeriodSalesRaw.filter(s => s.status === 'Completed' || s.status === 'Finalizado pela Fábrica').reduce((acc, curr) => acc + curr.total, 0);
     const prevPeriodPending = prevPeriodSalesRaw.filter(s => s.status === 'Pending').reduce((acc, curr) => acc + (curr.total - (curr.amountPaid || 0)), 0);
     const prevPeriodExpenses = financials.filter(f => (selectedBranch === 'ALL' || f.branch === selectedBranch) && f.type === 'Expense' && isInRange(f.date, prevStart, prevEnd)).reduce((acc, curr) => acc + curr.amount, 0);
     const prevPeriodNetResult = prevPeriodRevenue - prevPeriodExpenses;
@@ -292,7 +293,16 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
     <div className="space-y-6 animate-in fade-in duration-500 relative">
       <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-slate-800">Visão Geral</h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-2xl font-bold text-slate-800">Visão Geral</h2>
+            <button
+              onClick={() => setIsValuesVisible(!isValuesVisible)}
+              className="p-2 hover:bg-slate-100 rounded-full transition-all text-slate-400 hover:text-orange-500"
+              title={isValuesVisible ? "Esconder Valores" : "Mostrar Valores"}
+            >
+              {isValuesVisible ? <Eye size={20} /> : <EyeOff size={20} />}
+            </button>
+          </div>
           <p className="text-slate-500">Acompanhe o desempenho da Gelo do Sertão em tempo real.</p>
         </div>
 
@@ -353,6 +363,7 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
           icon={<TrendingUp />}
           trend={revenueTrend}
           color="bg-blue-600"
+          isVisible={isValuesVisible}
         />
         <Card
           title="A Receber (Fiado)"
@@ -360,6 +371,7 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
           icon={<AlertTriangle />}
           trend={pendingTrend}
           color="bg-yellow-500"
+          isVisible={isValuesVisible}
         />
         <Card
           title="Despesas"
@@ -367,6 +379,7 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
           icon={<ArrowDownCircle />}
           trend={expenseTrend}
           color="bg-rose-500"
+          isVisible={isValuesVisible}
         />
         <Card
           title="Resultado Líquido"
@@ -374,6 +387,7 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
           icon={<DollarSignIcon />}
           trend={netResultTrend}
           color={currentPeriodNetResult >= 0 ? "bg-emerald-500" : "bg-red-500"}
+          isVisible={isValuesVisible}
         />
 
         <Card
@@ -382,6 +396,7 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
           icon={<Users />}
           trend={salesCountTrend}
           color="bg-orange-500"
+          isVisible={isValuesVisible}
         />
       </div>
 

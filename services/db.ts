@@ -18,10 +18,13 @@ export const dbUsers = {
       throw new Error('Usuário não encontrado ou senha incorreta.');
     }
 
-    // 2. Com a sessão gerada e protegida (JWT em mãos), puxar o perfil do usuário
+    // 2. Com a sessão gerada e protegida (JWT em mãos), puxar o perfil do usuário e a Empresa
     const { data: user, error } = await supabase
       .from('app_users')
-      .select('*')
+      .select(`
+        *,
+        tenants (name)
+      `)
       .eq('id', authData.user.id)
       .single();
 
@@ -37,6 +40,7 @@ export const dbUsers = {
       role: user.role as Role,
       avatarInitials: user.avatar_initials,
       tenantId: user.tenant_id || '00000000-0000-0000-0000-000000000000',
+      tenantName: user.tenants?.name || 'G.AI Gestão',
       allowedModules: user.allowed_modules
     };
     localStorage.setItem('app_user', JSON.stringify(sessionUser));
@@ -65,8 +69,13 @@ export const dbUsers = {
     // 3. Criar a conta oficial no Supabase Auth usando o Client Secundário
     // (Avisando que, se um admin estiver logado e criando contas pra gerentes, o persistSession:false impede ele de ser deslogado!)
     const { createClient } = await import('@supabase/supabase-js');
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://licetziylggxtnoutjkn.supabase.co';
-    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxpY2V0eml5bGdneHRub3V0amtuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ2ODQ2OTUsImV4cCI6MjA4MDI2MDY5NX0.olJiaq0HKZ3-DQlLjzBxodob9vaAxX2v9SaEmIRtO4w';
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error("Configuração do Supabase (URL/Key) não encontrada no .env");
+    }
+
     const registerClient = createClient(supabaseUrl, supabaseKey, { auth: { persistSession: false, autoRefreshToken: false } });
 
     // Criar conta de autenticação
@@ -114,6 +123,12 @@ export const dbUsers = {
       allowedModules: data.allowed_modules
     };
 
+    // Puxar o nome da empresa para guardar na sessão inicial
+    if (sessionUser.tenantId) {
+      const { data: tenantData } = await supabase.from('tenants').select('name').eq('id', sessionUser.tenantId).single();
+      if (tenantData) sessionUser.tenantName = tenantData.name;
+    }
+
     if (!existingTenantId) {
       localStorage.setItem('app_user', JSON.stringify(sessionUser));
       // Precisamos avisar o client atual do Supabase caso seja auto-registro sem ser admin
@@ -134,7 +149,12 @@ export const dbUsers = {
     try {
       const stored = localStorage.getItem('app_user');
       if (stored) {
-        return JSON.parse(stored);
+        const user = JSON.parse(stored);
+        // Garante que o tenantId nunca seja undefined/null para evitar dados zerados
+        if (user && !user.tenantId) {
+          user.tenantId = '00000000-0000-0000-0000-000000000000';
+        }
+        return user;
       }
     } catch (e) {
       console.error("Erro ao ler usuário do cache:", e);
@@ -153,7 +173,7 @@ export const dbUsers = {
       email: row.email,
       role: row.role as Role,
       avatarInitials: row.avatar_initials,
-      tenantId: row.tenant_id,
+      tenantId: row.tenant_id || '00000000-0000-0000-0000-000000000000',
       allowedModules: row.allowed_modules
     }));
   },
@@ -171,25 +191,62 @@ export const dbUsers = {
   },
 
   async updatePassword(userId: string, newPassword: string): Promise<void> {
-    // Atualiza a senha no Supabase Auth SE O USUÁRIO FOR O ATUAL LOGADO!
-    // Nota: O admin só poderia mudar a senha de um funcionário usando uma Edge Function com o SDK Service Role,
-    // Ou usando a API de admin: await registerClient.auth.admin.updateUserById(userId, {password: ...}) 
-    // Como a API de admin requer a SERVICE ROLE KEY que não temos no frontend de forma segura, 
-    // aqui nós assumiremos que isso atualiza a session atual ou a tabela app_users primária (para migrações futuras).
+    const { error } = await supabase.rpc('update_user_password', {
+      target_user_id: userId,
+      new_password: newPassword
+    });
 
-    // Atualização ingênua (fallback):
-    await supabase.from('app_users').update({ password: newPassword }).eq('id', userId);
-
-    // Se o usuário solicitante é o logado, atualize seu Auth também:
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session?.user.id === userId) {
-      await supabase.auth.updateUser({ password: newPassword });
-    }
+    if (error) throw new Error(error.message || 'Falha ao atualizar a senha no servidor.');
   },
 
   async delete(userId: string): Promise<void> {
-    const { error } = await supabase.from('app_users').delete().eq('id', userId);
+    const { error } = await supabase.rpc('delete_auth_user', {
+      target_user_id: userId
+    });
+
+    if (error) throw new Error(error.message || 'Falha ao excluir o usuário do servidor.');
+  }
+};
+
+// --- TENANTS & SaaS ---
+export const dbTenants = {
+  async registerCompany(data: {
+    companyName: string,
+    cnpj: string,
+    ownerName: string,
+    ownerEmail: string,
+    ownerPassword: string
+  }): Promise<User> {
+    // 1. Criar a Empresa (Tenant)
+    const { data: tenant, error: tenantError } = await supabase
+      .from('tenants')
+      .insert([{
+        name: data.companyName,
+        cnpj: data.cnpj,
+        subscription_status: 'TRIAL'
+      }])
+      .select()
+      .single();
+
+    if (tenantError) {
+      if (tenantError.code === '23505') throw new Error("Este CNPJ já está cadastrado em nosso sistema.");
+      throw new Error("Falha ao registrar empresa: " + tenantError.message);
+    }
+
+    // 2. Registrar o Usuário como ADMIN (Owner) vinculado a essa empresa
+    return dbUsers.register({
+      name: data.ownerName,
+      email: data.ownerEmail,
+      password: data.ownerPassword,
+      role: 'ADMIN',
+      allowedModules: ['DASHBOARD', 'SALES', 'INVENTORY', 'FINANCIAL', 'CUSTOMERS', 'PRODUCTION', 'ORDER_CENTER', 'REPORTS', 'CRM', 'SETTINGS']
+    }, tenant.id);
+  },
+
+  async getMyCompany(tenantId: string) {
+    const { data, error } = await supabase.from('tenants').select('*').eq('id', tenantId).single();
     if (error) throw error;
+    return data;
   }
 };
 
@@ -394,7 +451,12 @@ export const dbSales = {
       amountPaid: row.amount_paid,
       paymentHistory: row.payment_history,
       createdAt: row.created_at,
-      deliveryFee: row.delivery_fee
+      deliveryFee: row.delivery_fee,
+      source: row.source,
+      sellerId: row.seller_id,
+      sellerName: row.seller_name,
+      sellerRole: row.seller_role,
+      commissionAmount: row.commission_amount
     }));
   },
 
@@ -416,6 +478,11 @@ export const dbSales = {
       payment_history: sale.paymentHistory,
       created_at: sale.createdAt,
       delivery_fee: sale.deliveryFee,
+      source: sale.source,
+      seller_id: sale.sellerId,
+      seller_name: sale.sellerName,
+      seller_role: sale.sellerRole,
+      commission_amount: sale.commissionAmount,
       tenant_id: tenantId
     };
 
@@ -442,7 +509,12 @@ export const dbSales = {
       change_amount: sale.changeAmount,
       amount_paid: sale.amountPaid,
       payment_history: sale.paymentHistory,
-      delivery_fee: sale.deliveryFee
+      delivery_fee: sale.deliveryFee,
+      source: sale.source,
+      seller_id: sale.sellerId,
+      seller_name: sale.sellerName,
+      seller_role: sale.sellerRole,
+      commission_amount: sale.commissionAmount
     };
 
     if (sale.paymentSplits) {
@@ -529,43 +601,59 @@ export const dbCustomers = {
       city: row.city,
       state: row.state,
       segment: row.segment,
-      branch: row.branch as Branch
+      branch: row.branch as Branch,
+      creatorId: row.creator_id,
+      creatorName: row.creator_name,
+      responsibleName: row.responsible_name,
+      establishmentName: row.establishment_name,
+      zipCode: row.zip_code
     }));
   },
 
   async add(customer: Customer, tenantId: string) {
-    const { error } = await supabase.from('customers').insert([{
+    const { data, error } = await supabase.from('customers').insert([{
       id: customer.id,
       name: customer.name,
       cpf_cnpj: customer.cpfCnpj,
       email: customer.email,
       phone: customer.phone,
       address: customer.address,
+      segment: customer.segment,
       city: customer.city,
       state: customer.state,
-      segment: customer.segment,
       branch: customer.branch,
-      tenant_id: tenantId
-    }]);
+      tenant_id: tenantId,
+      creator_id: customer.creatorId,
+      creator_name: customer.creatorName,
+      responsible_name: customer.responsibleName,
+      establishment_name: customer.establishmentName,
+      zip_code: customer.zipCode
+    }]).select();
     if (error) throw error;
+    return data?.[0];
   },
 
   async addBatch(customers: Customer[], tenantId: string) {
     if (customers.length === 0) return;
-    const rows = customers.map(c => ({
+    const mapped = customers.map(c => ({
       id: c.id,
       name: c.name,
       cpf_cnpj: c.cpfCnpj,
       email: c.email,
       phone: c.phone,
       address: c.address,
+      segment: c.segment,
       city: c.city,
       state: c.state,
-      segment: c.segment,
       branch: c.branch,
-      tenant_id: tenantId
+      tenant_id: tenantId,
+      creator_id: c.creatorId,
+      creator_name: c.creatorName,
+      responsible_name: c.responsibleName,
+      establishment_name: c.establishmentName,
+      zip_code: c.zipCode
     }));
-    const { error } = await supabase.from('customers').insert(rows);
+    const { error } = await supabase.from('customers').insert(mapped);
     if (error) throw error;
   },
 
@@ -576,10 +664,14 @@ export const dbCustomers = {
       email: customer.email,
       phone: customer.phone,
       address: customer.address,
+      segment: customer.segment,
       city: customer.city,
       state: customer.state,
-      segment: customer.segment,
-      branch: customer.branch
+      branch: customer.branch,
+      creator_name: customer.creatorName,
+      responsible_name: customer.responsibleName,
+      establishment_name: customer.establishmentName,
+      zip_code: customer.zipCode
     }).eq('id', customer.id);
     if (error) throw error;
   },
@@ -757,4 +849,210 @@ export const dbOrders = {
     const { error } = await supabase.from('orders').delete().eq('id', id);
     if (error) throw error;
   }
+};
+
+// --- CRM ---
+import type { CrmLead, CrmInteraction, CrmTask } from '../types';
+
+export const dbCrm = {
+  // LEADS
+  async getLeads(tenantId: string): Promise<CrmLead[]> {
+    const { data, error } = await supabase
+      .from('crm_leads')
+      .select('*')
+      .eq('tenant_id', tenantId)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return (data || []).map((row: any) => ({
+      id: row.id,
+      tenantId: row.tenant_id,
+      name: row.name,
+      phone: row.phone,
+      email: row.email,
+      company: row.company,
+      city: row.city,
+      channel: row.channel,
+      status: row.status,
+      estimatedValue: row.estimated_value || 0,
+      notes: row.notes,
+      responsibleId: row.responsible_id,
+      responsibleName: row.responsible_name,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+  },
+
+  async addLead(lead: Omit<CrmLead, 'id' | 'createdAt' | 'updatedAt'>, tenantId: string): Promise<CrmLead> {
+    const { data, error } = await supabase
+      .from('crm_leads')
+      .insert([{
+        name: lead.name,
+        phone: lead.phone,
+        email: lead.email,
+        company: lead.company,
+        city: lead.city,
+        channel: lead.channel,
+        status: lead.status,
+        estimated_value: lead.estimatedValue,
+        notes: lead.notes,
+        responsible_id: lead.responsibleId,
+        responsible_name: lead.responsibleName,
+        tenant_id: tenantId,
+      }])
+      .select()
+      .single();
+    if (error) throw error;
+    return {
+      id: data.id, tenantId: data.tenant_id, name: data.name, phone: data.phone,
+      email: data.email, company: data.company, city: data.city, channel: data.channel,
+      status: data.status, estimatedValue: data.estimated_value || 0, notes: data.notes,
+      responsibleId: data.responsible_id, responsibleName: data.responsible_name,
+      createdAt: data.created_at, updatedAt: data.updated_at,
+    };
+  },
+
+  async updateLead(lead: CrmLead): Promise<void> {
+    const { error } = await supabase
+      .from('crm_leads')
+      .update({
+        name: lead.name,
+        phone: lead.phone,
+        email: lead.email,
+        company: lead.company,
+        city: lead.city,
+        channel: lead.channel,
+        status: lead.status,
+        estimated_value: lead.estimatedValue,
+        notes: lead.notes,
+        responsible_id: lead.responsibleId,
+        responsible_name: lead.responsibleName,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', lead.id);
+    if (error) throw error;
+  },
+
+  async deleteLead(id: string): Promise<void> {
+    const { error } = await supabase.from('crm_leads').delete().eq('id', id);
+    if (error) throw error;
+  },
+
+  // INTERACTIONS
+  async getInteractions(leadId: string): Promise<CrmInteraction[]> {
+    const { data, error } = await supabase
+      .from('crm_interactions')
+      .select('*')
+      .eq('lead_id', leadId)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return (data || []).map((row: any) => ({
+      id: row.id,
+      tenantId: row.tenant_id,
+      leadId: row.lead_id,
+      type: row.type,
+      content: row.content,
+      userId: row.user_id,
+      userName: row.user_name,
+      createdAt: row.created_at,
+    }));
+  },
+
+  async addInteraction(interaction: Omit<CrmInteraction, 'id' | 'createdAt'>, tenantId: string): Promise<CrmInteraction> {
+    const { data, error } = await supabase
+      .from('crm_interactions')
+      .insert([{
+        lead_id: interaction.leadId,
+        type: interaction.type,
+        content: interaction.content,
+        user_id: interaction.userId,
+        user_name: interaction.userName,
+        tenant_id: tenantId,
+      }])
+      .select()
+      .single();
+    if (error) throw error;
+    return {
+      id: data.id, tenantId: data.tenant_id, leadId: data.lead_id,
+      type: data.type, content: data.content, userId: data.user_id,
+      userName: data.user_name, createdAt: data.created_at,
+    };
+  },
+
+  // TASKS
+  async getTasks(tenantId: string): Promise<CrmTask[]> {
+    const { data, error } = await supabase
+      .from('crm_tasks')
+      .select('*')
+      .eq('tenant_id', tenantId)
+      .order('due_date', { ascending: true });
+    if (error) throw error;
+    return (data || []).map((row: any) => ({
+      id: row.id,
+      tenantId: row.tenant_id,
+      leadId: row.lead_id,
+      title: row.title,
+      description: row.description,
+      dueDate: row.due_date,
+      status: row.status,
+      responsibleId: row.responsible_id,
+      responsibleName: row.responsible_name,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+  },
+
+  async addTask(task: Omit<CrmTask, 'id' | 'createdAt' | 'updatedAt'>, tenantId: string): Promise<CrmTask> {
+    const { data, error } = await supabase
+      .from('crm_tasks')
+      .insert([{
+        lead_id: task.leadId || null,
+        title: task.title,
+        description: task.description,
+        due_date: task.dueDate || null,
+        status: task.status,
+        responsible_id: task.responsibleId,
+        responsible_name: task.responsibleName,
+        tenant_id: tenantId,
+      }])
+      .select()
+      .single();
+    if (error) throw error;
+    return {
+      id: data.id, tenantId: data.tenant_id, leadId: data.lead_id,
+      title: data.title, description: data.description, dueDate: data.due_date,
+      status: data.status, responsibleId: data.responsible_id,
+      responsibleName: data.responsible_name, createdAt: data.created_at, updatedAt: data.updated_at,
+    };
+  },
+
+  async updateTask(task: CrmTask): Promise<void> {
+    const { error } = await supabase
+      .from('crm_tasks')
+      .update({
+        title: task.title,
+        description: task.description,
+        due_date: task.dueDate || null,
+        status: task.status,
+        responsible_id: task.responsibleId,
+        responsible_name: task.responsibleName,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', task.id);
+    if (error) throw error;
+  },
+
+  async deleteTask(id: string): Promise<void> {
+    const { error } = await supabase.from('crm_tasks').delete().eq('id', id);
+    if (error) throw error;
+  },
+
+  // EMAIL SENDING (via Supabase Edge Function + Resend)
+  async sendEmail(to: string, subject: string, html: string): Promise<void> {
+    const { error } = await supabase.functions.invoke('send-email', {
+      body: { to, subject, html }
+    });
+
+    // Fallback error handling if Edge Function fails
+    if (error) throw new Error(error.message || 'Erro ao comunicar com o servidor de e-mail.');
+  },
 };
