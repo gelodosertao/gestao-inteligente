@@ -161,7 +161,8 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
         mySales.forEach(s => {
             const sid = s.sellerId || 'unknown';
             if (!map[sid]) map[sid] = { name: s.sellerName || 'Desconhecido', role: s.sellerRole || '', total: 0, commission: 0, count: 0 };
-            const rate = 0.05; // Flat 5% for all wholesale sellers
+            const isSeller = s.sellerRole === 'WHOLESALE_REPRESENTATIVE';
+            const rate = isSeller ? 0.05 : 0; // Flat 5% only for wholesale sellers
             map[sid].total += s.total;
             map[sid].commission += s.commissionAmount ?? (s.total * rate);
             map[sid].count += 1;
@@ -290,7 +291,8 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
             if (found) { effectiveSellerId = found.id; effectiveSellerName = found.name; effectiveSellerRole = found.role; }
         }
 
-        const commissionRate = 0.05; // Novo esquema: 5% flat para todos
+        const isSeller = effectiveSellerRole === 'WHOLESALE_REPRESENTATIVE';
+        const commissionRate = isSeller ? 0.05 : 0; // Novo esquema: 5% flat apenas para vendedores
         const finalTotal = Math.max(cartTotal - (adminDiscount || 0), 0);
         const commissionAmount = finalTotal * commissionRate;
 
@@ -408,7 +410,8 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
         if (!editingSale || !onUpdateSale) return;
 
         const total = editingSale.items.reduce((acc, item) => acc + (item.priceAtSale * item.quantity), 0);
-        const commissionRate = 0.05; // 5% flat
+        const isSeller = editingSale.sellerRole === 'WHOLESALE_REPRESENTATIVE';
+        const commissionRate = isSeller ? 0.05 : 0; // 5% flat apenas vendedores
         const commissionAmount = total * commissionRate;
 
         try {
@@ -560,7 +563,12 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
 
         if (isCheckingOut) {
             // Determined commission for display
-            const displayCommissionRate = 0.05;
+            let effectiveSellerRole: string = currentUser.role;
+            if (isAdmin && assignedSellerId) {
+                const found = sellerOptions.find(s => s.id === assignedSellerId);
+                if (found) { effectiveSellerRole = found.role; }
+            }
+            const displayCommissionRate = effectiveSellerRole === 'WHOLESALE_REPRESENTATIVE' ? 0.05 : 0;
 
             return (
                 <div className="p-4 pb-28 animate-in fade-in slide-in-from-right-4 duration-300">
