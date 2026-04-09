@@ -432,7 +432,7 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
     // ---------------- UI RENDERS ----------------
 
     const renderCatalog = () => (
-        <div className="p-4 pb-24">
+        <div className="p-4 pb-48">
             <div className="relative mb-6">
                 <label className="block text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider">Filtrar por Categoria</label>
                 <div className="flex bg-slate-100 rounded-2xl p-1 gap-1 border border-slate-200 shadow-inner mb-3">
@@ -745,7 +745,7 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
         }
 
         return (
-            <div className="p-4 pb-24">
+            <div className="p-4 pb-48">
                 <h2 className="text-2xl font-black text-slate-800 mb-6 flex items-center gap-2">
                     <ShoppingCart /> Carrinho
                 </h2>
