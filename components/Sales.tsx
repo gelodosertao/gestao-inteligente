@@ -1150,14 +1150,29 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                                  <p className="text-[10px] text-slate-400 mt-1">{cart.length} {cart.length === 1 ? 'item' : 'itens'} no carrinho</p>
                               </div>
 
-                              <div className="mb-5">
-                                 <label className="block text-xs font-black text-slate-500 mb-1.5 uppercase tracking-wide">Data da Venda</label>
-                                 <input
-                                    type="date"
-                                    value={saleDate}
-                                    onChange={(e) => setSaleDate(e.target.value)}
-                                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none text-slate-900 font-medium bg-slate-50 focus:bg-white transition-all"
-                                 />
+                              <div className="grid grid-cols-2 gap-4 mb-5">
+                                 <div>
+                                    <label className="block text-xs font-black text-slate-500 mb-1.5 uppercase tracking-wide">Data da Venda</label>
+                                    <input
+                                       type="date"
+                                       value={saleDate}
+                                       onChange={(e) => setSaleDate(e.target.value)}
+                                       className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none text-slate-900 font-medium bg-slate-50 focus:bg-white transition-all shadow-sm"
+                                    />
+                                 </div>
+                                 <div>
+                                    <label className="block text-xs font-black text-slate-500 mb-1.5 uppercase tracking-wide">Desconto (R$)</label>
+                                    <div className="relative">
+                                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">R$</span>
+                                       <input
+                                          type="number"
+                                          placeholder="0,00"
+                                          value={discount}
+                                          onChange={(e) => setDiscount(e.target.value)}
+                                          className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none text-slate-900 font-black bg-slate-50 focus:bg-white transition-all shadow-sm"
+                                       />
+                                    </div>
+                                 </div>
                               </div>
 
                               <p className="text-xs font-black text-slate-500 mb-3 uppercase tracking-wide">Forma de Pagamento</p>

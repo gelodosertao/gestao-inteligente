@@ -77,6 +77,7 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
     const [searchTerm, setSearchTerm] = useState('');
     const [categoryFilter, setCategoryFilter] = useState<'ALL' | 'Gelo Cubo' | 'Gelo Sabor'>('ALL');
     const [monthFilter, setMonthFilter] = useState(new Date().toISOString().substring(0, 7)); // YYYY-MM
+    const [statusFilter, setStatusFilter] = useState<'ALL' | 'Pending' | 'Completed'>('ALL');
 
     // Cart State
     const [cart, setCart] = useState<{ product: Product, quantity: number, customPrice?: number }[]>([]);
@@ -147,12 +148,14 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
         if (monthFilter) {
             relevantSales = relevantSales.filter(s => (s.date || s.createdAt).startsWith(monthFilter));
         }
-        if (isAdmin) return relevantSales.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+        if (statusFilter !== 'ALL') {
+            relevantSales = relevantSales.filter(s => s.status === statusFilter);
+        }
         if (isAdmin) return relevantSales.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
         // WHOLESALE_REPRESENTATIVE — only their own
         return relevantSales.filter(s => s.sellerId === currentUser.id)
             .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
-    }, [sales, currentUser, monthFilter, isAdmin]);
+    }, [sales, currentUser, monthFilter, isAdmin, statusFilter]);
 
     // ADM: commission summary grouped by seller
     const sellerSummary = useMemo(() => {
@@ -819,8 +822,16 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                 <div className="p-4 pb-24">
                     <div className="flex justify-between items-center mb-4">
                         <h2 className="text-xl font-black text-slate-800 flex items-center gap-2"><History size={22} /> Vendas Atacado</h2>
-                        <input type="month" value={monthFilter} onChange={e => setMonthFilter(e.target.value)}
-                            className="text-xs font-bold bg-white border border-slate-200 rounded-lg px-2 py-1 outline-none focus:ring-2 focus:ring-blue-500" />
+                        <div className="flex gap-2">
+                            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value as any)}
+                                className="text-xs font-bold bg-white border border-slate-200 rounded-lg px-2 py-1 outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="ALL">Todos Status</option>
+                                <option value="Pending">Pendentes</option>
+                                <option value="Completed">Confirmados</option>
+                            </select>
+                            <input type="month" value={monthFilter} onChange={e => setMonthFilter(e.target.value)}
+                                className="text-xs font-bold bg-white border border-slate-200 rounded-lg px-2 py-1 outline-none focus:ring-2 focus:ring-blue-500" />
+                        </div>
                     </div>
 
                     {/* Grand totals */}
@@ -935,8 +946,16 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
             <div className="p-4 pb-24">
                 <div className="flex justify-between items-center mb-6">
                     <h2 className="text-2xl font-black text-slate-800 flex items-center gap-2"><History /> Minhas Vendas</h2>
-                    <input type="month" value={monthFilter} onChange={e => setMonthFilter(e.target.value)}
-                        className="text-xs font-bold bg-white border border-slate-200 rounded-lg px-2 py-1 outline-none focus:ring-2 focus:ring-blue-500" />
+                    <div className="flex gap-2">
+                        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value as any)}
+                            className="text-xs font-bold bg-white border border-slate-200 rounded-lg px-2 py-1 outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="ALL">Todos</option>
+                            <option value="Pending">Pendentes</option>
+                            <option value="Completed">Confirmados</option>
+                        </select>
+                        <input type="month" value={monthFilter} onChange={e => setMonthFilter(e.target.value)}
+                            className="text-xs font-bold bg-white border border-slate-200 rounded-lg px-2 py-1 outline-none focus:ring-2 focus:ring-blue-500" />
+                    </div>
                 </div>
 
                 <div className="bg-green-600 text-white p-4 rounded-xl shadow-lg mb-6">
