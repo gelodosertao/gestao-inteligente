@@ -70,7 +70,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onOpenMenu }) => {
 
 
   return (
-    <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
+    <div className="min-h-dvh w-full bg-slate-100 flex items-start sm:items-center justify-center p-4 pt-safe-offset-4 sm:p-4">
       <div className="max-w-md w-full bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-500 border border-slate-200">
 
         {/* Header Visual */}

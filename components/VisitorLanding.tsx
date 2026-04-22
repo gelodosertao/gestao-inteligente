@@ -6,9 +6,9 @@ const VisitorLanding: React.FC = () => {
     const navigate = useNavigate();
 
     return (
-        <div className="min-h-screen bg-[#020617] text-white font-sans overflow-x-hidden">
+        <div className="min-h-dvh w-full bg-[#020617] text-white font-sans overflow-x-hidden">
             {/* HERO SECTION */}
-            <section className="relative h-screen flex flex-col justify-center items-center px-4 overflow-hidden">
+            <section className="relative h-dvh flex flex-col justify-center items-center px-4 overflow-hidden">
                 {/* Animated Background Gradient */}
                 <div className="absolute inset-0 bg-gradient-to-br from-blue-900/20 via-transparent to-orange-900/10 z-0"></div>
 

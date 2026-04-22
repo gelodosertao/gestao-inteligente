@@ -4,6 +4,8 @@ import { BrowserRouter } from 'react-router-dom';
 import './index.css';
 import App from './App';
 import ErrorBoundary from './components/ErrorBoundary';
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
+import { queryClient, idbPersister } from './services/queryClient';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -14,9 +16,11 @@ const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
     <ErrorBoundary>
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
+      <PersistQueryClientProvider client={queryClient} persistOptions={{ persister: idbPersister }}>
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>
+      </PersistQueryClientProvider>
     </ErrorBoundary>
   </React.StrictMode>
 );

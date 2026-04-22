@@ -280,7 +280,7 @@ const OrderCenter: React.FC<OrderCenterProps> = ({ onBack, tenantId }) => {
     ];
 
     return (
-        <div className="min-h-screen bg-slate-100 flex flex-col h-screen overflow-hidden">
+        <div className="min-h-dvh bg-slate-100 flex flex-col h-dvh overflow-hidden">
             {/* Header */}
             <div className="bg-white border-b border-slate-200 px-6 py-4 flex justify-between items-center shadow-sm shrink-0 z-10">
                 <div>

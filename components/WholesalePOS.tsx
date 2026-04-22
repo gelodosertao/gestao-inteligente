@@ -1009,31 +1009,33 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
+        <div className="min-h-dvh bg-slate-50 flex flex-col font-sans">
             {/* Top Header */}
-            <header className="bg-blue-900 text-white p-4 flex items-center justify-between shadow-md sticky top-0 z-20 w-full h-16">
-                <div className="flex items-center gap-2">
-                    {onBack && (
-                        <button onClick={onBack} className="p-1 hover:bg-white/10 rounded-md transition-colors">
-                            <ArrowLeft size={18} />
+            <header className="bg-blue-900 text-white sticky top-0 z-20 w-full pt-safe shadow-xl">
+                <div className="h-16 flex items-center justify-between px-4">
+                    <div className="flex items-center gap-2">
+                        {onBack && (
+                            <button onClick={onBack} className="p-2 hover:bg-white/10 rounded-xl transition-colors active-scale touch-target">
+                                <ArrowLeft size={20} />
+                            </button>
+                        )}
+                        <div className="bg-white p-1 rounded-lg shadow-sm">
+                            <img src="/logo.png" alt="Logo" className="h-6 w-auto object-contain" />
+                        </div>
+                        <div className="flex flex-col ml-1">
+                            <h1 className="font-black leading-none text-sm uppercase tracking-wider">Pedidos</h1>
+                            <p className="text-[9px] text-blue-200 uppercase tracking-[0.2em] font-black">Atacado</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <div className="text-right hidden sm:block">
+                            <p className="text-sm font-bold truncate max-w-[80px]">{currentUser.name.split(' ')[0]}</p>
+                            <p className="text-[10px] text-blue-300 font-bold uppercase tracking-widest">Vendedor</p>
+                        </div>
+                        <button onClick={onLogout} className="p-2 bg-white/10 text-white hover:bg-red-500/20 hover:text-red-200 rounded-xl transition-all active-scale touch-target" aria-label="Sair">
+                            <LogOut size={18} />
                         </button>
-                    )}
-                    <div className="bg-white p-1 rounded">
-                        <img src="/logo.png" alt="Logo" className="h-6 w-auto object-contain" />
                     </div>
-                    <div className="flex flex-col">
-                        <h1 className="font-black leading-none text-md">Pedidos</h1>
-                        <p className="text-[9px] text-blue-200 uppercase tracking-widest font-bold">Atacado</p>
-                    </div>
-                </div>
-                <div className="flex items-center gap-2">
-                    <div className="text-right">
-                        <p className="text-sm font-bold truncate max-w-[80px]">{currentUser.name.split(' ')[0]}</p>
-                        <p className="text-[10px] text-blue-300">Vendedor</p>
-                    </div>
-                    <button onClick={onLogout} className="p-2 hover:bg-red-500/20 text-red-200 hover:text-red-100 rounded-full transition-colors" aria-label="Sair">
-                        <LogOut size={18} />
-                    </button>
                 </div>
             </header>
 
@@ -1045,42 +1047,42 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
             </main>
 
             {/* Bottom Navigation */}
-            <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 flex justify-around p-2 pb-safe shadow-[0_-4px_20px_rgba(0,0,0,0.05)] z-20">
+            <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 flex justify-around p-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] shadow-[0_-8px_30px_rgba(0,0,0,0.08)] z-20">
                 <button
                     onClick={() => { setActiveTab('CATALOG'); setIsCheckingOut(false); }}
-                    className={`flex flex-col items-center p-2 px-4 rounded-xl transition-all ${activeTab === 'CATALOG' ? 'text-orange-500 bg-orange-50' : 'text-slate-400 hover:text-slate-600'}`}
+                    className={`flex flex-col items-center p-2 px-6 rounded-2xl transition-all active-scale touch-target ${activeTab === 'CATALOG' ? 'text-orange-500 bg-orange-50/50 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                 >
-                    <Store size={24} className="mb-1" />
-                    <span className="text-[10px] font-bold uppercase tracking-wide">Produtos</span>
+                    <Store size={24} className={activeTab === 'CATALOG' ? 'scale-110 transition-transform' : ''} />
+                    <span className="text-[10px] font-black uppercase tracking-[0.1em] mt-1">Produtos</span>
                 </button>
 
                 <button
                     onClick={() => setActiveTab('CART')}
-                    className={`relative flex flex-col items-center p-2 px-4 rounded-xl transition-all ${activeTab === 'CART' ? 'text-orange-500 bg-orange-50' : 'text-slate-400 hover:text-slate-600'}`}
+                    className={`relative flex flex-col items-center p-2 px-6 rounded-2xl transition-all active-scale touch-target ${activeTab === 'CART' ? 'text-orange-500 bg-orange-50/50 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                 >
                     <div className="relative">
-                        <ShoppingCart size={24} className="mb-1" />
+                        <ShoppingCart size={24} className={activeTab === 'CART' ? 'scale-110 transition-transform' : ''} />
                         {cart.length > 0 && (
-                            <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-full border-2 border-white">
+                            <span className="absolute -top-2 -right-2 bg-red-600 text-white text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-full border-2 border-white shadow-md animate-in zoom-in duration-300">
                                 {cart.reduce((a, b) => a + b.quantity, 0)}
                             </span>
                         )}
                     </div>
-                    <span className="text-[10px] font-bold uppercase tracking-wide">Carrinho</span>
+                    <span className="text-[10px] font-black uppercase tracking-[0.1em] mt-1">Carrinho</span>
                 </button>
 
                 <button
                     onClick={() => { setActiveTab('HISTORY'); setIsCheckingOut(false); }}
-                    className={`flex flex-col items-center p-2 px-4 rounded-xl transition-all ${activeTab === 'HISTORY' ? 'text-orange-500 bg-orange-50' : 'text-slate-400 hover:text-slate-600'}`}
+                    className={`flex flex-col items-center p-2 px-6 rounded-2xl transition-all active-scale touch-target ${activeTab === 'HISTORY' ? 'text-orange-500 bg-orange-50/50 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                 >
-                    <History size={24} className="mb-1" />
-                    <span className="text-[10px] font-bold uppercase tracking-wide">Vendas</span>
+                    <History size={24} className={activeTab === 'HISTORY' ? 'scale-110 transition-transform' : ''} />
+                    <span className="text-[10px] font-black uppercase tracking-[0.1em] mt-1">Vendas</span>
                 </button>
             </nav>
             {/* Edit Sale Modal */}
             {showEditSaleModal && editingSale && (
-                <div className="fixed inset-0 bg-blue-900/60 backdrop-blur-sm z-50 flex items-start justify-center pt-10 pb-4 px-4 overflow-y-auto animate-in fade-in duration-200">
-                    <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden mb-10">
+                <div className="fixed inset-0 bg-blue-900/60 backdrop-blur-sm z-50 flex items-start sm:items-center justify-center p-4 pt-safe-offset-4 sm:p-4 overflow-y-auto animate-in fade-in duration-200">
+                    <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden ">
                         <div className="p-4 bg-orange-600 text-white flex justify-between items-center">
                             <h3 className="font-bold flex items-center gap-2">
                                 <Edit size={20} /> Editar Pedido #{editingSale.id.substring(0, 6)}
@@ -1177,7 +1179,7 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
 
             {/* Modal de Cadastro de Cliente */}
             {showAddCustomerModal && (
-                <div className="fixed inset-0 bg-blue-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4 animate-in fade-in duration-200">
+                <div className="fixed inset-0 bg-blue-900/60 backdrop-blur-sm z-[60] flex items-start sm:items-center justify-center p-4 pt-safe-offset-4 sm:p-4 animate-in fade-in duration-200">
                     <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
                         <div className="p-4 bg-blue-900 text-white flex justify-between items-center">
                             <h3 className="font-bold flex items-center gap-2">
@@ -1338,7 +1340,7 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
 
             {/* Success Modal */}
             {showSuccessModal && (
-                <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[100] flex items-center justify-center p-4">
+                <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[100] flex items-start sm:items-center justify-center p-4 pt-safe-offset-4 sm:p-4">
                     <div className="bg-white w-full max-w-sm rounded-3xl p-8 text-center animate-in zoom-in duration-300 shadow-2xl">
                         <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6">
                             <Check size={40} strokeWidth={3} />

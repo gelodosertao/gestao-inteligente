@@ -501,7 +501,7 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
 
   return (
     <>
-      <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 relative">
+      <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 relative pb-safe">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div className="flex items-center gap-3">
             <button onClick={onBack} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
@@ -532,12 +532,12 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
               Filial
             </button>
           </div>
-          <div className="flex flex-wrap gap-3 items-center">
+          <div className="flex flex-wrap gap-2 items-center w-full sm:w-auto">
             <button
               onClick={handleOpenTransfer}
-              className="bg-gradient-to-r from-blue-700 to-blue-600 hover:from-blue-600 hover:to-blue-500 text-white px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 transition-all shadow-md shadow-blue-900/10 hover:shadow-lg hover:-translate-y-0.5"
+              className="flex-1 sm:flex-none bg-gradient-to-r from-blue-700 to-blue-600 active-scale text-white px-4 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-md touch-target"
             >
-              <ArrowRightLeft size={18} /> Transferir
+              <ArrowRightLeft size={18} /> <span className="text-xs">Transferir</span>
             </button>
             <button
               onClick={() => {
@@ -545,26 +545,14 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
                 setNewProductData({ category: 'Gelo Cubo', unit: 'un' });
                 setShowNewProductModal(true);
               }}
-              className="bg-gradient-to-r from-orange-500 to-orange-400 hover:from-orange-400 hover:to-orange-300 text-white px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-md shadow-orange-900/20 hover:shadow-lg hover:-translate-y-0.5 transition-all"
+              className="flex-1 sm:flex-none bg-gradient-to-r from-orange-500 to-orange-400 active-scale text-white px-4 py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-md touch-target"
             >
-              <Plus size={18} /> Novo Produto
+              <Plus size={18} /> <span className="text-xs">Novo</span>
             </button>
-            <label className="bg-slate-800 hover:bg-slate-700 text-white px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 cursor-pointer transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5">
-              <Upload size={18} /> Importar XML
+            <label className="flex-1 sm:flex-none bg-slate-800 active-scale text-white px-4 py-3 rounded-xl font-bold flex items-center justify-center gap-2 cursor-pointer shadow-md touch-target">
+              <Upload size={18} /> <span className="text-xs">XML</span>
               <input type="file" accept=".xml" className="hidden" onChange={handleFileUpload} />
             </label>
-            <button
-              onClick={() => setShowCategoryModal(true)}
-              className="bg-white border border-slate-200 hover:border-slate-300 text-slate-700 px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-sm hover:shadow transition-all hover:-translate-y-0.5"
-            >
-              <Filter size={18} /> Categorias
-            </button>
-            <button
-              onClick={() => setShowReportModal(true)}
-              className="bg-white border border-slate-200 hover:border-purple-300 text-purple-700 px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-sm hover:shadow transition-all hover:-translate-y-0.5 hover:bg-purple-50"
-            >
-              <PieChart size={18} /> Relatórios
-            </button>
           </div>
         </div>
 
@@ -717,7 +705,7 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
 
       {/* --- MODAL DE TRANSFERÊNCIA --- */}
       {showTransferModal && selectedProduct && (
-        <div className="fixed inset-0 bg-blue-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+        <div className="fixed inset-0 bg-blue-900/60 backdrop-blur-sm z-50 flex items-start sm:items-center justify-center p-4 pt-safe-offset-4 sm:p-4 animate-in fade-in duration-200">
           <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden">
             <div className="p-4 bg-blue-900 text-white flex justify-between items-center">
               <h3 className="font-bold flex items-center gap-2">
@@ -778,7 +766,7 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
 
       {/* --- MODAL DE REGISTRO DE PERDAS --- */}
       {showLossModal && selectedProduct && (
-        <div className="fixed inset-0 bg-red-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+        <div className="fixed inset-0 bg-red-900/40 backdrop-blur-sm z-50 flex items-start sm:items-center justify-center p-4 pt-safe-offset-4 sm:p-4 animate-in fade-in duration-200">
           <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
             <div className="p-4 bg-red-600 text-white flex justify-between items-center">
               <h3 className="font-bold flex items-center gap-2">
@@ -863,8 +851,8 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
 
       {/* --- MODAL NOVO PRODUTO --- */}
       {showNewProductModal && (
-        <div className="fixed inset-0 bg-blue-900/60 backdrop-blur-sm z-50 flex items-start justify-center p-4 pt-10 overflow-y-auto animate-in fade-in duration-200">
-          <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden mb-10">
+        <div className="fixed inset-0 bg-blue-900/60 backdrop-blur-sm z-50 flex items-start sm:items-center justify-center p-4 pt-safe-offset-4 sm:p-4 overflow-y-auto animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden ">
             <div className="p-4 bg-orange-500 text-white flex justify-between items-center">
               <h3 className="font-bold flex items-center gap-2">
                 {isEditing ? <Edit size={20} /> : <Plus size={20} />}
@@ -1403,7 +1391,7 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
       {/* --- MODAL DE IMPORTAÇÃO XML --- */}
       {
         showImportModal && (
-          <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-start sm:items-center justify-center p-4 pt-safe-offset-4 sm:p-4 animate-in fade-in duration-200">
             <div className="bg-white w-full max-w-5xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
               <div className="p-4 bg-slate-800 text-white flex justify-between items-center">
                 <h3 className="font-bold flex items-center gap-2">
@@ -1486,7 +1474,7 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
       {/* --- MODAL DE RELATÓRIOS --- */}
       {
         showReportModal && (
-          <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-start sm:items-center justify-center p-4 pt-safe-offset-4 sm:p-4 animate-in fade-in duration-200">
             <div className="bg-white w-full max-w-6xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
               <div className="p-4 bg-purple-800 text-white flex justify-between items-center">
                 <h3 className="font-bold flex items-center gap-2">
@@ -1738,7 +1726,7 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
       }
       {/* --- MODAL GERENCIAR CATEGORIAS --- */}
       {showCategoryModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-start sm:items-center justify-center p-4 pt-safe-offset-4 sm:p-4 animate-in fade-in duration-200">
           <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
             <div className="p-4 bg-slate-800 text-white flex justify-between items-center">
               <h3 className="font-bold flex items-center gap-2">

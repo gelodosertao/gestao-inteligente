@@ -783,7 +783,7 @@ const OnlineMenu: React.FC<OnlineMenuProps> = ({ onBack }) => {
     // 1. SUCCESS SCREEN
     if (step === 'SUCCESS') {
         return (
-            <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-8 text-center animate-in fade-in zoom-in duration-300">
+            <div className="min-h-dvh bg-slate-50 flex flex-col items-center justify-center p-8 text-center animate-in fade-in zoom-in duration-300">
                 <div className="w-24 h-24 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-6 shadow-sm">
                     <CheckCircle size={48} />
                 </div>
@@ -815,7 +815,7 @@ const OnlineMenu: React.FC<OnlineMenuProps> = ({ onBack }) => {
     // 2. CHECKOUT SCREEN
     if (step === 'CHECKOUT') {
         return (
-            <div className="min-h-screen bg-slate-50 flex flex-col animate-in slide-in-from-right duration-300">
+            <div className="min-h-dvh bg-slate-50 flex flex-col animate-in slide-in-from-right duration-300">
                 {/* Header */}
                 <div className="bg-white p-4 sticky top-0 z-30 shadow-sm border-b border-slate-100 flex items-center gap-3">
                     <button onClick={() => setStep('MENU')} className="p-2 -ml-2 hover:bg-slate-50 rounded-full text-slate-600">
@@ -947,7 +947,7 @@ const OnlineMenu: React.FC<OnlineMenuProps> = ({ onBack }) => {
     // 4. TRACKING SCREEN
     if (step === 'TRACKING') {
         return (
-            <div className="min-h-screen bg-slate-50 flex flex-col md:max-w-md mx-auto animate-in slide-in-from-right duration-300 relative pb-10 shadow-xl">
+            <div className="min-h-dvh bg-slate-50 flex flex-col md:max-w-md mx-auto animate-in slide-in-from-right duration-300 relative pb-10 shadow-xl">
                 <div className="bg-white p-4 sticky top-0 z-30 shadow-sm border-b border-slate-100 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <button onClick={() => setStep('MENU')} className="p-2 -ml-2 hover:bg-slate-50 rounded-full text-slate-600">
@@ -1007,7 +1007,7 @@ const OnlineMenu: React.FC<OnlineMenuProps> = ({ onBack }) => {
     // 3. MAIN MENU SCREEN (Default)
     return (
         <div
-            className="min-h-screen pb-28 md:pb-0 relative font-sans transition-all duration-700 bg-slate-50"
+            className="min-h-dvh pb-28 md:pb-0 relative font-sans transition-all duration-700 bg-slate-50"
             style={settings?.backgroundImage ? {
                 backgroundImage: `url(${settings.backgroundImage})`,
                 backgroundAttachment: 'fixed',
@@ -1025,7 +1025,7 @@ const OnlineMenu: React.FC<OnlineMenuProps> = ({ onBack }) => {
 
             {/* Customization Modal */}
             {customizationProduct && (
-                <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in" style={{ overscrollBehavior: 'none' }}>
+                <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4 pt-safe-offset-4 sm:p-4 bg-black/50 backdrop-blur-sm animate-in fade-in" style={{ overscrollBehavior: 'none' }}>
                     <div className="bg-white w-full md:max-w-md md:rounded-2xl rounded-t-3xl shadow-2xl max-h-[85vh] md:max-h-[90vh] overflow-hidden flex flex-col animate-in slide-in-from-bottom duration-300">
                         {/* Header */}
                         <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">

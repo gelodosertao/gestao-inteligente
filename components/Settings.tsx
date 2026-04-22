@@ -572,7 +572,7 @@ const Settings: React.FC<SettingsProps> = ({ currentUser, onResetData }) => {
 
          {/* MODAL CADASTRAR USUÁRIO */}
          {showUserModal && (
-            <div className="fixed inset-0 bg-blue-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+            <div className="fixed inset-0 bg-blue-900/60 backdrop-blur-sm z-50 flex items-start sm:items-center justify-center p-4 pt-safe-offset-4 sm:p-4 animate-in fade-in duration-200">
                <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
                   <div className="p-4 bg-orange-500 text-white flex justify-between items-center">
                      <h3 className="font-bold flex items-center gap-2">
@@ -670,7 +670,7 @@ const Settings: React.FC<SettingsProps> = ({ currentUser, onResetData }) => {
 
          {/* MODAL ALTERAR SENHA */}
          {showPasswordModal && (
-            <div className="fixed inset-0 bg-blue-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+            <div className="fixed inset-0 bg-blue-900/60 backdrop-blur-sm z-50 flex items-start sm:items-center justify-center p-4 pt-safe-offset-4 sm:p-4 animate-in fade-in duration-200">
                <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
                   <div className="p-4 bg-blue-600 text-white flex justify-between items-center">
                      <h3 className="font-bold flex items-center gap-2">

@@ -455,7 +455,7 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
 
             {/* ADD CUSTOMER MODAL */}
             {showAddModal && (
-                <div className="fixed inset-0 bg-blue-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+                <div className="fixed inset-0 bg-blue-900/60 backdrop-blur-sm z-50 flex items-start sm:items-center justify-center p-4 pt-safe-offset-4 sm:p-4 animate-in fade-in duration-200">
                     <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden">
                         <div className="p-4 bg-blue-900 text-white flex justify-between items-center">
                             <h3 className="font-bold flex items-center gap-2">
@@ -629,7 +629,7 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
 
             {/* EDIT CUSTOMER MODAL */}
             {showEditModal && editingCustomer && (
-                <div className="fixed inset-0 bg-blue-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+                <div className="fixed inset-0 bg-blue-900/60 backdrop-blur-sm z-50 flex items-start sm:items-center justify-center p-4 pt-safe-offset-4 sm:p-4 animate-in fade-in duration-200">
                     <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden">
                         <div className="p-4 bg-blue-900 text-white flex justify-between items-center">
                             <h3 className="font-bold flex items-center gap-2">

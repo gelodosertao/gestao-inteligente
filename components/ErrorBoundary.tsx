@@ -51,7 +51,7 @@ class ErrorBoundary extends Component<Props, State> {
     public render() {
         if (this.state.hasError) {
             return (
-                <div className="min-h-screen flex flex-col items-center justify-center bg-red-50 p-8 text-center text-slate-800">
+                <div className="min-h-dvh flex flex-col items-center justify-center bg-red-50 p-8 text-center text-slate-800">
                     <h1 className="text-3xl font-bold text-red-600 mb-4">Algo deu errado 😕</h1>
                     <p className="mb-4 text-lg">O sistema encontrou um erro inesperado.</p>
 

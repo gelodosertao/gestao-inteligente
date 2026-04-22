@@ -497,7 +497,7 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
       {/* Power BI Modal Simulation */}
       {
         showPowerBI && (
-          <div className="fixed inset-0 bg-blue-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="fixed inset-0 bg-blue-950/80 backdrop-blur-sm z-50 flex items-start sm:items-center justify-center p-4 pt-safe-offset-4 sm:p-4 animate-in fade-in duration-200">
             <div className="bg-slate-50 w-full max-w-6xl h-[90vh] rounded-xl shadow-2xl overflow-hidden flex flex-col">
               <div className="bg-[#f2c811] p-4 flex justify-between items-center text-slate-900">
                 <div className="flex items-center gap-3">

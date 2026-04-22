@@ -113,7 +113,7 @@ const LeadFormModal: React.FC<LeadFormModalProps> = ({ initial, currentUser, onS
     };
 
     return (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-start sm:items-center justify-center p-4 pt-safe-offset-4 sm:p-4 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
                 <div className="flex items-center justify-between p-6 border-b border-slate-100">
                     <h2 className="text-xl font-bold text-slate-800">{initial ? 'Editar Lead' : 'Novo Lead'}</h2>
@@ -209,7 +209,7 @@ const SendEmailModal: React.FC<SendEmailModalProps> = ({ lead, onSend, onClose }
     };
 
     return (
-        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="fixed inset-0 bg-black/50 z-[60] flex items-start sm:items-center justify-center p-4 pt-safe-offset-4 sm:p-4 backdrop-blur-sm animate-in fade-in duration-200">
             <form onSubmit={handleSubmit} className="bg-white rounded-2xl w-full max-w-lg shadow-2xl flex flex-col">
                 <div className="flex items-center justify-between p-6 border-b border-slate-100">
                     <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2"><Mail size={18} /> Enviar E-mail</h2>
@@ -276,7 +276,7 @@ const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
     const col = FUNNEL_COLUMNS.find(c => c.status === lead.status)!;
 
     return (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-start sm:items-center justify-center p-4 pt-safe-offset-4 sm:p-4 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] flex flex-col">
                 {/* Header */}
                 <div className="flex items-start justify-between p-6 border-b border-slate-100">
@@ -447,7 +447,7 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({ initial, leads, currentUs
     };
 
     return (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-start sm:items-center justify-center p-4 pt-safe-offset-4 sm:p-4 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
                 <div className="flex items-center justify-between p-6 border-b border-slate-100">
                     <h2 className="text-xl font-bold text-slate-800">{initial ? 'Editar Tarefa' : 'Nova Tarefa'}</h2>
