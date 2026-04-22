@@ -1,5 +1,6 @@
 import React from 'react';
 import { LayoutDashboard, Package, ShoppingCart, DollarSign, Sparkles, Settings, LogOut, Users, Calculator, ChevronLeft, ChevronRight, Factory, Globe, Truck, PieChart, Lock, TrendingUp, Store } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { ViewState, User } from '../types';
 
 interface AppSidebarProps {
@@ -16,9 +17,7 @@ interface AppSidebarProps {
 
 // Define menu structure based on roles (exported for use in Settings)
 export const ALL_MENU_ITEMS = [
-  { id: 'ORDER_CENTER', label: 'Central de Pedidos', icon: Truck, roles: ['ADMIN', 'OPERATOR'] },
   { id: 'CUSTOMERS', label: 'Clientes', icon: Users, roles: ['ADMIN', 'OPERATOR'] },
-  { id: 'CRM', label: 'CRM / Marketing', icon: TrendingUp, roles: ['ADMIN'] },
   { id: 'PRICING', label: 'Custos', icon: Calculator, roles: ['ADMIN'] },
   { id: 'DASHBOARD', label: 'Dashboard', icon: LayoutDashboard, roles: ['ADMIN'] },
   { id: 'INVENTORY', label: 'Estoque', icon: Package, roles: ['ADMIN', 'OPERATOR'] },
@@ -30,6 +29,27 @@ export const ALL_MENU_ITEMS = [
   { id: 'REPORTS', label: 'Relatórios', icon: PieChart, roles: ['ADMIN'] },
   { id: 'MENU_CONFIG', label: 'Site / Cardápio', icon: Globe, roles: ['ADMIN'] },
 ];
+
+const getPathForView = (view: string) => {
+  switch (view) {
+    case 'WHOLESALE_POS': return '/pdv-atacado';
+    case 'SALES': return '/pdv-adega';
+    case 'ONLINE_MENU': return '/cardapio-adega';
+    case 'DASHBOARD': return '/gestao';
+    case 'INVENTORY': return '/gestao/estoque';
+    case 'FINANCIAL': return '/gestao/financeiro';
+    case 'CASH_CLOSING': return '/gestao/fechamento-caixa';
+    case 'CUSTOMERS': return '/gestao/clientes';
+    case 'PRODUCTION': return '/gestao/producao';
+    case 'REPORTS': return '/gestao/relatorios';
+    case 'ORDER_CENTER': return '/gestao/pedidos';
+    case 'PRICING': return '/gestao/custos';
+    case 'SETTINGS': return '/gestao/configuracoes';
+    case 'MENU_CONFIG': return '/gestao/site';
+    case 'AI_INSIGHTS': return '/gestao/ai';
+    default: return '/gestao';
+  }
+};
 
 const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, setView, currentUser, onLogout, isCollapsed, toggleSidebar, isMobileMenuOpen, closeMobileMenu, pendingOrdersCount }) => {
 
@@ -58,10 +78,10 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, setView, currentUs
 
       {/* SIDEBAR (Desktop & Mobile Drawer) */}
       <div className={`
-        fixed left-0 top-0 z-50 h-screen flex flex-col 
+        fixed left-0 top-0 z-50 h-dvh flex flex-col 
         bg-gai-navy text-white shadow-2xl border-r border-white/5
-        transition-all duration-300 ease-in-out
-        ${isMobileMenuOpen ? 'translate-x-0 w-64' : '-translate-x-full md:translate-x-0'}
+        transition-all duration-300 ease-in-out pt-safe
+        ${isMobileMenuOpen ? 'translate-x-0 w-72' : '-translate-x-full md:translate-x-0'}
         ${isCollapsed ? 'md:w-20' : 'md:w-64'}
       `}>
         <div className="flex flex-col items-center justify-center relative shrink-0 transition-all duration-300">
@@ -108,10 +128,11 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, setView, currentUs
           {visibleItems.map((item) => {
             const isActive = currentView === item.id;
             return (
-              <button
+              <Link
                 key={item.id}
-                onClick={() => setView(item.id as ViewState)}
-                className={`w-full flex items-center justify-start gap-3 p-3 rounded-xl transition-all duration-300 group relative
+                to={getPathForView(item.id)}
+                onClick={() => { closeMobileMenu?.(); }}
+                className={`w-full flex items-center justify-start gap-3 p-3 rounded-xl transition-all duration-300 group relative active-scale touch-target
                   ${isActive
                     ? 'bg-gai-tech text-white shadow-lg shadow-gai-tech/20'
                     : 'text-slate-400 hover:bg-white/5 hover:text-white'
@@ -125,21 +146,22 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, setView, currentUs
                 {isActive && <div className={`absolute right-3 w-1 h-4 rounded-full bg-white/30 ${isCollapsed ? 'md:hidden' : 'block'}`} />}
 
                 {/* Pending Badge */}
-                {item.id === 'ORDER_CENTER' && (pendingOrdersCount || 0) > 0 && (
+                {item.id === 'SALES' && (pendingOrdersCount || 0) > 0 && (
                   <div className={`absolute right-2 bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-lg border border-white/20 animate-pulse ${isCollapsed ? 'top-1 right-1' : ''}`}>
                     {pendingOrdersCount}
                   </div>
                 )}
-              </button>
+              </Link>
             );
           })}
         </nav>
 
-        <div className="p-4 border-t border-white/5 space-y-3 bg-black/10 shrink-0">
+        <div className="p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] border-t border-white/5 space-y-3 bg-black/10 shrink-0">
           {currentUser.role === 'ADMIN' && (
-            <button
-              onClick={() => setView('SETTINGS')}
-              className={`w-full flex items-center justify-start gap-3 p-2.5 rounded-xl transition-all 
+            <Link
+              to={getPathForView('SETTINGS')}
+              onClick={() => closeMobileMenu?.()}
+              className={`w-full flex items-center justify-start gap-3 p-2.5 rounded-xl transition-all active-scale touch-target
                 ${currentView === 'SETTINGS' ? 'bg-white/10 text-gai-tech' : 'text-slate-400 hover:text-white hover:bg-white/5'}
                 ${isCollapsed ? 'md:justify-center' : ''}
               `}
@@ -147,11 +169,11 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, setView, currentUs
             >
               <Settings size={20} className="shrink-0" />
               <span className={`text-sm font-semibold whitespace-nowrap ${isCollapsed ? 'md:hidden' : 'block'}`}>Ajustes Sistema</span>
-            </button>
+            </Link>
           )}
 
           <div className={`flex items-center gap-3 pt-1 ${isCollapsed ? 'md:hidden' : ''}`}>
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-gai-tech to-gai-navy flex items-center justify-center font-bold text-white shadow-lg border border-white/10 shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-gai-tech to-gai-navy flex items-center justify-center font-bold text-white shadow-lg border border-white/10 shrink-0 capitalize">
               {currentUser.avatarInitials}
             </div>
             <div className="flex-1 overflow-hidden">
@@ -160,14 +182,14 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, setView, currentUs
                 {currentUser.role}
               </p>
             </div>
-            <button onClick={onLogout} className="text-slate-500 hover:text-rose-400 transition-colors p-1" title="Sair">
+            <button onClick={onLogout} className="text-slate-500 hover:text-rose-400 transition-colors p-2 active-scale touch-target" title="Sair">
               <LogOut size={18} />
             </button>
           </div>
 
           {/* Collapsed User Icon (Desktop Only) */}
           <div className={`hidden ${isCollapsed ? 'md:flex' : ''} justify-center pt-1`}>
-            <button onClick={onLogout} className="text-slate-500 hover:text-rose-400" title="Sair">
+            <button onClick={onLogout} className="text-slate-500 hover:text-rose-400 p-2 active-scale touch-target" title="Sair">
               <LogOut size={20} />
             </button>
           </div>

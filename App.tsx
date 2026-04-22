@@ -1,10 +1,11 @@
 import React, { useState, useEffect, Suspense, useMemo } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { ViewState, User, Product, Sale, FinancialRecord, Branch, Customer, CashClosing } from './types';
-import { MOCK_PRODUCTS, MOCK_SALES, MOCK_FINANCIALS } from './constants';
 import { dbProducts, dbSales, dbFinancials, dbCustomers, dbCashClosings, dbUsers } from './services/db';
-import { supabase } from './services/supabase';
-import { Loader2, AlertCircle } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { Loader2, AlertCircle, Menu } from 'lucide-react';
+import { usePlatform } from './hooks/usePlatform';
+import { useAppLifecycle } from './hooks/useAppLifecycle';
 
 // Lazy Load Components to prevent circular dependencies and "Cannot access before initialization" errors
 const AppSidebar = React.lazy(() => import('./components/AppSidebar'));
@@ -22,15 +23,17 @@ const MenuConfig = React.lazy(() => import('./components/MenuConfig'));
 const Production = React.lazy(() => import('./components/Production'));
 const OrderCenter = React.lazy(() => import('./components/OrderCenter'));
 const Reports = React.lazy(() => import('./components/Reports'));
-// Lazy loaded WholesalePOS
 const WholesalePOS = React.lazy(() => import('./components/WholesalePOS'));
 const VisitorLanding = React.lazy(() => import('./components/VisitorLanding'));
-const CRM = React.lazy(() => import('./components/CRM'));
+// CRM Temporarily Disabled
+// const CRM = React.lazy(() => import('./components/CRM'));
 
 const App: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const { isNative } = usePlatform();
+  const { isActive } = useAppLifecycle();
 
   // Sync currentView with URL for backward compatibility with sidebar logic
   const currentView = useMemo(() => {
@@ -116,35 +119,11 @@ const App: React.FC = () => {
     });
   }, []);
 
-  useEffect(() => {
-    if (currentUser) {
-      loadDataFromCloud();
+  const tenantId = currentUser?.tenantId || '00000000-0000-0000-0000-000000000000';
 
-      // Initial Order Count
-      checkPendingOrders();
-      // Poll every 30s
-      const interval = setInterval(checkPendingOrders, 30000);
-      return () => clearInterval(interval);
-    }
-  }, [currentUser]);
-
-  const checkPendingOrders = async () => {
-    if (!currentUser) return;
-    try {
-      const orders = await import('./services/db').then(m => m.dbOrders.getAll(currentUser.tenantId));
-      const pending = orders.filter(o => o.status === 'PENDING').length;
-      setPendingOrdersCount(pending);
-    } catch (e) {
-      console.error("Error checking orders", e);
-    }
-  };
-
-  const loadDataFromCloud = async () => {
-    setIsLoading(true);
-    setDbError(null);
-    const tenantId = currentUser?.tenantId || '00000000-0000-0000-0000-000000000000';
-    try {
-      // Parallel fetch for speed
+  const { data: appData, isFetching: isQueryFetching, error: queryError, refetch } = useQuery({
+    queryKey: ['app-data', tenantId],
+    queryFn: async () => {
       const [p, s, f, c, cc] = await Promise.all([
         dbProducts.getAll(tenantId),
         dbSales.getAll(tenantId),
@@ -152,25 +131,68 @@ const App: React.FC = () => {
         dbCustomers.getAll(tenantId),
         dbCashClosings.getAll(tenantId)
       ]);
+      return { p, s, f, c, cc };
+    },
+    enabled: !!currentUser && isActive,
+    staleTime: 1000 * 60 * 5, // 5 min
+    networkMode: 'offlineFirst',
+  });
 
-      setProducts(p.length > 0 ? p : []);
-      setSales(s);
-      setFinancials(f);
-      setCustomers(c);
-      setCashClosings(cc);
+  // Sync with local state for optimistic updates
+  useEffect(() => {
+    if (appData) {
+      setProducts(appData.p.length > 0 ? appData.p : []);
+      setSales(appData.s);
+      setFinancials(appData.f);
+      setCustomers(appData.c);
+      setCashClosings(appData.cc);
+    }
+  }, [appData]);
 
-    } catch (error: any) {
-      console.error("Erro ao conectar com Supabase:", error);
-      if (error.message?.includes('does not exist') || error.code === '42P01') {
-        setDbError("Tabelas não encontradas no Supabase. Por favor, execute o script SQL no painel do banco de dados.");
-      } else {
-        setDbError("Erro de conexão com o banco de dados. Verifique a internet.");
+  // Error handling
+  useEffect(() => {
+    if (queryError) {
+      console.error("Erro no React Query:", queryError);
+      setDbError("Sincronização falhou. Operando em modo offline se os dados estiverem em cache.");
+    } else {
+      setDbError(null);
+    }
+  }, [queryError]);
+
+  // Handle Loading state (Only show loader if no cache exists)
+  useEffect(() => {
+    setIsLoading(isQueryFetching && !appData);
+  }, [isQueryFetching, appData]);
+
+  useEffect(() => {
+    if (currentUser && isActive) {
+      // Initial Order Count
+      checkPendingOrders();
+      // Poll every 30s - only when app is active
+      const interval = setInterval(checkPendingOrders, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [currentUser, isActive]);
+
+  const lastPendingCountRef = React.useRef(0);
+
+  const checkPendingOrders = async () => {
+    if (!currentUser) return;
+    try {
+      const orders = await import('./services/db').then(m => m.dbOrders.getAll(currentUser.tenantId));
+      const pending = orders.filter(o => o.status === 'PENDING').length;
+
+      if (pending > lastPendingCountRef.current && pending > 0) {
+        try {
+          const audio = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-software-interface-start-2574.mp3');
+          audio.play().catch(e => console.log('Audio play ignored (user overlap):', e));
+        } catch (e) { }
       }
-      setProducts(MOCK_PRODUCTS);
-      setSales([]); // Cleaned as requested
-      setFinancials([]); // Cleaned as requested
-    } finally {
-      setIsLoading(false);
+
+      lastPendingCountRef.current = pending;
+      setPendingOrdersCount(pending);
+    } catch (e) {
+      console.error("Error checking orders", e);
     }
   };
 
@@ -269,9 +291,9 @@ const App: React.FC = () => {
             await dbProducts.update(product);
           }
         }
-      } catch (e) {
-        console.error("Erro ao sincronizar venda com banco:", e);
-        alert(`A venda (ID: ${newSale.id}) foi registrada localmente mas houve erro ao salvar na nuvem: ${e.message || JSON.stringify(e)}`);
+      } catch (error: any) {
+        console.error("Erro ao sincronizar venda com banco:", error);
+        alert(`A venda (ID: ${newSale.id}) foi registrada localmente mas houve erro ao salvar na nuvem: ${error.message || JSON.stringify(error)}`);
       }
     } else {
       // If Pending, just save sale and update stock (stock is reserved even if pending? Usually yes)
@@ -283,8 +305,8 @@ const App: React.FC = () => {
             await dbProducts.update(product);
           }
         }
-      } catch (e) {
-        console.error("Erro ao sincronizar venda pendente:", e);
+      } catch (error: any) {
+        console.error("Erro ao sincronizar venda pendente:", error);
       }
     }
 
@@ -568,7 +590,7 @@ const App: React.FC = () => {
             insert into tenants (id, name) select '00000000-0000-0000-0000-000000000000', 'G.AI - Gestão Auto Inteligente' where not exists (select 1 from tenants where id = '00000000-0000-0000-0000-000000000000');
           </div>
           <div className="flex gap-4 justify-center mt-6">
-            <button onClick={() => loadDataFromCloud()} className="bg-red-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-red-700">
+            <button onClick={() => refetch()} className="bg-red-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-red-700">
               Tentar Conectar Novamente
             </button>
             <button onClick={handleLogout} className="bg-slate-200 text-slate-700 px-6 py-2 rounded-lg font-bold hover:bg-slate-300">
@@ -608,28 +630,26 @@ const App: React.FC = () => {
       case 'INVENTORY':
         return <Inventory products={products} sales={sales} financials={financials} onUpdateProduct={handleUpdateProduct} onAddProduct={handleAddProduct} onDeleteProduct={handleDeleteProduct} onOpenPricing={(id) => { setPricingProductId(id); setCurrentView('PRICING'); }} onAddFinancialRecord={handleAddFinancialRecord} onBack={() => setCurrentView('DASHBOARD')} currentUser={currentUser!} />;
       case 'SALES':
-        return <Sales sales={sales} products={products} customers={customers} onAddSale={handleAddSale} onAddCustomer={handleAddCustomer} currentUser={currentUser} onUpdateSale={handleUpdateSale} onDeleteSale={handleDeleteSale} onBack={() => setCurrentView('DASHBOARD')} />;
+        return <Sales sales={sales} products={products} customers={customers} onAddSale={handleAddSale} onAddCustomer={handleAddCustomer} currentUser={currentUser!} onUpdateSale={handleUpdateSale} onDeleteSale={handleDeleteSale} onBack={() => setCurrentView('DASHBOARD')} />;
       case 'CUSTOMERS':
-        return <Customers customers={customers} onAddCustomer={handleAddCustomer} onImportCustomers={handleImportCustomers} currentUser={currentUser} onUpdateCustomer={handleUpdateCustomer} onDeleteCustomer={handleDeleteCustomer} onBack={() => setCurrentView('DASHBOARD')} />;
+        return <Customers customers={customers} onAddCustomer={handleAddCustomer} onImportCustomers={handleImportCustomers} currentUser={currentUser!} onUpdateCustomer={handleUpdateCustomer} onDeleteCustomer={handleDeleteCustomer} onBack={() => setCurrentView('DASHBOARD')} />;
       case 'PRICING':
         return <Pricing products={products} initialProductId={pricingProductId} onUpdateProduct={handleUpdateProduct} onBack={() => setCurrentView('DASHBOARD')} />;
       case 'CASH_CLOSING':
-        return <Financial records={financials} sales={sales} products={products} cashClosings={cashClosings} onAddRecord={handleAddFinancialRecord} onUpdateRecord={handleUpdateFinancialRecord} onDeleteRecord={handleDeleteFinancialRecord} onAddCashClosing={handleAddCashClosing} onDeleteCashClosing={handleDeleteCashClosing} currentUser={currentUser} onBack={() => setCurrentView('DASHBOARD')} />;
+        return <Financial records={financials} sales={sales} products={products} cashClosings={cashClosings} onAddRecord={handleAddFinancialRecord} onUpdateRecord={handleUpdateFinancialRecord} onDeleteRecord={handleDeleteFinancialRecord} onAddCashClosing={handleAddCashClosing} onDeleteCashClosing={handleDeleteCashClosing} currentUser={currentUser!} onBack={() => setCurrentView('DASHBOARD')} />;
       case 'FINANCIAL':
         if (currentUser?.role !== 'ADMIN' && !(currentUser?.allowedModules || []).includes('FINANCIAL')) return <Dashboard products={products} sales={sales} financials={financials} customers={customers} onNavigate={setCurrentView} />;
-        return <Financial records={financials} sales={sales} products={products} cashClosings={cashClosings} onAddRecord={handleAddFinancialRecord} onUpdateRecord={handleUpdateFinancialRecord} onDeleteRecord={handleDeleteFinancialRecord} onAddCashClosing={handleAddCashClosing} onDeleteCashClosing={handleDeleteCashClosing} currentUser={currentUser} onBack={() => setCurrentView('DASHBOARD')} />;
+        return <Financial records={financials} sales={sales} products={products} cashClosings={cashClosings} onAddRecord={handleAddFinancialRecord} onUpdateRecord={handleUpdateFinancialRecord} onDeleteRecord={handleDeleteFinancialRecord} onAddCashClosing={handleAddCashClosing} onDeleteCashClosing={handleDeleteCashClosing} currentUser={currentUser!} onBack={() => setCurrentView('DASHBOARD')} />;
       case 'AI_INSIGHTS':
         return <AIAssistant products={products} sales={sales} financials={financials} onBack={() => setCurrentView('DASHBOARD')} />;
       case 'MENU_CONFIG':
         return <MenuConfig onBack={() => setCurrentView('DASHBOARD')} tenantId={currentUser!.tenantId} />;
       case 'PRODUCTION':
         return <Production products={products} currentUser={currentUser!} onUpdateProduct={handleUpdateProduct} onAddProduct={handleAddProduct} onBack={() => setCurrentView('DASHBOARD')} />;
-      case 'ORDER_CENTER':
-        return <OrderCenter onBack={() => setCurrentView('DASHBOARD')} tenantId={currentUser!.tenantId} />;
+      // Central de Pedidos agora está anexada ao PDV Varejo (SALES)
       case 'SETTINGS':
         return <Settings currentUser={currentUser!} onResetData={handleResetData} />;
-      case 'CRM':
-        return <CRM currentUser={currentUser!} onBack={() => setCurrentView('DASHBOARD')} />;
+      // CRM removido temporariamente
       default:
         return <Dashboard products={products} sales={sales} financials={financials} customers={customers} onNavigate={setCurrentView} />;
     }
@@ -640,7 +660,7 @@ const App: React.FC = () => {
     <Routes>
       {/* Public Route */}
       <Route path="/cardapio-adega" element={
-        <Suspense fallback={<div className="h-screen w-screen flex items-center justify-center bg-slate-50"><Loader2 size={48} className="animate-spin text-orange-500" /></div>}>
+        <Suspense fallback={<div className="h-dvh w-screen flex items-center justify-center bg-slate-50"><Loader2 size={48} className="animate-spin text-orange-500" /></div>}>
           <OnlineMenu />
         </Suspense>
       } />
@@ -648,77 +668,107 @@ const App: React.FC = () => {
       {/* Login Route */}
       <Route path="/login" element={
         !currentUser ? (
-          <Suspense fallback={<div className="h-screen w-screen flex items-center justify-center bg-blue-900"><Loader2 size={48} className="animate-spin text-white" /></div>}>
+          <Suspense fallback={<div className="h-dvh w-screen flex items-center justify-center bg-blue-900"><Loader2 size={48} className="animate-spin text-white" /></div>}>
             <Login onLogin={handleLogin} onOpenMenu={() => navigate('/cardapio-adega')} />
           </Suspense>
         ) : <Navigate to="/gestao" replace />
       } />
 
-      {/* Protected Routes */}
       <Route path="/*" element={
         !currentUser ? <Navigate to="/login" replace /> : (
           <Routes>
             <Route path="/pdv-atacado" element={
-              <Suspense fallback={<div className="h-screen w-screen flex items-center justify-center bg-slate-50"><Loader2 size={48} className="animate-spin text-orange-500" /></div>}>
-                <WholesalePOS
-                  products={products}
-                  sales={sales}
-                  customers={customers}
-                  currentUser={currentUser}
-                  onAddSale={handleAddSale}
-                  onAddCustomer={handleAddCustomer}
-                  onLogout={handleLogout}
-                  onUpdateSale={handleUpdateSale}
-                  onDeleteSale={handleDeleteSale}
-                  onBack={currentUser.role === 'ADMIN' || currentUser.role === 'WHOLESALE_REPRESENTATIVE' ? () => navigate('/gestao') : undefined}
-                />
+              <Suspense fallback={<div className="h-dvh w-screen flex items-center justify-center bg-slate-50"><Loader2 size={48} className="animate-spin text-orange-500" /></div>}>
+                <div className="flex w-full min-h-dvh bg-slate-50 text-slate-900 font-sans">
+                  <WholesalePOS
+                    products={products}
+                    sales={sales}
+                    customers={customers}
+                    currentUser={currentUser}
+                    onAddSale={handleAddSale}
+                    onAddCustomer={handleAddCustomer}
+                    onLogout={handleLogout}
+                    onUpdateSale={handleUpdateSale}
+                    onDeleteSale={handleDeleteSale}
+                    onBack={currentUser.role === 'ADMIN' || currentUser.role === 'WHOLESALE_REPRESENTATIVE' ? () => navigate('/gestao') : undefined}
+                  />
+                </div>
+              </Suspense>
+            } />
+
+            <Route path="/pdv-adega" element={
+              <Suspense fallback={<div className="h-dvh w-screen flex items-center justify-center bg-slate-50"><Loader2 size={48} className="animate-spin text-orange-500" /></div>}>
+                <div className="flex w-full min-h-dvh bg-slate-50 text-slate-900 font-sans">
+                  <Sales
+                    sales={sales}
+                    products={products}
+                    customers={customers}
+                    onAddSale={handleAddSale}
+                    onAddCustomer={handleAddCustomer}
+                    currentUser={currentUser!}
+                    onUpdateSale={handleUpdateSale}
+                    onDeleteSale={handleDeleteSale}
+                    onBack={() => navigate('/gestao')}
+                    onLogout={handleLogout}
+                    pendingOrdersCount={pendingOrdersCount}
+                  />
+                </div>
               </Suspense>
             } />
 
             <Route path="*" element={
-              <div className="flex min-h-screen bg-slate-50 text-slate-900 font-sans">
-                {/* Mobile Header (Hidden on Desktop) */}
-                <div className="md:hidden fixed top-0 left-0 right-0 h-16 bg-gai-navy z-40 flex items-center px-4 shadow-md">
-                  <button
-                    onClick={() => setIsMobileMenuOpen(true)}
-                    className="text-white p-2 hover:bg-gai-tech/20 rounded-lg"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
-                  </button>
-                  <span className="ml-4 text-white font-bold text-xl tracking-tight">GELO DO SERTÃO</span>
-                </div>
-
-                <AppSidebar
-                  currentView={currentView}
-                  setView={setCurrentView}
-                  currentUser={currentUser}
-                  onLogout={handleLogout}
-                  isCollapsed={isSidebarCollapsed}
-                  toggleSidebar={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-                  isMobileMenuOpen={isMobileMenuOpen}
-                  closeMobileMenu={() => setIsMobileMenuOpen(false)}
-                  pendingOrdersCount={pendingOrdersCount}
-                />
-
-                <main className={`flex-1 transition-all duration-300 ${currentView === 'SALES' ? 'pt-16 p-0' : 'pt-20 px-4 pb-4 md:p-4 lg:p-8'} ${isSidebarCollapsed ? 'md:ml-20' : 'md:ml-20 lg:ml-64'}`}>
-                  <div className={`${currentView === 'SALES' ? 'w-full px-2' : 'max-w-7xl mx-auto'} h-full pb-4`}>
-                    {renderContent()}
+              <Suspense fallback={<div className="h-dvh w-screen flex items-center justify-center bg-slate-50"><Loader2 size={48} className="animate-spin text-orange-500" /></div>}>
+                <div className="flex w-full min-h-dvh bg-slate-50 text-slate-900 font-sans">
+                  <div className="md:hidden fixed top-0 left-0 right-0 pt-safe glass z-40 shadow-xl">
+                    <div className="h-16 flex items-center justify-between px-4">
+                      <div className="flex items-center">
+                        <button
+                          onClick={() => setIsMobileMenuOpen(true)}
+                          className="text-slate-800 p-2 hover:bg-slate-100 rounded-xl active-scale touch-target"
+                        >
+                          <Menu size={24} />
+                        </button>
+                        <span className="ml-3 text-slate-900 font-black text-sm tracking-[0.2em] uppercase">GELO DO SERTÃO</span>
+                        {isNative && (
+                          <span className="ml-2 px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold rounded uppercase">App</span>
+                        )}
+                      </div>
+                      <div className="bg-orange-500 w-8 h-8 rounded-lg flex items-center justify-center text-white font-black text-xs shadow-lg shadow-orange-500/20">
+                        GS
+                      </div>
+                    </div>
                   </div>
-                </main>
-              </div>
+
+                  <AppSidebar
+                    currentView={currentView}
+                    setView={setCurrentView}
+                    currentUser={currentUser!}
+                    onLogout={handleLogout}
+                    isCollapsed={isSidebarCollapsed}
+                    toggleSidebar={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                    isMobileMenuOpen={isMobileMenuOpen}
+                    closeMobileMenu={() => setIsMobileMenuOpen(false)}
+                    pendingOrdersCount={pendingOrdersCount}
+                  />
+
+                  <main className={`flex-1 transition-all duration-300 pb-safe ${currentView === 'SALES' ? 'pt-[calc(4rem+env(safe-area-inset-top))] p-0' : 'pt-[calc(5rem+env(safe-area-inset-top))] px-4 pb-4 md:p-4 lg:p-8'} ${isSidebarCollapsed ? 'md:ml-20' : 'md:ml-20 lg:ml-64'}`}>
+                    <div className={`${currentView === 'SALES' ? 'w-full px-2' : 'max-w-7xl mx-auto'} h-full pb-8 md:pb-4`}>
+                      {renderContent()}
+                    </div>
+                  </main>
+                </div>
+              </Suspense>
             } />
           </Routes>
         )
       } />
 
-      {/* Default Redirect / Root */}
       <Route path="/" element={
-        <Suspense fallback={<div className="h-screen w-screen flex items-center justify-center bg-slate-900"><Loader2 size={48} className="animate-spin text-white" /></div>}>
+        <Suspense fallback={<div className="h-dvh w-screen flex items-center justify-center bg-slate-900"><Loader2 size={48} className="animate-spin text-white" /></div>}>
           <VisitorLanding />
         </Suspense>
       } />
 
-      {/* Catch-all to Gestao if logged in, else landing */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
