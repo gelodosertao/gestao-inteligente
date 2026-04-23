@@ -34,3 +34,9 @@ yarn-error.log*
 
 # OS
 Thumbs.db
+
+# Temporary scripts and logs
+*.log
+*.txt
+fix_*.cjs
+fix_*.js
