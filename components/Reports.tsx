@@ -3,7 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { Sale, Product, Customer, Branch } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
 import { Calendar, Filter, Download, DollarSign, TrendingUp, Users, ShoppingBag, CreditCard, ChevronLeft, ChevronRight, Search } from 'lucide-react';
-import { getTodayDate } from '../services/utils';
+import { getTodayDate, normalizePaymentMethod, translatePaymentMethod } from '../services/utils';
 
 interface ReportsProps {
     sales: Sale[];
@@ -81,16 +81,14 @@ const Reports: React.FC<ReportsProps> = ({ sales, products, customers, onBack })
         getFilteredSales.forEach(s => {
             if (s.status !== 'Completed' && s.status !== 'Finalizado pela Fábrica') return;
 
-            if (s.paymentMethod === 'Split' && s.paymentSplits) {
+            if (normalizePaymentMethod(s.paymentMethod) === 'Split' && s.paymentSplits) {
                 s.paymentSplits.forEach(split => {
-                    data[split.method] = (data[split.method] || 0) + split.amount;
+                    const label = translatePaymentMethod(split.method);
+                    data[label] = (data[label] || 0) + split.amount;
                 });
             } else {
-                const method = s.paymentMethod === 'Credit' ? 'Crédito'
-                    : s.paymentMethod === 'Debit' ? 'Débito'
-                        : s.paymentMethod === 'Cash' ? 'Dinheiro'
-                            : s.paymentMethod;
-                data[method] = (data[method] || 0) + s.total;
+                const label = translatePaymentMethod(s.paymentMethod);
+                data[label] = (data[label] || 0) + s.total;
             }
         });
 
@@ -453,7 +451,7 @@ const Reports: React.FC<ReportsProps> = ({ sales, products, customers, onBack })
                                                     {sale.branch === Branch.MATRIZ ? 'Matriz' : 'Filial'}
                                                 </span>
                                             </td>
-                                            <td className="p-3 text-slate-600">{sale.paymentMethod}</td>
+                                            <td className="p-3 text-slate-600">{translatePaymentMethod(sale.paymentMethod)}</td>
                                             <td className="p-3 text-right font-bold text-slate-800">{formatCurrency(sale.total)}</td>
                                             <td className="p-3 text-center">
                                                 <span className={`px-2 py-1 rounded-full text-xs font-bold ${sale.status === 'Completed' ? 'bg-green-100 text-green-700' :

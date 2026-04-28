@@ -1,4 +1,5 @@
 import { Sale } from '../types';
+import { normalizePaymentMethod } from './utils';
 
 // Interface para resposta da API de Notas (padrão genérico)
 export interface InvoiceResponse {
@@ -105,7 +106,8 @@ export const invoiceService = {
 
 // Helper para mapear métodos de pagamento do nosso sistema para o padrão SEFAZ
 function mapPaymentMethod(method: string): string {
-    switch (method) {
+    const normalized = normalizePaymentMethod(method);
+    switch (normalized) {
         case 'Cash': return '01'; // Dinheiro
         case 'Credit': return '03'; // Cartão de Crédito
         case 'Debit': return '04'; // Cartão de Débito

@@ -3,7 +3,7 @@ import { FinancialRecord, Branch, Sale, Product, CategoryItem, CashClosing, User
 import { dbCategories } from '../services/db';
 import { ArrowUpCircle, ArrowDownCircle, X, Plus, Calendar, DollarSign, Repeat, ArrowLeft, Building2, BarChart3, LineChart, Filter, Trash2, Lock, CheckCircle, AlertTriangle, Search, Eye, EyeOff } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
-import { getTodayDate } from '../services/utils';
+import { getTodayDate, normalizePaymentMethod, translatePaymentMethod } from '../services/utils';
 
 interface FinancialProps {
    records: FinancialRecord[];
@@ -266,12 +266,14 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
 
       // Calculate Cash/Pix/Card breakdown
       const byMethod = daySales.reduce((acc, s) => {
-         if (s.paymentMethod === 'Split' && s.paymentSplits) {
+         if (normalizePaymentMethod(s.paymentMethod) === 'Split' && s.paymentSplits) {
             s.paymentSplits.forEach(split => {
-               acc[split.method] = (acc[split.method] || 0) + split.amount;
+               const key = normalizePaymentMethod(split.method) as keyof typeof acc;
+               acc[key] = (acc[key] || 0) + split.amount;
             });
-         } else if (s.paymentMethod !== 'Split') {
-            acc[s.paymentMethod] = (acc[s.paymentMethod] || 0) + s.total;
+         } else if (normalizePaymentMethod(s.paymentMethod) !== 'Split') {
+            const key = normalizePaymentMethod(s.paymentMethod) as keyof typeof acc;
+            acc[key] = (acc[key] || 0) + s.total;
          }
          return acc;
       }, { Pix: 0, Credit: 0, Debit: 0, Cash: 0 } as { Pix: number; Credit: number; Debit: number; Cash: number; });
@@ -708,7 +710,7 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
                                           )}
                                           {record.paymentMethod && (
                                              <span className="text-[10px] px-1.5 py-0.5 rounded border bg-slate-50 text-slate-600 border-slate-200">
-                                                {record.paymentMethod === 'Credit' ? 'Crédito' : record.paymentMethod === 'Debit' ? 'Débito' : record.paymentMethod === 'Cash' ? 'Dinheiro' : record.paymentMethod}
+                                                {translatePaymentMethod(record.paymentMethod)}
                                              </span>
                                           )}
                                        </div>

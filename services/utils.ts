@@ -62,6 +62,38 @@ export const BARREIRAS_FIXED_FEES: Record<string, number> = {
     'Santa Luzia': 15,
 };
 
+/**
+ * Normaliza o método de pagamento para o formato canônico do sistema.
+ * Resolve inconsistências entre 'Credit'/'CREDIT'/'Crédito' etc.
+ * Retorna: 'Pix' | 'Credit' | 'Debit' | 'Cash' | 'Split' | o valor original.
+ */
+export const normalizePaymentMethod = (method: string | undefined | null): string => {
+    if (!method) return 'Pix';
+    const lower = method.toLowerCase()
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, ""); // remove acentos
+    if (lower === 'pix') return 'Pix';
+    if (lower === 'credit' || lower === 'credito' || lower === 'cartao de credito') return 'Credit';
+    if (lower === 'debit' || lower === 'debito' || lower === 'cartao de debito') return 'Debit';
+    if (lower === 'cash' || lower === 'dinheiro') return 'Cash';
+    if (lower === 'split' || lower === 'dividir' || lower === 'fiado' || lower === 'fiado / prazo') return 'Split';
+    return method; // fallback: retorna o valor original
+};
+
+/**
+ * Traduz o método de pagamento normalizado para o label em português.
+ */
+export const translatePaymentMethod = (method: string | undefined | null): string => {
+    const normalized = normalizePaymentMethod(method || '');
+    switch (normalized) {
+        case 'Credit': return 'Crédito';
+        case 'Debit': return 'Débito';
+        case 'Cash': return 'Dinheiro';
+        case 'Pix': return 'PIX';
+        case 'Split': return 'Fiado / Prazo';
+        default: return normalized;
+    }
+};
+
 export const getFixedFeeByNeighborhood = (address: string): number | null => {
     if (!address) return null;
     const normalizedAddress = address.toLowerCase()

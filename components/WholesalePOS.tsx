@@ -4,6 +4,7 @@ import { ShoppingCart, LogOut, User as UserIcon, Plus, Minus, Search, CheckCircl
 import html2canvas from 'html2canvas';
 import { CUSTOMER_SEGMENTS } from '../constants';
 import { hardwareBridge } from '../services/hardwareBridge';
+import { translatePaymentMethod } from '../services/utils';
 
 interface WholesalePOSProps {
     products: Product[];
@@ -714,7 +715,7 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                             <div className="grid grid-cols-2 gap-2">
                                 {(isAdmin ? ['Pix', 'Cash', 'Credit', 'Debit', 'Split'] : ['Pix', 'Cash', 'Credit', 'Debit']).map(method => (
                                     <button key={method} onClick={() => setPaymentMethod(method as 'Pix' | 'Credit' | 'Debit' | 'Cash' | 'Split')} className={`py-3 px-2 rounded-lg font-bold text-sm border-2 flex items-center justify-center transition-all ${paymentMethod === method ? 'border-orange-500 bg-orange-50 text-orange-700' : 'border-slate-100 bg-white text-slate-500 hover:border-slate-300'}`}>
-                                        {method === 'Pix' && 'PIX'}{method === 'Cash' && 'Dinheiro'}{method === 'Credit' && 'Crédito'}{method === 'Debit' && 'Débito'}{method === 'Split' && 'Fiado / Prazo'}
+                                        {translatePaymentMethod(method)}
                                     </button>
                                 ))}
                             </div>
@@ -896,7 +897,7 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                                                     {sale.status === 'Pending' ? 'Pendente' : sale.status === 'Completed' ? 'Concluído' : sale.status}
                                                 </span>
                                                 <span className="text-[9px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-medium uppercase">
-                                                    {sale.paymentMethod === 'Credit' ? 'Crédito' : sale.paymentMethod === 'Debit' ? 'Débito' : sale.paymentMethod === 'Cash' ? 'Dinheiro' : sale.paymentMethod === 'Split' ? 'Fiado / Prazo' : sale.paymentMethod}
+                                                    {translatePaymentMethod(sale.paymentMethod)}
                                                 </span>
                                             </div>
                                             <div className="flex gap-1">

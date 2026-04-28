@@ -7,7 +7,7 @@ import { ShoppingCart, FileText, CheckCircle, Clock, X, Printer, Send, ScanBarco
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import { BrowserMultiFormatReader } from '@zxing/library';
-import { getTodayDate } from '../services/utils';
+import { getTodayDate, translatePaymentMethod } from '../services/utils';
 import OrderCenter from './OrderCenter';
 
 interface SalesProps {
@@ -784,7 +784,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                                     {sale.hasInvoice ? 'NF-e Emitida' : 'Sem NF-e'}
                                  </span>
                                  <span className="px-2 py-1 rounded-md text-[10px] md:text-xs font-bold bg-slate-50 text-slate-600 border border-slate-200">
-                                    {sale.paymentMethod}
+                                     {translatePaymentMethod(sale.paymentMethod)}
                                  </span>
                               </div>
                               <div className="flex flex-wrap gap-2 mt-3 md:justify-end w-full">
@@ -1239,7 +1239,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                                           {method === 'Debit' && <CreditCard size={22} />}
                                           {method === 'Cash' && <Banknote size={22} />}
                                           {method === 'Split' && <div className="flex"><CreditCard size={14} /><Banknote size={14} /></div>}
-                                          <span className="text-[11px]">{method === 'Cash' ? 'Dinheiro' : method === 'Credit' ? 'Crédito' : method === 'Debit' ? 'Débito' : method === 'Split' ? 'Dividir' : method}</span>
+                                          <span className="text-[11px]">{translatePaymentMethod(method)}</span>
                                        </button>
                                     ))}
                                  </div>
@@ -1858,7 +1858,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                                        onClick={() => setPaymentMethodInput(m as any)}
                                        className={`py-2 rounded-lg text-sm font-bold border transition-colors ${paymentMethodInput === m ? 'bg-orange-100 border-orange-500 text-orange-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
                                     >
-                                       {m === 'Cash' ? 'Dinheiro' : m === 'Credit' ? 'Crédito' : m === 'Debit' ? 'Débito' : m}
+                                       {translatePaymentMethod(m)}
                                     </button>
                                  ))}
                               </div>
@@ -1938,7 +1938,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                            </div>
                         )}
                         <p><strong>Total: {formatCurrency(lastCompletedSale.total)}</strong></p>
-                        <p className="text-[9px]">Pagamento: {lastCompletedSale.paymentMethod === 'Credit' ? 'Crédito' : lastCompletedSale.paymentMethod === 'Debit' ? 'Débito' : lastCompletedSale.paymentMethod === 'Pix' ? 'PIX' : 'Dinheiro'}</p>
+                        <p className="text-[9px]">Pagamento: {translatePaymentMethod(lastCompletedSale.paymentMethod)}</p>
                      </div>
 
                      <div className="text-center text-[9px] border-t border-black pt-2">

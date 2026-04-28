@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Order, Sale, Branch } from '../types';
 import { dbOrders, dbSales, dbProducts } from '../services/db';
 import { Clock, CheckCircle, Truck, XCircle, ChefHat, ArrowRight, RefreshCw, Store, MapPin, Phone, DollarSign, Calendar, Printer } from 'lucide-react';
-import { getTodayDate } from '../services/utils';
+import { getTodayDate, normalizePaymentMethod, translatePaymentMethod } from '../services/utils';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import { hardwareBridge } from '../services/hardwareBridge';
@@ -249,7 +249,7 @@ const OrderCenter: React.FC<OrderCenterProps> = ({ onBack, tenantId }) => {
                     total: order.total + (order.deliveryFee || 0),
                     branch: order.branch,
                     status: 'Completed',
-                    paymentMethod: order.paymentMethod === 'PIX' ? 'Pix' : order.paymentMethod === 'CREDIT' ? 'Credit' : order.paymentMethod === 'DEBIT' ? 'Debit' : 'Cash',
+                    paymentMethod: normalizePaymentMethod(order.paymentMethod) as Sale['paymentMethod'],
                     hasInvoice: false,
                     items: order.items,
                     cashReceived: undefined,
@@ -371,7 +371,7 @@ const OrderCenter: React.FC<OrderCenterProps> = ({ onBack, tenantId }) => {
                                                             {order.deliveryMethod === 'DELIVERY' ? 'Entrega' : 'Retirada'}
                                                         </span>
                                                         <span className="text-[10px] uppercase font-bold px-2 py-1 rounded-md flex items-center gap-1 bg-slate-100 text-slate-600">
-                                                            <DollarSign size={12} /> {order.paymentMethod === 'CREDIT' ? 'Crédito' : order.paymentMethod === 'DEBIT' ? 'Débito' : order.paymentMethod === 'CASH' ? 'Dinheiro' : order.paymentMethod}
+                                                            <DollarSign size={12} /> {translatePaymentMethod(order.paymentMethod)}
                                                         </span>
                                                     </div>
 
@@ -544,7 +544,7 @@ const OrderCenter: React.FC<OrderCenterProps> = ({ onBack, tenantId }) => {
                             </div>
                         </div>
                         <div className="text-left text-[9px] mt-1">
-                            Pagamento: {orderToPrint.paymentMethod === 'CREDIT' ? 'Crédito' : orderToPrint.paymentMethod === 'DEBIT' ? 'Débito' : orderToPrint.paymentMethod === 'CASH' ? 'Dinheiro' : orderToPrint.paymentMethod}
+                            Pagamento: {translatePaymentMethod(orderToPrint.paymentMethod)}
                         </div>
 
                         <div className="border-t border-dashed border-black pt-2 mt-2 text-center text-[9px]">
