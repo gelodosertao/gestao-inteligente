@@ -194,8 +194,7 @@ export const dbUsers = {
   },
 
   async getAll(): Promise<User[]> {
-    const { data, error } = await supabase.from('app_users').select('*');
-    if (error) throw error;
+    const data = await fetchAllRecords((from, to) => supabase.from('app_users').select('*').range(from, to));
 
     return (data || []).map((row: any) => ({
       id: row.id,
@@ -283,14 +282,11 @@ export const dbTenants = {
 // --- CATEGORIES ---
 export const dbCategories = {
   async getAll(tenantId: string, type?: 'PRODUCT' | 'FINANCIAL'): Promise<CategoryItem[]> {
-    let query = supabase.from('categories').select('*').eq('tenant_id', tenantId).order('name', { ascending: true });
-
-    if (type) {
-      query = query.eq('type', type);
-    }
-
-    const { data, error } = await query;
-    if (error) throw error;
+    const data = await fetchAllRecords((from, to) => {
+      let query = supabase.from('categories').select('*').eq('tenant_id', tenantId).order('name', { ascending: true });
+      if (type) query = query.eq('type', type);
+      return query.range(from, to);
+    });
 
     return (data || []).map((row: any) => ({
       id: row.id,
@@ -317,8 +313,9 @@ export const dbCategories = {
 // --- PRODUCTS ---
 export const dbProducts = {
   async getAll(tenantId: string): Promise<Product[]> {
-    const { data, error } = await supabase.from('products').select('*').eq('tenant_id', tenantId);
-    if (error) throw error;
+    const data = await fetchAllRecords((from, to) => supabase.from('products').select('*').eq('tenant_id', tenantId).range(from, to));
+    
+    if (!data) return [];
 
     return (data || []).map((row: any) => ({
       id: row.id,
@@ -481,6 +478,7 @@ export const dbSales = {
       paymentHistory: row.payment_history,
       createdAt: row.created_at,
       deliveryFee: row.delivery_fee,
+      discount: row.discount,
       source: row.source,
       sellerId: row.seller_id,
       sellerName: row.seller_name,
@@ -507,6 +505,7 @@ export const dbSales = {
       payment_history: sale.paymentHistory,
       created_at: sale.createdAt,
       delivery_fee: sale.deliveryFee,
+      discount: sale.discount,
       source: sale.source,
       seller_id: sale.sellerId,
       seller_name: sale.sellerName,
@@ -539,6 +538,7 @@ export const dbSales = {
       amount_paid: sale.amountPaid,
       payment_history: sale.paymentHistory,
       delivery_fee: sale.deliveryFee,
+      discount: sale.discount,
       source: sale.source,
       seller_id: sale.sellerId,
       seller_name: sale.sellerName,
@@ -880,12 +880,8 @@ import type { CrmLead, CrmInteraction, CrmTask } from '../types';
 export const dbCrm = {
   // LEADS
   async getLeads(tenantId: string): Promise<CrmLead[]> {
-    const { data, error } = await supabase
-      .from('crm_leads')
-      .select('*')
-      .eq('tenant_id', tenantId)
-      .order('created_at', { ascending: false });
-    if (error) throw error;
+    const data = await fetchAllRecords((from, to) => supabase.from('crm_leads').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false }).range(from, to));
+    
     return (data || []).map((row: any) => ({
       id: row.id,
       tenantId: row.tenant_id,

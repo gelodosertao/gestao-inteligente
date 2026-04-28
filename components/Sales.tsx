@@ -500,7 +500,8 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                priceAtSale: c.isPack && c.product.packSize ? (getProductPrice(c) / c.product.packSize) : getProductPrice(c)
             })),
             cashReceived: selectedPaymentMethod === 'Cash' && cashReceived ? parseFloat(cashReceived) : undefined,
-            changeAmount: selectedPaymentMethod === 'Cash' ? changeAmount : undefined
+            changeAmount: selectedPaymentMethod === 'Cash' ? changeAmount : undefined,
+            discount: parseFloat(discount) || 0,
          };
 
          // Call Global Add Sale (updates Stock and Sales History)
@@ -759,13 +760,20 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                            </div>
 
                            <div className="mt-2 md:mt-0 flex flex-col items-start md:items-end w-full md:w-auto pt-3 md:pt-0 border-t border-slate-100 md:border-0 border-dashed">
-                              <div className="flex justify-between md:justify-end items-center w-full mb-3 md:mb-1">
-                                 <span className="font-black text-xl md:text-lg text-slate-800">{formatCurrency(sale.total)}</span>
-                                 {sale.status === 'Pending' && (
-                                    <span className="text-xs font-bold text-red-600 ml-3 bg-red-50 px-2 py-1 rounded-lg border border-red-100">
-                                       Deve: {formatCurrency(sale.total - (sale.amountPaid || 0))}
-                                    </span>
-                                 )}
+                              <div className="flex flex-col items-end w-full mb-3 md:mb-1">
+                                 <div className="flex items-center justify-between md:justify-end w-full">
+                                    <div className="flex flex-col items-end">
+                                       <span className="font-black text-xl md:text-lg text-slate-800">{formatCurrency(sale.total)}</span>
+                                       {(sale.discount || 0) > 0 && (
+                                          <span className="text-[9px] font-black text-red-500 uppercase tracking-tighter">Desconto: {formatCurrency(sale.discount!)}</span>
+                                       )}
+                                    </div>
+                                    {sale.status === 'Pending' && (
+                                       <span className="text-xs font-bold text-red-600 ml-3 bg-red-50 px-2 py-1 rounded-lg border border-red-100">
+                                          Deve: {formatCurrency(sale.total - (sale.amountPaid || 0))}
+                                       </span>
+                                    )}
+                                 </div>
                               </div>
                               <div className="flex gap-1.5 flex-wrap justify-start md:justify-end">
                                  <span className={`px-2 py-1 rounded-md text-[10px] md:text-xs font-bold border flex items-center gap-1 ${sale.status === 'Completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : sale.status === 'Finalizado pela Fábrica' ? 'bg-blue-50 text-blue-700 border-blue-200' : sale.status === 'Pending' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-red-50 text-red-700 border-red-200'} `}>
@@ -1388,6 +1396,16 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                                        ))}
                                     </div>
                                     <div className="border-t border-yellow-200 pt-2 flex justify-between font-bold">
+                                       <span>SUBTOTAL R$</span>
+                                       <span>{formatCurrency(cartTotal + (parseFloat(discount) || 0))}</span>
+                                    </div>
+                                    {parseFloat(discount) > 0 && (
+                                       <div className="flex justify-between text-red-600 font-bold">
+                                          <span>DESCONTO R$</span>
+                                          <span>- {formatCurrency(parseFloat(discount))}</span>
+                                       </div>
+                                    )}
+                                    <div className="flex justify-between font-black text-[12px] border-b border-yellow-200 mb-1">
                                        <span>TOTAL R$</span>
                                        <span>{formatCurrency(cartTotal)}</span>
                                     </div>

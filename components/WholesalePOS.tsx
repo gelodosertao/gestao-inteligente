@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Product, Sale, Customer, User, Branch, SaleItem } from '../types';
 import { ShoppingCart, LogOut, User as UserIcon, Plus, Minus, Search, CheckCircle, ArrowLeft, History, Store, MapPin, Edit, Trash2, Save, X, Printer, Check } from 'lucide-react';
 import html2canvas from 'html2canvas';
@@ -316,6 +316,7 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
             sellerName: effectiveSellerName,
             sellerRole: effectiveSellerRole,
             commissionAmount: commissionAmount,
+            discount: adminDiscount || 0,
         };
 
         try {
@@ -1327,6 +1328,18 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
 
                 {/* Order Summary */}
                 <div style={{ backgroundColor: '#000', color: '#fff', padding: '20px 10px', borderRadius: '12px', marginBottom: '25px' }}>
+                    {(lastCompletedSale?.discount || 0) > 0 && (
+                        <div style={{ borderBottom: '1px solid #334155', paddingBottom: '10px', marginBottom: '10px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#94a3b8' }}>
+                                <span>SUBTOTAL</span>
+                                <span>R$ {(lastCompletedSale!.total + lastCompletedSale!.discount!).toFixed(2)}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#ef4444', fontWeight: 800 }}>
+                                <span>DESCONTO</span>
+                                <span>- R$ {lastCompletedSale!.discount!.toFixed(2)}</span>
+                            </div>
+                        </div>
+                    )}
                     <p style={{ fontSize: '12px', fontWeight: 700, margin: '0 0 5px', color: '#cbd5e1', textTransform: 'uppercase', letterSpacing: '1px' }}>Total do pedido</p>
                     <p style={{ fontSize: '40px', fontWeight: 900, margin: 0 }}>R$ {lastCompletedSale?.total.toFixed(2)}</p>
                 </div>

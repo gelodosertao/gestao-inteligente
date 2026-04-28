@@ -171,6 +171,7 @@ const Reports: React.FC<ReportsProps> = ({ sales, products, customers, onBack })
 
     // Calculate Totals for Summary Cards
     const totalRevenue = getFilteredSales.filter(s => s.status === 'Completed' || s.status === 'Finalizado pela Fábrica').reduce((acc, s) => acc + s.total, 0);
+    const totalDiscounts = getFilteredSales.filter(s => s.status === 'Completed' || s.status === 'Finalizado pela Fábrica').reduce((acc, s) => acc + (s.discount || 0), 0);
     const totalticket = getFilteredSales.filter(s => s.status === 'Completed' || s.status === 'Finalizado pela Fábrica').length > 0
         ? totalRevenue / getFilteredSales.filter(s => s.status === 'Completed' || s.status === 'Finalizado pela Fábrica').length
         : 0;
@@ -283,6 +284,15 @@ const Reports: React.FC<ReportsProps> = ({ sales, products, customers, onBack })
                     </div>
                     <div className="bg-emerald-100 p-3 rounded-full text-emerald-600">
                         <ShoppingBag size={24} />
+                    </div>
+                </div>
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
+                    <div>
+                        <p className="text-slate-500 text-sm font-medium">Total de Descontos</p>
+                        <h3 className="text-2xl font-bold text-red-600">{formatCurrency(totalDiscounts)}</h3>
+                    </div>
+                    <div className="bg-red-100 p-3 rounded-full text-red-600">
+                        <TrendingUp size={24} className="rotate-180" />
                     </div>
                 </div>
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
