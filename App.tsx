@@ -581,13 +581,9 @@ const App: React.FC = () => {
           <AlertCircle size={48} className="text-red-500 mx-auto mb-4" />
           <h3 className="text-xl font-bold text-red-700 mb-2">Atenção Necessária no Banco de Dados</h3>
           <p className="text-slate-700 mb-6">{dbError}</p>
-          <div className="bg-white p-4 rounded border text-left text-xs font-mono overflow-x-auto text-slate-600">
-            -- Execute este SQL no Supabase para corrigir o banco de dados:<br />
-            -- (Copie o conteúdo do arquivo fix_database_schema.sql)<br />
-            <br />
-            -- Exemplo de comando rápido para criar a tabela de empresas:<br />
-            create table if not exists tenants (id uuid default gen_random_uuid() primary key, name text not null);<br />
-            insert into tenants (id, name) select '00000000-0000-0000-0000-000000000000', 'G.AI - Gestão Auto Inteligente' where not exists (select 1 from tenants where id = '00000000-0000-0000-0000-000000000000');
+          <div className="bg-white p-4 rounded border text-left text-xs text-slate-600">
+            A conexão com o banco de dados falhou ou os dados não puderam ser recuperados.
+            Verifique sua conexão com a internet ou entre em contato com o administrador do sistema.
           </div>
           <div className="flex gap-4 justify-center mt-6">
             <button onClick={() => refetch()} className="bg-red-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-red-700">

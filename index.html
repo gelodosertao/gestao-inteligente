@@ -7,32 +7,8 @@
     content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover" />
   <title>Gelo do Sertão - Gestão Inteligente</title>
 
-  <!-- Meta Pixel Code -->
+  <!-- Tracking scripts are now loaded dynamically based on store_settings -->
   <script>
-    !function (f, b, e, v, n, t, s) {
-      if (f.fbq) return; n = f.fbq = function () {
-        n.callMethod ?
-          n.callMethod.apply(n, arguments) : n.queue.push(arguments)
-      };
-      if (!f._fbq) f._fbq = n; n.push = n; n.loaded = !0; n.version = '2.0';
-      n.queue = []; t = b.createElement(e); t.async = !0;
-      t.src = v; s = b.getElementsByTagName(e)[0];
-      s.parentNode.insertBefore(t, s)
-    }(window, document, 'script',
-      'https://connect.facebook.net/en_US/fbevents.js');
-    fbq('init', '1214538864191976');
-    fbq('track', 'PageView');
-  </script>
-
-  <!-- Google tag (gtag.js) -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-7TCLWLDDCN"></script>
-  <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag() { dataLayer.push(arguments); }
-    gtag('js', new Date());
-
-    gtag('config', 'G-7TCLWLDDCN');
-
     // Global listener for Chunk Load Errors (Deployment Fix)
     window.addEventListener('error', function (e) {
       const message = e.message || '';
@@ -75,19 +51,12 @@
     }
   </style>
 
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
 
 
 </head>
 
 <body>
-  <!-- Meta Pixel NoScript -->
-  <noscript><img height="1" width="1" style="display:none"
-      src="https://www.facebook.com/tr?id=1214538864191976&ev=PageView&noscript=1" /></noscript>
-  <!-- End Meta Pixel NoScript -->
 
   <div id="root" class="min-h-dvh w-full flex flex-col"></div>
   <!-- CORREÇÃO: Apontando para a raiz ./index.tsx ao invés de /src/index.tsx -->

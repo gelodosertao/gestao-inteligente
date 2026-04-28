@@ -1,6 +1,30 @@
 import { supabase } from './supabase';
 import { Product, StoreSettings, Sale, FinancialRecord, Customer, StockMovement, Branch, Category, ProductionRecord, Shift, User, Role, CategoryItem, CashClosing, Order } from '../types';
 
+// --- HELPER DE PAGINAÇÃO PARA BYPASS LIMITE 1000 DO SUPABASE ---
+const fetchAllRecords = async (getQuery: (from: number, to: number) => any) => {
+  let allData: any[] = [];
+  let page = 0;
+  const pageSize = 1000;
+  let hasMore = true;
+
+  while (hasMore) {
+    const { data, error } = await getQuery(page * pageSize, (page + 1) * pageSize - 1);
+    if (error) throw error;
+    if (data && data.length > 0) {
+      allData = [...allData, ...data];
+      if (data.length < pageSize) {
+        hasMore = false;
+      } else {
+        page++;
+      }
+    } else {
+      hasMore = false;
+    }
+  }
+  return allData;
+};
+
 // --- USERS & AUTH ---
 
 // --- USERS & AUTH ---
@@ -95,7 +119,6 @@ export const dbUsers = {
       id: authUid,
       name: user.name,
       email: user.email,
-      password: user.password, // Você ainda mantém aqui se quiser retrocompatibilidade até testar, depois ideal remover
       role: user.role,
       avatar_initials: user.name.substring(0, 2).toUpperCase(),
       tenant_id: tenantId,
@@ -145,19 +168,26 @@ export const dbUsers = {
   },
 
   async getCurrentUser(): Promise<User | null> {
-    // 1. Check LocalStorage first
     try {
+      // Verify with Supabase Auth to ensure session is still valid
+      const { data: { session }, error } = await supabase.auth.getSession();
+
+      if (error || !session) {
+        localStorage.removeItem('app_user');
+        return null;
+      }
+
+      // Check LocalStorage cache 
       const stored = localStorage.getItem('app_user');
       if (stored) {
         const user = JSON.parse(stored);
-        // Garante que o tenantId nunca seja undefined/null para evitar dados zerados
         if (user && !user.tenantId) {
           user.tenantId = '00000000-0000-0000-0000-000000000000';
         }
         return user;
       }
     } catch (e) {
-      console.error("Erro ao ler usuário do cache:", e);
+      console.error("Erro ao ler usuário:", e);
       localStorage.removeItem('app_user');
     }
     return null;
@@ -431,8 +461,7 @@ export const dbSettings = {
 // --- SALES ---
 export const dbSales = {
   async getAll(tenantId: string): Promise<Sale[]> {
-    const { data, error } = await supabase.from('sales').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false });
-    if (error) throw error;
+    const data = await fetchAllRecords((from, to) => supabase.from('sales').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false }).range(from, to));
 
     return (data || []).map((row: any) => ({
       id: row.id,
@@ -534,8 +563,7 @@ export const dbSales = {
 // --- FINANCIALS ---
 export const dbFinancials = {
   async getAll(tenantId: string): Promise<FinancialRecord[]> {
-    const { data, error } = await supabase.from('financials').select('*').eq('tenant_id', tenantId).order('date', { ascending: false });
-    if (error) throw error;
+    const data = await fetchAllRecords((from, to) => supabase.from('financials').select('*').eq('tenant_id', tenantId).order('date', { ascending: false }).range(from, to));
 
     return (data || []).map((row: any) => ({
       id: row.id,
@@ -588,8 +616,7 @@ export const dbFinancials = {
 // --- CUSTOMERS ---
 export const dbCustomers = {
   async getAll(tenantId: string): Promise<Customer[]> {
-    const { data, error } = await supabase.from('customers').select('*').eq('tenant_id', tenantId).order('name', { ascending: true });
-    if (error) throw error;
+    const data = await fetchAllRecords((from, to) => supabase.from('customers').select('*').eq('tenant_id', tenantId).order('name', { ascending: true }).range(from, to));
 
     return (data || []).map((row: any) => ({
       id: row.id,
@@ -685,8 +712,7 @@ export const dbCustomers = {
 // --- STOCK MOVEMENTS ---
 export const dbStockMovements = {
   async getAll(tenantId: string): Promise<StockMovement[]> {
-    const { data, error } = await supabase.from('stock_movements').select('*').eq('tenant_id', tenantId).order('date', { ascending: false });
-    if (error) throw error;
+    const data = await fetchAllRecords((from, to) => supabase.from('stock_movements').select('*').eq('tenant_id', tenantId).order('date', { ascending: false }).range(from, to));
 
     return (data || []).map((row: any) => ({
       id: row.id,
@@ -721,8 +747,7 @@ export const dbStockMovements = {
 // --- PRODUCTION LOGS ---
 export const dbProduction = {
   async getAll(tenantId: string): Promise<ProductionRecord[]> {
-    const { data, error } = await supabase.from('production_logs').select('*').eq('tenant_id', tenantId).order('date', { ascending: false });
-    if (error) throw error;
+    const data = await fetchAllRecords((from, to) => supabase.from('production_logs').select('*').eq('tenant_id', tenantId).order('date', { ascending: false }).range(from, to));
 
     return (data || []).map((row: any) => ({
       id: row.id,
@@ -755,8 +780,7 @@ export const dbProduction = {
 // --- CASH CLOSINGS ---
 export const dbCashClosings = {
   async getAll(tenantId: string): Promise<CashClosing[]> {
-    const { data, error } = await supabase.from('cash_closings').select('*').eq('tenant_id', tenantId).order('date', { ascending: false });
-    if (error) throw error;
+    const data = await fetchAllRecords((from, to) => supabase.from('cash_closings').select('*').eq('tenant_id', tenantId).order('date', { ascending: false }).range(from, to));
 
     return (data || []).map((row: any) => ({
       id: row.id,
@@ -800,8 +824,7 @@ export const dbCashClosings = {
 // --- ORDERS ---
 export const dbOrders = {
   async getAll(tenantId: string): Promise<Order[]> {
-    const { data, error } = await supabase.from('orders').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false });
-    if (error) throw error;
+    const data = await fetchAllRecords((from, to) => supabase.from('orders').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false }).range(from, to));
 
     return (data || []).map((row: any) => ({
       id: row.id,

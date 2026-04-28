@@ -1,7 +1,5 @@
-import { GoogleGenAI } from "@google/genai";
 import { Product, Sale, FinancialRecord } from '../types';
-
-const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || '' });
+import { supabase } from './supabase';
 
 export const getBusinessAnalysis = async (
   products: Product[],
@@ -43,13 +41,17 @@ export const getBusinessAnalysis = async (
   `;
 
   try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
+    const { data, error } = await supabase.functions.invoke('gemini-analysis', {
+      body: { prompt }
     });
-    return response.text || "Não consegui gerar uma análise no momento.";
+
+    if (error) {
+      throw error;
+    }
+
+    return data?.text || "Não consegui gerar uma análise no momento.";
   } catch (error) {
-    console.error("Erro ao consultar Gemini:", error);
-    return "Desculpe, ocorreu um erro ao conectar com a inteligência artificial. Verifique sua chave de API.";
+    console.error("Erro ao consultar Gemini via Edge Function:", error);
+    return "Desculpe, ocorreu um erro ao conectar com o serviço de IA. Verifique se a Edge Function está configurada.";
   }
 };

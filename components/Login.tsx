@@ -25,17 +25,41 @@ const Login: React.FC<LoginProps> = ({ onLogin, onOpenMenu }) => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
+  // Rate Limiting State
+  const [failedAttempts, setFailedAttempts] = useState(0);
+  const [lockoutUntil, setLockoutUntil] = useState<number | null>(null);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Check lockout
+    if (lockoutUntil && Date.now() < lockoutUntil) {
+      const remainingSeconds = Math.ceil((lockoutUntil - Date.now()) / 1000);
+      setError(`Muitas tentativas falhas. Tente novamente em ${remainingSeconds} segundos.`);
+      return;
+    }
+
     setLoading(true);
     setError('');
 
     try {
       const user = await dbUsers.login(email.trim().toLowerCase(), password);
+      setFailedAttempts(0); // Reset on success
+      setLockoutUntil(null);
       onLogin(user);
     } catch (err: any) {
       console.error("Login error:", err);
-      setError(err.message || 'Falha ao conectar. Verifique internet ou credenciais.');
+
+      const newAttempts = failedAttempts + 1;
+      setFailedAttempts(newAttempts);
+
+      if (newAttempts >= 5) {
+        setLockoutUntil(Date.now() + 30000); // Lock for 30 seconds
+        setError('Muitas tentativas falhas. Conta temporariamente bloqueada por 30 segundos.');
+      } else {
+        setError(err.message || 'Falha ao conectar. Verifique internet ou credenciais.');
+      }
+
       setLoading(false);
     }
   };
@@ -47,7 +71,11 @@ const Login: React.FC<LoginProps> = ({ onLogin, onOpenMenu }) => {
     setSuccess('');
 
     try {
-      if (regPassword.length < 6) throw new Error("A senha deve ter pelo menos 6 dígitos.");
+      // Password Policy: Min 8 chars, 1 uppercase, 1 lowercase, 1 number, 1 special char
+      const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+      if (!passwordRegex.test(regPassword)) {
+        throw new Error("A senha deve ter pelo menos 8 caracteres, contendo pelo menos 1 letra maiúscula, 1 letra minúscula, 1 número e 1 caractere especial.");
+      }
 
       await dbUsers.register({
         name: regName,
@@ -133,7 +161,6 @@ const Login: React.FC<LoginProps> = ({ onLogin, onOpenMenu }) => {
                 <select value={regRole} onChange={(e) => setRegRole(e.target.value as Role)} className="w-full px-4 py-2 border border-slate-200 rounded-xl outline-none focus:border-orange-500 bg-white">
                   <option value="OPERATOR">Operador (Caixa/Estoque)</option>
                   <option value="FACTORY">Fábrica (Produção)</option>
-                  <option value="ADMIN">Administrador (Sócio)</option>
                   <option value="WHOLESALE_REPRESENTATIVE">Representante (Vendas Atacado)</option>
                 </select>
               </div>

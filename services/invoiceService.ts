@@ -12,7 +12,6 @@ export interface InvoiceResponse {
 // Configuração da API (será preenchida com variáveis de ambiente)
 const API_CONFIG = {
     baseUrl: import.meta.env.VITE_INVOICE_API_URL || 'https://api.nuvemfiscal.com.br/v2', // Exemplo
-    token: import.meta.env.VITE_INVOICE_API_TOKEN || '',
 };
 
 export const invoiceService = {

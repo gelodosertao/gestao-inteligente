@@ -247,19 +247,48 @@ const OnlineMenu: React.FC<OnlineMenuProps> = ({ onBack }) => {
         if (!settings) return;
 
         // 1. Meta Pixel (Facebook)
-        // Hardcoded in index.html as requested
-        // if (settings.facebookPixelId) { ... }
-
-        // 2. Google Tag (gtag.js)
-        // Now handled in index.html to ensure global coverage
-        /*
-        if (settings.googleTagId) {
-            const scriptId = 'google-analytics-script';
-            if (!document.getElementById(scriptId)) {
-                // ... logic removed ...
+        if (settings.facebookPixelId) {
+            const fbId = settings.facebookPixelId;
+            const scriptContent = `
+              !function(f,b,e,v,n,t,s)
+              {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+              n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+              if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+              n.queue=[];t=b.createElement(e);t.async=!0;
+              t.src=v;s=b.getElementsByTagName(e)[0];
+              s.parentNode.insertBefore(t,s)}(window, document,'script',
+              'https://connect.facebook.net/en_US/fbevents.js');
+              fbq('init', '${fbId}');
+              fbq('track', 'PageView');
+            `;
+            if (!document.getElementById('fb-pixel')) {
+                const script = document.createElement('script');
+                script.id = 'fb-pixel';
+                script.innerHTML = scriptContent;
+                document.head.appendChild(script);
             }
         }
-        */
+
+        // 2. Google Tag (gtag.js)
+        if (settings.googleTagId) {
+            const gtagId = settings.googleTagId;
+            if (!document.getElementById('google-analytics')) {
+                const script1 = document.createElement('script');
+                script1.id = 'google-analytics';
+                script1.async = true;
+                script1.src = `https://www.googletagmanager.com/gtag/js?id=${gtagId}`;
+                document.head.appendChild(script1);
+
+                const script2 = document.createElement('script');
+                script2.innerHTML = `
+                window.dataLayer = window.dataLayer || [];
+                function gtag() { dataLayer.push(arguments); }
+                gtag('js', new Date());
+                gtag('config', '${gtagId}');
+                `;
+                document.head.appendChild(script2);
+            }
+        }
     }, [settings]);
 
     // --- HELPERS ---
@@ -383,7 +412,7 @@ const OnlineMenu: React.FC<OnlineMenuProps> = ({ onBack }) => {
         } else if (product.isStockControlled !== false) {
             const currentInCart = getCartQuantity(product.id);
             if (currentInCart + quantity > product.stockFilial) {
-                setToastMessage(`Estoque insuficiente. Apenas ${product.stockFilial} disponíveis.`);
+                setToastMessage(`Estoque insuficiente.Apenas ${product.stockFilial} disponíveis.`);
                 return;
             }
         }
@@ -517,7 +546,7 @@ const OnlineMenu: React.FC<OnlineMenuProps> = ({ onBack }) => {
             });
         } else {
             // Checkbox: toggle
-            const key = `${optionName}:${choice.name}`;
+            const key = `${optionName}:${choice.name} `;
 
             const isSemAlcool = choice.name === 'SEM ÁLCOOL' || optionName === 'SEM ÁLCOOL';
             const isAlcohol = optionName === 'FEITO COM' || optionName.toUpperCase().includes('LICOR') || choice.name.toUpperCase().includes('VODKA') || choice.name.toUpperCase().includes('CACHAÇA') || choice.name.toUpperCase().includes('ABSOLUT');
@@ -554,7 +583,7 @@ const OnlineMenu: React.FC<OnlineMenuProps> = ({ onBack }) => {
 
     const handleOptionQuantity = (e: React.MouseEvent, optionName: string, choiceName: string, delta: number) => {
         e.stopPropagation();
-        const key = `${optionName}:${choiceName}`;
+        const key = `${optionName}:${choiceName} `;
         setSelectedOptions(prev => {
             const newState = { ...prev };
             if (newState[key]) {
@@ -579,11 +608,11 @@ const OnlineMenu: React.FC<OnlineMenuProps> = ({ onBack }) => {
             const qty = val.quantity && val.quantity >= 1 ? val.quantity : 1;
             const optionGroupName = val.optionGroup || key.split(':')[0] || key;
             const choiceName = val.choiceName;
-            const uniqueKey = `${optionGroupName}:${choiceName}`;
+            const uniqueKey = `${optionGroupName}:${choiceName} `;
 
             optionsMap.set(uniqueKey, {
                 optionName: optionGroupName,
-                choiceName: qty > 1 ? `${qty}x ${choiceName}` : choiceName,
+                choiceName: qty > 1 ? `${qty}x ${choiceName} ` : choiceName,
                 priceChange: (val.priceChange || 0) * qty
             });
         });
@@ -650,7 +679,7 @@ const OnlineMenu: React.FC<OnlineMenuProps> = ({ onBack }) => {
 
         try {
             const fullAddress = deliveryMethod === 'DELIVERY'
-                ? `${address}, Nº ${houseNumber}${referencePoint ? ` (Ref: ${referencePoint})` : ''}`
+                ? `${address}, Nº ${houseNumber}${referencePoint ? ` (Ref: ${referencePoint})` : ''} `
                 : undefined;
 
             const newOrder: Order = {
@@ -727,18 +756,18 @@ const OnlineMenu: React.FC<OnlineMenuProps> = ({ onBack }) => {
 
             // WhatsApp formatting
             const itemsList = cart.map(item => {
-                const notes = item.notes ? `\n   📝 Obs: ${item.notes}` : '';
-                const opts = item.selectedOptions.length > 0 ? `\n   + ${item.selectedOptions.map(o => o.choiceName).join(', ')}` : '';
-                return `• ${item.quantity}x ${item.product.name}${opts}${notes}`;
+                const notes = item.notes ? `\n   📝 Obs: ${item.notes} ` : '';
+                const opts = item.selectedOptions.length > 0 ? `\n + ${item.selectedOptions.map(o => o.choiceName).join(', ')} ` : '';
+                return `• ${item.quantity}x ${item.product.name}${opts}${notes} `;
             }).join('\n');
 
             const methodText = deliveryMethod === 'DELIVERY' ? `Entrega 🛵` : 'Retirada 🏪';
-            const addressText = deliveryMethod === 'DELIVERY' ? `\n📍 *Endereço:* ${fullAddress}` : '';
+            const addressText = deliveryMethod === 'DELIVERY' ? `\n📍 * Endereço:* ${fullAddress} ` : '';
 
             let paymentText = paymentMethod === 'PIX' ? 'Pix' : paymentMethod === 'CREDIT' ? 'Cartão de Crédito' : paymentMethod === 'DEBIT' ? 'Cartão de Débito' : 'Dinheiro';
             if (paymentMethod === 'CASH' && changeFor) paymentText += ` (Troco para R$ ${changeFor})`;
 
-            const message = `👋 Olá! Gostaria de fazer um pedido:\n\n*👤 Cliente:* ${customerName}\n*📱 Tel:* ${customerPhone}\n\n*🛒 Itens:*\n${itemsList}\n\n*📦 Entrega:* ${methodText} ${deliveryMethod === 'DELIVERY' && deliveryFee > 0 ? `(R$ ${deliveryFee.toFixed(2)})` : ''}${addressText}\n\n*💰 Total Geral:* ${formatCurrency(cartTotal + (deliveryMethod === 'DELIVERY' ? deliveryFee : 0))}\n*💳 Pagamento:* ${paymentText}`;
+            const message = `👋 Olá! Gostaria de fazer um pedido: \n\n *👤 Cliente:* ${customerName} \n *📱 Tel:* ${customerPhone} \n\n *🛒 Itens:*\n${itemsList} \n\n *📦 Entrega:* ${methodText} ${deliveryMethod === 'DELIVERY' && deliveryFee > 0 ? `(R$ ${deliveryFee.toFixed(2)})` : ''}${addressText} \n\n *💰 Total Geral:* ${formatCurrency(cartTotal + (deliveryMethod === 'DELIVERY' ? deliveryFee : 0))} \n *💳 Pagamento:* ${paymentText} `;
 
             const phone = settings?.phone || "5577998129383";
 

@@ -159,6 +159,7 @@ export interface User {
   role: Role;
   avatarInitials: string;
   tenantId: string;
+  tenantName?: string;
   allowedModules?: string[]; // IDs of modules the user can access
 }
 
