@@ -407,10 +407,10 @@ const OrderCenter: React.FC<OrderCenterProps> = ({ onBack, tenantId }) => {
                                                                 <span>Subtotal</span>
                                                                 <span>{order.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
                                                             </div>
-                                                            {order.deliveryFee > 0 && (
+                                                            {(order.deliveryFee || 0) > 0 && (
                                                                 <div className="flex justify-between items-center text-xs text-slate-500 font-medium">
                                                                     <span>Taxa de Entrega</span>
-                                                                    <span>{order.deliveryFee.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                                                                    <span>{(order.deliveryFee || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
                                                                 </div>
                                                             )}
                                                             <div className="flex justify-between items-center pt-1 border-t border-slate-100 italic">

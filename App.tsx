@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Loader2, AlertCircle, Menu } from 'lucide-react';
 import { usePlatform } from './hooks/usePlatform';
 import { useAppLifecycle } from './hooks/useAppLifecycle';
+import ExpirationAlert from './components/ExpirationAlert';
 
 // Lazy Load Components to prevent circular dependencies and "Cannot access before initialization" errors
 const AppSidebar = React.lazy(() => import('./components/AppSidebar'));
@@ -729,8 +730,11 @@ const App: React.FC = () => {
                           <span className="ml-2 px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold rounded uppercase">App</span>
                         )}
                       </div>
-                      <div className="bg-orange-500 w-8 h-8 rounded-lg flex items-center justify-center text-white font-black text-xs shadow-lg shadow-orange-500/20">
-                        GS
+                      <div className="flex items-center gap-3">
+                        <ExpirationAlert products={products} />
+                        <div className="bg-orange-500 w-8 h-8 rounded-lg flex items-center justify-center text-white font-black text-xs shadow-lg shadow-orange-500/20">
+                          GS
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -748,6 +752,9 @@ const App: React.FC = () => {
                   />
 
                   <main className={`flex-1 transition-all duration-300 pb-safe ${currentView === 'SALES' ? 'pt-[calc(4rem+env(safe-area-inset-top))] p-0' : 'pt-[calc(5rem+env(safe-area-inset-top))] px-4 pb-4 md:p-4 lg:p-8'} ${isSidebarCollapsed ? 'md:ml-20' : 'md:ml-20 lg:ml-64'}`}>
+                    <div className="hidden md:block fixed top-4 right-4 z-50 md:top-6 md:right-8">
+                      <ExpirationAlert products={products} />
+                    </div>
                     <div className={`${currentView === 'SALES' ? 'w-full px-2' : 'max-w-7xl mx-auto'} h-full pb-8 md:pb-4`}>
                       {renderContent()}
                     </div>

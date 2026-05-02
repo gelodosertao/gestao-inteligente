@@ -147,7 +147,7 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
     const mySales = useMemo(() => {
         let relevantSales = sales.filter(s => s.source === 'WHOLESALE_POS');
         if (monthFilter) {
-            relevantSales = relevantSales.filter(s => (s.date || s.createdAt).startsWith(monthFilter));
+            relevantSales = relevantSales.filter(s => (s.date || s.createdAt || '').startsWith(monthFilter));
         }
         if (statusFilter !== 'ALL') {
             relevantSales = relevantSales.filter(s => s.status === statusFilter);
