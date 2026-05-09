@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Package, ShoppingCart, DollarSign, Sparkles, Settings, LogOut, Users, Calculator, ChevronLeft, ChevronRight, Factory, Globe, Truck, PieChart, Lock, TrendingUp, Store } from 'lucide-react';
+import { LayoutDashboard, Package, ShoppingCart, DollarSign, Sparkles, Settings, LogOut, Users, Calculator, ChevronLeft, ChevronRight, Factory, Globe, Truck, PieChart, Lock, TrendingUp, Store, PartyPopper } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { ViewState, User } from '../types';
 
@@ -28,6 +28,7 @@ export const ALL_MENU_ITEMS = [
   { id: 'PRODUCTION', label: 'Produção', icon: Factory, roles: ['ADMIN', 'FACTORY'] },
   { id: 'REPORTS', label: 'Relatórios', icon: PieChart, roles: ['ADMIN'] },
   { id: 'MENU_CONFIG', label: 'Site / Cardápio', icon: Globe, roles: ['ADMIN'] },
+  { id: 'FESTAS_RADAR', label: 'Caçador de Festas', icon: PartyPopper, roles: ['ADMIN', 'OPERATOR'] },
 ];
 
 const getPathForView = (view: string) => {
@@ -47,6 +48,7 @@ const getPathForView = (view: string) => {
     case 'SETTINGS': return '/gestao/configuracoes';
     case 'MENU_CONFIG': return '/gestao/site';
     case 'AI_INSIGHTS': return '/gestao/ai';
+    case 'FESTAS_RADAR': return '/gestao/festas';
     default: return '/gestao';
   }
 };

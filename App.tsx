@@ -26,6 +26,7 @@ const OrderCenter = React.lazy(() => import('./components/OrderCenter'));
 const Reports = React.lazy(() => import('./components/Reports'));
 const WholesalePOS = React.lazy(() => import('./components/WholesalePOS'));
 const VisitorLanding = React.lazy(() => import('./components/VisitorLanding'));
+const FestasRadar = React.lazy(() => import('./components/FestasRadar'));
 // CRM Temporarily Disabled
 // const CRM = React.lazy(() => import('./components/CRM'));
 
@@ -54,6 +55,7 @@ const App: React.FC = () => {
     if (path.startsWith('/gestao/site')) return 'MENU_CONFIG';
     if (path.startsWith('/gestao/ai')) return 'AI_INSIGHTS';
     if (path.startsWith('/gestao/crm')) return 'CRM';
+    if (path.startsWith('/gestao/festas')) return 'FESTAS_RADAR';
     if (path === '/gestao') return 'DASHBOARD';
     return 'DASHBOARD';
   }, [location.pathname]);
@@ -76,6 +78,7 @@ const App: React.FC = () => {
       case 'MENU_CONFIG': navigate('/gestao/site'); break;
       case 'AI_INSIGHTS': navigate('/gestao/ai'); break;
       case 'CRM': navigate('/gestao/crm'); break;
+      case 'FESTAS_RADAR': navigate('/gestao/festas'); break;
       default: navigate('/gestao');
     }
   };
@@ -646,6 +649,8 @@ const App: React.FC = () => {
       // Central de Pedidos agora está anexada ao PDV Varejo (SALES)
       case 'SETTINGS':
         return <Settings currentUser={currentUser!} onResetData={handleResetData} />;
+      case 'FESTAS_RADAR':
+        return <FestasRadar />;
       // CRM removido temporariamente
       default:
         return <Dashboard products={products} sales={sales} financials={financials} customers={customers} onNavigate={setCurrentView} />;

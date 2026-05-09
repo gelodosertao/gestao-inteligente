@@ -164,7 +164,22 @@ export interface User {
   allowedModules?: string[]; // IDs of modules the user can access
 }
 
-export type ViewState = 'DASHBOARD' | 'INVENTORY' | 'SALES' | 'FINANCIAL' | 'CASH_CLOSING' | 'AI_INSIGHTS' | 'SETTINGS' | 'CUSTOMERS' | 'PRICING' | 'ONLINE_MENU' | 'MENU_CONFIG' | 'PRODUCTION' | 'ORDER_CENTER' | 'REPORTS' | 'WHOLESALE_POS' | 'CRM';
+export type ViewState = 'DASHBOARD' | 'INVENTORY' | 'SALES' | 'FINANCIAL' | 'CASH_CLOSING' | 'AI_INSIGHTS' | 'SETTINGS' | 'CUSTOMERS' | 'PRICING' | 'ONLINE_MENU' | 'MENU_CONFIG' | 'PRODUCTION' | 'ORDER_CENTER' | 'REPORTS' | 'WHOLESALE_POS' | 'CRM' | 'FESTAS_RADAR';
+
+// --- FESTAS RADAR MODULE ---
+
+export interface Festa {
+  nome: string;
+  data: string;           // ISO: YYYY-MM-DD
+  categoria: 'NACIONAL' | 'NORDESTE' | 'MUNICIPAL' | 'REGIONAL' | 'GOOGLE';
+  impacto: 'ALTÍSSIMO' | 'ALTO' | 'MEDIO' | 'BAIXO';
+  tipo: 'FIXO' | 'GOOGLE';
+  dica: string;
+  endereco?: string;
+  dias_restantes?: number;
+  urgencia?: string;
+  thumbnail?: string;
+}
 
 export interface Order {
   id: string;
