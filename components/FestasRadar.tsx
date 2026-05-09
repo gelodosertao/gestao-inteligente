@@ -1,18 +1,26 @@
 import React, { useState } from 'react';
-import { PartyPopper, Search, Calendar, AlertTriangle, Clock, MapPin, Zap, Download, Share2, RefreshCw, X, TrendingUp } from 'lucide-react';
+import {
+  PartyPopper, Search, Calendar, AlertTriangle, MapPin, Zap,
+  Share2, RefreshCw, TrendingUp, CalendarPlus, CalendarDays,
+  Flame, Siren, Pin, Layers, Globe, Building2, Map, Info,
+  CalendarCheck, Download
+} from 'lucide-react';
 import { supabase } from '../services/supabase';
 
 // ─── TIPOS ────────────────────────────────────────────────────────────────────
 
 interface Festa {
   nome: string;
-  data: string;
+  data: string;            // data principal / fim (ISO YYYY-MM-DD)
+  data_inicio?: string;    // início da festa (ISO YYYY-MM-DD) — se multi-dia
+  data_fim?: string;       // fim da festa (ISO YYYY-MM-DD) — igual a data se 1 dia
+  duracao_dias?: number;   // calculado
   categoria: 'NACIONAL' | 'NORDESTE' | 'MUNICIPAL' | 'REGIONAL' | 'GOOGLE';
   impacto: 'ALTÍSSIMO' | 'ALTO' | 'MEDIO' | 'BAIXO';
   tipo: 'FIXO' | 'GOOGLE';
   dica: string;
   endereco?: string;
-  dias_restantes?: number;
+  dias_restantes?: number; // dias até o INÍCIO da festa
   urgencia?: string;
   thumbnail?: string;
 }
@@ -36,68 +44,189 @@ const ESTADOS_BR = [
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 
-const formatarData = (isoDate: string) => {
-  const [y, m, d] = isoDate.split('-').map(Number);
-  const data = new Date(y, m - 1, d);
-  return data.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' });
+const toDate = (iso: string) => {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(y, m - 1, d);
+};
+
+const formatarData = (isoDate: string, weekday = true) => {
+  const d = toDate(isoDate);
+  return d.toLocaleDateString('pt-BR', {
+    ...(weekday ? { weekday: 'short' } : {}),
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
+};
+
+const formatarRangeData = (festa: Festa): string => {
+  const inicio = festa.data_inicio || festa.data;
+  const fim = festa.data_fim || festa.data;
+  if (inicio === fim) return formatarData(inicio);
+  const di = toDate(inicio);
+  const df = toDate(fim);
+  const opts: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'short' };
+  const si = di.toLocaleDateString('pt-BR', opts);
+  const sf = df.toLocaleDateString('pt-BR', { ...opts, year: 'numeric' });
+  return `${si} — ${sf}`;
+};
+
+const getDuracao = (festa: Festa): number => {
+  if (festa.duracao_dias) return festa.duracao_dias;
+  const inicio = festa.data_inicio || festa.data;
+  const fim = festa.data_fim || festa.data;
+  const diff = (toDate(fim).getTime() - toDate(inicio).getTime()) / 86400000;
+  return Math.round(diff) + 1;
 };
 
 const getImpactoConfig = (impacto: string) => {
   switch (impacto) {
-    case 'ALTÍSSIMO': return { bg: 'bg-red-50 border-red-200', badge: 'bg-red-500', text: 'ALTÍSSIMO', icon: '🔥', ring: 'ring-red-200' };
-    case 'ALTO':      return { bg: 'bg-orange-50 border-orange-200', badge: 'bg-orange-500', text: 'ALTO', icon: '⚡', ring: 'ring-orange-200' };
-    case 'MEDIO':     return { bg: 'bg-yellow-50 border-yellow-200', badge: 'bg-yellow-500', text: 'MÉDIO', icon: '📌', ring: 'ring-yellow-200' };
-    default:          return { bg: 'bg-slate-50 border-slate-200', badge: 'bg-slate-400', text: 'BAIXO', icon: '📋', ring: 'ring-slate-200' };
+    case 'ALTÍSSIMO': return {
+      bg: 'bg-red-50 border-red-200', stripe: 'bg-red-500',
+      badge: 'bg-red-100 text-red-700', label: 'Altíssimo',
+      Icon: Flame,
+    };
+    case 'ALTO': return {
+      bg: 'bg-orange-50 border-orange-200', stripe: 'bg-orange-500',
+      badge: 'bg-orange-100 text-orange-700', label: 'Alto',
+      Icon: Siren,
+    };
+    case 'MEDIO': return {
+      bg: 'bg-yellow-50 border-yellow-200', stripe: 'bg-yellow-500',
+      badge: 'bg-yellow-100 text-yellow-700', label: 'Médio',
+      Icon: Pin,
+    };
+    default: return {
+      bg: 'bg-slate-50 border-slate-200', stripe: 'bg-slate-400',
+      badge: 'bg-slate-100 text-slate-600', label: 'Baixo',
+      Icon: Layers,
+    };
   }
 };
 
-const getUrgenciaConfig = (dias: number | undefined) => {
-  if (dias === undefined) return { color: 'text-slate-500', bg: 'bg-slate-100', label: '?' };
-  if (dias <= 7)  return { color: 'text-red-600',    bg: 'bg-red-100',    label: `${dias}d` };
-  if (dias <= 30) return { color: 'text-orange-600', bg: 'bg-orange-100', label: `${dias}d` };
+const getCategoriaConfig = (cat: string) => {
+  const map: Record<string, { label: string; Icon: any }> = {
+    NACIONAL:  { label: 'Nacional',   Icon: Globe },
+    NORDESTE:  { label: 'Nordeste',   Icon: Map },
+    MUNICIPAL: { label: 'Municipal',  Icon: Building2 },
+    REGIONAL:  { label: 'Regional',   Icon: Map },
+    GOOGLE:    { label: 'Encontrado', Icon: Search },
+  };
+  return map[cat] || { label: cat, Icon: Info };
+};
+
+const getUrgencia = (dias: number | undefined) => {
+  if (dias === undefined) return { color: 'text-slate-500', bg: 'bg-slate-100', label: '—' };
+  if (dias === 0)  return { color: 'text-red-700',    bg: 'bg-red-100',    label: 'Hoje!' };
+  if (dias <= 7)   return { color: 'text-red-600',    bg: 'bg-red-100',    label: `${dias}d` };
+  if (dias <= 30)  return { color: 'text-orange-600', bg: 'bg-orange-100', label: `${dias}d` };
   return { color: 'text-emerald-600', bg: 'bg-emerald-100', label: `${dias}d` };
 };
 
-const getCategoriaLabel = (cat: string) => {
-  const map: Record<string, string> = {
-    NACIONAL: '🇧🇷 Nacional',
-    NORDESTE: '🌵 Nordeste',
-    MUNICIPAL: '🏛️ Municipal',
-    REGIONAL: '🗺️ Regional',
-    GOOGLE: '🌐 Online',
-  };
-  return map[cat] || cat;
+// ─── GERADOR DE ICS ────────────────────────────────────────────────────────────
+
+const isoParaICS = (iso: string) => iso.replace(/-/g, '');
+
+const gerarICS = (festas: Festa[], cidade: string): string => {
+  const eventos = festas.map((f) => {
+    const inicio = f.data_inicio || f.data;
+    const fimRaw = f.data_fim || f.data;
+    // ICS: DTEND para all-day deve ser D+1
+    const fimDate = toDate(fimRaw);
+    fimDate.setDate(fimDate.getDate() + 1);
+    const fimICS = fimDate.toISOString().split('T')[0].replace(/-/g, '');
+
+    const uid = `${f.nome.replace(/\s+/g, '-')}-${inicio}@gai-gelodosertao`;
+    return [
+      'BEGIN:VEVENT',
+      `UID:${uid}`,
+      `DTSTART;VALUE=DATE:${isoParaICS(inicio)}`,
+      `DTEND;VALUE=DATE:${fimICS}`,
+      `SUMMARY:${f.nome}`,
+      `DESCRIPTION:Impacto: ${f.impacto}. ${f.dica}`,
+      ...(f.endereco ? [`LOCATION:${f.endereco}`] : []),
+      'STATUS:CONFIRMED',
+      'END:VEVENT',
+    ].join('\r\n');
+  });
+
+  return [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//G.AI Gelo do Sertao//Cacador de Festas//PT',
+    `X-WR-CALNAME:Festas - ${cidade}`,
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+    ...eventos,
+    'END:VCALENDAR',
+  ].join('\r\n');
 };
 
-// ─── CARD DE FESTA ────────────────────────────────────────────────────────────
+const baixarCalendario = (festas: Festa[], cidade: string) => {
+  const ics = gerarICS(festas, cidade);
+  const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `festas-${cidade.toLowerCase().replace(/\s+/g, '-')}.ics`;
+  a.click();
+  URL.revokeObjectURL(url);
+};
+
+const linkGoogleCalendar = (festa: Festa): string => {
+  const inicio = festa.data_inicio || festa.data;
+  const fim = festa.data_fim || festa.data;
+  // Google Calendar exige data fim = D+1 para all-day
+  const fimDate = toDate(fim);
+  fimDate.setDate(fimDate.getDate() + 1);
+  const fimStr = fimDate.toISOString().split('T')[0].replace(/-/g, '');
+
+  const p = new URLSearchParams({
+    action: 'TEMPLATE',
+    text: festa.nome,
+    dates: `${isoParaICS(inicio)}/${fimStr}`,
+    details: `${festa.dica}\n\nImpacto para venda de gelo: ${festa.impacto}`,
+    ...(festa.endereco ? { location: festa.endereco } : {}),
+  });
+  return `https://calendar.google.com/calendar/render?${p.toString()}`;
+};
+
+// ─── CARD DE FESTA ─────────────────────────────────────────────────────────────
 
 const FestaCard: React.FC<{ festa: Festa }> = ({ festa }) => {
   const config = getImpactoConfig(festa.impacto);
-  const urgencia = getUrgenciaConfig(festa.dias_restantes);
+  const catConfig = getCategoriaConfig(festa.categoria);
+  const urgencia = getUrgencia(festa.dias_restantes);
   const dias = festa.dias_restantes ?? 0;
+  const duracao = getDuracao(festa);
+  const { Icon: ImpactoIcon } = config;
+  const { Icon: CatIcon } = catConfig;
 
   return (
     <div className={`relative border rounded-2xl p-4 transition-all hover:shadow-md hover:-translate-y-0.5 ${config.bg}`}>
-      {/* Countdown Badge */}
+      {/* Countdown */}
       <div className={`absolute top-3 right-3 px-2.5 py-1 rounded-full text-xs font-black ${urgencia.bg} ${urgencia.color}`}>
         {urgencia.label}
       </div>
 
-      {/* Impacto stripe */}
-      <div className={`absolute left-0 top-4 bottom-4 w-1 rounded-r-full ${config.badge}`} />
+      {/* Stripe lateral de impacto */}
+      <div className={`absolute left-0 top-4 bottom-4 w-1 rounded-r-full ${config.stripe}`} />
 
       <div className="pl-3">
-        {/* Header */}
-        <div className="flex items-start gap-3 pr-12">
-          <span className="text-2xl flex-shrink-0 mt-0.5">{config.icon}</span>
-          <div>
-            <h3 className="font-bold text-slate-800 leading-tight text-sm">{festa.nome}</h3>
+        {/* Cabeçalho */}
+        <div className="flex items-start gap-3 pr-14">
+          <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${config.badge}`}>
+            <ImpactoIcon size={18} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="font-bold text-slate-800 leading-snug text-sm">{festa.nome}</h3>
             <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full text-white ${config.badge}`}>
-                {config.text}
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${config.badge}`}>
+                {config.label}
               </span>
-              <span className="text-[10px] text-slate-500 font-medium">
-                {getCategoriaLabel(festa.categoria)}
+              <span className="flex items-center gap-1 text-[10px] text-slate-500 font-medium">
+                <CatIcon size={10} />
+                {catConfig.label}
               </span>
               {festa.tipo === 'GOOGLE' && (
                 <span className="text-[10px] bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full font-bold">
@@ -108,13 +237,18 @@ const FestaCard: React.FC<{ festa: Festa }> = ({ festa }) => {
           </div>
         </div>
 
-        {/* Data */}
-        <div className="flex items-center gap-1.5 mt-3 text-slate-600">
-          <Calendar size={13} className="flex-shrink-0" />
-          <span className="text-xs font-semibold capitalize">{formatarData(festa.data)}</span>
+        {/* Range de datas */}
+        <div className="flex items-center gap-1.5 mt-3 text-slate-700">
+          <CalendarDays size={13} className="flex-shrink-0 text-slate-400" />
+          <span className="text-xs font-semibold">{formatarRangeData(festa)}</span>
+          {duracao > 1 && (
+            <span className="ml-1 text-[10px] bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full font-bold">
+              {duracao} dias
+            </span>
+          )}
         </div>
 
-        {/* Progresso visual até a festa */}
+        {/* Barra de progresso até o início */}
         {dias <= 90 && (
           <div className="mt-2">
             <div className="h-1.5 bg-white/60 rounded-full overflow-hidden">
@@ -122,7 +256,7 @@ const FestaCard: React.FC<{ festa: Festa }> = ({ festa }) => {
                 className={`h-full rounded-full transition-all duration-700 ${
                   dias <= 7 ? 'bg-red-500' : dias <= 30 ? 'bg-orange-400' : 'bg-emerald-400'
                 }`}
-                style={{ width: `${Math.max(5, 100 - (dias / 90) * 100)}%` }}
+                style={{ width: `${Math.max(4, 100 - (dias / 90) * 100)}%` }}
               />
             </div>
           </div>
@@ -139,9 +273,31 @@ const FestaCard: React.FC<{ festa: Festa }> = ({ festa }) => {
         {/* Dica de negócio */}
         <div className="mt-3 bg-white/70 rounded-lg px-3 py-2 border border-white/50">
           <p className="text-[11px] text-slate-600 leading-snug">
-            <span className="font-bold text-slate-700">💡 Dica: </span>
+            <span className="font-bold text-slate-700">Dica: </span>
             {festa.dica}
           </p>
+        </div>
+
+        {/* Ações de calendário */}
+        <div className="mt-3 flex items-center gap-2">
+          <a
+            href={linkGoogleCalendar(festa)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 text-[11px] font-bold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-2.5 py-1.5 rounded-lg transition-colors"
+            title="Salvar no Google Calendar"
+          >
+            <CalendarPlus size={12} />
+            Google Agenda
+          </a>
+          <button
+            onClick={() => baixarCalendario([festa], festa.nome)}
+            className="flex items-center gap-1.5 text-[11px] font-bold text-slate-600 hover:text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 px-2.5 py-1.5 rounded-lg transition-colors"
+            title="Baixar arquivo .ics (Outlook, Apple Calendar...)"
+          >
+            <Download size={12} />
+            .ics
+          </button>
         </div>
       </div>
     </div>
@@ -160,20 +316,14 @@ const FestasRadar: React.FC = () => {
   const [filtroImpacto, setFiltroImpacto] = useState<string>('TODOS');
 
   const buscarFestas = async () => {
-    if (!cidade.trim()) {
-      setErro('Digite o nome da cidade.');
-      return;
-    }
-
+    if (!cidade.trim()) { setErro('Digite o nome da cidade.'); return; }
     setCarregando(true);
     setErro(null);
     setResultado(null);
-
     try {
       const { data, error } = await supabase.functions.invoke('buscar-festas', {
         body: { cidade: cidade.trim(), estado, dias_frente: diasFrente },
       });
-
       if (error) throw error;
       setResultado(data as FestasResultado);
     } catch (e: any) {
@@ -187,9 +337,9 @@ const FestasRadar: React.FC = () => {
   const compartilharWhatsApp = () => {
     if (!resultado) return;
     const linhas = resultado.festas.slice(0, 5).map(
-      (f) => `• ${f.nome} — ${formatarData(f.data)} (${f.dias_restantes}d)`
+      (f) => `• ${f.nome} — ${formatarRangeData(f)} (em ${f.dias_restantes}d)`
     ).join('\n');
-    const msg = `🎉 Festas em ${resultado.cidade}/${resultado.estado} nos próximos ${resultado.janela_dias} dias:\n\n${linhas}\n\n_Via G.AI - Gelo do Sertão_`;
+    const msg = `Festas em ${resultado.cidade}/${resultado.estado} — próximos ${resultado.janela_dias} dias:\n\n${linhas}\n\nVia G.AI - Gelo do Sertão`;
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
   };
 
@@ -198,26 +348,21 @@ const FestasRadar: React.FC = () => {
   ) ?? [];
 
   const counts = resultado ? {
-    ALTÍSSIMO: resultado.festas.filter(f => f.impacto === 'ALTÍSSIMO').length,
-    ALTO: resultado.festas.filter(f => f.impacto === 'ALTO').length,
-    MEDIO: resultado.festas.filter(f => f.impacto === 'MEDIO').length,
+    total: resultado.total,
     urgentes: resultado.festas.filter(f => (f.dias_restantes ?? 99) <= 7).length,
+    altissimo: resultado.festas.filter(f => f.impacto === 'ALTÍSSIMO').length,
   } : null;
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-rose-600 rounded-xl flex items-center justify-center shadow-lg shadow-orange-500/20">
+          <PartyPopper size={22} className="text-white" />
+        </div>
         <div>
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-pink-600 rounded-xl flex items-center justify-center shadow-lg shadow-orange-500/20">
-              <PartyPopper size={22} className="text-white" />
-            </div>
-            <div>
-              <h2 className="text-2xl font-bold text-slate-800">Caçador de Festas</h2>
-              <p className="text-sm text-slate-500">Antecipe demandas. Programe seu estoque. Não perca vendas.</p>
-            </div>
-          </div>
+          <h2 className="text-2xl font-bold text-slate-800">Caçador de Festas</h2>
+          <p className="text-sm text-slate-500">Antecipe demandas. Programe seu estoque. Não perca vendas.</p>
         </div>
       </div>
 
@@ -234,7 +379,7 @@ const FestasRadar: React.FC = () => {
             onChange={(e) => setCidade(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && buscarFestas()}
             placeholder="Ex: Ibotirama, Barreiras, Bom Jesus da Lapa..."
-            className="flex-1 bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm font-medium"
+            className="flex-1 bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm font-medium"
           />
           <select
             id="festas-estado-select"
@@ -261,13 +406,12 @@ const FestasRadar: React.FC = () => {
             id="festas-buscar-btn"
             onClick={buscarFestas}
             disabled={carregando}
-            className="bg-gradient-to-r from-orange-500 to-pink-600 hover:from-orange-400 hover:to-pink-500 text-white px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-orange-900/30 disabled:opacity-50 whitespace-nowrap"
+            className="bg-gradient-to-r from-orange-500 to-rose-600 hover:from-orange-400 hover:to-rose-500 text-white px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg disabled:opacity-50 whitespace-nowrap"
           >
             {carregando ? <RefreshCw size={18} className="animate-spin" /> : <Zap size={18} />}
-            {carregando ? 'Caçando...' : 'Caçar Festas'}
+            {carregando ? 'Buscando...' : 'Buscar Festas'}
           </button>
         </div>
-
         {erro && (
           <div className="mt-3 bg-red-500/20 border border-red-500/30 text-red-200 rounded-xl px-4 py-3 text-sm flex items-center gap-2">
             <AlertTriangle size={16} /> {erro}
@@ -275,24 +419,24 @@ const FestasRadar: React.FC = () => {
         )}
       </div>
 
-      {/* KPIs de resultado */}
+      {/* KPIs */}
       {resultado && counts && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="grid grid-cols-3 gap-4">
           <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm text-center">
-            <p className="text-3xl font-black text-slate-800">{resultado.total}</p>
+            <p className="text-3xl font-black text-slate-800">{counts.total}</p>
             <p className="text-xs text-slate-500 mt-1 font-medium">Total de Festas</p>
           </div>
           <div className="bg-red-50 border border-red-200 rounded-2xl p-4 shadow-sm text-center">
             <p className="text-3xl font-black text-red-600">{counts.urgentes}</p>
-            <p className="text-xs text-red-500 mt-1 font-medium">🔴 Em 7 dias</p>
+            <p className="text-xs text-red-500 mt-1 font-medium flex items-center justify-center gap-1">
+              <Siren size={12} /> Em 7 dias
+            </p>
           </div>
           <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 shadow-sm text-center">
-            <p className="text-3xl font-black text-orange-600">{counts.ALTÍSSIMO}</p>
-            <p className="text-xs text-orange-500 mt-1 font-medium">🔥 Impacto Altíssimo</p>
-          </div>
-          <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 shadow-sm text-center">
-            <p className="text-3xl font-black text-emerald-600">{diasFrente}d</p>
-            <p className="text-xs text-emerald-500 mt-1 font-medium">Janela Monitorada</p>
+            <p className="text-3xl font-black text-orange-600">{counts.altissimo}</p>
+            <p className="text-xs text-orange-500 mt-1 font-medium flex items-center justify-center gap-1">
+              <Flame size={12} /> Altíssimo Impacto
+            </p>
           </div>
         </div>
       )}
@@ -315,18 +459,29 @@ const FestasRadar: React.FC = () => {
               </button>
             ))}
           </div>
-          <button
-            id="festas-whatsapp-btn"
-            onClick={compartilharWhatsApp}
-            className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-xl text-sm font-bold transition-colors shadow-sm"
-          >
-            <Share2 size={15} />
-            Enviar por WhatsApp
-          </button>
+          <div className="flex gap-2">
+            <button
+              id="festas-download-ics-btn"
+              onClick={() => baixarCalendario(festasFiltradas, `${resultado.cidade}-${resultado.estado}`)}
+              className="flex items-center gap-2 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 px-4 py-2 rounded-xl text-sm font-bold transition-colors"
+              title="Baixar todos os eventos como arquivo de calendário (.ics)"
+            >
+              <CalendarCheck size={15} />
+              Salvar Calendário
+            </button>
+            <button
+              id="festas-whatsapp-btn"
+              onClick={compartilharWhatsApp}
+              className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-xl text-sm font-bold transition-colors shadow-sm"
+            >
+              <Share2 size={15} />
+              WhatsApp
+            </button>
+          </div>
         </div>
       )}
 
-      {/* Lista de Festas */}
+      {/* Lista */}
       {festasFiltradas.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {festasFiltradas.map((festa, idx) => (
@@ -338,22 +493,22 @@ const FestasRadar: React.FC = () => {
       {/* Estado vazio */}
       {!resultado && !carregando && (
         <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center shadow-sm">
-          <div className="w-20 h-20 bg-gradient-to-br from-orange-100 to-pink-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <div className="w-20 h-20 bg-gradient-to-br from-orange-100 to-rose-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <PartyPopper size={36} className="text-orange-500" />
           </div>
-          <h3 className="text-xl font-bold text-slate-800 mb-2">Pronto para Caçar!</h3>
+          <h3 className="text-xl font-bold text-slate-800 mb-2">Pronto para buscar</h3>
           <p className="text-slate-500 text-sm max-w-sm mx-auto">
             Informe uma cidade e estado acima para ver todas as festas e eventos dos próximos meses.
-            Planeje seu estoque com antecedência e não perca nenhuma venda!
+            Planeje seu estoque com antecedência e não perca nenhuma venda.
           </p>
           <div className="mt-6 grid grid-cols-3 gap-3 max-w-xs mx-auto">
             {[
-              { emoji: '🎭', label: 'Carnaval' },
-              { emoji: '🌽', label: 'São João' },
-              { emoji: '🏛️', label: 'Municipais' },
-            ].map(({ emoji, label }) => (
+              { label: 'Carnaval', Icon: Flame },
+              { label: 'São João', Icon: Calendar },
+              { label: 'Municipais', Icon: Building2 },
+            ].map(({ label, Icon }) => (
               <div key={label} className="bg-orange-50 rounded-xl p-3 text-center">
-                <p className="text-2xl">{emoji}</p>
+                <Icon size={22} className="text-orange-500 mx-auto" />
                 <p className="text-[10px] font-bold text-orange-700 mt-1">{label}</p>
               </div>
             ))}
@@ -367,14 +522,14 @@ const FestasRadar: React.FC = () => {
         </div>
       )}
 
-      {/* Rodapé informativo */}
+      {/* Rodapé */}
       <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex items-start gap-3">
         <TrendingUp size={18} className="text-blue-500 flex-shrink-0 mt-0.5" />
         <div>
           <p className="text-sm font-bold text-blue-800">Sobre as fontes de dados</p>
           <p className="text-xs text-blue-600 mt-1">
-            📌 <strong>Calendário Fixo:</strong> Festas recorrentes pré-programadas com alta precisão (Carnaval, São João, festas municipais).<br />
-            🌐 <strong>Google Events:</strong> Eventos dinâmicos buscados em tempo real via SerpAPI. Cobertura melhor em cidades maiores.
+            <strong>Calendário Fixo:</strong> Festas recorrentes com datas precisas (Carnaval, São João, festas municipais).<br />
+            <strong>Google Events:</strong> Eventos dinâmicos buscados em tempo real. Cobertura melhor em cidades maiores.
           </p>
         </div>
       </div>

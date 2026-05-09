@@ -1,13 +1,12 @@
 """
-festas_fixas.py — Calendário fixo de festas de alto impacto para venda de gelo.
+festas_fixas.py — Calendário fixo de festas com datas de início e fim.
 Festas recorrentes que NÃO dependem de API externa: sempre funcionam.
 """
 
 from datetime import date, timedelta
-import math
+
 
 def calcular_pascoa(ano: int) -> date:
-    """Algoritmo de Butcher para calcular a data da Páscoa."""
     a = ano % 19
     b = ano // 100
     c = ano % 100
@@ -24,196 +23,150 @@ def calcular_pascoa(ano: int) -> date:
     dia = ((h + l - 7 * m + 114) % 31) + 1
     return date(ano, mes, dia)
 
+
 def calcular_carnaval(ano: int) -> tuple[date, date]:
-    """Retorna (sábado de carnaval, quarta-feira de cinzas)."""
+    """Retorna (sábado de carnaval, terça-feira de carnaval)."""
     pascoa = calcular_pascoa(ano)
-    quarta_cinzas = pascoa - timedelta(days=46)
-    sabado_carnaval = quarta_cinzas - timedelta(days=4)
-    return sabado_carnaval, quarta_cinzas
+    terca_carnaval = pascoa - timedelta(days=47)
+    sabado_carnaval = terca_carnaval - timedelta(days=3)
+    return sabado_carnaval, terca_carnaval
+
+
+def festa(nome, inicio, fim, categoria, impacto, dica):
+    return {
+        "nome": nome,
+        "data_inicio": inicio.isoformat(),
+        "data_fim": fim.isoformat(),
+        "data": fim.isoformat(),          # compatibilidade
+        "duracao_dias": (fim - inicio).days + 1,
+        "categoria": categoria,
+        "impacto": impacto,
+        "tipo": "FIXO",
+        "dica": dica,
+    }
+
 
 def get_festas_do_ano(ano: int, cidade: str = "", uf: str = "") -> list[dict]:
-    """
-    Retorna lista de festas fixas relevantes para o negócio de gelo.
-    cidade e uf são usados para incluir festas municipais específicas.
-    """
-    festas = []
-    cidade_upper = cidade.strip().upper()
-    uf_upper = uf.strip().upper()
+    cidadeU = cidade.strip().upper()
+    ufU = uf.strip().upper()
+    result = []
 
-    # ─── FESTAS NACIONAIS ────────────────────────────────────────────────────
-    sabado_carnaval, quarta_cinzas = calcular_carnaval(ano)
-    festas += [
-        {
-            "nome": "🎭 Carnaval — Início (Sábado)",
-            "data": sabado_carnaval.isoformat(),
-            "categoria": "NACIONAL",
-            "impacto": "ALTÍSSIMO",
-            "tipo": "FIXO",
-            "dica": "Maior pico de consumo de gelo do ano. Estoque máximo 7 dias antes.",
-        },
-        {
-            "nome": "🎭 Carnaval — Encerramento (Quarta de Cinzas)",
-            "data": quarta_cinzas.isoformat(),
-            "categoria": "NACIONAL",
-            "impacto": "ALTÍSSIMO",
-            "tipo": "FIXO",
-            "dica": "Pico se mantém até o final. Repor estoque segunda-feira.",
-        },
-        {
-            "nome": "🎅 Natal",
-            "data": date(ano, 12, 25).isoformat(),
-            "categoria": "NACIONAL",
-            "impacto": "ALTO",
-            "tipo": "FIXO",
-            "dica": "Alta demanda em festas de fim de ano e confraternizações.",
-        },
-        {
-            "nome": "🎆 Réveillon",
-            "data": date(ano, 12, 31).isoformat(),
-            "categoria": "NACIONAL",
-            "impacto": "ALTÍSSIMO",
-            "tipo": "FIXO",
-            "dica": "Segunda maior data do ano. Preparar estoque 10 dias antes.",
-        },
-        {
-            "nome": "💝 Dia dos Namorados",
-            "data": date(ano, 6, 12).isoformat(),
-            "categoria": "NACIONAL",
-            "impacto": "ALTO",
-            "tipo": "FIXO",
-            "dica": "Alta demanda em bares, restaurantes e delivery de bebidas.",
-        },
-        {
-            "nome": "🍺 Dia das Mães (véspera)",
-            "data": date(ano, 5, 10).isoformat(),  # Segundo domingo de maio (aprox)
-            "categoria": "NACIONAL",
-            "impacto": "MEDIO",
-            "tipo": "FIXO",
-            "dica": "Almoços em família aumentam consumo de bebidas e gelo.",
-        },
-        {
-            "nome": "🍺 Dia dos Pais (véspera)",
-            "data": date(ano, 8, 9).isoformat(),  # Segundo domingo de agosto (aprox)
-            "categoria": "NACIONAL",
-            "impacto": "MEDIO",
-            "tipo": "FIXO",
-            "dica": "Mesmo perfil do Dia das Mães.",
-        },
-        {
-            "nome": "🇧🇷 7 de Setembro — Independência",
-            "data": date(ano, 9, 7).isoformat(),
-            "categoria": "NACIONAL",
-            "impacto": "MEDIO",
-            "tipo": "FIXO",
-            "dica": "Feriado com festas, eventos e churrasco.",
-        },
-    ]
+    # ── CARNAVAL (sábado → terça) ────────────────────────────────────────────
+    sabado, terca = calcular_carnaval(ano)
+    result.append(festa(
+        "Carnaval",
+        sabado, terca,
+        "NACIONAL", "ALTÍSSIMO",
+        "Maior pico de consumo de gelo do ano. Estoque máximo 7 dias antes."
+    ))
 
-    # ─── FESTAS JUNINAS (NORDESTE) ────────────────────────────────────────────
-    festas += [
-        {
-            "nome": "🌽 Início da Temporada Junina",
-            "data": date(ano, 6, 1).isoformat(),
-            "categoria": "NORDESTE",
-            "impacto": "ALTÍSSIMO",
-            "tipo": "FIXO",
-            "dica": "Todo junho é alta temporada. Preparar estoque máximo desde maio.",
-        },
-        {
-            "nome": "🎇 Festa de Santo Antônio",
-            "data": date(ano, 6, 13).isoformat(),
-            "categoria": "NORDESTE",
-            "impacto": "ALTO",
-            "tipo": "FIXO",
-            "dica": "Grande movimentação em cidades do interior.",
-        },
-        {
-            "nome": "🎆 Festa de São João",
-            "data": date(ano, 6, 24).isoformat(),
-            "categoria": "NORDESTE",
-            "impacto": "ALTÍSSIMO",
-            "tipo": "FIXO",
-            "dica": "Pico máximo das festas juninas. Maior data do Nordeste.",
-        },
-        {
-            "nome": "🎇 Festa de São Pedro",
-            "data": date(ano, 6, 29).isoformat(),
-            "categoria": "NORDESTE",
-            "impacto": "ALTO",
-            "tipo": "FIXO",
-            "dica": "Encerramento do ciclo junino com festas.",
-        },
-        {
-            "nome": "🌽 Encerramento da Temporada Junina",
-            "data": date(ano, 6, 30).isoformat(),
-            "categoria": "NORDESTE",
-            "impacto": "ALTO",
-            "tipo": "FIXO",
-            "dica": "Último dia de junho ainda com alta demanda.",
-        },
-    ]
+    # ── FESTAS JUNINAS — todo o mês de junho ──────────────────────────────────
+    result.append(festa(
+        "Temporada Junina",
+        date(ano, 6, 1), date(ano, 6, 30),
+        "NORDESTE", "ALTÍSSIMO",
+        "Todo junho é alta temporada. Prepare estoque máximo desde a última semana de maio."
+    ))
+    result.append(festa(
+        "Festa de Santo Antônio",
+        date(ano, 6, 12), date(ano, 6, 13),
+        "NORDESTE", "ALTO",
+        "Grande movimentação em cidades do interior baiano."
+    ))
+    result.append(festa(
+        "Festa de São João",
+        date(ano, 6, 23), date(ano, 6, 24),
+        "NORDESTE", "ALTÍSSIMO",
+        "Pico máximo das festas juninas. Maior data do Nordeste — prepare dobro do estoque."
+    ))
+    result.append(festa(
+        "Festa de São Pedro",
+        date(ano, 6, 28), date(ano, 6, 29),
+        "NORDESTE", "ALTO",
+        "Encerramento do ciclo junino com festas em todo o interior."
+    ))
 
-    # ─── FESTAS MUNICIPAIS: IBOTIRAMA ────────────────────────────────────────
-    if "IBOTIRAMA" in cidade_upper or uf_upper == "BA":
-        festas += [
-            {
-                "nome": "🏛️ Aniversário de Ibotirama",
-                "data": date(ano, 1, 26).isoformat(),
-                "categoria": "MUNICIPAL",
-                "impacto": "ALTÍSSIMO",
-                "tipo": "FIXO",
-                "dica": "Maior festa municipal da cidade. Forró, shows e multidão.",
-            },
-            {
-                "nome": "🎠 Feira Agropecuária de Ibotirama",
-                "data": date(ano, 9, 15).isoformat(),  # Aproximado — confirmar
-                "categoria": "MUNICIPAL",
-                "impacto": "ALTO",
-                "tipo": "FIXO",
-                "dica": "Evento regional que atrai público das cidades vizinhas.",
-            },
-        ]
+    # ── NACIONAIS ─────────────────────────────────────────────────────────────
+    result.append(festa(
+        "Dia dos Namorados",
+        date(ano, 6, 12), date(ano, 6, 12),
+        "NACIONAL", "ALTO",
+        "Alta demanda em bares, restaurantes e delivery de bebidas."
+    ))
+    result.append(festa(
+        "Independência do Brasil",
+        date(ano, 9, 7), date(ano, 9, 7),
+        "NACIONAL", "MEDIO",
+        "Feriado com festas, churrasco e eventos públicos."
+    ))
+    result.append(festa(
+        "Natal",
+        date(ano, 12, 24), date(ano, 12, 25),
+        "NACIONAL", "ALTO",
+        "Alta demanda em festas de fim de ano e confraternizações."
+    ))
+    result.append(festa(
+        "Réveillon",
+        date(ano, 12, 30), date(ano, 12, 31),
+        "NACIONAL", "ALTÍSSIMO",
+        "Segunda maior data do ano para venda de gelo. Prepare estoque 10 dias antes."
+    ))
 
-    # ─── FESTAS MUNICIPAIS: BARREIRAS ────────────────────────────────────────
-    if "BARREIRAS" in cidade_upper or uf_upper == "BA":
-        festas += [
-            {
-                "nome": "🏛️ Aniversário de Barreiras",
-                "data": date(ano, 7, 23).isoformat(),
-                "categoria": "MUNICIPAL",
-                "impacto": "ALTÍSSIMO",
-                "tipo": "FIXO",
-                "dica": "Principal festa do município. Shows e festas durante a semana.",
-            },
-            {
-                "nome": "🌾 AGROBAHIA (Feira do Agronegócio)",
-                "data": date(ano, 8, 1).isoformat(),  # Aproximado — confirmar
-                "categoria": "MUNICIPAL",
-                "impacto": "ALTO",
-                "tipo": "FIXO",
-                "dica": "Evento de agronegócio que movimenta hotéis e restaurantes.",
-            },
-        ]
+    # ── IBOTIRAMA ─────────────────────────────────────────────────────────────
+    if "IBOTIRAMA" in cidadeU:
+        result.append(festa(
+            "Aniversário de Ibotirama",
+            date(ano, 1, 24), date(ano, 1, 26),
+            "MUNICIPAL", "ALTÍSSIMO",
+            "Maior festa municipal da cidade — forró, shows e grande público por 3 dias."
+        ))
+        result.append(festa(
+            "Micareta de Ibotirama",
+            date(ano, 4, 18), date(ano, 4, 20),
+            "MUNICIPAL", "ALTÍSSIMO",
+            "Micareta regional que concentra público de toda a bacia do São Francisco."
+        ))
 
-    # ─── FESTAS REGIONAIS: VALE DO SÃO FRANCISCO ─────────────────────────────
-    if uf_upper == "BA" or uf_upper == "PE":
-        festas += [
-            {
-                "nome": "🐟 Festa do Pescado (Rio São Francisco)",
-                "data": date(ano, 3, 15).isoformat(),  # Aproximado
-                "categoria": "REGIONAL",
-                "impacto": "MEDIO",
-                "tipo": "FIXO",
-                "dica": "Eventos às margens do São Francisco com alto consumo.",
-            },
-            {
-                "nome": "🎵 Micareta Regional (BA)",
-                "data": date(ano, 4, 20).isoformat(),  # Aproximado — varia por cidade
-                "categoria": "REGIONAL",
-                "impacto": "ALTÍSSIMO",
-                "tipo": "FIXO",
-                "dica": "Micaretas no interior da Bahia. Verificar data exata do município.",
-            },
-        ]
+    # ── BARREIRAS ─────────────────────────────────────────────────────────────
+    if "BARREIRAS" in cidadeU:
+        result.append(festa(
+            "Aniversário de Barreiras",
+            date(ano, 7, 21), date(ano, 7, 23),
+            "MUNICIPAL", "ALTÍSSIMO",
+            "Principal festa do município — shows e festas durante toda a semana."
+        ))
+        result.append(festa(
+            "ExpoBarreiras / AGROBAHIA",
+            date(ano, 8, 1), date(ano, 8, 5),
+            "MUNICIPAL", "ALTO",
+            "Feira do agronegócio que movimenta hotéis, restaurantes e bares por 5 dias."
+        ))
 
-    return sorted(festas, key=lambda x: x["data"])
+    # ── BOM JESUS DA LAPA ─────────────────────────────────────────────────────
+    if "BOM JESUS" in cidadeU or "LAPA" in cidadeU:
+        result.append(festa(
+            "Romaria de Bom Jesus da Lapa",
+            date(ano, 8, 1), date(ano, 8, 6),
+            "MUNICIPAL", "ALTÍSSIMO",
+            "Uma das maiores romarias da Bahia — mais de 1 milhão de visitantes em 6 dias."
+        ))
+
+    # ── GUANAMBI ──────────────────────────────────────────────────────────────
+    if "GUANAMBI" in cidadeU:
+        result.append(festa(
+            "Aniversário de Guanambi",
+            date(ano, 10, 2), date(ano, 10, 4),
+            "MUNICIPAL", "ALTO",
+            "Festas e shows na cidade por 3 dias."
+        ))
+
+    # ── REGIONAL BA/PE ────────────────────────────────────────────────────────
+    if ufU in ("BA", "PE"):
+        result.append(festa(
+            "Micareta Regional (BA)",
+            date(ano, 4, 17), date(ano, 4, 20),
+            "REGIONAL", "ALTÍSSIMO",
+            "Micaretas no interior da Bahia — verificar data exata do município."
+        ))
+
+    return sorted(result, key=lambda x: x["data_inicio"])
