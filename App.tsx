@@ -26,6 +26,7 @@ const OrderCenter = React.lazy(() => import('./components/OrderCenter'));
 const Reports = React.lazy(() => import('./components/Reports'));
 const WholesalePOS = React.lazy(() => import('./components/WholesalePOS'));
 const VisitorLanding = React.lazy(() => import('./components/VisitorLanding'));
+const B2BLanding = React.lazy(() => import('./components/B2BLanding'));
 const FestasRadar = React.lazy(() => import('./components/FestasRadar'));
 // CRM Temporarily Disabled
 // const CRM = React.lazy(() => import('./components/CRM'));
@@ -774,6 +775,12 @@ const App: React.FC = () => {
       <Route path="/" element={
         <Suspense fallback={<div className="h-dvh w-screen flex items-center justify-center bg-slate-900"><Loader2 size={48} className="animate-spin text-white" /></div>}>
           <VisitorLanding />
+        </Suspense>
+      } />
+
+      <Route path="/parceiro" element={
+        <Suspense fallback={<div className="h-dvh w-screen flex items-center justify-center bg-slate-900"><Loader2 size={48} className="animate-spin text-white" /></div>}>
+          <B2BLanding />
         </Suspense>
       } />
 

@@ -79,6 +79,47 @@ const getDuracao = (festa: Festa): number => {
   return Math.round(diff) + 1;
 };
 
+// ─── ENRIQUECIMENTO LOCAL (fallback para API sem data_inicio) ─────────────────
+// Quando a Edge Function retorna apenas "data" (versão antiga), este mapa
+// injeta data_inicio e data_fim com base no nome da festa.
+// Durações baseadas na realidade de cada evento.
+const DURACOES_CONHECIDAS: { pattern: RegExp; diasAntes: number; diasApos: number }[] = [
+  { pattern: /carnaval/i,               diasAntes: 3,  diasApos: 0 },  // sáb → terça
+  { pattern: /temporada junina/i,       diasAntes: 29, diasApos: 0 },  // 1–30/jun
+  { pattern: /são joão/i,               diasAntes: 1,  diasApos: 0 },  // 23–24/jun
+  { pattern: /santo antônio/i,          diasAntes: 1,  diasApos: 0 },  // 12–13/jun
+  { pattern: /são pedro/i,              diasAntes: 1,  diasApos: 0 },  // 28–29/jun
+  { pattern: /romaria.*lapa|lapa.*romaria|bom jesus/i, diasAntes: 8, diasApos: 0 },  // 29/jul–6/ago (9 dias)
+  { pattern: /réveillon/i,              diasAntes: 1,  diasApos: 0 },  // 30–31/dez
+  { pattern: /natal/i,                  diasAntes: 1,  diasApos: 0 },  // 24–25/dez
+  { pattern: /aniversário.*ibotirama|ibotirama.*aniversário/i, diasAntes: 2, diasApos: 0 },
+  { pattern: /micareta.*ibotirama|ibotirama.*micareta/i,       diasAntes: 2, diasApos: 0 },
+  { pattern: /aniversário.*barreiras|barreiras.*aniversário/i, diasAntes: 2, diasApos: 0 },
+  { pattern: /expo.*barreiras|agrobahia/i, diasAntes: 4, diasApos: 0 },
+  { pattern: /aniversário.*guanambi|guanambi.*aniversário/i,   diasAntes: 2, diasApos: 0 },
+  { pattern: /micareta regional/i,      diasAntes: 3,  diasApos: 0 },
+];
+
+function enriquecerFesta(festa: Festa): Festa {
+  // Se já tem data_inicio real vinda da API, não mexe
+  if (festa.data_inicio && festa.data_inicio !== festa.data) return festa;
+
+  const dataFim = festa.data_fim || festa.data;
+  const match = DURACOES_CONHECIDAS.find(r => r.pattern.test(festa.nome));
+
+  if (!match || match.diasAntes === 0) {
+    return { ...festa, data_inicio: dataFim, data_fim: dataFim };
+  }
+
+  const fimDate = toDate(dataFim);
+  const inicioDate = new Date(fimDate);
+  inicioDate.setDate(fimDate.getDate() - match.diasAntes);
+  const dataInicio = inicioDate.toISOString().split('T')[0];
+  const duracao = match.diasAntes + 1 + match.diasApos;
+
+  return { ...festa, data_inicio: dataInicio, data_fim: dataFim, duracao_dias: duracao };
+}
+
 const getImpactoConfig = (impacto: string) => {
   switch (impacto) {
     case 'ALTÍSSIMO': return {
