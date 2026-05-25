@@ -7,7 +7,7 @@ const B2BLanding: React.FC = () => {
   const [scrolled, setScrolled] = useState(false);
   const carouselRef = useRef<HTMLDivElement>(null);
   const segmentRef = useRef<HTMLDivElement>(null);
-
+  <meta name="facebook-domain-verification" content="hx5km5h2i8bu37bbhgb4y347pbpxgz" />
   // Efeito de rolagem do menu
   useEffect(() => {
     const handleScroll = () => {
@@ -284,32 +284,32 @@ const B2BLanding: React.FC = () => {
           </div>
         </div>
       </section>
-{/* Segmentos Carousel */}
-        <section id="segmentos" className="py-32 bg-slate-100">
-          <div className="max-w-7xl mx-auto px-6">
-            <h2 className="text-4xl md:text-5xl font-black text-slate-900 mb-8 text-center">Para quem somos a solução</h2>
-            <div className="relative">
-              <div
-                ref={segmentRef}
-                className="flex overflow-x-auto snap-x snap-mandatory gap-8 md:gap-12 pb-12 pt-6 px-4 md:px-12 w-full"
-                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-              >
-                <style>{`\n                  .overflow-x-auto::-webkit-scrollbar { display: none; }\n                `}</style>
-                {[
-                  { title: 'Supermercados', desc: 'Facilidade no abastecimento diário e estoque de gelo em barra e cubo para prateleiras geladas.', img: '/segment-supermercados.svg' },
-                  { title: 'Distribuidoras', desc: 'Logística otimizada para entregas em grandes volumes e gelo em escama.', img: '/segment-distribuidoras.svg' },
-                  { title: 'Ambulantes', desc: 'Gelo em cubo portátil, ideal para carrinhos de sorvete e food trucks.', img: '/segment-ambulantes.svg' },
-                  { title: 'Adegas', desc: 'Gelo em cubo e escama para preservação de bebidas premium.', img: '/segment-adega.png' },
-                  { title: 'Conveniências', desc: 'Gelo saborizado atrai clientes e aumenta ticket médio.', img: '/' },
-                  { title: 'Mercadinhos', desc: 'Pequenos espaços, gelo em barra para cafés e lanchonetes.', img: '/' },
-                  { title: 'Bares', desc: 'Gelo em cubo cristalino para drinks perfeitos e gelo em escama para coquetéis.', img: '/' },
-                ].map((seg, idx) => (
-                  <SegmentCard key={idx} title={seg.title} desc={seg.desc} img={seg.img} />
-                ))}
-              </div>
+      {/* Segmentos Carousel */}
+      <section id="segmentos" className="py-32 bg-slate-100">
+        <div className="max-w-7xl mx-auto px-6">
+          <h2 className="text-4xl md:text-5xl font-black text-slate-900 mb-8 text-center">Para quem somos a solução</h2>
+          <div className="relative">
+            <div
+              ref={segmentRef}
+              className="flex overflow-x-auto snap-x snap-mandatory gap-8 md:gap-12 pb-12 pt-6 px-4 md:px-12 w-full"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
+              <style>{`\n                  .overflow-x-auto::-webkit-scrollbar { display: none; }\n                `}</style>
+              {[
+                { title: 'Supermercados', desc: 'Facilidade no abastecimento diário e estoque de gelo em barra e cubo para prateleiras geladas.', img: '/segment-supermercados.svg' },
+                { title: 'Distribuidoras', desc: 'Logística otimizada para entregas em grandes volumes e gelo em escama.', img: '/segment-distribuidoras.svg' },
+                { title: 'Ambulantes', desc: 'Gelo em cubo portátil, ideal para carrinhos de sorvete e food trucks.', img: '/segment-ambulantes.svg' },
+                { title: 'Adegas', desc: 'Gelo em cubo e escama para preservação de bebidas premium.', img: '/segment-adega.png' },
+                { title: 'Conveniências', desc: 'Gelo saborizado atrai clientes e aumenta ticket médio.', img: '/' },
+                { title: 'Mercadinhos', desc: 'Pequenos espaços, gelo em barra para cafés e lanchonetes.', img: '/' },
+                { title: 'Bares', desc: 'Gelo em cubo cristalino para drinks perfeitos e gelo em escama para coquetéis.', img: '/' },
+              ].map((seg, idx) => (
+                <SegmentCard key={idx} title={seg.title} desc={seg.desc} img={seg.img} />
+              ))}
             </div>
           </div>
-        </section>
+        </div>
+      </section>
       {/* CTA Section */}
       <section className="py-24 bg-gradient-to-br from-blue-900 to-slate-900 relative overflow-hidden">
         {/* Decorative background elements */}
@@ -333,33 +333,33 @@ const B2BLanding: React.FC = () => {
         </div>
       </section>
 
-          {/* Footer */}
-          <footer className="bg-slate-950 py-12 border-t border-slate-800">
-            <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-8">
-              <div className="flex flex-col items-center md:items-start gap-4">
-                <div className="flex items-center gap-3 text-white">
-                  <img src="/logo.png" alt="Gelo do Sertão Logo" className="h-16 w-auto object-contain" />
-                  <span className="font-black tracking-wider uppercase">Gelo do Sertão</span>
-                </div>
-                <p className="text-slate-500 text-sm font-medium">CNPJ: 47.026.674/0001-29</p>
-                <a href="/termos" className="text-slate-400 hover:text-cyan-400 transition-colors text-sm">Termos de Uso & Privacidade</a>
-              </div>
-              
-              <div className="flex flex-col md:flex-row items-center gap-6 text-slate-400 text-sm font-medium">
-                <span className="flex items-center gap-2"><MapPin size={16} /> Ibotirama - BA</span>
-                <span className="flex items-center gap-2"><Phone size={16} /> (77) 99812-9383</span>
-                <a 
-                  href="https://www.instagram.com/gelodosertao_bahia/" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 hover:text-cyan-400 transition-colors bg-slate-900 px-4 py-2 rounded-full border border-slate-800"
-                >
-                  <Instagram size={16} />
-                  <span>@gelodosertao_bahia</span>
-                </a>
-              </div>
+      {/* Footer */}
+      <footer className="bg-slate-950 py-12 border-t border-slate-800">
+        <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-8">
+          <div className="flex flex-col items-center md:items-start gap-4">
+            <div className="flex items-center gap-3 text-white">
+              <img src="/logo.png" alt="Gelo do Sertão Logo" className="h-16 w-auto object-contain" />
+              <span className="font-black tracking-wider uppercase">Gelo do Sertão</span>
             </div>
-          </footer>
+            <p className="text-slate-500 text-sm font-medium">CNPJ: 47.026.674/0001-29</p>
+            <a href="/termos" className="text-slate-400 hover:text-cyan-400 transition-colors text-sm">Termos de Uso & Privacidade</a>
+          </div>
+
+          <div className="flex flex-col md:flex-row items-center gap-6 text-slate-400 text-sm font-medium">
+            <span className="flex items-center gap-2"><MapPin size={16} /> Ibotirama - BA</span>
+            <span className="flex items-center gap-2"><Phone size={16} /> (77) 99812-9383</span>
+            <a
+              href="https://www.instagram.com/gelodosertao_bahia/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 hover:text-cyan-400 transition-colors bg-slate-900 px-4 py-2 rounded-full border border-slate-800"
+            >
+              <Instagram size={16} />
+              <span>@gelodosertao_bahia</span>
+            </a>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 };

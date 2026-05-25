@@ -4,6 +4,7 @@ import { Snowflake, MapPin, Phone, Instagram, ShoppingBag, Clock, ShieldCheck, T
 
 const VisitorLanding: React.FC = () => {
     const navigate = useNavigate();
+    <meta name="facebook-domain-verification" content="hx5km5h2i8bu37bbhgb4y347pbpxgz" />
 
     return (
         <div className="min-h-dvh w-full bg-[#020617] text-white font-sans overflow-x-hidden">
