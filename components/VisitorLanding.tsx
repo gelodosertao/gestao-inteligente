@@ -42,12 +42,12 @@ const VisitorLanding: React.FC = () => {
 
                     <div className="flex flex-col md:flex-row gap-4 justify-center items-center pt-8">
                         <button
-                            onClick={() => navigate('/cardapio-adega')}
+                            onClick={() => navigate('/parceiro')}
                             className="group relative px-8 py-4 bg-orange-500 hover:bg-orange-600 text-white rounded-2xl font-bold text-lg transition-all duration-300 shadow-lg shadow-orange-900/40 hover:scale-105 flex items-center gap-3 overflow-hidden"
                         >
                             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
                             <ShoppingBag className="group-hover:rotate-12 transition-transform" />
-                            Ver Cardápio Digital
+                            Quero revender
                         </button>
                         <a
                             href="https://wa.me/5577998129383"
