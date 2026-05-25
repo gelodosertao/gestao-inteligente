@@ -2,6 +2,31 @@ import React, { useEffect, useState, useRef } from 'react';
 import { ArrowRight, CheckCircle2, ChevronRight, Play, Snowflake, Truck, MapPin, Phone, Instagram } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import SegmentCard from './SegmentCard';
+
+const FLAVORS = [
+  { src: '/morango.png', name: 'Morango' },
+  { src: '/melancia.png', name: 'Melancia' },
+  { src: '/maracuja.png', name: 'Maracujá' },
+  { src: '/coco.png', name: 'Água de Coco' },
+  { src: '/laranja.png', name: 'Laranja' },
+  { src: '/maca-verde.png', name: 'Maçã Verde' },
+];
+
+const FEATURES = [
+  { title: "Abastecimento Previsível", desc: "Rotas inteligentes que garantem o gelo antes mesmo de você pedir." },
+  { title: "Produtos de Alto Giro", desc: "Gelos saborizados com embalagens premium que vendem sozinhos." },
+  { title: "Suporte Dedicado B2B", desc: "Atendimento ágil direto com nosso time de vendas corporativo." }
+];
+
+const SEGMENTS = [
+  { title: 'Supermercados', desc: 'Facilidade no abastecimento diário e estoque de gelo em barra e cubo para prateleiras geladas.', img: '/segment-supermercados.svg' },
+  { title: 'Distribuidoras', desc: 'Logística otimizada para entregas em grandes volumes e gelo em escama.', img: '/segment-distribuidoras.svg' },
+  { title: 'Ambulantes', desc: 'Gelo em cubo portátil, ideal para carrinhos de sorvete e food trucks.', img: '/segment-ambulantes.svg' },
+  { title: 'Adegas', desc: 'Gelo em cubo e escama para preservação de bebidas premium.', img: '/segment-adega.png' },
+  { title: 'Conveniências', desc: 'Gelo saborizado atrai clientes e aumenta ticket médio.', img: '/' },
+  { title: 'Mercadinhos', desc: 'Pequenos espaços, gelo em barra para cafés e lanchonetes.', img: '/' },
+  { title: 'Bares', desc: 'Gelo em cubo cristalino para drinks perfeitos e gelo em escama para coquetéis.', img: '/' },
+];
 const B2BLanding: React.FC = () => {
   const navigate = useNavigate();
   const [scrolled, setScrolled] = useState(false);
@@ -13,7 +38,7 @@ const B2BLanding: React.FC = () => {
     const handleScroll = () => {
       setScrolled(window.scrollY > 50);
     };
-    window.addEventListener('scroll', handleScroll);
+    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
@@ -84,7 +109,7 @@ const B2BLanding: React.FC = () => {
                 <source src="/seu-video-hero.mp4" type="video/mp4" />
               </video> 
           */}
-          <img src="/fundo-headline.png" alt="Gelo do Sertão Capa" className="w-full h-full object-cover" loading="lazy" />
+          <img src="/fundo-headline.png" alt="Gelo do Sertão Capa" className="w-full h-full object-cover" fetchPriority="high" />
           {/* Overlay escuro para garantir leitura */}
           <div className="absolute inset-0 bg-slate-900/60" />
           <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/80 to-transparent" />
@@ -155,14 +180,7 @@ const B2BLanding: React.FC = () => {
                     <style>{`
                       .overflow-x-auto::-webkit-scrollbar { display: none; }
                     `}</style>
-                    {[
-                      { src: '/morango.png', name: 'Morango' },
-                      { src: '/melancia.png', name: 'Melancia' },
-                      { src: '/maracuja.png', name: 'Maracujá' },
-                      { src: '/coco.png', name: 'Água de Coco' },
-                      { src: '/laranja.png', name: 'Laranja' },
-                      { src: '/maca-verde.png', name: 'Maçã Verde' },
-                    ].map((flavor, idx) => (
+                    {FLAVORS.map((flavor, idx) => (
                       <div key={idx} className="snap-center shrink-0 relative group/pack hover:-translate-y-4 transition-transform duration-500 cursor-grab active:cursor-grabbing">
                         <img src={flavor.src} alt={`Gelo de ${flavor.name}`} className="h-56 md:h-80 w-auto object-contain drop-shadow-[0_20px_20px_rgba(0,0,0,0.5)]" loading="lazy" />
                         <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 md:opacity-0 group-hover/pack:opacity-100 transition-opacity bg-slate-800 text-white text-xs md:text-sm font-bold px-4 py-2 rounded-full whitespace-nowrap shadow-xl border border-slate-700">
@@ -244,11 +262,7 @@ const B2BLanding: React.FC = () => {
               </p>
 
               <div className="space-y-6">
-                {[
-                  { title: "Abastecimento Previsível", desc: "Rotas inteligentes que garantem o gelo antes mesmo de você pedir." },
-                  { title: "Produtos de Alto Giro", desc: "Gelos saborizados com embalagens premium que vendem sozinhos." },
-                  { title: "Suporte Dedicado B2B", desc: "Atendimento ágil direto com nosso time de vendas corporativo." }
-                ].map((item, idx) => (
+                {FEATURES.map((item, idx) => (
                   <div key={idx} className="flex gap-4">
                     <div className="flex-shrink-0 mt-1">
                       <CheckCircle2 className="text-cyan-500" size={24} />
@@ -295,15 +309,7 @@ const B2BLanding: React.FC = () => {
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
             >
               <style>{`\n                  .overflow-x-auto::-webkit-scrollbar { display: none; }\n                `}</style>
-              {[
-                { title: 'Supermercados', desc: 'Facilidade no abastecimento diário e estoque de gelo em barra e cubo para prateleiras geladas.', img: '/segment-supermercados.svg' },
-                { title: 'Distribuidoras', desc: 'Logística otimizada para entregas em grandes volumes e gelo em escama.', img: '/segment-distribuidoras.svg' },
-                { title: 'Ambulantes', desc: 'Gelo em cubo portátil, ideal para carrinhos de sorvete e food trucks.', img: '/segment-ambulantes.svg' },
-                { title: 'Adegas', desc: 'Gelo em cubo e escama para preservação de bebidas premium.', img: '/segment-adega.png' },
-                { title: 'Conveniências', desc: 'Gelo saborizado atrai clientes e aumenta ticket médio.', img: '/' },
-                { title: 'Mercadinhos', desc: 'Pequenos espaços, gelo em barra para cafés e lanchonetes.', img: '/' },
-                { title: 'Bares', desc: 'Gelo em cubo cristalino para drinks perfeitos e gelo em escama para coquetéis.', img: '/' },
-              ].map((seg, idx) => (
+              {SEGMENTS.map((seg, idx) => (
                 <SegmentCard key={idx} title={seg.title} desc={seg.desc} img={seg.img} />
               ))}
             </div>
