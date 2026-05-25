@@ -31,7 +31,6 @@ const B2BLanding: React.FC = () => {
   const [scrolled, setScrolled] = useState(false);
   const carouselRef = useRef<HTMLDivElement>(null);
   const segmentRef = useRef<HTMLDivElement>(null);
-  <meta name="facebook-domain-verification" content="hx5km5h2i8bu37bbhgb4y347pbpxgz" />
   // Efeito de rolagem do menu
   useEffect(() => {
     const handleScroll = () => {
