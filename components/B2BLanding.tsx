@@ -19,12 +19,12 @@ const FEATURES = [
 ];
 
 const SEGMENTS = [
-  { title: 'Adegas e Bebidas', desc: 'Venda o combo completo: destilado + gelo de sabor. Aumente o ticket médio instantaneamente.', img: '/segment-adega.png' },
-  { title: 'Conveniências', desc: 'Gere vendas por impulso com embalagens super atrativas no freezer.', img: '/' },
-  { title: 'Distribuidoras', desc: 'Abasteça o pequeno varejo com o produto sensação do momento, com alta demanda e rotatividade.', img: '/segment-distribuidoras.svg' },
-  { title: 'Bares e Eventos', desc: 'Praticidade total: padronize seus drinks, agilize o preparo e ofereça uma experiência premium.', img: '/' },
-  { title: 'Supermercados', desc: 'Um diferencial na sua gôndola gelada. Produto de altíssimo giro para o final de semana.', img: '/segment-supermercados.svg' },
-  { title: 'Ambulantes e Festas', desc: 'Portátil, prático e pronto para turbinar o copão da galera.', img: '/segment-ambulantes.svg' },
+  { title: 'Adegas e Bebidas', desc: 'Venda o combo completo: destilado + gelo de sabor. Aumente o ticket médio instantaneamente.', img: '/segment-adegas.jpg' },
+  { title: 'Conveniências', desc: 'Gere vendas por impulso com embalagens super atrativas no freezer.', img: '/segment-supermercados.jpg' },
+  { title: 'Distribuidoras', desc: 'Abasteça o pequeno varejo com o produto sensação do momento, com alta demanda e rotatividade.', img: '/segment-distribuidoras.jpg' },
+  { title: 'Bares e Eventos', desc: 'Praticidade total: padronize seus drinks, agilize o preparo e ofereça uma experiência premium.', img: '/segment-bares.jpg' },
+  { title: 'Supermercados', desc: 'Um diferencial na sua gôndola gelada. Produto de altíssimo giro para o final de semana.', img: '/segment-supermercados.jpg' },
+  { title: 'Ambulantes e Festas', desc: 'Portátil, prático e pronto para turbinar o copão da galera.', img: '/segment-ambulantes.jpg' },
 ];
 const B2BLanding: React.FC = () => {
   const navigate = useNavigate();
@@ -91,7 +91,7 @@ const B2BLanding: React.FC = () => {
             <a href="#logistica" className="text-sm font-semibold text-white drop-shadow-md hover:text-cyan-400 transition-colors">Logística</a>
           </div>
           <button
-            onClick={() => window.open('https://wa.me/5577998129383', '_blank')}
+            onClick={() => navigate('/wpp')}
             className="bg-white text-slate-900 px-6 py-2.5 rounded-full font-bold text-sm hover:bg-slate-100 hover:scale-105 transition-all shadow-xl flex items-center gap-2"
           >
             Seja um Revendedor
@@ -134,7 +134,7 @@ const B2BLanding: React.FC = () => {
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <button
-              onClick={() => window.open('https://wa.me/5577998129383', '_blank')}
+              onClick={() => navigate('/wpp')}
               className="w-full sm:w-auto bg-gradient-to-r from-cyan-500 to-blue-600 text-white px-8 py-4 rounded-full font-bold text-lg hover:shadow-lg hover:shadow-cyan-500/30 hover:-translate-y-1 transition-all flex items-center justify-center gap-2"
             >
               Falar com Consultor
@@ -202,7 +202,7 @@ const B2BLanding: React.FC = () => {
                   </p>
                 </div>
                 <button
-                  onClick={() => window.open('https://wa.me/5577998129383', '_blank')}
+                  onClick={() => navigate('/wpp')}
                   className="shrink-0 bg-gradient-to-r from-cyan-500 to-blue-600 text-white px-8 py-4 rounded-full font-bold text-lg hover:shadow-lg hover:shadow-cyan-500/30 hover:-translate-y-1 transition-all"
                 >
                   Garantir Estoque
@@ -295,7 +295,7 @@ const B2BLanding: React.FC = () => {
             Cadastre seu negócio e receba nossa tabela de preços para atacado. Condições exclusivas para novos parceiros.
           </p>
           <button
-            onClick={() => window.open('https://wa.me/5577998129383', '_blank')}
+            onClick={() => navigate('/wpp')}
             className="bg-cyan-400 text-slate-900 px-10 py-5 rounded-full font-black text-xl hover:bg-cyan-300 hover:scale-105 transition-all shadow-xl shadow-cyan-500/30 flex items-center justify-center gap-3 mx-auto"
           >
             Quero a Tabela de Preços

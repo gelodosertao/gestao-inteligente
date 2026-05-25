@@ -27,7 +27,9 @@ const Reports = React.lazy(() => import('./components/Reports'));
 const WholesalePOS = React.lazy(() => import('./components/WholesalePOS'));
 const VisitorLanding = React.lazy(() => import('./components/VisitorLanding'));
 const B2BLanding = React.lazy(() => import('./components/B2BLanding'));
+const WhatsAppRedirect = React.lazy(() => import('./components/WhatsAppRedirect'));
 const FestasRadar = React.lazy(() => import('./components/FestasRadar'));
+const TermsAndPrivacy = React.lazy(() => import('./components/TermsAndPrivacy'));
 // CRM Temporarily Disabled
 // const CRM = React.lazy(() => import('./components/CRM'));
 
@@ -781,6 +783,18 @@ const App: React.FC = () => {
       <Route path="/parceiro" element={
         <Suspense fallback={<div className="h-dvh w-screen flex items-center justify-center bg-slate-900"><Loader2 size={48} className="animate-spin text-white" /></div>}>
           <B2BLanding />
+        </Suspense>
+      } />
+
+      <Route path="/wpp" element={
+        <Suspense fallback={<div className="h-dvh w-screen flex items-center justify-center bg-slate-50"><Loader2 size={48} className="animate-spin text-green-500" /></div>}>
+          <WhatsAppRedirect />
+        </Suspense>
+      } />
+
+      <Route path="/termos" element={
+        <Suspense fallback={<div className="h-dvh w-screen flex items-center justify-center bg-slate-50"><Loader2 size={48} className="animate-spin text-orange-500" /></div>}>
+          <TermsAndPrivacy />
         </Suspense>
       } />
 
