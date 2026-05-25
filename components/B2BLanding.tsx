@@ -123,9 +123,8 @@ const B2BLanding: React.FC = () => {
           </div>
 
           <h1 className="text-5xl md:text-7xl font-black text-white mb-6 tracking-tight leading-tight drop-shadow-2xl">
-            O Gelo de Sabor que <br className="hidden md:block" />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">Dobra o Faturamento</span> <br className="hidden md:block" />
-            da Sua Adega.
+            Seu Fornecedor Nº 1 em <br className="hidden md:block" />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">Gelo de Sabor</span>
           </h1>
 
           <p className="text-lg md:text-xl text-white mb-12 max-w-2xl mx-auto font-medium leading-relaxed drop-shadow-lg">
