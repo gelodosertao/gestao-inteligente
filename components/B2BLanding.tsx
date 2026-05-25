@@ -107,7 +107,7 @@ const B2BLanding: React.FC = () => {
                 <source src="/seu-video-hero.mp4" type="video/mp4" />
               </video> 
           */}
-          <img src="/fundo-headline.png" alt="Gelo do Sertão Capa" className="w-full h-full object-cover" fetchPriority="high" />
+          <img src="/fundo-headline.webp" alt="Gelo do Sertão Capa" className="w-full h-full object-cover" fetchPriority="high" />
           {/* Overlay escuro para garantir leitura */}
           <div className="absolute inset-0 bg-slate-900/60" />
           <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/80 to-transparent" />
