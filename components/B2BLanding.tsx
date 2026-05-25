@@ -13,19 +13,18 @@ const FLAVORS = [
 ];
 
 const FEATURES = [
-  { title: "Abastecimento Previsível", desc: "Rotas inteligentes que garantem o gelo antes mesmo de você pedir." },
-  { title: "Produtos de Alto Giro", desc: "Gelos saborizados com embalagens premium que vendem sozinhos." },
-  { title: "Suporte Dedicado B2B", desc: "Atendimento ágil direto com nosso time de vendas corporativo." }
+  { title: "Alta Margem de Lucro", desc: "Produto de alto valor agregado. Compre no atacado e multiplique seus ganhos no varejo." },
+  { title: "Venda por Impulso", desc: "Embalagens premium e chamativas que vendem sozinhas assim que o cliente bate o olho no freezer." },
+  { title: "O Combo Perfeito", desc: "Aumente o ticket médio do seu cliente ao vender a bebida junto com o gelo de sabor ideal." }
 ];
 
 const SEGMENTS = [
-  { title: 'Supermercados', desc: 'Facilidade no abastecimento diário e estoque de gelo em barra e cubo para prateleiras geladas.', img: '/segment-supermercados.svg' },
-  { title: 'Distribuidoras', desc: 'Logística otimizada para entregas em grandes volumes e gelo em escama.', img: '/segment-distribuidoras.svg' },
-  { title: 'Ambulantes', desc: 'Gelo em cubo portátil, ideal para carrinhos de sorvete e food trucks.', img: '/segment-ambulantes.svg' },
-  { title: 'Adegas', desc: 'Gelo em cubo e escama para preservação de bebidas premium.', img: '/segment-adega.png' },
-  { title: 'Conveniências', desc: 'Gelo saborizado atrai clientes e aumenta ticket médio.', img: '/' },
-  { title: 'Mercadinhos', desc: 'Pequenos espaços, gelo em barra para cafés e lanchonetes.', img: '/' },
-  { title: 'Bares', desc: 'Gelo em cubo cristalino para drinks perfeitos e gelo em escama para coquetéis.', img: '/' },
+  { title: 'Adegas e Bebidas', desc: 'Venda o combo completo: destilado + gelo de sabor. Aumente o ticket médio instantaneamente.', img: '/segment-adega.png' },
+  { title: 'Conveniências', desc: 'Gere vendas por impulso com embalagens super atrativas no freezer.', img: '/' },
+  { title: 'Distribuidoras', desc: 'Abasteça o pequeno varejo com o produto sensação do momento, com alta demanda e rotatividade.', img: '/segment-distribuidoras.svg' },
+  { title: 'Bares e Eventos', desc: 'Praticidade total: padronize seus drinks, agilize o preparo e ofereça uma experiência premium.', img: '/' },
+  { title: 'Supermercados', desc: 'Um diferencial na sua gôndola gelada. Produto de altíssimo giro para o final de semana.', img: '/segment-supermercados.svg' },
+  { title: 'Ambulantes e Festas', desc: 'Portátil, prático e pronto para turbinar o copão da galera.', img: '/segment-ambulantes.svg' },
 ];
 const B2BLanding: React.FC = () => {
   const navigate = useNavigate();
@@ -121,17 +120,18 @@ const B2BLanding: React.FC = () => {
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500"></span>
             </span>
-            Atendimento Exclusivo B2B
+            Atacado de Gelo Saborizado
           </div>
 
           <h1 className="text-5xl md:text-7xl font-black text-white mb-6 tracking-tight leading-tight drop-shadow-2xl">
-            O Gelo que <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">Não Falta</span> <br className="hidden md:block" />
-            na Sua Adega.
+            O Gelo de Sabor que <br className="hidden md:block" />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">Dobra o Faturamento</span> <br className="hidden md:block" />
+            da Sua Adega.
           </h1>
 
           <p className="text-lg md:text-xl text-white mb-12 max-w-2xl mx-auto font-medium leading-relaxed drop-shadow-lg">
-            Abastecimento inteligente, logística de ponta e qualidade premium.
-            Gelo em escama, barra, cubo e sabor para quem vende em alto volume.
+            Embalagens premium, 7 sabores irresistíveis e alta lucratividade.
+            Transforme seu freezer em uma máquina de vendas por impulso.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -156,14 +156,14 @@ const B2BLanding: React.FC = () => {
       {/* Products Section */}
       <section id="produtos" className="py-32 bg-slate-900 relative">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-20">
-            <h2 className="text-4xl md:text-5xl font-black text-white mb-6">Nosso Portfólio Premium</h2>
-            <p className="text-slate-400 text-lg max-w-2xl mx-auto">Soluções completas de refrigeração para todos os tipos de negócios, do pequeno mercado à grande distribuidora.</p>
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-black text-white mb-6">A Sensação do Momento</h2>
+            <p className="text-slate-400 text-lg max-w-2xl mx-auto">O gelo saborizado que virou tendência absoluta. Praticidade para os clientes, lucro garantido para o seu negócio.</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 gap-8">
             {/* Produto 1 - Sabor */}
-            <div className="group relative rounded-3xl overflow-hidden bg-slate-900 border border-slate-700/50 hover:border-cyan-500/50 transition-all md:col-span-2 shadow-2xl">
+            <div className="group relative rounded-3xl overflow-hidden bg-slate-900 border border-slate-700/50 hover:border-cyan-500/50 transition-all shadow-2xl">
               <div className="bg-slate-950 relative overflow-hidden p-8 md:p-12">
                 {/* Linha de Sabores (Embalagens) Carrossel */}
                 <div className="relative w-full">
@@ -182,7 +182,7 @@ const B2BLanding: React.FC = () => {
                     `}</style>
                     {FLAVORS.map((flavor, idx) => (
                       <div key={idx} className="snap-center shrink-0 relative group/pack hover:-translate-y-4 transition-transform duration-500 cursor-grab active:cursor-grabbing">
-                        <img src={flavor.src} alt={`Gelo de ${flavor.name}`} className="h-56 md:h-80 w-auto object-contain drop-shadow-[0_20px_20px_rgba(0,0,0,0.5)]" loading="lazy" />
+                        <img src={flavor.src} alt={`Gelo de ${flavor.name}`} className="h-56 md:h-80 w-auto object-contain drop-shadow-[0_20px_20px_rgba(0,0,0,0.5)]" fetchPriority="high" />
                         <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 md:opacity-0 group-hover/pack:opacity-100 transition-opacity bg-slate-800 text-white text-xs md:text-sm font-bold px-4 py-2 rounded-full whitespace-nowrap shadow-xl border border-slate-700">
                           {flavor.name}
                         </div>
@@ -196,52 +196,19 @@ const B2BLanding: React.FC = () => {
 
               <div className="p-8 w-full flex flex-col md:flex-row md:items-end justify-between gap-6 bg-slate-900 z-10 relative">
                 <div>
-                  <div className="inline-block px-3 py-1 bg-cyan-500/20 text-cyan-400 rounded-full text-xs font-bold uppercase tracking-wider mb-3 backdrop-blur-sm">Alta Margem & Alto Giro</div>
-                  <h3 className="text-4xl md:text-5xl font-black text-white mb-2">Linha Drink <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">Sabor</span></h3>
+                  <div className="inline-block px-3 py-1 bg-cyan-500/20 text-cyan-400 rounded-full text-xs font-bold uppercase tracking-wider mb-3 backdrop-blur-sm">O Novo Padrão B2B</div>
+                  <h3 className="text-4xl md:text-5xl font-black text-white mb-2">Linha Drink <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">Premium</span></h3>
                   <p className="text-slate-300 max-w-2xl text-lg mt-4">
-                    As embalagens mais bonitas do mercado, agora em <strong>7 sabores oficiais</strong>.
-                    Sucesso absoluto em diferentes segmentos comerciais.
+                    As embalagens mais bonitas e resistentes do mercado, em <strong>7 sabores incríveis</strong>. 
+                    Seus clientes não vão comprar apenas um, vão querer experimentar todos.
                   </p>
                 </div>
-              </div>
-            </div>
-
-            {/* Produto 2 - Cubo */}
-            <div className="group relative rounded-3xl overflow-hidden bg-slate-800 border border-slate-700/50 hover:border-cyan-500/50 transition-all">
-              <div className="aspect-[4/3] bg-slate-950 relative overflow-hidden">
-                <img src="/gelo-cubo.jpg" alt="Gelo em Cubo" className="w-full h-full object-cover opacity-90 group-hover:scale-105 transition-transform duration-700" loading="lazy" />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent" />
-              </div>
-              <div className="p-8 absolute bottom-0 w-full">
-                <div className="inline-block px-3 py-1 bg-blue-500/20 text-blue-400 rounded-full text-xs font-bold uppercase tracking-wider mb-3 backdrop-blur-sm">Mais Vendido</div>
-                <h3 className="text-3xl font-black text-white mb-2">Gelo em Cubo</h3>
-                <p className="text-slate-300">O clássico cristalino. Embalagens resistentes, prontas para o seu ponto de venda.</p>
-              </div>
-            </div>
-
-            {/* Produto 3 - Escama */}
-            <div className="group relative rounded-3xl overflow-hidden bg-slate-800 border border-slate-700/50 hover:border-cyan-500/50 transition-all">
-              <div className="aspect-[4/3] bg-slate-950 relative overflow-hidden">
-                <img src="https://images.unsplash.com/photo-1518150035071-8d26ea33ff98?q=80&w=2070&auto=format&fit=crop" alt="Gelo Escama" className="w-full h-full object-cover opacity-60 group-hover:scale-105 transition-transform duration-700" loading="lazy" />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-900 to-transparent" />
-              </div>
-              <div className="p-8 absolute bottom-0 w-full">
-                <div className="inline-block px-3 py-1 bg-slate-600/50 text-slate-300 rounded-full text-xs font-bold uppercase tracking-wider mb-3 backdrop-blur-sm">Atacado Industrial</div>
-                <h3 className="text-3xl font-black text-white mb-2">Gelo em Escama</h3>
-                <p className="text-slate-300">Ideal para conservação rápida de pescados e bebidas em grandes volumes.</p>
-              </div>
-            </div>
-
-            {/* Produto 4 - Barra */}
-            <div className="group relative rounded-3xl overflow-hidden bg-slate-800 border border-slate-700/50 hover:border-cyan-500/50 transition-all">
-              <div className="aspect-[4/3] bg-slate-950 relative overflow-hidden">
-                <img src="https://plus.unsplash.com/premium_photo-1672922114757-0749aeb001fb?q=80&w=2070&auto=format&fit=crop" alt="Gelo em Barra" className="w-full h-full object-cover opacity-60 group-hover:scale-105 transition-transform duration-700" loading="lazy" />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-900 to-transparent" />
-              </div>
-              <div className="p-8 absolute bottom-0 w-full">
-                <div className="inline-block px-3 py-1 bg-slate-600/50 text-slate-300 rounded-full text-xs font-bold uppercase tracking-wider mb-3 backdrop-blur-sm">Atacado Industrial</div>
-                <h3 className="text-3xl font-black text-white mb-2">Gelo em Barra</h3>
-                <p className="text-slate-300">Máxima durabilidade. Desenvolvido para longos períodos de resfriamento em caixas térmicas.</p>
+                <button
+                  onClick={() => window.open('https://wa.me/5577998129383', '_blank')}
+                  className="shrink-0 bg-gradient-to-r from-cyan-500 to-blue-600 text-white px-8 py-4 rounded-full font-bold text-lg hover:shadow-lg hover:shadow-cyan-500/30 hover:-translate-y-1 transition-all"
+                >
+                  Garantir Estoque
+                </button>
               </div>
             </div>
           </div>
@@ -254,11 +221,11 @@ const B2BLanding: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
             <div>
               <h2 className="text-4xl md:text-5xl font-black text-slate-900 mb-6 leading-tight">
-                Parceria que dá lucro. <br />
-                <span className="text-blue-600">Gestão que dá paz.</span>
+                Gelo saborizado que <br />
+                <span className="text-blue-600">vende sozinho.</span>
               </h2>
               <p className="text-lg text-slate-600 mb-10">
-                Não somos apenas fornecedores de gelo. Somos seus parceiros estratégicos. Nossa plataforma tecnológica garante que seu freezer nunca fique vazio.
+                O Gelo de Sabor deixou de ser uma novidade para se tornar um produto obrigatório no pequeno varejo. Nós oferecemos a qualidade premium que seus clientes buscam.
               </p>
 
               <div className="space-y-6">
