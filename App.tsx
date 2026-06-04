@@ -59,6 +59,7 @@ const App: React.FC = () => {
     if (path.startsWith('/gestao/ai')) return 'AI_INSIGHTS';
     if (path.startsWith('/gestao/crm')) return 'CRM';
     if (path.startsWith('/gestao/festas')) return 'FESTAS_RADAR';
+    if (path.startsWith('/gestao/logistica')) return 'LOGISTICS';
     if (path === '/gestao') return 'DASHBOARD';
     return 'DASHBOARD';
   }, [location.pathname]);
@@ -82,6 +83,7 @@ const App: React.FC = () => {
       case 'AI_INSIGHTS': navigate('/gestao/ai'); break;
       case 'CRM': navigate('/gestao/crm'); break;
       case 'FESTAS_RADAR': navigate('/gestao/festas'); break;
+      case 'LOGISTICS': navigate('/gestao/logistica'); break;
       default: navigate('/gestao');
     }
   };
@@ -649,11 +651,21 @@ const App: React.FC = () => {
         return <MenuConfig onBack={() => setCurrentView('DASHBOARD')} tenantId={currentUser!.tenantId} />;
       case 'PRODUCTION':
         return <Production products={products} currentUser={currentUser!} onUpdateProduct={handleUpdateProduct} onAddProduct={handleAddProduct} onBack={() => setCurrentView('DASHBOARD')} />;
-      // Central de Pedidos agora está anexada ao PDV Varejo (SALES)
       case 'SETTINGS':
         return <Settings currentUser={currentUser!} onResetData={handleResetData} />;
       case 'FESTAS_RADAR':
         return <FestasRadar />;
+      case 'LOGISTICS':
+        return (
+          <div className="w-full h-[calc(100vh-10rem)] md:h-[calc(100vh-7rem)] rounded-2xl overflow-hidden border border-slate-200 bg-white shadow-sm">
+            <iframe
+              src={import.meta.env.VITE_LOGISTICS_URL || (window.location.hostname === 'localhost' ? 'http://localhost:3000' : '/logistica')}
+              className="w-full h-full border-none"
+              title="Painel de Logística"
+              allow="geolocation"
+            />
+          </div>
+        );
       // CRM removido temporariamente
       default:
         return <Dashboard products={products} sales={sales} financials={financials} customers={customers} onNavigate={setCurrentView} />;
