@@ -22,12 +22,15 @@ export default function IceRouteMap({
     data: any;
   } | null>(null);
 
-  const polylinesRef = useRef<google.maps.Polyline[]>([]);
+  // NOTE: avoid referencing global `google` namespace (may be missing in TS types)
+  const polylinesRef = useRef<any[]>([]);
 
-  // Filter deliveries that have valid coordinates and are not delivered
+
+  // Active stops: valid coordinates and NOT already delivered
   const activeStops = [...deliveries]
-    .filter((d) => d.lat !== null && d.lng !== null)
+    .filter((d) => d.lat !== null && d.lng !== null && d.status !== 'delivered')
     .sort((a, b) => a.sequence - b.sequence);
+
 
   useEffect(() => {
     if (!routesLib || !map) return;
@@ -44,19 +47,23 @@ export default function IceRouteMap({
     }
 
     const segmentsMetrics: { [key: string]: { distance: string; duration: string } } = {};
-    const bounds = new google.maps.LatLngBounds();
+    const bounds = new (window as any).google.maps.LatLngBounds();
+
     bounds.extend({ lat: depot.lat, lng: depot.lng });
     activeStops.forEach((stop) => bounds.extend({ lat: stop.lat!, lng: stop.lng! }));
 
     // Helper to calculate segment route
     const computeSegment = async (
       segmentId: string,
-      origin: google.maps.LatLngLiteral,
-      destination: google.maps.LatLngLiteral,
+      origin: any,
+
+      destination: any,
+
       color: string
     ) => {
       try {
         const response = await routesLib.Route.computeRoutes({
+
           origin,
           destination,
           travelMode: 'DRIVING',
@@ -75,7 +82,8 @@ export default function IceRouteMap({
               strokeWeight: 5,
             });
             p.setMap(map);
-            polylinesRef.current.push(p);
+          polylinesRef.current.push(p);
+
           });
 
           // Extract duration and distance
@@ -92,7 +100,8 @@ export default function IceRouteMap({
       } catch (err) {
         console.error(`Error computing route segment ${segmentId}:`, err);
         // Fallback straight line drawing in case of API limitations or offline issues
-        const fallbackPoly = new google.maps.Polyline({
+        const fallbackPoly = new (window as any).google.maps.Polyline({
+
           path: [origin, destination],
           strokeColor: '#9ca3af',
           strokeOpacity: 0.6,
