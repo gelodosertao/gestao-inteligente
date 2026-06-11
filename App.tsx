@@ -2,6 +2,7 @@ import React, { useState, useEffect, Suspense, useMemo } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { ViewState, User, Product, Sale, FinancialRecord, Branch, Customer, CashClosing } from './types';
 import { dbProducts, dbSales, dbFinancials, dbCustomers, dbCashClosings, dbUsers } from './services/db';
+import { dbLogistics } from './components/painel-logistica/src/services/dbLogistics';
 import { useQuery } from '@tanstack/react-query';
 import { Loader2, AlertCircle, Menu } from 'lucide-react';
 import { usePlatform } from './hooks/usePlatform';
@@ -319,7 +320,43 @@ const App: React.FC = () => {
       }
     }
 
+    // Logistics Integration for Wholesale POS Deliveries
+    if (newSale.source === 'WHOLESALE_POS' && newSale.deliveryMethod === 'Delivery') {
+      try {
+        const customer = customers.find(c => c.name === newSale.customerName);
+        let { route, deliveries } = await dbLogistics.getActiveRoute();
+        let routeId = route?.id;
+        
+        if (!routeId) {
+          const defaultDepot = {
+            name: "Fábrica Matriz",
+            address: "Endereço da Fábrica",
+            lat: -12.1856,
+            lng: -44.9959,
+          };
+          routeId = await dbLogistics.saveActiveRoute(defaultDepot, []);
+        }
 
+        const orderDetails = newSale.items.map(item => `${item.quantity}x ${item.productName}`).join(', ');
+
+        const newStop = {
+          id: '',
+          clientName: newSale.customerName,
+          address: newSale.deliveryAddress || customer?.address || 'Endereço não informado',
+          city: newSale.deliveryCity || customer?.city || 'Ibotirama',
+          orderDetails: `Pedido #${newSale.id.substring(0, 8)} - ${orderDetails}`,
+          lat: null,
+          lng: null,
+          status: 'pending' as const,
+          sequence: (deliveries?.length || 0) + 1
+        };
+
+        await dbLogistics.addStop(routeId, newStop);
+        console.log("Venda enviada para o painel de logística!");
+      } catch (error) {
+        console.error("Erro ao enviar venda para logística:", error);
+      }
+    }
   };
 
   const handleAddFinancialRecord = async (newRecords: FinancialRecord[]) => {

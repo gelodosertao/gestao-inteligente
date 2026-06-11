@@ -1,10 +1,11 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Product, Sale, Customer, User, Branch, SaleItem } from '../types';
 import { ShoppingCart, LogOut, User as UserIcon, Plus, Minus, Search, CheckCircle, ArrowLeft, History, Store, MapPin, Edit, Trash2, Save, X, Printer, Check } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { CUSTOMER_SEGMENTS } from '../constants';
 import { hardwareBridge } from '../services/hardwareBridge';
 import { translatePaymentMethod } from '../services/utils';
+import { dbCustomers } from '../services/db';
 
 interface WholesalePOSProps {
     products: Product[];
@@ -88,6 +89,18 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
     // Checkout State
     const [isCheckingOut, setIsCheckingOut] = useState(false);
     const [paymentMethod, setPaymentMethod] = useState<'Pix' | 'Credit' | 'Debit' | 'Cash' | 'Split'>('Pix');
+    const [deliveryMethod, setDeliveryMethod] = useState<'Delivery' | 'Pickup'>('Delivery');
+    const [deliveryFee, setDeliveryFee] = useState<number>(0);
+    const [tempAddress, setTempAddress] = useState<string>('');
+    const [tempCity, setTempCity] = useState<string>('');
+
+    useEffect(() => {
+        if (selectedCustomer) {
+            setTempAddress(selectedCustomer.address || '');
+            setTempCity(selectedCustomer.city || '');
+        }
+    }, [selectedCustomer]);
+
     const [saleDate, setSaleDate] = useState(new Date().toISOString().split('T')[0]);
     const [adminDiscount, setAdminDiscount] = useState<number>(0);
     // ADM can assign sale to a seller
@@ -278,6 +291,19 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
     const handleFinishSale = async () => {
         if (cart.length === 0) return alert("Carrinho vazio!");
         if (!selectedCustomer) return alert("Selecione um cliente para o atacado.");
+        if (deliveryMethod === 'Delivery' && (!tempAddress || !tempCity)) {
+            return alert("Para entregas, preencha o endereço de entrega e a cidade!");
+        }
+
+        // Auto-update customer address if changed during checkout
+        if (deliveryMethod === 'Delivery' && selectedCustomer && (selectedCustomer.address !== tempAddress || selectedCustomer.city !== tempCity)) {
+            const updatedCustomer = { ...selectedCustomer, address: tempAddress, city: tempCity };
+            try {
+                await dbCustomers.update(updatedCustomer);
+            } catch (e) {
+                console.error("Erro ao atualizar endereço do cliente no checkout:", e);
+            }
+        }
 
         const saleItems: SaleItem[] = cart.map(({ product, quantity, customPrice }) => ({
             productId: product.id,
@@ -297,7 +323,11 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
 
         const isSeller = effectiveSellerRole === 'WHOLESALE_REPRESENTATIVE';
         const commissionRate = isSeller ? 0.05 : 0; // Novo esquema: 5% flat apenas para vendedores
-        const finalTotal = Math.max(cartTotal - (adminDiscount || 0), 0);
+        let finalTotal = cartTotal - (adminDiscount || 0);
+        if (deliveryMethod === 'Delivery') {
+            finalTotal += (deliveryFee || 0);
+        }
+        finalTotal = Math.max(finalTotal, 0);
         const commissionAmount = finalTotal * commissionRate;
 
         const newSale: Sale = {
@@ -310,6 +340,7 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
             branch: Branch.MATRIZ,
             status: 'Pending',
             paymentMethod,
+            deliveryMethod,
             hasInvoice: false,
             source: 'WHOLESALE_POS',
             amountPaid: 0,
@@ -318,6 +349,9 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
             sellerRole: effectiveSellerRole,
             commissionAmount: commissionAmount,
             discount: adminDiscount || 0,
+            deliveryFee: deliveryMethod === 'Delivery' ? (deliveryFee || 0) : 0,
+            deliveryAddress: deliveryMethod === 'Delivery' ? tempAddress : undefined,
+            deliveryCity: deliveryMethod === 'Delivery' ? tempCity : undefined,
         };
 
         try {
@@ -682,6 +716,53 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                             </div>
                         )}
 
+                        {/* Delivery Method */}
+                        <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 mb-4">
+                            <label className="block text-sm font-bold text-slate-700 mb-3">Tipo de Pedido</label>
+                            <div className="grid grid-cols-2 gap-2">
+                                <button onClick={() => setDeliveryMethod('Delivery')} className={`py-3 px-2 rounded-lg font-bold text-sm border-2 flex items-center justify-center transition-all ${deliveryMethod === 'Delivery' ? 'border-orange-500 bg-orange-50 text-orange-700' : 'border-slate-100 bg-white text-slate-500 hover:border-slate-300'}`}>
+                                    🚚 Entrega
+                                </button>
+                                <button onClick={() => setDeliveryMethod('Pickup')} className={`py-3 px-2 rounded-lg font-bold text-sm border-2 flex items-center justify-center transition-all ${deliveryMethod === 'Pickup' ? 'border-orange-500 bg-orange-50 text-orange-700' : 'border-slate-100 bg-white text-slate-500 hover:border-slate-300'}`}>
+                                    🏪 Retirada
+                                </button>
+                            </div>
+                        </div>
+
+                        {deliveryMethod === 'Delivery' && (
+                            <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 mb-4 space-y-4">
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 mb-2">Endereço de Entrega</label>
+                                    <input
+                                        type="text"
+                                        className="w-full px-3 py-3 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-orange-500 font-medium text-slate-700 mb-2"
+                                        value={tempAddress}
+                                        onChange={e => setTempAddress(e.target.value)}
+                                        placeholder="Ex: Rua A, 123 - Centro"
+                                    />
+                                    <input
+                                        type="text"
+                                        className="w-full px-3 py-3 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-orange-500 font-medium text-slate-700"
+                                        value={tempCity}
+                                        onChange={e => setTempCity(e.target.value)}
+                                        placeholder="Cidade. Ex: Ibotirama"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 mb-2">Taxa de Entrega (R$)</label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        className="w-full px-3 py-3 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-orange-500 font-medium text-slate-700"
+                                        value={deliveryFee || ''}
+                                        onChange={e => setDeliveryFee(Number(e.target.value) || 0)}
+                                        placeholder="Valor da entrega (Opcional)"
+                                    />
+                                </div>
+                            </div>
+                        )}
+
                         {/* Sale Date Selector */}
                         <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 mb-4">
                             <label className="block text-sm font-bold text-slate-700 mb-2">Data da Venda</label>
@@ -731,12 +812,18 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                             {displayCommissionRate > 0 && (
                                 <div className="flex justify-between items-center mb-2 border-b border-slate-700 pb-2">
                                     <span className="text-slate-300 font-medium text-sm">Comissão ({(displayCommissionRate * 100).toFixed(0)}%):</span>
-                                    <span className="text-lg font-bold text-green-400">R$ {(Math.max(cartTotal - adminDiscount, 0) * displayCommissionRate).toFixed(2)}</span>
+                                    <span className="text-lg font-bold text-green-400">R$ {(Math.max(cartTotal - (adminDiscount || 0) + (deliveryMethod === 'Delivery' ? (deliveryFee || 0) : 0), 0) * displayCommissionRate).toFixed(2)}</span>
+                                </div>
+                            )}
+                            {deliveryMethod === 'Delivery' && deliveryFee > 0 && (
+                                <div className="flex justify-between items-center mb-2 border-b border-slate-700 pb-2 text-blue-300">
+                                    <span className="font-medium text-sm">Taxa de Entrega:</span>
+                                    <span className="font-bold">+ R$ {deliveryFee.toFixed(2)}</span>
                                 </div>
                             )}
                             <div className="flex justify-between items-center mt-2">
                                 <span className="text-slate-300 text-sm">Total do Pedido:</span>
-                                <span className="text-2xl font-black text-orange-400">R$ {Math.max(cartTotal - adminDiscount, 0).toFixed(2)}</span>
+                                <span className="text-2xl font-black text-orange-400">R$ {Math.max(cartTotal - (adminDiscount || 0) + (deliveryMethod === 'Delivery' ? (deliveryFee || 0) : 0), 0).toFixed(2)}</span>
                             </div>
                             <p className="text-xs text-slate-400 mt-2 text-right italic">* ADM confirma recebimento e estoque.</p>
                         </div>
