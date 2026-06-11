@@ -9,7 +9,7 @@ try {
 
   // 2. Build logistics panel
   console.log('--- Building logistics panel ---');
-  const logisticsDir = path.join(__dirname, 'painel-logistica');
+  const logisticsDir = path.join(__dirname, 'components', 'painel-logistica');
   
   // Ensure dependencies are installed in painel-logistica
   console.log('Installing dependencies for painel-logistica...');
