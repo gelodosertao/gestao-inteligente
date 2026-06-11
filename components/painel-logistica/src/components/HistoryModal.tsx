@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { RouteHistoryItem, Delivery, DepotSettings } from '../types';
-import { X, Calendar, MapPin, Navigation, Clock, Trash2, RotateCcw, Search, ChevronDown, ChevronUp, CheckCircle, Eye } from 'lucide-react';
+import { RouteHistoryItem } from '../types';
+import { X, Calendar, MapPin, Navigation, Clock, Trash2, RotateCcw, Search, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface HistoryModalProps {
   isOpen: boolean;

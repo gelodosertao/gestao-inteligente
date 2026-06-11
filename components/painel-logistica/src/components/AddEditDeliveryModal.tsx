@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Delivery, DepotSettings } from '../types';
-import { useMapsLibrary, useMap } from '@vis.gl/react-google-maps';
+import { useMapsLibrary } from '@vis.gl/react-google-maps';
 import { X, Search, Sparkles, AlertTriangle, Check } from 'lucide-react';
 
 interface AddEditDeliveryModalProps {

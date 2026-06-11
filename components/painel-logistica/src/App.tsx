@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { APIProvider } from '@vis.gl/react-google-maps';
 import { Delivery, DepotSettings, RouteHistoryItem } from './types';
 import { defaultDepot, sampleDeliveries } from './utils/sampleData';
@@ -20,11 +20,7 @@ import {
   Settings, 
   Truck, 
   ClipboardCheck, 
-  MapPin, 
-  FileText,
   Clock,
-  Navigation,
-  Info,
   Calendar,
   Archive
 } from 'lucide-react';
@@ -110,24 +106,19 @@ export default function App() {
   }, [useDb]);
 
   // ============================================================
-  // SYNC: Salvar automaticamente no Supabase quando deliveries/depot mudam
+  // SYNC: Persistência localStorage + Supabase
   // ============================================================
-  const syncToSupabase = useCallback(async (currentDepot: DepotSettings, currentDeliveries: Delivery[]) => {
-    if (!useDb || isSyncing.current || isLoadingDb) return;
-    isSyncing.current = true;
-    try {
-      const routeId = await dbLogistics.saveActiveRoute(currentDepot, currentDeliveries, activeRouteId || undefined);
-      if (!activeRouteId) setActiveRouteId(routeId);
-    } catch (err) {
-      console.error('[IceRoute] Erro ao sincronizar com Supabase:', err);
-    } finally {
-      isSyncing.current = false;
-    }
-  }, [useDb, activeRouteId, isLoadingDb]);
 
-  // Synchronize collections with localStorage (mantém como cache rápido)
+  // Sincronizar depot com localStorage e Supabase
   useEffect(() => {
+    if (isLoadingDb) return;
     localStorage.setItem('iceroute_depot', JSON.stringify(depot));
+    // Sync depot changes to Supabase when an active route exists
+    if (useDb && activeRouteId) {
+      dbLogistics.updateDepot(activeRouteId, depot).catch((err) =>
+        console.error('[IceRoute] Erro ao sincronizar depot:', err)
+      );
+    }
   }, [depot]);
 
   useEffect(() => {

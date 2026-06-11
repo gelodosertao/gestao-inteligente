@@ -1,6 +1,6 @@
 {
   "name": "IceRoute — Otimizador de Rotas de Gelo",
-  "description": "Micro-serviço e painel inteligente para planejamento, otimização e sequenciamento de rotas diárias de entrega de gelo integrado ao Google Maps.",
+  "description": "Painel logístico inteligente para planejamento, otimização TSP e sequenciamento de rotas diárias de entrega de gelo. Integrado ao Google Maps Platform com cálculo de distâncias em tempo real e persistência via Supabase.",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API", "MAJOR_CAPABILITY_MAPS"]
 }
