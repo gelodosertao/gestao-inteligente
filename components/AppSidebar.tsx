@@ -23,6 +23,7 @@ export const ALL_MENU_ITEMS = [
   { id: 'INVENTORY', label: 'Estoque', icon: Package, roles: ['ADMIN', 'OPERATOR'] },
   { id: 'CASH_CLOSING', label: 'Fechar Caixa', icon: Lock, roles: ['OPERATOR'] },
   { id: 'FINANCIAL', label: 'Financeiro', icon: DollarSign, roles: ['ADMIN'] },
+  { id: 'CONCILIACAO', label: 'Conciliação', icon: TrendingUp, roles: ['ADMIN'] },
   { id: 'LOGISTICS', label: 'Logística', icon: Truck, roles: ['ADMIN', 'OPERATOR'] },
   { id: 'SALES', label: 'PDV Varejo', icon: Store, roles: ['ADMIN', 'OPERATOR'] },
   { id: 'WHOLESALE_POS', label: 'PDV Atacado', icon: ShoppingCart, roles: ['ADMIN', 'WHOLESALE_REPRESENTATIVE'] },
@@ -51,6 +52,7 @@ const getPathForView = (view: string) => {
     case 'AI_INSIGHTS': return '/gestao/ai';
     case 'FESTAS_RADAR': return '/gestao/festas';
     case 'LOGISTICS': return '/gestao/logistica';
+    case 'CONCILIACAO': return '/gestao/conciliacao';
     default: return '/gestao';
   }
 };

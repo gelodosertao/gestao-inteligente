@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Delivery, DepotSettings } from '../types';
 import { useMapsLibrary } from '@vis.gl/react-google-maps';
-import { X, Search, Sparkles, AlertTriangle, Check } from 'lucide-react';
+import { X, Search, Sparkles, AlertTriangle, Check, MapPin, Hash } from 'lucide-react';
+
+const PLACES_TIMEOUT_MS = 8000;
 
 interface AddEditDeliveryModalProps {
   isOpen: boolean;
@@ -29,7 +31,13 @@ export default function AddEditDeliveryModal({
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState('');
 
+  const [searchMode, setSearchMode] = useState<'text' | 'cep'>('text');
+  const [cepInput, setCepInput] = useState('');
+  const [isSearchingCep, setIsSearchingCep] = useState(false);
+
   const placesLib = useMapsLibrary('places');
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const placesTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (editingDelivery) {
@@ -40,7 +48,6 @@ export default function AddEditDeliveryModal({
       setLat(editingDelivery.lat);
       setLng(editingDelivery.lng);
     } else {
-      // Clear for new delivery
       setClientName('');
       setAddress('');
       setCity('São Paulo');
@@ -50,53 +57,135 @@ export default function AddEditDeliveryModal({
     }
     setAddressSuggestions([]);
     setSearchError('');
+    setSearchMode('text');
+    setCepInput('');
   }, [editingDelivery, isOpen]);
 
-  // Handle address input prediction lookups
+  // Cleanup timeouts on unmount
   useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+      if (placesTimeoutRef.current) clearTimeout(placesTimeoutRef.current);
+    };
+  }, []);
+
+  const handleCepSearch = async () => {
+    const cleanCep = cepInput.replace(/\D/g, '');
+    if (cleanCep.length !== 8) {
+      setSearchError('CEP inválido. Digite 8 números.');
+      return;
+    }
+    setIsSearchingCep(true);
+    setSearchError('');
+    setAddressSuggestions([]);
+    try {
+      const resp = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
+      if (!resp.ok) throw new Error('Falha na consulta ViaCEP');
+      const data = await resp.json();
+      if (data.erro) {
+        setSearchError('CEP não encontrado.');
+        return;
+      }
+      const fullAddress = `${data.logradouro}, ${data.bairro}, ${data.localidade} - ${data.uf}`;
+      setAddress(fullAddress);
+      setCity(data.localidade);
+      setSearchMode('text');
+
+      // Geocode the address via Nominatim to get coordinates
+      try {
+        const geoResp = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(fullAddress)}&limit=1&countrycodes=br`,
+          { headers: { 'Accept-Language': 'pt-BR' } }
+        );
+        const geoData = await geoResp.json();
+        if (geoData && geoData[0]) {
+          setLat(parseFloat(geoData[0].lat));
+          setLng(parseFloat(geoData[0].lon));
+        }
+      } catch {
+        // Coordinates not required to proceed
+      }
+    } catch (err) {
+      setSearchError('Erro ao buscar CEP. Verifique sua conexão.');
+    } finally {
+      setIsSearchingCep(false);
+    }
+  };
+
+  // Handle address input prediction lookups via Google Places
+  useEffect(() => {
+    if (searchMode !== 'text') return;
     if (!placesLib || !address || address.length < 4 || editingDelivery?.address === address) {
       setAddressSuggestions([]);
       return;
     }
 
-    const autocompleteService = new window.google.maps.places.AutocompleteService();
-    
-    const timeoutId = setTimeout(() => {
+    const Places = window.google.maps.places;
+    if (!Places || !Places.AutocompleteService) return;
+
+    const autocompleteService = new Places.AutocompleteService();
+    let timedOut = false;
+
+    // Timeout: if Places API doesn't respond, show error instead of loading forever
+    placesTimeoutRef.current = setTimeout(() => {
+      timedOut = true;
+      setIsSearching(false);
+      setSearchError('Google Places não respondeu. Tente buscar por CEP.');
+    }, PLACES_TIMEOUT_MS);
+
+    searchTimeoutRef.current = setTimeout(() => {
       setIsSearching(true);
       autocompleteService.getPlacePredictions(
-         {
-           input: address,
-           locationBias: new google.maps.LatLng(depot.lat, depot.lng),
-           radius: 50000, // 50km bias to current depot
-           language: 'pt-BR',
-         },
-         (predictions, status) => {
-           setIsSearching(false);
-           if (status === window.google.maps.places.PlacesServiceStatus.OK && predictions) {
-             setAddressSuggestions(predictions);
-           } else {
-             setAddressSuggestions([]);
-           }
-         }
-      );
-    }, 300); // Debounce lookups
+        {
+          input: address,
+          locationBias: new google.maps.LatLng(depot.lat, depot.lng),
+          radius: 50000,
+          language: 'pt-BR',
+        },
+        (predictions, status) => {
+          if (timedOut) return;
+          if (placesTimeoutRef.current) clearTimeout(placesTimeoutRef.current);
+          setIsSearching(false);
 
-    return () => clearTimeout(timeoutId);
-  }, [address, placesLib, depot]);
+          if (status === window.google.maps.places.PlacesServiceStatus.OK && predictions) {
+            setAddressSuggestions(predictions);
+            setSearchError('');
+          } else {
+            setAddressSuggestions([]);
+            switch (status) {
+              case window.google.maps.places.PlacesServiceStatus.ZERO_RESULTS:
+                setSearchError('Nenhum endereço encontrado. Tente buscar por CEP.');
+                break;
+              case window.google.maps.places.PlacesServiceStatus.REQUEST_DENIED:
+                setSearchError('API Places não habilitada para esta chave Google.');
+                break;
+              case window.google.maps.places.PlacesServiceStatus.INVALID_REQUEST:
+                setSearchError('Endereço inválido. Tente ser mais específico.');
+                break;
+              default:
+                setSearchError('Erro ao buscar endereços. Tente buscar por CEP.');
+            }
+          }
+        }
+      );
+    }, 300);
+
+    return () => {
+      if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+      if (placesTimeoutRef.current) clearTimeout(placesTimeoutRef.current);
+    };
+  }, [address, placesLib, depot, searchMode]);
 
   const handleSelectSuggestion = (suggestion: google.maps.places.AutocompletePrediction) => {
     setAddress(suggestion.description);
     setAddressSuggestions([]);
 
-    // Geocode to resolve coordinates
     const geocoder = new window.google.maps.Geocoder();
     geocoder.geocode({ placeId: suggestion.place_id }, (results, status) => {
       if (status === 'OK' && results && results[0]) {
         const location = results[0].geometry.location;
         setLat(location.lat());
         setLng(location.lng());
-        
-        // Extract city from components if possible
         const cityComp = results[0].address_components.find(
           (c) => c.types.includes('locality') || c.types.includes('administrative_area_level_2')
         );
@@ -110,40 +199,54 @@ export default function AddEditDeliveryModal({
     });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const geocodeWithNominatim = async (addr: string): Promise<{ lat: number; lng: number } | null> => {
+    try {
+      const resp = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addr)}&limit=1&countrycodes=br`,
+        { headers: { 'Accept-Language': 'pt-BR' } }
+      );
+      const data = await resp.json();
+      if (data && data[0]) {
+        return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+      }
+    } catch {
+      // Silently fail
+    }
+    return null;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!clientName.trim() || !address.trim() || !orderDetails.trim()) return;
 
     if (lat === null || lng === null) {
-      // Lazy fallback geocoding of raw address input if user didn't pick from suggestion
-      const geocoder = new window.google.maps.Geocoder();
-      geocoder.geocode({ address }, (results, status) => {
-        if (status === 'OK' && results && results[0]) {
-          const loc = results[0].geometry.location;
-          onSave({
-            id: editingDelivery?.id,
-            clientName,
-            address: results[0].formatted_address,
-            city,
-            orderDetails,
-            lat: loc.lat(),
-            lng: loc.lng(),
-          });
-          onClose();
-        } else {
-          // Add anyways but with null lat lng
-          onSave({
-            id: editingDelivery?.id,
-            clientName,
-            address,
-            city,
-            orderDetails,
-            lat: null,
-            lng: null,
-          });
-          onClose();
-        }
+      // Try Nominatim as fallback geocoder (no API key needed)
+      const coords = await geocodeWithNominatim(address);
+      if (coords) {
+        onSave({
+          id: editingDelivery?.id,
+          clientName,
+          address,
+          city,
+          orderDetails,
+          lat: coords.lat,
+          lng: coords.lng,
+        });
+        onClose();
+        return;
+      }
+
+      // Add anyways but with null lat lng
+      onSave({
+        id: editingDelivery?.id,
+        clientName,
+        address,
+        city,
+        orderDetails,
+        lat: null,
+        lng: null,
       });
+      onClose();
     } else {
       onSave({
         id: editingDelivery?.id,
@@ -194,57 +297,122 @@ export default function AddEditDeliveryModal({
             />
           </div>
 
-          {/* Address with suggestions dropdown */}
-          <div className="relative">
-            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">ENDEREÇO DA ENTREGA</label>
-            <div className="relative">
-              <input
-                type="text"
-                required
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                placeholder="Ex: Av. Paulista, 1000 - Bela Vista"
-                className="w-full text-xs pl-9 pr-3.5 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50 transition-all font-sans"
-              />
-              <Search size={14} className="absolute left-3.5 top-3 text-slate-400" />
-            </div>
-
-            {/* Suggestions loading feedback or dropdown list */}
-            {isSearching && (
-              <div className="absolute left-0 right-0 mt-1.5 bg-[#17253f] border border-white/10 rounded-xl p-2.5 shadow-xl text-[11px] text-slate-300 z-30 flex items-center gap-2">
-                <span className="w-2.5 h-2.5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></span>
-                <span>Procurando endereços pelo Google...</span>
-              </div>
-            )}
-
-            {addressSuggestions.length > 0 && (
-              <div className="absolute left-0 right-0 mt-1.5 bg-[#17253f]/95 backdrop-blur-xl border border-white/15 rounded-xl shadow-2xl z-40 max-h-48 overflow-y-auto divide-y divide-white/10">
-                {addressSuggestions.map((suggestion) => (
-                  <button
-                    key={suggestion.place_id}
-                    type="button"
-                    onClick={() => handleSelectSuggestion(suggestion)}
-                    className="w-full text-left px-3.5 py-2.5 text-xs hover:bg-blue-600/30 text-slate-200 hover:text-white transition-all flex items-start gap-2 cursor-pointer"
-                  >
-                    <span className="mt-0.5 text-blue-400 shrink-0">📍</span>
-                    <span>{suggestion.description}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {lat && lng && (
-              <div className="mt-2 flex items-center gap-1 text-[10px] text-emerald-300 font-bold bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-md inline-flex">
-                <Check size={10} strokeWidth={3} /> Geolocalizado com sucesso
-              </div>
-            )}
-
-            {searchError && (
-              <div className="mt-2 text-[10px] text-rose-400 flex items-center gap-1 font-semibold">
-                <AlertTriangle size={12} /> {searchError}
-              </div>
-            )}
+          {/* Search Mode Toggle */}
+          <div className="flex gap-1 bg-white/5 rounded-xl p-0.5 border border-white/10">
+            <button
+              type="button"
+              onClick={() => { setSearchMode('text'); setSearchError(''); setAddressSuggestions([]); }}
+              className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg transition-all flex items-center justify-center gap-1 cursor-pointer ${
+                searchMode === 'text' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Search size={11} /> Buscar Endereço
+            </button>
+            <button
+              type="button"
+              onClick={() => { setSearchMode('cep'); setSearchError(''); setAddressSuggestions([]); }}
+              className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg transition-all flex items-center justify-center gap-1 cursor-pointer ${
+                searchMode === 'cep' ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Hash size={11} /> Buscar por CEP
+            </button>
           </div>
+
+          {/* Address Search by Text (Google Places) */}
+          {searchMode === 'text' && (
+            <div className="relative">
+              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">ENDEREÇO DA ENTREGA</label>
+              <div className="relative">
+                <input
+                  type="text"
+                  required
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder="Ex: Av. Paulista, 1000 - Bela Vista"
+                  className="w-full text-xs pl-9 pr-3.5 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50 transition-all font-sans"
+                />
+                <Search size={14} className="absolute left-3.5 top-3 text-slate-400" />
+              </div>
+
+              {isSearching && (
+                <div className="absolute left-0 right-0 mt-1.5 bg-[#17253f] border border-white/10 rounded-xl p-2.5 shadow-xl text-[11px] text-slate-300 z-30 flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></span>
+                  <span>Procurando endereços pelo Google...</span>
+                </div>
+              )}
+
+              {addressSuggestions.length > 0 && (
+                <div className="absolute left-0 right-0 mt-1.5 bg-[#17253f]/95 backdrop-blur-xl border border-white/15 rounded-xl shadow-2xl z-40 max-h-48 overflow-y-auto divide-y divide-white/10">
+                  {addressSuggestions.map((suggestion) => (
+                    <button
+                      key={suggestion.place_id}
+                      type="button"
+                      onClick={() => handleSelectSuggestion(suggestion)}
+                      className="w-full text-left px-3.5 py-2.5 text-xs hover:bg-blue-600/30 text-slate-200 hover:text-white transition-all flex items-start gap-2 cursor-pointer"
+                    >
+                      <MapPin size={13} className="mt-0.5 text-blue-400 shrink-0" />
+                      <span>{suggestion.description}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Address Search by CEP (ViaCEP) */}
+          {searchMode === 'cep' && (
+            <div>
+              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">BUSCAR POR CEP</label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={cepInput}
+                  onChange={(e) => setCepInput(e.target.value.replace(/\D/g, '').slice(0, 8))}
+                  placeholder="Digite o CEP (apenas números)"
+                  maxLength={8}
+                  className="flex-1 text-xs px-3.5 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50 transition-all font-sans"
+                />
+                <button
+                  type="button"
+                  onClick={handleCepSearch}
+                  disabled={isSearchingCep || cepInput.length < 8}
+                  className="px-4 py-2.5 text-xs font-bold bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 text-white rounded-xl transition-all flex items-center gap-1.5 cursor-pointer disabled:cursor-not-allowed"
+                >
+                  {isSearchingCep ? (
+                    <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <Search size={13} />
+                  )}
+                  Buscar
+                </button>
+              </div>
+              {address && searchMode === 'cep' && (
+                <div className="mt-2 p-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-xs text-emerald-300">
+                  <div className="font-bold mb-0.5">Endereço encontrado:</div>
+                  <div>{address}</div>
+                  {lat && lng && (
+                    <div className="mt-1 flex items-center gap-1 text-[10px] text-emerald-300 font-bold">
+                      <Check size={10} strokeWidth={3} /> Geolocalizado automaticamente
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Geolocation status & error messages */}
+          {lat && lng && searchMode === 'text' && (
+            <div className="flex items-center gap-1 text-[10px] text-emerald-300 font-bold bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-md inline-flex">
+              <Check size={10} strokeWidth={3} /> Geolocalizado com sucesso
+            </div>
+          )}
+
+          {searchError && (
+            <div className="text-[10px] text-rose-400 flex items-center gap-1 font-semibold">
+              <AlertTriangle size={12} /> {searchError}
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             {/* City */}

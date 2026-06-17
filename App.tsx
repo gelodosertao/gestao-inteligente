@@ -4,7 +4,7 @@ import { ViewState, User, Product, Sale, FinancialRecord, Branch, Customer, Cash
 import { dbProducts, dbSales, dbFinancials, dbCustomers, dbCashClosings, dbUsers } from './services/db';
 import { dbLogistics } from './components/painel-logistica/src/services/dbLogistics';
 import { useQuery } from '@tanstack/react-query';
-import { Loader2, AlertCircle, Menu } from 'lucide-react';
+import { Loader2, Menu } from 'lucide-react';
 import { usePlatform } from './hooks/usePlatform';
 import { useAppLifecycle } from './hooks/useAppLifecycle';
 import ExpirationAlert from './components/ExpirationAlert';
@@ -25,6 +25,7 @@ const MenuConfig = React.lazy(() => import('./components/MenuConfig'));
 const Production = React.lazy(() => import('./components/Production'));
 const OrderCenter = React.lazy(() => import('./components/OrderCenter'));
 const Reports = React.lazy(() => import('./components/Reports'));
+const Conciliacao = React.lazy(() => import('./components/Conciliacao'));
 const WholesalePOS = React.lazy(() => import('./components/WholesalePOS'));
 const VisitorLanding = React.lazy(() => import('./components/VisitorLanding'));
 const B2BLanding = React.lazy(() => import('./components/B2BLanding'));
@@ -61,6 +62,7 @@ const App: React.FC = () => {
     if (path.startsWith('/gestao/crm')) return 'CRM';
     if (path.startsWith('/gestao/festas')) return 'FESTAS_RADAR';
     if (path.startsWith('/gestao/logistica')) return 'LOGISTICS';
+    if (path.startsWith('/gestao/conciliacao')) return 'CONCILIACAO';
     if (path === '/gestao') return 'DASHBOARD';
     return 'DASHBOARD';
   }, [location.pathname]);
@@ -85,6 +87,7 @@ const App: React.FC = () => {
       case 'CRM': navigate('/gestao/crm'); break;
       case 'FESTAS_RADAR': navigate('/gestao/festas'); break;
       case 'LOGISTICS': navigate('/gestao/logistica'); break;
+      case 'CONCILIACAO': navigate('/gestao/conciliacao'); break;
       default: navigate('/gestao');
     }
   };
@@ -623,21 +626,101 @@ const App: React.FC = () => {
 
     if (dbError) {
       return (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-8 text-center max-w-2xl mx-auto mt-10">
-          <AlertCircle size={48} className="text-red-500 mx-auto mb-4" />
-          <h3 className="text-xl font-bold text-red-700 mb-2">Atenção Necessária no Banco de Dados</h3>
-          <p className="text-slate-700 mb-6">{dbError}</p>
-          <div className="bg-white p-4 rounded border text-left text-xs text-slate-600">
-            A conexão com o banco de dados falhou ou os dados não puderam ser recuperados.
-            Verifique sua conexão com a internet ou entre em contato com o administrador do sistema.
+        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-sky-950 to-slate-900 flex items-center justify-center p-6 relative overflow-hidden">
+          {/* Background particles */}
+          <div className="absolute inset-0 opacity-20">
+            <div className="absolute top-1/4 left-1/4 w-32 h-32 bg-blue-400/20 rounded-full blur-3xl animate-pulse"></div>
+            <div className="absolute bottom-1/3 right-1/4 w-48 h-48 bg-cyan-400/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
           </div>
-          <div className="flex gap-4 justify-center mt-6">
-            <button onClick={() => refetch()} className="bg-red-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-red-700">
-              Tentar Conectar Novamente
-            </button>
-            <button onClick={handleLogout} className="bg-slate-200 text-slate-700 px-6 py-2 rounded-lg font-bold hover:bg-slate-300">
-              Sair / Logout
-            </button>
+
+          <div className="relative bg-white/5 backdrop-blur-2xl border border-white/10 rounded-3xl p-8 md:p-12 max-w-lg w-full text-center shadow-2xl">
+            {/* Animated Ice Cube SVG */}
+            <div className="relative w-32 h-36 mx-auto mb-6 select-none">
+              <svg viewBox="0 0 120 140" className="w-full h-full" fill="none">
+                {/* Steam particles */}
+                <g className="ice-steam" style={{ transformOrigin: '60px 50px' }}>
+                  <circle cx="45" cy="25" r="4" fill="white" opacity="0.2" />
+                </g>
+                <g className="ice-steam" style={{ transformOrigin: '50px 40px' }}>
+                  <circle cx="70" cy="20" r="3" fill="white" opacity="0.15" />
+                </g>
+                <g className="ice-steam" style={{ transformOrigin: '65px 45px' }}>
+                  <circle cx="55" cy="15" r="5" fill="white" opacity="0.1" />
+                </g>
+
+                {/* Puddle */}
+                <ellipse cx="60" cy="125" rx="35" ry="8" className="ice-puddle" fill="#38bdf8" opacity="0.3" />
+
+                {/* Ice Cube Body */}
+                <g className="ice-cube-body" style={{ transformOrigin: '60px 80px' }}>
+                  {/* Back face */}
+                  <polygon points="30,45 60,30 90,45 60,60" fill="#7dd3fc" opacity="0.3" />
+                  {/* Left face */}
+                  <polygon points="30,45 30,90 60,105 60,60" fill="#38bdf8" opacity="0.5" />
+                  {/* Right face */}
+                  <polygon points="60,60 60,105 90,90 90,45" fill="#0ea5e9" opacity="0.6" />
+                  {/* Top face */}
+                  <polygon points="30,45 60,30 90,45 60,60" fill="#bae6fd" opacity="0.5" />
+                  {/* Front face */}
+                  <polygon points="30,90 60,105 90,90 60,75" fill="#0284c7" opacity="0.4" />
+
+                  {/* Shine highlights */}
+                  <line x1="38" y1="50" x2="50" y2="43" className="ice-cube-shine" stroke="white" strokeWidth="2" strokeLinecap="round" opacity="0.6" />
+                  <line x1="68" y1="48" x2="78" y2="43" className="ice-cube-shine" stroke="white" strokeWidth="1.5" strokeLinecap="round" opacity="0.4" style={{ animationDelay: '0.5s' }} />
+                  <line x1="42" y1="95" x2="52" y2="88" className="ice-cube-shine" stroke="white" strokeWidth="1.5" strokeLinecap="round" opacity="0.5" style={{ animationDelay: '1s' }} />
+                </g>
+
+                {/* Water droplets */}
+                <g className="ice-droplet" style={{ transformOrigin: '55px 100px' }}>
+                  <ellipse cx="55" cy="105" rx="3" ry="4" fill="#38bdf8" opacity="0.8" />
+                </g>
+                <g className="ice-droplet" style={{ transformOrigin: '65px 100px' }}>
+                  <ellipse cx="65" cy="108" rx="2.5" ry="3.5" fill="#7dd3fc" opacity="0.7" />
+                </g>
+                <g className="ice-droplet" style={{ transformOrigin: '45px 100px' }}>
+                  <ellipse cx="45" cy="106" rx="2" ry="3" fill="#38bdf8" opacity="0.6" />
+                </g>
+              </svg>
+            </div>
+
+            <h2 className="text-2xl font-black text-white mb-2">Ops! O gelo derreteu...</h2>
+            <p className="text-sm text-slate-300 mb-6 leading-relaxed">
+              A conexão com o servidor falhou. Pode ser apenas uma instabilidade passageira.
+            </p>
+
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-4 mb-6 text-left">
+              <p className="text-xs text-slate-400 font-mono leading-relaxed">
+                {dbError}
+              </p>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <button
+                onClick={() => refetch()}
+                className="flex-1 py-3.5 px-6 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-400 hover:to-cyan-400 text-white font-bold rounded-xl text-sm transition-all hover:scale-[1.02] active:scale-98 shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="23 4 23 10 17 10" />
+                  <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                </svg>
+                Atualizar Página
+              </button>
+              <button
+                onClick={handleLogout}
+                className="flex-1 py-3.5 px-6 border border-white/10 hover:bg-white/5 text-slate-300 hover:text-white font-bold rounded-xl text-sm transition-all flex items-center justify-center gap-2"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                  <polyline points="16 17 21 12 16 7" />
+                  <line x1="21" y1="12" x2="9" y2="12" />
+                </svg>
+                Sair
+              </button>
+            </div>
+
+            <p className="text-[10px] text-slate-500 mt-6">
+              Se o problema persistir, tente limpar o cache do navegador ou contate o suporte.
+            </p>
           </div>
         </div>
       )
@@ -669,6 +752,9 @@ const App: React.FC = () => {
         return <Dashboard products={products} sales={sales} financials={financials} customers={customers} onNavigate={setCurrentView} />;
       case 'REPORTS':
         return <Reports sales={sales} products={products} customers={customers} onBack={() => setCurrentView('DASHBOARD')} />;
+      case 'CONCILIACAO':
+        if (currentUser?.role !== 'ADMIN') return <Dashboard products={products} sales={sales} financials={financials} customers={customers} onNavigate={setCurrentView} />;
+        return <Conciliacao sales={sales} financials={financials} products={products} onBack={() => setCurrentView('DASHBOARD')} onAddFinancialRecord={handleAddFinancialRecord} />;
       case 'INVENTORY':
         return <Inventory products={products} sales={sales} financials={financials} onUpdateProduct={handleUpdateProduct} onAddProduct={handleAddProduct} onDeleteProduct={handleDeleteProduct} onOpenPricing={(id) => { setPricingProductId(id); setCurrentView('PRICING'); }} onAddFinancialRecord={handleAddFinancialRecord} onBack={() => setCurrentView('DASHBOARD')} currentUser={currentUser!} />;
       case 'SALES':
