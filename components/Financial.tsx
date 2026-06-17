@@ -561,18 +561,41 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
 
    return (
       <div className="flex flex-col h-[100dvh] flex-1 overflow-y-auto bg-gray-50 w-full pb-20 md:pb-6 custom-scrollbar">
-         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-            <div className="flex items-center gap-3 w-full lg:w-auto">
-               <button onClick={onBack} className="p-2 hover:bg-slate-200 rounded-full transition-colors shrink-0">
-                  <ArrowLeft size={24} className="text-slate-600" />
-               </button>
-               <div>
-                  <h2 className="text-xl md:text-2xl font-bold text-slate-800">Gestão Financeira</h2>
-                  <p className="text-xs md:text-sm text-slate-500">Fluxo de caixa, DRE, fechamento de caixa e controle de despesas.</p>
-               </div>
-            </div>
+          <div className="flex items-center gap-3 w-full flex-wrap">
+                <button onClick={onBack} className="p-2 hover:bg-slate-200 rounded-full transition-colors shrink-0">
+                   <ArrowLeft size={24} className="text-slate-600" />
+                </button>
+                <div>
+                   <h2 className="text-xl md:text-2xl font-bold text-slate-800">Gestão Financeira</h2>
+                   <p className="text-xs md:text-sm text-slate-500">Fluxo de caixa, DRE, fechamento de caixa e controle de despesas.</p>
+                </div>
+             </div>
 
-            <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+         {/* VIEW TOGGLE */}
+         <div className="flex justify-center overflow-x-auto pb-2 md:pb-0">
+            <div className="bg-slate-200 p-1 rounded-xl flex shrink-0">
+               <button
+                  onClick={() => setViewMode('DRE')}
+                  className={`px-4 md:px-6 py-2 rounded-lg font-bold text-xs md:text-sm flex items-center gap-2 transition-all whitespace-nowrap ${viewMode === 'DRE' ? 'bg-white text-blue-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+               >
+                  <BarChart3 size={16} /> DRE Gerencial
+               </button>
+               <button
+                  onClick={() => setViewMode('MOVEMENTS')}
+                  className={`px-4 md:px-6 py-2 rounded-lg font-bold text-xs md:text-sm flex items-center gap-2 transition-all whitespace-nowrap ${viewMode === 'MOVEMENTS' ? 'bg-white text-blue-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+               >
+                  <LineChart size={16} /> Movimentações
+               </button>
+               <button
+                  onClick={() => setViewMode('CASH_CLOSING')}
+                  className={`px-4 md:px-6 py-2 rounded-lg font-bold text-xs md:text-sm flex items-center gap-2 transition-all whitespace-nowrap ${viewMode === 'CASH_CLOSING' ? 'bg-white text-blue-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+               >
+                  <Lock size={16} /> Fechamento
+               </button>
+            </div>
+         </div>
+
+            <div className="flex flex-wrap items-center gap-2 w-full">
                   {/* Branch Selector */}
                   <div className="bg-white p-1 rounded-lg border border-slate-200 flex shrink-0">
                      <button onClick={() => setSelectedBranch('ALL')} className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${selectedBranch === 'ALL' ? 'bg-slate-800 text-white' : 'text-slate-500 hover:bg-slate-50'}`}>Geral</button>
@@ -639,31 +662,6 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
                      )}
                    </div>
                 </div>
-             </div>
-
-         {/* VIEW TOGGLE */}
-         <div className="flex justify-center overflow-x-auto pb-2 md:pb-0">
-            <div className="bg-slate-200 p-1 rounded-xl flex shrink-0">
-               <button
-                  onClick={() => setViewMode('DRE')}
-                  className={`px-4 md:px-6 py-2 rounded-lg font-bold text-xs md:text-sm flex items-center gap-2 transition-all whitespace-nowrap ${viewMode === 'DRE' ? 'bg-white text-blue-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-               >
-                  <BarChart3 size={16} /> DRE Gerencial
-               </button>
-               <button
-                  onClick={() => setViewMode('MOVEMENTS')}
-                  className={`px-4 md:px-6 py-2 rounded-lg font-bold text-xs md:text-sm flex items-center gap-2 transition-all whitespace-nowrap ${viewMode === 'MOVEMENTS' ? 'bg-white text-blue-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-               >
-                  <LineChart size={16} /> Movimentações
-               </button>
-               <button
-                  onClick={() => setViewMode('CASH_CLOSING')}
-                  className={`px-4 md:px-6 py-2 rounded-lg font-bold text-xs md:text-sm flex items-center gap-2 transition-all whitespace-nowrap ${viewMode === 'CASH_CLOSING' ? 'bg-white text-blue-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-               >
-                  <Lock size={16} /> Fechamento
-               </button>
-            </div>
-         </div>
 
          {viewMode === 'MOVEMENTS' && (
             <div className="space-y-6 animate-in fade-in">
