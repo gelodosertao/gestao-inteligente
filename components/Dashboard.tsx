@@ -309,9 +309,9 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
         <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
           {/* Date Navigation */}
           <div className="bg-white p-1 rounded-lg border border-slate-200 flex items-center justify-between md:justify-start">
-            <button onClick={() => navigatePeriod('prev')} className="p-1.5 hover:bg-slate-100 rounded text-slate-500"><ChevronLeft size={18} /></button>
-            <span className="px-2 text-sm font-bold text-slate-700 min-w-[120px] text-center capitalize">{formatPeriodLabel()}</span>
-            <button onClick={() => navigatePeriod('next')} className="p-1.5 hover:bg-slate-100 rounded text-slate-500"><ChevronRight size={18} /></button>
+            <button onClick={() => navigatePeriod('prev')} className="p-2 hover:bg-slate-100 rounded text-slate-500"><ChevronLeft size={20} /></button>
+            <span className="px-2 text-sm font-bold text-slate-700 min-w-[100px] text-center capitalize truncate">{formatPeriodLabel()}</span>
+            <button onClick={() => navigatePeriod('next')} className="p-2 hover:bg-slate-100 rounded text-slate-500"><ChevronRight size={20} /></button>
           </div>
 
           {/* Period Selector */}
@@ -498,7 +498,7 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
       {
         showPowerBI && (
           <div className="fixed inset-0 bg-blue-950/80 backdrop-blur-sm z-50 flex items-start sm:items-center justify-center p-4 pt-safe-offset-4 sm:p-4 animate-in fade-in duration-200">
-            <div className="bg-slate-50 w-full max-w-6xl h-[90vh] rounded-xl shadow-2xl overflow-hidden flex flex-col">
+            <div className="bg-slate-50 w-full max-w-6xl max-h-[100dvh] rounded-xl shadow-2xl overflow-hidden flex flex-col">
               <div className="bg-[#f2c811] p-4 flex justify-between items-center text-slate-900">
                 <div className="flex items-center gap-3">
                   <div className="bg-black/10 p-2 rounded">

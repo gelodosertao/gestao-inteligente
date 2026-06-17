@@ -22,7 +22,7 @@ interface FinancialProps {
 const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClosings, onAddRecord, onUpdateRecord, onDeleteRecord, onAddCashClosing, onDeleteCashClosing, currentUser, onBack }) => {
 
    const [showAddModal, setShowAddModal] = useState(false);
-   const [viewMode, setViewMode] = useState<'MOVEMENTS' | 'DRE' | 'CASH_CLOSING'>(currentUser?.role === 'ADMIN' ? 'DRE' : 'CASH_CLOSING');
+   const [viewMode, setViewMode] = useState<'MOVEMENTS' | 'DRE' | 'CASH_CLOSING'>('DRE');
    const [selectedBranch, setSelectedBranch] = useState<'ALL' | Branch>('ALL');
    const [dateRange, setDateRange] = useState<'TODAY' | 'THIS_WEEK' | 'THIS_MONTH' | 'LAST_30_DAYS' | 'LAST_60_DAYS' | 'LAST_90_DAYS' | 'ALL_TIME' | 'CUSTOM'>('THIS_MONTH');
    const [customStartDate, setCustomStartDate] = useState(getTodayDate());
@@ -567,13 +567,12 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
                   <ArrowLeft size={24} className="text-slate-600" />
                </button>
                <div>
-                  <h2 className="text-xl md:text-2xl font-bold text-slate-800">{currentUser?.role === 'ADMIN' ? 'Gestão Financeira' : 'Fechamento de Caixa'}</h2>
-                  <p className="text-xs md:text-sm text-slate-500">{currentUser?.role === 'ADMIN' ? 'Fluxo de caixa, DRE e controle de despesas.' : 'Conferência de valores e encerramento de turno.'}</p>
+                  <h2 className="text-xl md:text-2xl font-bold text-slate-800">Gestão Financeira</h2>
+                  <p className="text-xs md:text-sm text-slate-500">Fluxo de caixa, DRE, fechamento de caixa e controle de despesas.</p>
                </div>
             </div>
 
-            {currentUser?.role === 'ADMIN' && (
-               <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+            <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
                   {/* Branch Selector */}
                   <div className="bg-white p-1 rounded-lg border border-slate-200 flex shrink-0">
                      <button onClick={() => setSelectedBranch('ALL')} className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${selectedBranch === 'ALL' ? 'bg-slate-800 text-white' : 'text-slate-500 hover:bg-slate-50'}`}>Geral</button>
@@ -637,37 +636,34 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
                               className="w-24 px-2 py-1 border border-slate-200 rounded text-xs"
                            />
                         </div>
-                      )}
-                    </div>
-                 </div>
-           )}
-              </div>
+                     )}
+                   </div>
+                </div>
+             </div>
 
-           {/* VIEW TOGGLE */}
-         {currentUser?.role === 'ADMIN' && (
-            <div className="flex justify-center overflow-x-auto pb-2 md:pb-0">
-               <div className="bg-slate-200 p-1 rounded-xl flex shrink-0">
-                  <button
-                     onClick={() => setViewMode('DRE')}
-                     className={`px-4 md:px-6 py-2 rounded-lg font-bold text-xs md:text-sm flex items-center gap-2 transition-all whitespace-nowrap ${viewMode === 'DRE' ? 'bg-white text-blue-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                  >
-                     <BarChart3 size={16} /> DRE Gerencial
-                  </button>
-                  <button
-                     onClick={() => setViewMode('MOVEMENTS')}
-                     className={`px-4 md:px-6 py-2 rounded-lg font-bold text-xs md:text-sm flex items-center gap-2 transition-all whitespace-nowrap ${viewMode === 'MOVEMENTS' ? 'bg-white text-blue-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                  >
-                     <LineChart size={16} /> Movimentações
-                  </button>
-                  <button
-                     onClick={() => setViewMode('CASH_CLOSING')}
-                     className={`px-4 md:px-6 py-2 rounded-lg font-bold text-xs md:text-sm flex items-center gap-2 transition-all whitespace-nowrap ${viewMode === 'CASH_CLOSING' ? 'bg-white text-blue-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                  >
-                     <Lock size={16} /> Fechamento
-                  </button>
-               </div>
+         {/* VIEW TOGGLE */}
+         <div className="flex justify-center overflow-x-auto pb-2 md:pb-0">
+            <div className="bg-slate-200 p-1 rounded-xl flex shrink-0">
+               <button
+                  onClick={() => setViewMode('DRE')}
+                  className={`px-4 md:px-6 py-2 rounded-lg font-bold text-xs md:text-sm flex items-center gap-2 transition-all whitespace-nowrap ${viewMode === 'DRE' ? 'bg-white text-blue-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+               >
+                  <BarChart3 size={16} /> DRE Gerencial
+               </button>
+               <button
+                  onClick={() => setViewMode('MOVEMENTS')}
+                  className={`px-4 md:px-6 py-2 rounded-lg font-bold text-xs md:text-sm flex items-center gap-2 transition-all whitespace-nowrap ${viewMode === 'MOVEMENTS' ? 'bg-white text-blue-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+               >
+                  <LineChart size={16} /> Movimentações
+               </button>
+               <button
+                  onClick={() => setViewMode('CASH_CLOSING')}
+                  className={`px-4 md:px-6 py-2 rounded-lg font-bold text-xs md:text-sm flex items-center gap-2 transition-all whitespace-nowrap ${viewMode === 'CASH_CLOSING' ? 'bg-white text-blue-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+               >
+                  <Lock size={16} /> Fechamento
+               </button>
             </div>
-         )}
+         </div>
 
          {viewMode === 'MOVEMENTS' && (
             <div className="space-y-6 animate-in fade-in">
@@ -686,8 +682,8 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
                         />
                      </div>
                   </div>
-                   <div className="overflow-x-auto w-full custom-scrollbar">
-                      <div className="divide-y divide-slate-100 max-h-[400px] min-w-[600px]">
+                    <div className="overflow-x-auto w-full custom-scrollbar">
+                       <div className="divide-y divide-slate-100 max-h-[400px] min-w-0">
                       {searchedRecords.length === 0 ? (
                          <div className="p-8 text-center text-slate-500">
                             Nenhuma movimentação encontrada.

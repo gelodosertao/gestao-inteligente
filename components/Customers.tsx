@@ -429,19 +429,19 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
                                             {currentUser.role === 'ADMIN' && (
                                                 <button
                                                     onClick={() => openEditModal(customer)}
-                                                    className="text-slate-400 hover:text-blue-600 p-1"
+                                                    className="text-slate-400 hover:text-blue-600 p-2.5 touch-target"
                                                     title="Editar Cliente"
                                                 >
-                                                    <Edit size={16} />
+                                                    <Edit size={18} />
                                                 </button>
                                             )}
                                             {currentUser.role === 'ADMIN' && (
                                                 <button
                                                     onClick={() => onDeleteCustomer(customer.id)}
-                                                    className="text-slate-400 hover:text-red-600 p-1"
+                                                    className="text-slate-400 hover:text-red-600 p-2.5 touch-target"
                                                     title="Excluir Cliente"
                                                 >
-                                                    <Trash2 size={16} />
+                                                    <Trash2 size={18} />
                                                 </button>
                                             )}
                                         </td>

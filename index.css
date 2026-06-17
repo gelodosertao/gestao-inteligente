@@ -62,8 +62,16 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+html {
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
+}
+
 body {
   font-family: 'Inter', sans-serif;
+  overscroll-behavior: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* --- ANIMATIONS --- */

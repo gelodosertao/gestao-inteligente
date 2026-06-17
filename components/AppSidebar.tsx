@@ -21,8 +21,7 @@ export const ALL_MENU_ITEMS = [
   { id: 'PRICING', label: 'Custos', icon: Calculator, roles: ['ADMIN'] },
   { id: 'DASHBOARD', label: 'Dashboard', icon: LayoutDashboard, roles: ['ADMIN'] },
   { id: 'INVENTORY', label: 'Estoque', icon: Package, roles: ['ADMIN', 'OPERATOR'] },
-  { id: 'CASH_CLOSING', label: 'Fechar Caixa', icon: Lock, roles: ['OPERATOR'] },
-  { id: 'FINANCIAL', label: 'Financeiro', icon: DollarSign, roles: ['ADMIN'] },
+  { id: 'FINANCIAL', label: 'Financeiro', icon: DollarSign, roles: ['ADMIN', 'OPERATOR'] },
   { id: 'CONCILIACAO', label: 'Conciliação', icon: TrendingUp, roles: ['ADMIN'] },
   { id: 'LOGISTICS', label: 'Logística', icon: Truck, roles: ['ADMIN', 'OPERATOR'] },
   { id: 'SALES', label: 'PDV Varejo', icon: Store, roles: ['ADMIN', 'OPERATOR'] },
@@ -41,7 +40,6 @@ const getPathForView = (view: string) => {
     case 'DASHBOARD': return '/gestao';
     case 'INVENTORY': return '/gestao/estoque';
     case 'FINANCIAL': return '/gestao/financeiro';
-    case 'CASH_CLOSING': return '/gestao/fechamento-caixa';
     case 'CUSTOMERS': return '/gestao/clientes';
     case 'PRODUCTION': return '/gestao/producao';
     case 'REPORTS': return '/gestao/relatorios';

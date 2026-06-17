@@ -49,8 +49,7 @@ const App: React.FC = () => {
     if (path === '/pdv-adega') return 'SALES';
     if (path === '/cardapio-adega') return 'ONLINE_MENU';
     if (path.startsWith('/gestao/estoque')) return 'INVENTORY';
-    if (path.startsWith('/gestao/financeiro')) return 'FINANCIAL';
-    if (path.startsWith('/gestao/fechamento-caixa')) return 'CASH_CLOSING';
+    if (path.startsWith('/gestao/financeiro') || path.startsWith('/gestao/fechamento-caixa')) return 'FINANCIAL';
     if (path.startsWith('/gestao/clientes')) return 'CUSTOMERS';
     if (path.startsWith('/gestao/producao')) return 'PRODUCTION';
     if (path.startsWith('/gestao/relatorios')) return 'REPORTS';
@@ -75,7 +74,6 @@ const App: React.FC = () => {
       case 'DASHBOARD': navigate('/gestao'); break;
       case 'INVENTORY': navigate('/gestao/estoque'); break;
       case 'FINANCIAL': navigate('/gestao/financeiro'); break;
-      case 'CASH_CLOSING': navigate('/gestao/fechamento-caixa'); break;
       case 'CUSTOMERS': navigate('/gestao/clientes'); break;
       case 'PRODUCTION': navigate('/gestao/producao'); break;
       case 'REPORTS': navigate('/gestao/relatorios'); break;
@@ -763,8 +761,6 @@ const App: React.FC = () => {
         return <Customers customers={customers} onAddCustomer={handleAddCustomer} onImportCustomers={handleImportCustomers} currentUser={currentUser!} onUpdateCustomer={handleUpdateCustomer} onDeleteCustomer={handleDeleteCustomer} onBack={() => setCurrentView('DASHBOARD')} />;
       case 'PRICING':
         return <Pricing products={products} initialProductId={pricingProductId} onUpdateProduct={handleUpdateProduct} onBack={() => setCurrentView('DASHBOARD')} />;
-      case 'CASH_CLOSING':
-        return <Financial records={financials} sales={sales} products={products} cashClosings={cashClosings} onAddRecord={handleAddFinancialRecord} onUpdateRecord={handleUpdateFinancialRecord} onDeleteRecord={handleDeleteFinancialRecord} onAddCashClosing={handleAddCashClosing} onDeleteCashClosing={handleDeleteCashClosing} currentUser={currentUser!} onBack={() => setCurrentView('DASHBOARD')} />;
       case 'FINANCIAL':
         if (currentUser?.role !== 'ADMIN' && !(currentUser?.allowedModules || []).includes('FINANCIAL')) return <Dashboard products={products} sales={sales} financials={financials} customers={customers} onNavigate={setCurrentView} />;
         return <Financial records={financials} sales={sales} products={products} cashClosings={cashClosings} onAddRecord={handleAddFinancialRecord} onUpdateRecord={handleUpdateFinancialRecord} onDeleteRecord={handleDeleteFinancialRecord} onAddCashClosing={handleAddCashClosing} onDeleteCashClosing={handleDeleteCashClosing} currentUser={currentUser!} onBack={() => setCurrentView('DASHBOARD')} />;
