@@ -560,7 +560,7 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
    }, [dreData]);
 
    return (
-      <div className="flex flex-col h-[100dvh] flex-1 overflow-y-auto bg-gray-50 w-full pb-20 md:pb-6 custom-scrollbar">
+      <div className="flex flex-col flex-1 min-h-0 overflow-y-auto bg-gray-50 w-full pb-20 md:pb-6 custom-scrollbar">
           <div className="flex items-center gap-3 w-full flex-wrap">
                 <button onClick={onBack} className="p-2 hover:bg-slate-200 rounded-full transition-colors shrink-0">
                    <ArrowLeft size={24} className="text-slate-600" />
