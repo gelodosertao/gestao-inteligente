@@ -96,6 +96,8 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
          "Internet e Telefone",
          "Material de Escritório / Limpeza",
          "Honorários Contábeis",
+         "Material de Refrigeração",
+         "Manutenção de Câmara Fria/Freezer",
          "Manutenção de Máquinas (Produção)",
          "Manutenção Predial / Loja",
          "Outras Despesas Administrativas"
@@ -558,7 +560,7 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
    }, [dreData]);
 
    return (
-      <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 relative">
+      <div className="flex flex-col h-[100dvh] flex-1 overflow-y-auto bg-gray-50 w-full pb-20 md:pb-6 custom-scrollbar">
          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
             <div className="flex items-center gap-3 w-full lg:w-auto">
                <button onClick={onBack} className="p-2 hover:bg-slate-200 rounded-full transition-colors shrink-0">
@@ -636,9 +638,12 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
                            />
                         </div>
                      )}
-                  </div>
-               </div>
-            )}
+                   </div>
+                   </div>
+                   </div>
+                </div>
+             </div>
+          )}
          </div>
 
          {/* VIEW TOGGLE */}
@@ -684,16 +689,17 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
                         />
                      </div>
                   </div>
-                  <div className="divide-y divide-slate-100 max-h-[400px] overflow-y-auto">
-                     {searchedRecords.length === 0 ? (
-                        <div className="p-8 text-center text-slate-500">
-                           Nenhuma movimentação encontrada.
-                        </div>
-                     ) : (
-                        searchedRecords.map(record => {
-                           const isSaleRecord = record.id.startsWith('sale-');
-                           return (
-                              <div key={record.id} className="p-4 flex justify-between items-center hover:bg-slate-50 transition-colors group">
+                   <div className="overflow-x-auto w-full custom-scrollbar">
+                      <div className="divide-y divide-slate-100 max-h-[400px] min-w-[600px]">
+                      {searchedRecords.length === 0 ? (
+                         <div className="p-8 text-center text-slate-500">
+                            Nenhuma movimentação encontrada.
+                         </div>
+                      ) : (
+                         searchedRecords.map(record => {
+                            const isSaleRecord = record.id.startsWith('sale-');
+                            return (
+                               <div key={record.id} className="p-4 flex justify-between items-center hover:bg-slate-50 transition-colors group">
                                  <div className="flex items-center gap-4">
                                     <div className={`w-10 h-10 rounded-full flex items-center justify-center ${record.type === 'Income' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
                                        {record.type === 'Income' ? <ArrowUpCircle size={20} /> : <ArrowDownCircle size={20} />}
@@ -734,11 +740,12 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
                               </div>
                            );
                         })
-                     )}
-                  </div>
-               </div>
-            </div>
-         )}
+                      )}
+                   </div>
+                   </div>
+                </div>
+             </div>
+          )}
 
          {viewMode === 'DRE' && (
             <div className="space-y-6 animate-in fade-in">

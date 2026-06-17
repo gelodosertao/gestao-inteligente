@@ -1098,7 +1098,7 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
     };
 
     return (
-        <div className="min-h-dvh bg-slate-50 flex flex-col font-sans">
+        <div className="h-[100dvh] overflow-hidden bg-slate-50 flex flex-col font-sans">
             {/* Top Header */}
             <header className="bg-blue-900 text-white sticky top-0 z-20 w-full pt-safe shadow-xl">
                 <div className="h-16 flex items-center justify-between px-4">
@@ -1129,7 +1129,7 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
             </header>
 
             {/* Main Content Area */}
-            <main className="flex-1 overflow-y-auto">
+            <main className="flex-1 overflow-y-auto pb-16 md:pb-0">
                 {activeTab === 'CATALOG' && renderCatalog()}
                 {activeTab === 'CART' && renderCart()}
                 {activeTab === 'HISTORY' && renderHistory()}
