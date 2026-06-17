@@ -637,16 +637,13 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
                               className="w-24 px-2 py-1 border border-slate-200 rounded text-xs"
                            />
                         </div>
-                     )}
-                   </div>
-                   </div>
-                   </div>
-                </div>
-             </div>
-          )}
-         </div>
+                      )}
+                    </div>
+                 </div>
+           )}
+              </div>
 
-         {/* VIEW TOGGLE */}
+           {/* VIEW TOGGLE */}
          {currentUser?.role === 'ADMIN' && (
             <div className="flex justify-center overflow-x-auto pb-2 md:pb-0">
                <div className="bg-slate-200 p-1 rounded-xl flex shrink-0">
