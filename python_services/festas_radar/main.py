@@ -9,14 +9,13 @@ Uso:
 
 import argparse
 import json
-import os
 import sys
 from datetime import date, datetime, timedelta
 import requests
 from festas_fixas import get_festas_do_ano
 
 # ─── CONFIGURAÇÃO ─────────────────────────────────────────────────────────────
-SERPAPI_KEY = os.getenv("SERPAPI_KEY", "adb2fc20f0a404f88deeee75ab1c3bcf786ff18be4203a324fccc83811d57cc2")
+from config import SERPAPI_KEY
 SERPAPI_URL = "https://serpapi.com/search.json"
 
 IMPACTO_ORDER = {"ALTÍSSIMO": 0, "ALTO": 1, "MEDIO": 2, "BAIXO": 3}

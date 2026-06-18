@@ -69,6 +69,22 @@ yarn-error.log*
 # OS
 Thumbs.db
 
+# Security - Certificates and Keys
+*.pfx
+*.p12
+
+# Databases
+*.sqlite
+*.sqlite3
+*.db
+
+# Local environment overrides
+.env.local
+
+# Certificate directories
+certs/
+certificates/
+
 # Temporary scripts and logs
 *.log
 *.txt

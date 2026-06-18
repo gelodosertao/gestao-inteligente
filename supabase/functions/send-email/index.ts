@@ -36,7 +36,7 @@ serve(async (req) => {
             body: JSON.stringify({
                 sender: {
                     name: "Consultor Gelo do Sertão",
-                    email: "joaobolega@gmail.com", // <-- ALTERE SE NECESSÁRIO PARA O SEU E-MAIL NO BREVO
+                    email: Deno.env.get("BREVO_SENDER_EMAIL")!,
                 },
                 to: [
                     {
