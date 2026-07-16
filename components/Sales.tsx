@@ -497,6 +497,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
             cashReceived: selectedPaymentMethod === 'Cash' && cashReceived ? parseFloat(cashReceived) : undefined,
             changeAmount: selectedPaymentMethod === 'Cash' ? changeAmount : undefined,
             discount: parseFloat(discount) || 0,
+            source: 'VAREJO',
          };
 
          // Call Global Add Sale (updates Stock and Sales History)
@@ -679,7 +680,9 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
 
                      const matchesStatus = statusFilter === 'ALL' || sale.status === statusFilter;
 
-                     return matchesSearch && matchesStatus;
+                      const matchesSource = sale.branch === Branch.FILIAL;
+
+                     return matchesSearch && matchesStatus && matchesSource;
                   })
                      .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))
                      .map(sale => (
