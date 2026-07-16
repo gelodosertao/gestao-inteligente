@@ -45,7 +45,7 @@ const App: React.FC = () => {
   // Sync currentView with URL for backward compatibility with sidebar logic
   const currentView = useMemo(() => {
     const path = location.pathname;
-    if (path === '/pdv-atacado') return 'WHOLESALE_POS';
+    if (path === '/pdv-atacado') return 'ATACADO';
     if (path === '/pdv-adega') return 'SALES';
     if (path === '/cardapio-adega') return 'ONLINE_MENU';
     if (path.startsWith('/gestao/estoque')) return 'INVENTORY';
@@ -68,7 +68,7 @@ const App: React.FC = () => {
 
   const setCurrentView = (view: ViewState) => {
     switch (view) {
-      case 'WHOLESALE_POS': navigate('/pdv-atacado'); break;
+      case 'ATACADO': navigate('/pdv-atacado'); break;
       case 'SALES': navigate('/pdv-adega'); break;
       case 'ONLINE_MENU': navigate('/cardapio-adega'); break;
       case 'DASHBOARD': navigate('/gestao'); break;
@@ -117,7 +117,7 @@ const App: React.FC = () => {
         if (!isMenuMode && (location.pathname === '/' || location.pathname === '/login')) {
           let initialView: ViewState = 'DASHBOARD';
           if (user.role === 'WHOLESALE_REPRESENTATIVE' || (user.role as string) === 'WHOLESALE_SUPERVISOR') {
-            initialView = 'WHOLESALE_POS';
+            initialView = 'ATACADO';
           } else if (user.allowedModules && user.allowedModules.length > 0) {
             initialView = user.allowedModules[0] as ViewState;
           } else {
@@ -322,7 +322,7 @@ const App: React.FC = () => {
     }
 
     // Logistics Integration for Wholesale POS Deliveries
-    if (newSale.source === 'WHOLESALE_POS' && newSale.deliveryMethod === 'Delivery') {
+    if (newSale.source === 'ATACADO' && newSale.deliveryMethod === 'Delivery') {
       try {
         const customer = customers.find(c => c.name === newSale.customerName);
         let { route, deliveries } = await dbLogistics.getActiveRoute();
@@ -591,7 +591,7 @@ const App: React.FC = () => {
     let initialView: ViewState = 'DASHBOARD';
     // Compatibilidade: Aceitar tanto a nova role quanto a antiga para redirecionamento
     if (user.role === 'WHOLESALE_REPRESENTATIVE' || (user.role as string) === 'WHOLESALE_SUPERVISOR') {
-      initialView = 'WHOLESALE_POS';
+      initialView = 'ATACADO';
     } else if (user.allowedModules && user.allowedModules.length > 0) {
       initialView = user.allowedModules[0] as ViewState;
     } else {

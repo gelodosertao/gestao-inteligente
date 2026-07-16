@@ -25,7 +25,7 @@ export const ALL_MENU_ITEMS = [
   { id: 'CONCILIACAO', label: 'Conciliação', icon: TrendingUp, roles: ['ADMIN'] },
   { id: 'LOGISTICS', label: 'Logística', icon: Truck, roles: ['ADMIN', 'OPERATOR'] },
   { id: 'SALES', label: 'PDV Varejo', icon: Store, roles: ['ADMIN', 'OPERATOR'] },
-  { id: 'WHOLESALE_POS', label: 'PDV Atacado', icon: ShoppingCart, roles: ['ADMIN', 'WHOLESALE_REPRESENTATIVE'] },
+  { id: 'ATACADO', label: 'PDV Atacado', icon: ShoppingCart, roles: ['ADMIN', 'WHOLESALE_REPRESENTATIVE'] },
   { id: 'PRODUCTION', label: 'Produção', icon: Factory, roles: ['ADMIN', 'FACTORY'] },
   { id: 'REPORTS', label: 'Relatórios', icon: PieChart, roles: ['ADMIN'] },
   { id: 'MENU_CONFIG', label: 'Site / Cardápio', icon: Globe, roles: ['ADMIN'] },
@@ -34,7 +34,7 @@ export const ALL_MENU_ITEMS = [
 
 const getPathForView = (view: string) => {
   switch (view) {
-    case 'WHOLESALE_POS': return '/pdv-atacado';
+    case 'ATACADO': return '/pdv-atacado';
     case 'SALES': return '/pdv-adega';
     case 'ONLINE_MENU': return '/cardapio-adega';
     case 'DASHBOARD': return '/gestao';

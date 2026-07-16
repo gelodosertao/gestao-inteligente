@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { Product, StoreSettings, Sale, FinancialRecord, Customer, StockMovement, Branch, Category, ProductionRecord, Shift, User, Role, CategoryItem, CashClosing, Order } from '../types';
+import { Product, StoreSettings, Sale, SaleItem, FinancialRecord, Customer, StockMovement, Branch, Category, ProductionRecord, Shift, User, Role, CategoryItem, CashClosing, Order } from '../types';
 
 // --- HELPER DE PAGINAÇÃO PARA BYPASS LIMITE 1000 DO SUPABASE ---
 const fetchAllRecords = async (getQuery: (from: number, to: number) => any) => {
@@ -483,7 +483,15 @@ export const dbSales = {
       sellerId: row.seller_id,
       sellerName: row.seller_name,
       sellerRole: row.seller_role,
-      commissionAmount: row.commission_amount
+      commissionAmount: row.commission_amount,
+      nfeStatus: row.nfe_status,
+      nfeNumber: row.nfe_number,
+      nfeSeries: row.nfe_series,
+      nfeXml: row.nfe_xml,
+      nfeIssuedAt: row.nfe_issued_at,
+      customerDetails: row.customer_details,
+      invoiceKey: row.invoice_key,
+      invoiceUrl: row.invoice_url
     }));
   },
 
@@ -511,6 +519,14 @@ export const dbSales = {
       seller_name: sale.sellerName,
       seller_role: sale.sellerRole,
       commission_amount: sale.commissionAmount,
+      nfe_status: sale.nfeStatus,
+      nfe_number: sale.nfeNumber,
+      nfe_series: sale.nfeSeries,
+      nfe_xml: sale.nfeXml,
+      nfe_issued_at: sale.nfeIssuedAt,
+      customer_details: sale.customerDetails,
+      invoice_key: sale.invoiceKey,
+      invoice_url: sale.invoiceUrl,
       tenant_id: tenantId
     };
 
@@ -520,6 +536,25 @@ export const dbSales = {
 
     const { error } = await supabase.from('sales').upsert([saleData]);
     if (error) throw error;
+
+    // ETAPA 2: Inserir itens na tabela sale_items
+    if (sale.items && sale.items.length > 0) {
+      const saleItemsData = sale.items.map((item: SaleItem) => ({
+        sale_id: sale.id,
+        product_id: item.productId,
+        product_name: item.productName,
+        quantity: item.quantity,
+        price_at_sale: item.priceAtSale,
+        ncm: item.ncm || null,
+        cfop: item.cfop || null,
+        cst: item.cst || null,
+        tenant_id: tenantId
+      }));
+
+      const { error: itemsError } = await supabase.from('sale_items').insert(saleItemsData);
+      if (itemsError) throw itemsError;
+      console.log('Itens salvos com sucesso:', saleItemsData);
+    }
   },
 
   async update(sale: Sale) {
@@ -543,7 +578,15 @@ export const dbSales = {
       seller_id: sale.sellerId,
       seller_name: sale.sellerName,
       seller_role: sale.sellerRole,
-      commission_amount: sale.commissionAmount
+      commission_amount: sale.commissionAmount,
+      nfe_status: sale.nfeStatus,
+      nfe_number: sale.nfeNumber,
+      nfe_series: sale.nfeSeries,
+      nfe_xml: sale.nfeXml,
+      nfe_issued_at: sale.nfeIssuedAt,
+      customer_details: sale.customerDetails,
+      invoice_key: sale.invoiceKey,
+      invoice_url: sale.invoiceUrl
     };
 
     if (sale.paymentSplits) {
@@ -633,7 +676,12 @@ export const dbCustomers = {
       creatorName: row.creator_name,
       responsibleName: row.responsible_name,
       establishmentName: row.establishment_name,
-      zipCode: row.zip_code
+      zipCode: row.zip_code,
+      razaoSocial: row.razao_social,
+      inscricaoEstadual: row.inscricao_estadual,
+      logradouro: row.logradouro,
+      numero: row.numero,
+      bairro: row.bairro,
     }));
   },
 
@@ -654,7 +702,12 @@ export const dbCustomers = {
       creator_name: customer.creatorName,
       responsible_name: customer.responsibleName,
       establishment_name: customer.establishmentName,
-      zip_code: customer.zipCode
+      zip_code: customer.zipCode,
+      razao_social: customer.razaoSocial,
+      inscricao_estadual: customer.inscricaoEstadual,
+      logradouro: customer.logradouro,
+      numero: customer.numero,
+      bairro: customer.bairro,
     }]).select();
     if (error) throw error;
     return data?.[0];
@@ -678,7 +731,12 @@ export const dbCustomers = {
       creator_name: c.creatorName,
       responsible_name: c.responsibleName,
       establishment_name: c.establishmentName,
-      zip_code: c.zipCode
+      zip_code: c.zipCode,
+      razao_social: c.razaoSocial,
+      inscricao_estadual: c.inscricaoEstadual,
+      logradouro: c.logradouro,
+      numero: c.numero,
+      bairro: c.bairro,
     }));
     const { error } = await supabase.from('customers').insert(mapped);
     if (error) throw error;
@@ -698,7 +756,12 @@ export const dbCustomers = {
       creator_name: customer.creatorName,
       responsible_name: customer.responsibleName,
       establishment_name: customer.establishmentName,
-      zip_code: customer.zipCode
+      zip_code: customer.zipCode,
+      razao_social: customer.razaoSocial,
+      inscricao_estadual: customer.inscricaoEstadual,
+      logradouro: customer.logradouro,
+      numero: customer.numero,
+      bairro: customer.bairro,
     }).eq('id', customer.id);
     if (error) throw error;
   },

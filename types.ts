@@ -98,10 +98,23 @@ export interface PaymentEntry {
   notes?: string;
 }
 
+export interface InvoiceCustomerDetails {
+  razaoSocial?: string;
+  inscricaoEstadual?: string;
+  logradouro?: string;
+  numero?: string;
+  bairro?: string;
+  zipCode?: string;
+  phone?: string;
+  city?: string;
+  state?: string;
+}
+
 export interface Sale {
   id: string;
   date: string;
   customerName: string;
+  customerDetails?: InvoiceCustomerDetails; // Snapshot for DANFE
   total: number;
   items: SaleItem[];
   branch: Branch;
@@ -128,6 +141,12 @@ export interface Sale {
   sellerName?: string; // Name of the user who made the sale
   sellerRole?: string; // Role of the user who made the sale
   commissionAmount?: number; // Calculated commission at the time of sale
+  // NF-e fields
+  nfeStatus?: 'nao_emitir' | 'pendente' | 'autorizada' | 'cancelada' | 'rejeitada';
+  nfeNumber?: string;
+  nfeSeries?: string;
+  nfeXml?: string;
+  nfeIssuedAt?: string;
 }
 
 export interface SaleItem {
@@ -141,6 +160,9 @@ export interface SaleItem {
     priceChange: number;
   }[];
   notes?: string;
+  ncm?: string;
+  cfop?: string;
+  cst?: string;
 }
 
 export interface FinancialRecord {
@@ -167,7 +189,7 @@ export interface User {
   allowedModules?: string[]; // IDs of modules the user can access
 }
 
-export type ViewState = 'DASHBOARD' | 'INVENTORY' | 'SALES' | 'FINANCIAL' | 'AI_INSIGHTS' | 'SETTINGS' | 'CUSTOMERS' | 'PRICING' | 'ONLINE_MENU' | 'MENU_CONFIG' | 'PRODUCTION' | 'ORDER_CENTER' | 'REPORTS' | 'WHOLESALE_POS' | 'CRM' | 'FESTAS_RADAR' | 'LOGISTICS' | 'CONCILIACAO';
+export type ViewState = 'DASHBOARD' | 'INVENTORY' | 'SALES' | 'FINANCIAL' | 'AI_INSIGHTS' | 'SETTINGS' | 'CUSTOMERS' | 'PRICING' | 'ONLINE_MENU' | 'MENU_CONFIG' | 'PRODUCTION' | 'ORDER_CENTER' | 'REPORTS' | 'ATACADO' | 'CRM' | 'FESTAS_RADAR' | 'LOGISTICS' | 'CONCILIACAO';
 
 // --- FESTAS RADAR MODULE ---
 
@@ -216,6 +238,12 @@ export interface Customer {
   responsibleName?: string;
   establishmentName?: string;
   zipCode?: string;
+  // NF-e fields
+  razaoSocial?: string;
+  inscricaoEstadual?: string;
+  logradouro?: string;
+  numero?: string;
+  bairro?: string;
 }
 
 export interface StockMovement {

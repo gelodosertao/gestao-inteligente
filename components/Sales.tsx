@@ -1,6 +1,5 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { invoiceService } from '../services/invoiceService';
 import { Sale, Branch, Product, Customer, User, PaymentEntry } from '../types';
 import { hardwareBridge } from '../services/hardwareBridge';
 import { ShoppingCart, FileText, CheckCircle, Clock, X, Printer, Send, ScanBarcode, Search, Trash2, Plus, Minus, CreditCard, Banknote, QrCode, Bluetooth, ArrowRight, Store, Factory, Calculator, User as UserIcon, UserPlus, Edit, Save, ArrowLeft, Download, Camera, Package, LogOut } from 'lucide-react';
@@ -83,10 +82,6 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
       setEditingSale({ ...editingSale, items: newItems });
    };
 
-   // --- INVOICE MODAL STATE ---
-   const [selectedSaleForInvoice, setSelectedSaleForInvoice] = useState<Sale | null>(null);
-   const [invoiceStep, setInvoiceStep] = useState<'FORM' | 'PROCESSING' | 'SUCCESS'>('FORM');
-   const [cpf, setCpf] = useState('');
    const [lastCompletedSale, setLastCompletedSale] = useState<Sale | null>(null); // For printing POS receipt
    const [saleToDownload, setSaleToDownload] = useState<Sale | null>(null); // For downloading history receipt
 
@@ -518,44 +513,6 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
       setDiscount('');
       setActiveTab('History');
    };
-
-   // --- INVOICE FUNCTIONS (For History Tab) ---
-
-   const handleOpenInvoice = (sale: Sale) => {
-      setSelectedSaleForInvoice(sale);
-      setInvoiceStep('FORM');
-      setCpf('');
-   };
-
-
-
-   const handleEmitInvoice = async () => {
-      if (!selectedSaleForInvoice) return;
-      setInvoiceStep('PROCESSING');
-
-      try {
-         // Chama o serviço de emissão (que está preparado para API real)
-         const result = await invoiceService.emitNFCe(selectedSaleForInvoice, cpf);
-
-         if (result.success) {
-            setInvoiceStep('SUCCESS');
-            // TODO: Atualizar a venda no banco de dados com a chave da nota
-            // await dbSales.update({ ...selectedSaleForInvoice, hasInvoice:true, invoiceKey:result.invoiceKey });
-         } else {
-            alert("Erro ao emitir nota: " + result.message);
-            setInvoiceStep('FORM');
-         }
-      } catch (e) {
-         console.error(e);
-         alert("Erro técnico ao tentar emitir nota.");
-         setInvoiceStep('FORM');
-      }
-   };
-
-   const closeInvoiceModal = () => {
-      setSelectedSaleForInvoice(null);
-   };
-
    const handleDownloadReceipt = async () => {
       const receiptElement = document.getElementById('receipt-content');
       if (!receiptElement) return;
@@ -716,8 +673,6 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                   </div>
 
                   {sales.filter(sale => {
-                     if (sale.source === 'WHOLESALE_POS') return false;
-
                      const matchesSearch = sale.customerName.toLowerCase().includes(historySearchTerm.toLowerCase()) ||
                         sale.id.includes(historySearchTerm) ||
                         sale.total.toString().includes(historySearchTerm);
@@ -747,7 +702,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                                           Estoque: {sale.matrizDeposit}
                                        </span>
                                     )}
-                                    {sale.source === 'WHOLESALE_POS' && (
+                                    {sale.source === 'ATACADO' && (
                                        <span className="bg-purple-50 text-purple-700 px-2 py-0.5 rounded text-[10px] font-black border border-purple-100 uppercase">
                                           Origem: Vendedor
                                        </span>
@@ -779,53 +734,34 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                                  <span className={`px-2 py-1 rounded-md text-[10px] md:text-xs font-bold border flex items-center gap-1 ${sale.status === 'Completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : sale.status === 'Finalizado pela Fábrica' ? 'bg-blue-50 text-blue-700 border-blue-200' : sale.status === 'Pending' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-red-50 text-red-700 border-red-200'} `}>
                                     {sale.status === 'Completed' ? 'Concluído' : sale.status === 'Finalizado pela Fábrica' ? 'Finalizado Fábrica' : sale.status === 'Pending' ? 'Pendente' : 'Cancelado'}
                                  </span>
-                                 <span className={`px-2 py-1 rounded-md text-[10px] md:text-xs font-bold border flex items-center gap-1 ${sale.hasInvoice ? 'bg-green-50 text-green-700 border-green-200' : 'bg-orange-50 text-orange-700 border-orange-200'} `}>
-                                    {sale.hasInvoice ? <CheckCircle size={10} /> : <Clock size={10} />}
-                                    {sale.hasInvoice ? 'NF-e Emitida' : 'Sem NF-e'}
-                                 </span>
-                                 <span className="px-2 py-1 rounded-md text-[10px] md:text-xs font-bold bg-slate-50 text-slate-600 border border-slate-200">
-                                     {translatePaymentMethod(sale.paymentMethod)}
-                                 </span>
-                              </div>
-                              <div className="flex flex-wrap gap-2 mt-3 md:justify-end w-full">
-                                 {sale.status === 'Pending' && (
-                                    <>
-                                       <button
-                                          onClick={() => openDebtPaymentModal(sale)}
-                                          className="flex-1 md:flex-none justify-center text-xs font-bold text-orange-700 flex items-center gap-1.5 cursor-pointer bg-orange-50 px-3 py-2 rounded-lg hover:bg-orange-100 transition-colors border border-orange-200 shadow-sm"
-                                       >
-                                          <Banknote size={14} /> Receber
-                                       </button>
-                                       {currentUser.role === 'ADMIN' && sale.source === 'WHOLESALE_POS' && (
-                                          <button
-                                             onClick={() => {
-                                                if (confirm("Confirmar recebimento deste pedido de atacado? Status mudará para 'Finalizado pela Fábrica'.")) {
-                                                   onUpdateSale({ ...sale, status: 'Finalizado pela Fábrica' });
-                                                }
-                                             }}
-                                             className="flex-1 md:flex-none justify-center text-xs font-bold text-white flex items-center gap-1.5 cursor-pointer bg-emerald-600 px-3 py-2 rounded-lg hover:bg-emerald-700 transition-colors shadow-sm"
-                                          >
-                                             <CheckCircle size={14} /> Confirmar Recebimento
-                                          </button>
-                                       )}
-                                    </>
-                                 )}
-                                 {!sale.hasInvoice ? (
-                                    <button
-                                       onClick={() => handleOpenInvoice(sale)}
-                                       className="flex-1 md:flex-none justify-center text-xs text-blue-700 font-bold flex items-center gap-1.5 cursor-pointer bg-blue-50 px-3 py-2 rounded-lg hover:bg-blue-100 transition-colors shadow-sm"
-                                    >
-                                       <FileText size={14} /> Emitir NF
-                                    </button>
-                                 ) : (
-                                    <button
-                                       onClick={() => setSaleToDownload(sale)}
-                                       className="flex-1 md:flex-none justify-center text-xs text-slate-500 font-bold flex items-center gap-1.5 cursor-pointer bg-slate-100 px-3 py-2 rounded-lg hover:bg-slate-200 transition-colors"
-                                    >
-                                       <Download size={14} /> DANFE
-                                    </button>
-                                 )}
-                                 {currentUser.role === 'ADMIN' && (
+                                  <span className="px-2 py-1 rounded-md text-[10px] md:text-xs font-bold bg-slate-50 text-slate-600 border border-slate-200">
+                                      {translatePaymentMethod(sale.paymentMethod)}
+                                  </span>
+                               </div>
+                               <div className="flex flex-wrap gap-2 mt-3 md:justify-end w-full">
+                                  {sale.status === 'Pending' && (
+                                     <>
+                                        <button
+                                           onClick={() => openDebtPaymentModal(sale)}
+                                           className="flex-1 md:flex-none justify-center text-xs font-bold text-orange-700 flex items-center gap-1.5 cursor-pointer bg-orange-50 px-3 py-2 rounded-lg hover:bg-orange-100 transition-colors border border-orange-200 shadow-sm"
+                                        >
+                                           <Banknote size={14} /> Receber
+                                        </button>
+                                        {currentUser.role === 'ADMIN' && sale.source === 'ATACADO' && (
+                                           <button
+                                              onClick={() => {
+                                                 if (confirm("Confirmar recebimento deste pedido de atacado? Status mudará para 'Finalizado pela Fábrica'.")) {
+                                                    onUpdateSale({ ...sale, status: 'Finalizado pela Fábrica' });
+                                                 }
+                                              }}
+                                              className="flex-1 md:flex-none justify-center text-xs font-bold text-white flex items-center gap-1.5 cursor-pointer bg-emerald-600 px-3 py-2 rounded-lg hover:bg-emerald-700 transition-colors shadow-sm"
+                                           >
+                                              <CheckCircle size={14} /> Confirmar Recebimento
+                                           </button>
+                                        )}
+                                     </>
+                                  )}
+                                  {currentUser.role === 'ADMIN' && (
                                     <div className="flex gap-2 flex-1 md:flex-none min-w-full md:min-w-0 mt-1 md:mt-0">
                                        <button
                                           onClick={() => openEditSaleModal(sale)}
@@ -1454,90 +1390,6 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                )
             }
 
-            {/* Invoice Modal (Existing - For History) */}
-            {
-               selectedSaleForInvoice && (
-                  <div className="fixed inset-0 bg-blue-900/50 backdrop-blur-sm z-50 flex items-start sm:items-center justify-center p-4 pt-safe-offset-4 sm:p-4 overflow-y-auto animate-in fade-in duration-200">
-                     <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden ">
-                        <div className="p-4 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
-                           <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                              <FileText size={18} className="text-blue-600" /> Emissão de NF-e
-                           </h3>
-                           <button onClick={closeInvoiceModal} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
-                        </div>
-
-                        <div className="p-6">
-                           {invoiceStep === 'FORM' && (
-                              <>
-                                 <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-100 text-sm text-blue-700">
-                                    <p><strong>Venda #{selectedSaleForInvoice.id}</strong> - {selectedSaleForInvoice.customerName}</p>
-                                    <p>Valor Total: {formatCurrency(selectedSaleForInvoice.total)}</p>
-                                 </div>
-
-                                 <div className="space-y-4">
-                                    <div>
-                                       <label className="block text-sm font-medium text-slate-700 mb-1">CPF / CNPJ do Cliente</label>
-                                       <input
-                                          type="text"
-                                          placeholder="000.000.000-00"
-                                          className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:outline-none"
-                                          value={cpf}
-                                          onChange={(e) => setCpf(e.target.value)}
-                                       />
-                                    </div>
-                                    <div>
-                                       <label className="block text-sm font-medium text-slate-700 mb-1">Natureza da Operação</label>
-                                       <select className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-white">
-                                          <option>5.102 - Venda de mercadoria</option>
-                                          <option>5.405 - Venda subst. tributária</option>
-                                       </select>
-                                    </div>
-                                 </div>
-
-                                 <button
-                                    onClick={handleEmitInvoice}
-                                    className="w-full mt-6 bg-blue-600 hover:bg-blue-500 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20 transition-all"
-                                 >
-                                    <Send size={18} /> Transmitir para SEFAZ
-                                 </button>
-                              </>
-                           )}
-
-                           {invoiceStep === 'PROCESSING' && (
-                              <div className="flex flex-col items-center justify-center py-8">
-                                 <div className="w-12 h-12 border-4 border-blue-100 border-t-blue-500 rounded-full animate-spin mb-4"></div>
-                                 <h4 className="font-bold text-slate-800">Autorizando Nota...</h4>
-                                 <p className="text-sm text-slate-500">Conectando aos servidores da SEFAZ</p>
-                              </div>
-                           )}
-
-                           {invoiceStep === 'SUCCESS' && (
-                              <div className="flex flex-col items-center justify-center py-4 text-center">
-                                 <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-4">
-                                    <CheckCircle size={32} />
-                                 </div>
-                                 <h4 className="text-xl font-bold text-slate-800 mb-1">Nota Autorizada!</h4>
-                                 <p className="text-sm text-slate-500 mb-6">Chave:3523 1000 0000 0000 0000 5500 1000 0000 0100</p>
-
-                                 <div className="flex gap-3 w-full">
-                                    <button onClick={() => setSaleToDownload(selectedSaleForInvoice)} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-2 rounded-lg font-medium flex items-center justify-center gap-2">
-                                       <Printer size={18} /> Imprimir PDF
-                                    </button>
-                                    <button
-                                       onClick={closeInvoiceModal}
-                                       className="flex-1 bg-blue-600 hover:bg-blue-500 text-white py-2 rounded-lg font-medium"
-                                    >
-                                       Fechar
-                                    </button>
-                                 </div>
-                              </div>
-                           )}
-                        </div>
-                     </div>
-                  </div>
-               )
-            }
-
             {/* --- EDIT SALE MODAL --- */}
             {
                showEditSaleModal && editingSale && (
@@ -1755,19 +1607,19 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
 
             {/* --- HIDDEN THERMAL RECEIPT (Visible only on Print or Download) --- */}
             <div id="printable-receipt" className={saleToDownload ? "fixed top-0 left-0 z-[-1] opacity-0" : "hidden"}>
-               {(lastCompletedSale || selectedSaleForInvoice || saleToDownload) && (
+               {(lastCompletedSale || saleToDownload || saleToDownload) && (
                   <div id="printable-receipt-content" className="p-1 px-[2mm] bg-white w-[40mm] mx-auto text-[10px] font-mono text-black">
                      <div className="text-center mb-2 border-b border-black pb-2">
                         <h2 className="font-bold text-[11px] uppercase leading-tight whitespace-pre-wrap">
-                           {(lastCompletedSale || selectedSaleForInvoice || saleToDownload)?.branch === Branch.FILIAL ? 'Gelo do Sertão |\nAdega & Drinks' : 'Gelo do Sertão Ltda'}
+                           {(lastCompletedSale || saleToDownload || saleToDownload)?.branch === Branch.FILIAL ? 'Gelo do Sertão |\nAdega & Drinks' : 'Gelo do Sertão Ltda'}
                         </h2>
                         <p>CNPJ: 00.000.000/0001-00</p>
-                        <p>{(lastCompletedSale || selectedSaleForInvoice || saleToDownload)?.branch}</p>
-                        <p>Cliente: {(lastCompletedSale || selectedSaleForInvoice || saleToDownload)?.customerName}</p>
-                        <p>{(lastCompletedSale || selectedSaleForInvoice || saleToDownload)?.date}</p>
+                        <p>{(lastCompletedSale || saleToDownload || saleToDownload)?.branch}</p>
+                        <p>Cliente: {(lastCompletedSale || saleToDownload || saleToDownload)?.customerName}</p>
+                        <p>{(lastCompletedSale || saleToDownload || saleToDownload)?.date}</p>
                      </div>
                      <div className="mb-2">
-                        {(lastCompletedSale || selectedSaleForInvoice || saleToDownload)?.items.map((item, i) => (
+                        {(lastCompletedSale || saleToDownload || saleToDownload)?.items.map((item, i) => (
                            <div key={i} className="flex justify-between">
                               <span>{item.quantity}x {item.productName.substring(0, 15)}</span>
                               <span>{formatCurrency(item.quantity * item.priceAtSale)}</span>
@@ -1776,11 +1628,11 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                      </div>
                      <div className="border-t border-black pt-1 flex justify-between font-bold">
                         <span>TOTAL</span>
-                        <span>{formatCurrency((lastCompletedSale || selectedSaleForInvoice || saleToDownload)?.total || 0)}</span>
+                        <span>{formatCurrency((lastCompletedSale || saleToDownload || saleToDownload)?.total || 0)}</span>
                      </div>
                      <div className="text-center mt-4 pt-2 border-t border-black">
                         <p className="font-bold">CUPOM FISCAL</p>
-                        <p>Nº {(lastCompletedSale || selectedSaleForInvoice || saleToDownload)?.id.padStart(6, '0')}</p>
+                        <p>Nº {(lastCompletedSale || saleToDownload || saleToDownload)?.id.padStart(6, '0')}</p>
                         <div className="w-20 h-20 bg-white border border-black mx-auto mt-2 flex items-center justify-center text-[8px]">
                            [QR CODE]
                         </div>

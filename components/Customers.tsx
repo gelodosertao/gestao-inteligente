@@ -92,15 +92,21 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
                 setEditingCustomer({
                     ...editingCustomer,
                     address: fullAddress,
+                    logradouro: data.logradouro || editingCustomer.logradouro,
+                    bairro: data.bairro || editingCustomer.bairro,
                     city: data.localidade,
-                    state: data.uf
+                    state: data.uf,
+                    zipCode: data.cep || editingCustomer.zipCode,
                 });
             } else {
                 setNewCustomer({
                     ...newCustomer,
                     address: fullAddress,
+                    logradouro: data.logradouro || '',
+                    bairro: data.bairro || '',
                     city: data.localidade,
-                    state: data.uf
+                    state: data.uf,
+                    zipCode: data.cep || '',
                 });
             }
         } catch (error) {
@@ -127,7 +133,12 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
             creatorName: currentUser.name,
             responsibleName: newCustomer.responsibleName || '',
             establishmentName: newCustomer.establishmentName || '',
-            zipCode: newCustomer.zipCode || ''
+            zipCode: newCustomer.zipCode || '',
+            razaoSocial: newCustomer.razaoSocial || '',
+            inscricaoEstadual: newCustomer.inscricaoEstadual || '',
+            logradouro: newCustomer.logradouro || '',
+            numero: newCustomer.numero || '',
+            bairro: newCustomer.bairro || '',
         };
 
         onAddCustomer(customer);
@@ -496,12 +507,33 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-bold text-slate-700 mb-1">Nome do Estabelecimento / Razão Social</label>
+                                    <label className="block text-sm font-bold text-slate-700 mb-1">Nome do Estabelecimento</label>
                                     <input
                                         type="text"
                                         className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
                                         value={newCustomer.establishmentName || ''}
                                         onChange={(e) => setNewCustomer({ ...newCustomer, establishmentName: e.target.value })}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 mb-1">Razão Social (NF-e)</label>
+                                    <input
+                                        type="text"
+                                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                                        value={newCustomer.razaoSocial || ''}
+                                        onChange={(e) => setNewCustomer({ ...newCustomer, razaoSocial: e.target.value })}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 mb-1">Inscrição Estadual (IE)</label>
+                                    <input
+                                        type="text"
+                                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                                        value={newCustomer.inscricaoEstadual || ''}
+                                        onChange={(e) => setNewCustomer({ ...newCustomer, inscricaoEstadual: e.target.value })}
                                     />
                                 </div>
                                 <div>
@@ -561,12 +593,12 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
                             </div>
 
                             <div>
-                                <label className="block text-sm font-bold text-slate-700 mb-1">Endereço Completo</label>
+                                <label className="block text-sm font-bold text-slate-700 mb-2">Endereço (NF-e)</label>
                                 <div className="flex gap-2 mb-2">
                                     <input
                                         type="text"
                                         className="w-32 px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm"
-                                        placeholder="CEP (Opcional)"
+                                        placeholder="CEP"
                                         value={cepInput}
                                         onChange={(e) => setCepInput(e.target.value)}
                                         maxLength={9}
@@ -584,12 +616,44 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
                                         </div>
                                     )}
                                 </div>
+                                <div className="grid grid-cols-12 gap-2 mb-2">
+                                    <div className="col-span-7">
+                                        <label className="block text-xs font-bold text-slate-500 mb-1">Logradouro</label>
+                                        <input
+                                            type="text"
+                                            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                                            value={newCustomer.logradouro || ''}
+                                            onChange={(e) => setNewCustomer({ ...newCustomer, logradouro: e.target.value })}
+                                            placeholder="Rua, Av..."
+                                        />
+                                    </div>
+                                    <div className="col-span-2">
+                                        <label className="block text-xs font-bold text-slate-500 mb-1">Número</label>
+                                        <input
+                                            type="text"
+                                            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                                            value={newCustomer.numero || ''}
+                                            onChange={(e) => setNewCustomer({ ...newCustomer, numero: e.target.value })}
+                                            placeholder="S/N"
+                                        />
+                                    </div>
+                                    <div className="col-span-3">
+                                        <label className="block text-xs font-bold text-slate-500 mb-1">Bairro</label>
+                                        <input
+                                            type="text"
+                                            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                                            value={newCustomer.bairro || ''}
+                                            onChange={(e) => setNewCustomer({ ...newCustomer, bairro: e.target.value })}
+                                            placeholder="Bairro"
+                                        />
+                                    </div>
+                                </div>
                                 <input
                                     type="text"
                                     className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 mb-3"
                                     value={newCustomer.address || ''}
                                     onChange={(e) => setNewCustomer({ ...newCustomer, address: e.target.value })}
-                                    placeholder="Rua, Número, Bairro"
+                                    placeholder="Complemento (opcional)"
                                 />
                                 <div className="grid grid-cols-3 gap-4">
                                     <div className="col-span-2">
@@ -603,7 +667,7 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-xs font-bold text-slate-500 mb-1">Estado (UF)</label>
+                                        <label className="block text-xs font-bold text-slate-500 mb-1">UF</label>
                                         <input
                                             type="text"
                                             className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 uppercase"
@@ -666,6 +730,48 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
                                 />
                             </div>
 
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 mb-1">Nome do Estabelecimento</label>
+                                    <input
+                                        type="text"
+                                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                                        value={editingCustomer.establishmentName || ''}
+                                        onChange={(e) => setEditingCustomer({ ...editingCustomer, establishmentName: e.target.value })}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 mb-1">Razão Social (NF-e)</label>
+                                    <input
+                                        type="text"
+                                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                                        value={editingCustomer.razaoSocial || ''}
+                                        onChange={(e) => setEditingCustomer({ ...editingCustomer, razaoSocial: e.target.value })}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 mb-1">Inscrição Estadual (IE)</label>
+                                    <input
+                                        type="text"
+                                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                                        value={editingCustomer.inscricaoEstadual || ''}
+                                        onChange={(e) => setEditingCustomer({ ...editingCustomer, inscricaoEstadual: e.target.value })}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 mb-1">Nome do Responsável</label>
+                                    <input
+                                        type="text"
+                                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                                        value={editingCustomer.responsibleName || ''}
+                                        onChange={(e) => setEditingCustomer({ ...editingCustomer, responsibleName: e.target.value })}
+                                    />
+                                </div>
+                            </div>
+
                             <div>
                                 <label className="block text-sm font-bold text-slate-700 mb-1">Ramo de Atividade</label>
                                 <select
@@ -712,12 +818,12 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
                             </div>
 
                             <div>
-                                <label className="block text-sm font-bold text-slate-700 mb-1">Endereço Completo</label>
+                                <label className="block text-sm font-bold text-slate-700 mb-2">Endereço (NF-e)</label>
                                 <div className="flex gap-2 mb-2">
                                     <input
                                         type="text"
                                         className="w-32 px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm"
-                                        placeholder="CEP (Opcional)"
+                                        placeholder="CEP"
                                         value={cepInput}
                                         onChange={(e) => setCepInput(e.target.value)}
                                         maxLength={9}
@@ -735,12 +841,44 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
                                         </div>
                                     )}
                                 </div>
+                                <div className="grid grid-cols-12 gap-2 mb-2">
+                                    <div className="col-span-7">
+                                        <label className="block text-xs font-bold text-slate-500 mb-1">Logradouro</label>
+                                        <input
+                                            type="text"
+                                            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                                            value={editingCustomer.logradouro || ''}
+                                            onChange={(e) => setEditingCustomer({ ...editingCustomer, logradouro: e.target.value })}
+                                            placeholder="Rua, Av..."
+                                        />
+                                    </div>
+                                    <div className="col-span-2">
+                                        <label className="block text-xs font-bold text-slate-500 mb-1">Número</label>
+                                        <input
+                                            type="text"
+                                            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                                            value={editingCustomer.numero || ''}
+                                            onChange={(e) => setEditingCustomer({ ...editingCustomer, numero: e.target.value })}
+                                            placeholder="S/N"
+                                        />
+                                    </div>
+                                    <div className="col-span-3">
+                                        <label className="block text-xs font-bold text-slate-500 mb-1">Bairro</label>
+                                        <input
+                                            type="text"
+                                            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                                            value={editingCustomer.bairro || ''}
+                                            onChange={(e) => setEditingCustomer({ ...editingCustomer, bairro: e.target.value })}
+                                            placeholder="Bairro"
+                                        />
+                                    </div>
+                                </div>
                                 <input
                                     type="text"
                                     className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 mb-3"
                                     value={editingCustomer.address || ''}
                                     onChange={(e) => setEditingCustomer({ ...editingCustomer, address: e.target.value })}
-                                    placeholder="Rua, Número, Bairro"
+                                    placeholder="Complemento (opcional)"
                                 />
                                 <div className="grid grid-cols-3 gap-4">
                                     <div className="col-span-2">
@@ -754,7 +892,7 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-xs font-bold text-slate-500 mb-1">Estado (UF)</label>
+                                        <label className="block text-xs font-bold text-slate-500 mb-1">UF</label>
                                         <input
                                             type="text"
                                             className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 uppercase"

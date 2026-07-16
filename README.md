@@ -1,8 +1,8 @@
-# 🧊 IceManager SaaS - Sistema de Gestão Inteligente para Geleiros
+# 🧊 Geleiro PRO - Sistema de Gestão Inteligente para Geleiros
 
 > **Transformando a gestão de fábricas e distribuidoras de gelo com tecnologia de ponta.**
 
-O **IceManager** é uma solução SaaS (Software as a Service) desenvolvida especificamente para atender às necessidades do mercado de gelo (Geleiros). Com uma interface moderna, mobile-first e funcionalidades focadas na agilidade do dia a dia, o sistema centraliza vendas, estoque, clientes e financeiro em uma única plataforma.
+O **Geleiro PRO** é uma solução SaaS (Software as a Service) desenvolvida especificamente para atender às necessidades do mercado de gelo (Geleiros). Com uma interface moderna, mobile-first e funcionalidades focadas na agilidade do dia a dia, o sistema centraliza vendas, estoque, clientes e financeiro em uma única plataforma.
 
 ---
 
