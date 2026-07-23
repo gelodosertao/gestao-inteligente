@@ -4,7 +4,8 @@ import { env } from '../config/env';
 import { NFe } from '@treeunfe/nfe';
 import type { NFe as NFePayload } from '@treeunfe/types';
 import { NFeEnvelopeSchema } from '../types/nfe-schemas';
-import { retryWithBackoff } from '../utils/nfe-utils';
+import { retryWithBackoff, buildXmlFromJson } from '../utils/nfe-utils';
+import { resolveCityIbge, truncateString } from '../utils/ibge-utils';
 
 interface StatusServicoResponse {
   status: string;
@@ -162,14 +163,18 @@ export class SefazService {
     try {
       const nfe = this.getOrCreateNFe();
       const isConsumidorFinal = !params.customerDoc || params.customerName.toUpperCase() === 'CONSUMIDOR NÃO IDENTIFICADO';
-      const indFinal = params.customerDoc && params.customerDoc.length === 14 ? '0' : '1';
+      const indFinal = params.customerDoc && params.customerDoc.length === 14 ? 0 : 1;
 
       const total = Number(params.total) || 0;
 
       const isHomologacao = this.ambiente === 2;
       const hasValidDoc = !isConsumidorFinal && params.customerDoc && (params.customerDoc.length === 11 || params.customerDoc.length === 14);
       
-      const destNome = isHomologacao ? 'NF-E EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL' : params.customerName;
+      const destNome = truncateString(
+        isHomologacao ? 'NF-E EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL' : params.customerName,
+        60,
+        'CONSUMIDOR NAO IDENTIFICADO'
+      );
       const destDoc = isHomologacao ? '99999999000191' : (hasValidDoc ? params.customerDoc : undefined);
 
       const ie = params.customerData?.ie || '';
@@ -179,17 +184,19 @@ export class SefazService {
           ? '9'
           : '1';
 
+      const cityInfo = resolveCityIbge(params.customerData?.city, params.customerData?.state);
+
       const enderDest = params.customerData ? {
-        xLgr: params.customerData.logradouro || 'RUA NAO INFORMADA',
-        nro: params.customerData.numero || 'S/N',
-        xBairro: params.customerData.bairro || 'CENTRO',
-        cMun: '2927408',
-        xMun: params.customerData.city || 'IBOTIRAMA',
-        UF: params.customerData.state || this.uf,
-        CEP: params.customerData.zipCode || '47520000',
-        cPais: '1058',
+        xLgr: truncateString(params.customerData.logradouro, 60, 'RUA NAO INFORMADA'),
+        nro: truncateString(params.customerData.numero, 60, 'S/N'),
+        xBairro: truncateString(params.customerData.bairro, 60, 'CENTRO'),
+        cMun: cityInfo.cMun,
+        xMun: cityInfo.xMun,
+        UF: cityInfo.UF,
+        CEP: (params.customerData.zipCode || '47520000').replace(/\D/g, ''),
+        cPais: 1058,
         xPais: 'BRASIL',
-        fone: params.customerData.phone || '',
+        fone: truncateString((params.customerData.phone || '').replace(/\D/g, ''), 14),
       } : undefined;
 
       const nfePayload = {
@@ -198,43 +205,43 @@ export class SefazService {
         NFe: {
           infNFe: {
             ide: {
-              cUF: '29',
+              cUF: 29,
               natOp: 'Venda de mercadoria',
-              mod: '55',
-              serie: params.serie,
-              nNF: params.nNF,
+              mod: 55,
+              serie: truncateString(params.serie, 3, '1'),
+              nNF: Number(params.nNF),
               dhEmi: new Date().toISOString(),
-              tpNF: '1',
-              idDest: '1',
-              cMunFG: '2927408',
-              tpImp: '1',
-              tpEmis: '1',
+              tpNF: 1,
+              idDest: 1,
+              cMunFG: cityInfo.cMun,
+              tpImp: 1,
+              tpEmis: 1,
               tpAmb: this.ambiente,
-              finNFe: '1',
+              finNFe: 1,
               indFinal,
-              indPres: '1',
-              procEmi: '0',
-              verProc: 'Geleiro PRO NF-e 1.0',
-              cMunFGIBS: '2927408',
+              indPres: 1,
+              procEmi: 0,
+              verProc: truncateString('Geleiro PRO NF-e 1.0', 20),
+              cMunFGIBS: cityInfo.cMun,
             },
             emit: {
               CNPJCPF: this.cnpj,
-              xNome: 'GDS PRODUTOS ALIMENTICIOS LTDA',
-              xFant: 'Gelo do Sertao',
+              xNome: truncateString('GDS PRODUTOS ALIMENTICIOS LTDA', 60),
+              xFant: truncateString('Gelo do Sertao', 60),
               enderEmit: {
-                xLgr: 'RODOVIA BA 160',
-                nro: '2040',
-                xBairro: 'SAO JOAO',
-                cMun: '2927408',
+                xLgr: truncateString('RODOVIA BA 160', 60),
+                nro: truncateString('2040', 60),
+                xBairro: truncateString('SAO JOAO', 60),
+                cMun: 2927408,
                 xMun: 'IBOTIRAMA',
                 UF: this.uf,
                 CEP: '47520000',
-                cPais: '1058',
+                cPais: 1058,
                 xPais: 'BRASIL',
                 fone: '77999820028',
               },
               IE: '117178795',
-              CRT: '1',
+              CRT: 1,
             },
             dest: {
               CNPJCPF: destDoc,
@@ -245,9 +252,9 @@ export class SefazService {
             },
             det: params.items.map(item => ({
               prod: {
-                cProd: item.productName.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 20) || '1',
+                cProd: truncateString(item.productName.replace(/[^a-zA-Z0-9]/g, '_'), 20, '1'),
                 cEAN: 'SEM GTIN',
-                xProd: item.productName,
+                xProd: truncateString(item.productName, 120, 'PRODUTO'),
                 NCM: item.ncm || '22019000',
                 CFOP: item.cfop || '5101',
                 uCom: 'UN',
@@ -258,12 +265,12 @@ export class SefazService {
                 uTrib: 'UN',
                 qTrib: item.quantity,
                 vUnTrib: item.priceAtSale,
-                indTot: '1',
+                indTot: 1,
               },
               imposto: {
                 ICMS: {
                   ICMSSN102: {
-                    orig: '0',
+                    orig: 0,
                     CSOSN: '102',
                   },
                 },
@@ -291,24 +298,11 @@ export class SefazService {
                 vPIS: '0.00',
                 vCOFINS: '0.00',
                 vOutro: '0.00',
-              vNF: total.toFixed(2),
-            },
-            IBSCBSTot: {
-              vBCIBSCBS: '0.00',
-              gIBS: {
-                vIBS: '0.00',
-                vCredPres: '0.00',
-                vCredPresCondSus: '0.00',
-              },
-              gCBS: {
-                vCBS: '0.00',
-                vCredPres: '0.00',
-                vCredPresCondSus: '0.00',
+                vNF: total.toFixed(2),
               },
             },
-          },
             transp: {
-              modFrete: '9',
+              modFrete: 9,
             },
             pag: {
               detPag: {
@@ -338,6 +332,22 @@ export class SefazService {
         const chave = prot.infProt.chNFe || '';
         const nProt = prot.infProt.nProt || '';
 
+        let nfeXml: string | undefined = undefined;
+        if (primeiroXml?.NFe && prot) {
+          try {
+            nfeXml = buildXmlFromJson({
+              nfeProc: {
+                '@versao': '4.00',
+                '@xmlns': 'http://www.portalfiscal.inf.br/nfe',
+                NFe: primeiroXml.NFe,
+                protNFe: prot,
+              },
+            });
+          } catch (xmlErr) {
+            console.warn('[SefazService] Não foi possível montar o nfeProc XML:', xmlErr);
+          }
+        }
+
         console.log(`[SefazService] NF-e autorizada: ${chave} (nProt: ${nProt}, cStat: ${cStat})`);
 
         return {
@@ -345,6 +355,7 @@ export class SefazService {
           invoiceKey: chave,
           invoiceUrl: `https://www.sefaz.fazenda.gov.br/nfe/${chave}`,
           nfeNumber: nProt,
+          nfeXml,
           message: `NF-e autorizada: ${xMotivo}`,
         };
       }

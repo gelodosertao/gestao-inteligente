@@ -253,52 +253,71 @@ async function productionEmit(saleId: string, customerDoc: string, sefazService:
     ? 'CONSUMIDOR NÃO IDENTIFICADO'
     : customerData?.razao_social || customerData?.establishment_name || sale.customer_name;
 
-  const nNF = String(await getNextNnf());
+  let isNewNnf = false;
+  let nNF = sale.nfe_number;
+
+  if (!nNF) {
+    nNF = String(await getNextNnf());
+    isNewNnf = true;
+  } else {
+    console.log(`[NfeGenerator] Reutilizando nNF existente ${nNF} para a venda ${saleId}`);
+  }
 
   await updateSaleNfeStatus(saleId, 'pendente_emissao', undefined, undefined, nNF);
 
-  const resultado = await sefazService.emitirNFe({
-    nNF,
-    serie: '1',
-    saleId: sale.id,
-    customerName: xNome,
-    customerDoc: isConsumidorFinal ? '' : customerDoc,
-    total: sale.total ?? 0,
-    customerData: {
-      logradouro: customerData?.logradouro || '',
-      numero: customerData?.numero || '',
-      bairro: customerData?.bairro || '',
-      city: customerData?.city || '',
-      state: customerData?.state || '',
-      zipCode: (customerData?.zip_code || '').replace(/\D/g, ''),
-      phone: (customerData?.phone || '').replace(/\D/g, ''),
-      ie: ie,
-      indIEDest: indIEDest,
-    },
-    items: items.map(item => ({
-      productName: item.product_name,
-      quantity: item.quantity,
-      priceAtSale: item.price_at_sale,
-      ncm: item.ncm || '22019000',
-      cfop: item.cfop || '5101',
-    })),
-  });
+  try {
+    const resultado = await sefazService.emitirNFe({
+      nNF,
+      serie: sale.nfe_series || '1',
+      saleId: sale.id,
+      customerName: xNome,
+      customerDoc: isConsumidorFinal ? '' : customerDoc,
+      total: sale.total ?? 0,
+      customerData: {
+        logradouro: customerData?.logradouro || '',
+        numero: customerData?.numero || '',
+        bairro: customerData?.bairro || '',
+        city: customerData?.city || '',
+        state: customerData?.state || '',
+        zipCode: (customerData?.zip_code || '').replace(/\D/g, ''),
+        phone: (customerData?.phone || '').replace(/\D/g, ''),
+        ie: ie,
+        indIEDest: indIEDest,
+      },
+      items: items.map(item => ({
+        productName: item.product_name,
+        quantity: item.quantity,
+        priceAtSale: item.price_at_sale,
+        ncm: item.ncm || '22019000',
+        cfop: item.cfop || '5101',
+      })),
+    });
 
-  if (resultado.success) {
-    await updateSaleNfeStatus(
-      saleId,
-      'autorizada',
-      resultado.invoiceKey,
-      resultado.invoiceUrl,
-      resultado.nfeNumber,
-      resultado.nfeXml,
-    );
-  } else {
+    if (resultado.success) {
+      await updateSaleNfeStatus(
+        saleId,
+        'autorizada',
+        resultado.invoiceKey,
+        resultado.invoiceUrl,
+        resultado.nfeNumber,
+        resultado.nfeXml,
+      );
+    } else {
+      await updateSaleNfeStatus(saleId, 'erro', undefined, undefined, nNF);
+      if (isNewNnf) {
+        await cancelNnf();
+      }
+    }
+
+    return resultado;
+  } catch (error) {
+    console.error(`[NfeGenerator] Exceção durante emissão de NF-e para venda ${saleId}:`, error);
     await updateSaleNfeStatus(saleId, 'erro', undefined, undefined, nNF);
-    await cancelNnf();
+    if (isNewNnf) {
+      await cancelNnf();
+    }
+    throw error;
   }
-
-  return resultado;
 }
 
 export async function generateNfeXml(
@@ -318,6 +337,10 @@ export async function generateNfeXml(
       invoiceUrl: sale.invoice_url || undefined,
       nfeNumber: sale.nfe_number || undefined,
     };
+  }
+
+  if (sale.nfe_status === 'pendente_emissao') {
+    console.log(`[NfeGenerator] Venda ${saleId} encontra-se em status 'pendente_emissao'. Retentando emissão com nNF=${sale.nfe_number}...`);
   }
 
   if (IS_MOCK_LOCAL) {

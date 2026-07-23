@@ -4,11 +4,11 @@ export const EnderecoSchema = z.object({
   xLgr: z.string().min(1).max(60).default('RUA NAO INFORMADA'),
   nro: z.string().max(60).default('S/N'),
   xBairro: z.string().max(60).default('CENTRO'),
-  cMun: z.string().length(7).default('2927408'),
+  cMun: z.number().int().default(2927408),
   xMun: z.string().max(60).default('IBOTIRAMA'),
   UF: z.string().length(2).default('BA'),
   CEP: z.string().regex(/^\d{8}$/).default('47520000'),
-  cPais: z.string().default('1058'),
+  cPais: z.number().int().default(1058),
   xPais: z.string().default('BRASIL'),
   fone: z.string().max(14).default(''),
 });
@@ -16,24 +16,24 @@ export const EnderecoSchema = z.object({
 export type Endereco = z.infer<typeof EnderecoSchema>;
 
 export const IdeSchema = z.object({
-  cUF: z.string().default('29'),
+  cUF: z.number().int().default(29),
   natOp: z.string().min(1).default('Venda de mercadoria'),
-  mod: z.string().default('55'),
+  mod: z.number().int().default(55),
   serie: z.string().min(1).max(3),
-  nNF: z.string().min(1).max(9),
+  nNF: z.union([z.string(), z.number()]),
   dhEmi: z.string().min(1),
-  tpNF: z.enum(['0', '1']).default('1'),
-  idDest: z.enum(['1', '2', '3']).default('1'),
-  cMunFG: z.string().length(7).default('2927408'),
-  tpImp: z.enum(['1', '2', '3', '4']).default('1'),
-  tpEmis: z.enum(['1', '2', '3', '4', '5', '6', '7', '8', '9']).default('1'),
+  tpNF: z.number().int().default(1),
+  idDest: z.number().int().default(1),
+  cMunFG: z.number().int().default(2927408),
+  tpImp: z.number().int().default(1),
+  tpEmis: z.number().int().default(1),
   tpAmb: z.union([z.literal(1), z.literal(2)]),
-  finNFe: z.enum(['1', '2', '3']).default('1'),
-  indFinal: z.enum(['0', '1']),
-  indPres: z.enum(['0', '1', '2', '3', '4', '5', '9']).default('1'),
-  procEmi: z.enum(['0', '1', '2', '3']).default('0'),
+  finNFe: z.number().int().default(1),
+  indFinal: z.number().int(),
+  indPres: z.number().int().default(1),
+  procEmi: z.number().int().default(0),
   verProc: z.string().min(1).max(20),
-  cMunFGIBS: z.string().length(7).default('2927408'),
+  cMunFGIBS: z.number().int().default(2927408),
 });
 
 export type Ide = z.infer<typeof IdeSchema>;
@@ -52,7 +52,7 @@ export const ProdSchema = z.object({
   uTrib: z.string().max(6).default('UN'),
   qTrib: z.number().positive(),
   vUnTrib: z.number().nonnegative(),
-  indTot: z.enum(['0', '1']).default('1'),
+  indTot: z.union([z.enum(['0', '1']), z.number().int()]).default('1'),
 });
 
 export type Prod = z.infer<typeof ProdSchema>;
@@ -60,7 +60,7 @@ export type Prod = z.infer<typeof ProdSchema>;
 export const ImpostoSchema = z.object({
   ICMS: z.object({
     ICMSSN102: z.object({
-      orig: z.enum(['0', '1', '2', '3', '4', '5', '6', '7', '8']).default('0'),
+      orig: z.union([z.enum(['0', '1', '2', '3', '4', '5', '6', '7', '8']), z.number().int()]).default('0'),
       CSOSN: z.string(),
     }),
   }),
@@ -88,7 +88,7 @@ export const EmitSchema = z.object({
   enderEmit: EnderecoSchema,
   IE: z.string().regex(/^\d{2,14}$/).optional(),
   IEST: z.string().optional(),
-  CRT: z.enum(['1', '2', '3']).default('1'),
+  CRT: z.number().int().default(1),
 });
 
 export type Emit = z.infer<typeof EmitSchema>;
@@ -153,7 +153,7 @@ export const InfNFeSchema = z.object({
     ICMSTot: ICMSTotSchema,
     IBSCBSTot: IBSCBSTotSchema.optional(),
   }),
-  transp: z.object({ modFrete: z.enum(['0', '1', '2', '3', '4', '5', '9']).default('9') }),
+  transp: z.object({ modFrete: z.union([z.enum(['0', '1', '2', '3', '4', '5', '9']), z.number().int()]).default('9') }),
   pag: z.object({
     detPag: z.union([
       z.object({
