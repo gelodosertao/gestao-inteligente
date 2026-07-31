@@ -85,10 +85,21 @@ Thumbs.db
 certs/
 certificates/
 
-# Temporary scripts and logs
+# Temporary scripts, logs, and audit diagnostics
 *.log
 *.txt
+tsc_output.txt
+tmp_names.txt
+audit*.cjs
+audit*.js
 fix_*.cjs
 fix_*.js
-database/  
- 
+test.cjs
+test.js
+recover.py
+temp_types.ts
+query_*.ts
+update_*.ts
+remove_*.ts
+list_*.ts
+*.pdf

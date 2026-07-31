@@ -22,6 +22,9 @@
     "paths": {
       "@/*": [
         "./*"
+      ],
+      "@supabase/supabase-js": [
+        "./node_modules/@supabase/supabase-js"
       ]
     },
     "allowImportingTsExtensions": true,
@@ -35,6 +38,15 @@
     "**/*.tsx"
   ],
   "exclude": [
-    "node_modules"
+    "**/node_modules",
+    "**/node_modules/**",
+    "node_modules",
+    "nfe_service",
+    "nfe_service/**",
+    "components/painel-logistica",
+    "components/painel-logistica/**",
+    "supabase",
+    "supabase/**",
+    "dist"
   ]
 }

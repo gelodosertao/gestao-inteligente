@@ -345,7 +345,7 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
 
       comboItems: newProductData.comboItems && newProductData.comboItems.length > 0 ? newProductData.comboItems : undefined,
       options: newProductData.options && newProductData.options.length > 0 ? newProductData.options : undefined,
-      image: newProductData.image || null,
+      image: newProductData.image || undefined,
       barcode: newProductData.barcode || undefined
     };
 

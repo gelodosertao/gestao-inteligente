@@ -4,8 +4,9 @@ import { env } from '../config/env';
 import { NFe } from '@treeunfe/nfe';
 import type { NFe as NFePayload } from '@treeunfe/types';
 import { NFeEnvelopeSchema } from '../types/nfe-schemas';
-import { retryWithBackoff, buildXmlFromJson } from '../utils/nfe-utils';
+import { retryWithBackoff, buildXmlFromJson, gerarCNF, formatNfeDateTime } from '../utils/nfe-utils';
 import { resolveCityIbge, truncateString } from '../utils/ibge-utils';
+import { logger } from '../utils/logger';
 
 interface StatusServicoResponse {
   status: string;
@@ -14,6 +15,11 @@ interface StatusServicoResponse {
   uf: string;
   dataHora: string;
   tempoMedio?: string;
+}
+
+function maskKey(key: string): string {
+  if (!key || key.length < 10) return '***';
+  return `${key.substring(0, 6)}...${key.substring(key.length - 4)}`;
 }
 
 export interface NfeEmitirParams {
@@ -60,19 +66,19 @@ function ensureResourcesDir(): void {
   if (fs.existsSync(brokenDir)) return;
 
   if (!fs.existsSync(actualDir)) {
-    console.warn('[SefazService] Diretório @treeunfe/shared/resources não encontrado.');
+    logger.warn('[SefazService] Diretório @treeunfe/shared/resources não encontrado.');
     return;
   }
 
   try {
     fs.symlinkSync(actualDir, brokenDir, 'junction');
-    console.log('[SefazService] Symlink criado: node_modules/resources -> @treeunfe/shared/resources');
+    logger.info('[SefazService] Symlink criado: node_modules/resources -> @treeunfe/shared/resources');
   } catch {
     try {
       fs.cpSync(actualDir, brokenDir, { recursive: true, force: false });
-      console.log('[SefazService] Diretório copiado: node_modules/resources <- @treeunfe/shared/resources');
+      logger.info('[SefazService] Diretório copiado: node_modules/resources <- @treeunfe/shared/resources');
     } catch (copyErr) {
-      console.warn('[SefazService] Não foi possível fixar resources path:', copyErr);
+      logger.warn('[SefazService] Não foi possível fixar resources path:', copyErr);
     }
   }
 }
@@ -97,7 +103,7 @@ export class SefazService {
       throw new Error('[SefazService] O buffer do certificado está vazio após decodificação Base64.');
     }
 
-    console.log(`[SefazService] Certificado A1 decodificado (${certBuffer.length} bytes)`);
+    logger.info(`[SefazService] Certificado A1 decodificado (${certBuffer.length} bytes)`);
 
     this.createNfeInstance(certBuffer);
 
@@ -125,7 +131,7 @@ export class SefazService {
   }
 
   async checkStatus(): Promise<StatusServicoResponse> {
-    console.log(`[SefazService] Consultando status do serviço SEFAZ-${this.uf} (ambiente: ${this.ambiente === 1 ? 'Produção' : 'Homologação'})`);
+    logger.info(`[SefazService] Consultando status do serviço SEFAZ-${this.uf} (ambiente: ${this.ambiente === 1 ? 'Produção' : 'Homologação'})`);
 
     try {
       const nfe = this.getOrCreateNFe();
@@ -206,11 +212,12 @@ export class SefazService {
           infNFe: {
             ide: {
               cUF: 29,
+              cNF: gerarCNF(),
               natOp: 'Venda de mercadoria',
               mod: 55,
               serie: truncateString(params.serie, 3, '1'),
               nNF: Number(params.nNF),
-              dhEmi: new Date().toISOString(),
+              dhEmi: formatNfeDateTime(),
               tpNF: 1,
               idDest: 1,
               cMunFG: cityInfo.cMun,
@@ -222,8 +229,8 @@ export class SefazService {
               indPres: 1,
               procEmi: 0,
               verProc: truncateString('Geleiro PRO NF-e 1.0', 20),
-              cMunFGIBS: cityInfo.cMun,
             },
+
             emit: {
               CNPJCPF: this.cnpj,
               xNome: truncateString('GDS PRODUTOS ALIMENTICIOS LTDA', 60),
@@ -316,7 +323,7 @@ export class SefazService {
 
       const validatedPayload: NFePayload = NFeEnvelopeSchema.parse(nfePayload) as unknown as NFePayload;
 
-      console.log('[SefazService] Enviando NF-e para autorização SEFAZ...');
+      logger.info('[SefazService] Enviando NF-e para autorização SEFAZ...');
       const resultado = await retryWithBackoff(
         () => nfe.Autorizacao(validatedPayload),
         { maxRetries: 2, baseDelayMs: 2000 }
@@ -348,7 +355,7 @@ export class SefazService {
           }
         }
 
-        console.log(`[SefazService] NF-e autorizada: ${chave} (nProt: ${nProt}, cStat: ${cStat})`);
+        logger.info(`[SefazService] NF-e autorizada: (nProt: ${nProt}, cStat: ${cStat})`);
 
         return {
           success: true,
@@ -363,7 +370,7 @@ export class SefazService {
       if (cStat === '539') {
         const chave = prot.infProt.chNFe || '';
         const nProt = prot.infProt.nProt || '';
-        console.log(`[SefazService] NF-e duplicata (cStat=539). Recuperando autorização existente: ${chave}`);
+        logger.info(`[SefazService] NF-e duplicata (cStat=539). Recuperando autorização existente`);
 
         return {
           success: true,
@@ -374,7 +381,7 @@ export class SefazService {
         };
       }
 
-      console.error(`[SefazService] NF-e rejeitada (cStat=${cStat}): ${xMotivo}`);
+      logger.error(`[SefazService] NF-e rejeitada (cStat=${cStat}): ${xMotivo}`);
 
       return {
         success: false,
@@ -398,7 +405,7 @@ export class SefazService {
   }
 
   async cancelarNFe(chNFe: string, nProt: string, justificativa: string): Promise<{ success: boolean; message: string }> {
-    console.log(`[SefazService] Cancelando NF-e: ${chNFe}`);
+    console.log(`[SefazService] Cancelando NF-e: ${maskKey(chNFe)}`);
 
     try {
       const nfe = this.getOrCreateNFe();
@@ -429,7 +436,7 @@ export class SefazService {
       const xMotivo = primeiro?.xMotivo || '';
 
       if (cStat === '101' || cStat === '135' || cStat === '155') {
-        console.log(`[SefazService] NF-e cancelada: ${chNFe} (cStat=${cStat})`);
+        console.log(`[SefazService] NF-e cancelada: ${maskKey(chNFe)} (cStat=${cStat})`);
         return { success: true, message: `NF-e cancelada: ${xMotivo}` };
       }
 

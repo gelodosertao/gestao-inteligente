@@ -46,7 +46,10 @@ app.use(express.json({ limit: '10mb' }));
 
 function authMiddleware(req: Request, res: Response, next: NextFunction): void {
   if (!AUTH_TOKEN) {
-    next();
+    res.status(503).json({
+      sucesso: false,
+      erro: 'Serviço indisponível: API_AUTH_TOKEN não configurado no servidor.',
+    });
     return;
   }
 
@@ -289,8 +292,9 @@ const TEMP_DIR = path.resolve(__dirname, '../temp');
 cleanupTempFiles(TEMP_DIR);
 setInterval(() => cleanupTempFiles(TEMP_DIR), 30 * 60 * 1000);
 
-const server = app.listen(PORT, '0.0.0.0', () => {
-  console.log(`[server] Microserviço NF-e rodando em 0.0.0.0:${PORT}`);
+const HOST = process.env.SERVER_HOST || '127.0.0.1';
+const server = app.listen(PORT, HOST, () => {
+  console.log(`[server] Microserviço NF-e rodando em ${HOST}:${PORT}`);
   console.log(`[server] GET /api/nfe/status`);
   console.log(`[server] POST /api/nfe/emitir/:sale_id`);
   console.log(`[server] POST /api/nfe/danfe/:sale_id`);

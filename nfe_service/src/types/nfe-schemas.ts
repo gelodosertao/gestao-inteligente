@@ -17,6 +17,7 @@ export type Endereco = z.infer<typeof EnderecoSchema>;
 
 export const IdeSchema = z.object({
   cUF: z.number().int().default(29),
+  cNF: z.string().length(8),
   natOp: z.string().min(1).default('Venda de mercadoria'),
   mod: z.number().int().default(55),
   serie: z.string().min(1).max(3),
@@ -33,7 +34,6 @@ export const IdeSchema = z.object({
   indPres: z.number().int().default(1),
   procEmi: z.number().int().default(0),
   verProc: z.string().min(1).max(20),
-  cMunFGIBS: z.number().int().default(2927408),
 });
 
 export type Ide = z.infer<typeof IdeSchema>;

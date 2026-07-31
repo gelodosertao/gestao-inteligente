@@ -4,7 +4,7 @@ import { env } from '../config/env';
 import { getSaleWithItems, findCustomerByDoc, updateSaleNfeStatus } from './SupabaseService';
 import { SefazService, type NfeEmitirResult } from './SefazService';
 import { getNextNnf, cancelNnf } from './NfeCounterService';
-import { buildXmlFromJson, montarChaveAcesso, gerarCNF } from '../utils/nfe-utils';
+import { buildXmlFromJson, montarChaveAcesso, gerarCNF, formatNfeDateTime, formatNfeAaMm } from '../utils/nfe-utils';
 
 const IS_MOCK_LOCAL = process.env.MOCK_LOCAL_ONLY === 'true';
 
@@ -97,7 +97,7 @@ async function sandboxEmit(saleId: string, customerDoc: string): Promise<NfeEmit
   const cNF = gerarCNF();
   const chave44 = montarChaveAcesso({
     cUF: '29',
-    aaMm: new Date().toISOString().slice(2, 7).replace('-', ''),
+    aaMm: formatNfeAaMm(),
     cnpj: env.cnpjEmitente,
     mod: '55',
     serie: '1',
@@ -123,8 +123,8 @@ async function sandboxEmit(saleId: string, customerDoc: string): Promise<NfeEmit
             mod: '55',
             serie: '1',
             nNF,
-            dhEmi: new Date().toISOString(),
-            dhSaiEnt: new Date().toISOString(),
+            dhEmi: formatNfeDateTime(),
+            dhSaiEnt: formatNfeDateTime(),
             tpNF: '1',
             idDest: '1',
             cMunFG: '2927408',
@@ -205,7 +205,7 @@ async function sandboxEmit(saleId: string, customerDoc: string): Promise<NfeEmit
         '@versao': '4.00',
         infProt: {
           chNFe: chave44,
-          dhRecbto: new Date().toISOString(),
+          dhRecbto: formatNfeDateTime(),
           nProt: 'SBX000000000000',
           digVal: 'SANDBOX_MOCK_DIGEST',
           cStat: '100',

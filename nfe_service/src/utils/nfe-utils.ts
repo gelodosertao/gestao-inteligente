@@ -94,6 +94,26 @@ export function buildXmlFromJson(data: Record<string, any>): string {
   return `<?xml version="1.0" encoding="UTF-8"?>\n${xml}`;
 }
 
+export function formatNfeDateTime(date: Date = new Date()): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  const hh = String(date.getHours()).padStart(2, '0');
+  const mm = String(date.getMinutes()).padStart(2, '0');
+  const ss = String(date.getSeconds()).padStart(2, '0');
+  const tz = -date.getTimezoneOffset();
+  const tzSign = tz >= 0 ? '+' : '-';
+  const tzHours = String(Math.floor(Math.abs(tz) / 60)).padStart(2, '0');
+  const tzMin = String(Math.abs(tz) % 60).padStart(2, '0');
+  return `${y}-${m}-${d}T${hh}:${mm}:${ss}${tzSign}${tzHours}:${tzMin}`;
+}
+
+export function formatNfeAaMm(date: Date = new Date()): string {
+  const y = String(date.getFullYear()).slice(2);
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  return `${y}${m}`;
+}
+
 const TEMP_MAX_AGE_MS = 60 * 60 * 1000;
 
 export async function retryWithBackoff<T>(

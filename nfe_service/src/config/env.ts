@@ -93,14 +93,20 @@ function validateEnv(): EnvConfig {
     throw new Error(`[FAIL-FAST] SEFAZ_TIMEOUT_MS inválido: ${timeoutRaw}. Deve ser entre 5000 e 300000 ms.`);
   }
 
-  const serverCorsOrigin = process.env.SERVER_CORS_ORIGIN || '*';
+  const serverCorsOrigin = process.env.SERVER_CORS_ORIGIN || 'http://localhost:5173,http://localhost:3000';
 
   const isProduction = parseInt(ambiente, 10) === 1;
 
-  if (isProduction && serverCorsOrigin === '*') {
-    throw new Error(
-      '[FAIL-FAST] SERVER_CORS_ORIGIN não pode ser "*" em produção. Defina a origem exata (ex: https://meudominio.com).'
-    );
+  if (serverCorsOrigin === '*') {
+    if (isProduction) {
+      throw new Error(
+        '[FAIL-FAST] SERVER_CORS_ORIGIN não pode ser "*" em produção. Defina as origens permitidas explicitamente.'
+      );
+    } else {
+      console.warn(
+        '[WARN] SERVER_CORS_ORIGIN está configurado como "*". Para maior segurança, especifique as origens permitidas.'
+      );
+    }
   }
 
   const apiAuthToken = process.env.API_AUTH_TOKEN || '';

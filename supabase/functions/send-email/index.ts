@@ -14,6 +14,14 @@ serve(async (req) => {
     }
 
     try {
+        const authHeader = req.headers.get("Authorization") || req.headers.get("authorization");
+        if (!authHeader || !authHeader.startsWith("Bearer ")) {
+            return new Response(JSON.stringify({ error: "Não autorizado: Token JWT de autenticação ausente" }), {
+                headers: { ...corsHeaders, "Content-Type": "application/json" },
+                status: 401,
+            });
+        }
+
         if (!BREVO_API_KEY) {
             throw new Error("BREVO_API_KEY não configurada Edge Function");
         }
