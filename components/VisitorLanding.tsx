@@ -1,6 +1,9 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion, Variants } from 'framer-motion';
 import Ice3DBackground from './Ice3DBackground';
+import ScrollProgress from './ScrollProgress';
+import ImageWithSkeleton from './ImageWithSkeleton';
 import {
   Snowflake, MapPin, Phone, Instagram, Clock,
   ShieldCheck, Truck, Droplets, Award, Building2, Users,
@@ -58,64 +61,50 @@ const navLinks = [
   { href: '#contato', label: 'Contato' },
 ];
 
-function useInView(threshold = 0.15) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [inView, setInView] = useState(false);
+const fadeInUp: Variants = {
+  hidden: { opacity: 0, y: 40 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.8, ease: "easeOut" } }
+};
 
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      setInView(true);
-      return;
+const staggerContainer: Variants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1
     }
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setInView(true);
-          observer.unobserve(el);
-        }
-      },
-      { threshold }
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [threshold]);
-
-  return [ref, inView] as const;
-}
+  }
+};
 
 function AnimatedSection({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  const [ref, inView] = useInView();
   return (
-    <div
-      ref={ref}
-      className={`transition-all duration-1000 ease-out ${
-        inView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12'
-      } ${className}`}
+    <motion.div
+      variants={fadeInUp}
+      initial="hidden"
+      whileInView="visible"
+      viewport={{ once: true, margin: "-100px" }}
+      className={className}
     >
       {children}
-    </div>
+    </motion.div>
   );
 }
 
 function StaggeredGrid({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  const [ref, inView] = useInView(0.1);
   return (
-    <div ref={ref} className={className}>
-      {React.Children.map(children, (child, i) => (
-        <div
-          className={`transition-all duration-700 ease-out ${
-            inView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
-          }`}
-          style={{ transitionDelay: `${i * 100}ms` }}
-        >
+    <motion.div
+      variants={staggerContainer}
+      initial="hidden"
+      whileInView="visible"
+      viewport={{ once: true, margin: "-100px" }}
+      className={className}
+    >
+      {React.Children.map(children, (child) => (
+        <motion.div variants={fadeInUp}>
           {child}
-        </div>
+        </motion.div>
       ))}
-    </div>
+    </motion.div>
   );
 }
 
@@ -150,6 +139,7 @@ const VisitorLanding: React.FC = () => {
 
   return (
     <div className="min-h-dvh w-full bg-white text-slate-800 font-sans overflow-x-hidden">
+      <ScrollProgress />
       <header className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <a href="/" className="flex items-center gap-2" aria-label="Gelo do Sertão - Página inicial">
@@ -423,14 +413,12 @@ const VisitorLanding: React.FC = () => {
                   </div>
                 </div>
                 <div className="relative">
-                  <div className="aspect-[4/3] rounded-[32px] overflow-hidden shadow-xl border border-slate-100">
-                    <img
+                  <div className="aspect-[4/3] rounded-[32px] overflow-hidden shadow-xl border border-slate-100 bg-slate-100">
+                    <ImageWithSkeleton
                       src="/gelo-cubo.jpg"
                       alt="Produção de gelo cristalino Gelo do Sertão - pureza e qualidade"
-                      width="600"
-                      height="450"
                       className="w-full h-full object-cover"
-                      loading="lazy"
+                      containerClassName="w-full h-full"
                     />
                   </div>
                   <div className="absolute -bottom-4 -left-4 bg-white border border-slate-100 rounded-2xl p-4 md:p-6 shadow-xl">
@@ -457,17 +445,15 @@ const VisitorLanding: React.FC = () => {
               <StaggeredGrid className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                 {segments.map((seg, i) => (
                   <div key={i} className="group cursor-default">
-                    <div className="relative aspect-[3/4] rounded-[24px] overflow-hidden border border-slate-100 hover:border-blue-200 hover:shadow-lg transition-all duration-500">
-                      <img
+                    <div className="relative aspect-[3/4] rounded-[24px] overflow-hidden border border-slate-100 hover:border-blue-200 hover:shadow-lg transition-all duration-500 bg-slate-100">
+                      <ImageWithSkeleton
                         src={seg.image}
                         alt={`Atendimento Gelo do Sertão para ${seg.name} - confiança e qualidade`}
-                        width="400"
-                        height="533"
                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                        loading="lazy"
+                        containerClassName="w-full h-full"
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-slate-900/20 to-transparent"></div>
-                      <div className="absolute bottom-0 left-0 right-0 p-4">
+                      <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-slate-900/20 to-transparent pointer-events-none"></div>
+                      <div className="absolute bottom-0 left-0 right-0 p-4 pointer-events-none">
                         <h3 className="font-bold text-lg text-white">{seg.name}</h3>
                       </div>
                     </div>

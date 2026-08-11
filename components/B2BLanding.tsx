@@ -1,7 +1,10 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { ArrowRight, CheckCircle2, ChevronRight, Play, Snowflake, Truck, MapPin, Phone, Instagram } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import SegmentCard from './SegmentCard';
+import ScrollProgress from './ScrollProgress';
+import ImageWithSkeleton from './ImageWithSkeleton';
 
 const FLAVORS = [
   { src: '/morango.png', name: 'Morango' },
@@ -76,6 +79,7 @@ const B2BLanding: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans selection:bg-blue-500 selection:text-white">
+      <ScrollProgress />
       {/* Navbar (Glassmorphism) */}
       <nav className={`fixed top-0 w-full z-50 transition-all duration-300 ${scrolled ? 'bg-slate-900/80 backdrop-blur-md shadow-lg py-4' : 'bg-transparent py-6'}`}>
         <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
@@ -107,14 +111,19 @@ const B2BLanding: React.FC = () => {
                 <source src="/seu-video-hero.mp4" type="video/mp4" />
               </video> 
           */}
-          <img src="/fundo-headline.webp" alt="Gelo do Sertão Capa" className="w-full h-full object-cover" fetchPriority="high" />
+          <ImageWithSkeleton src="/fundo-headline.webp" alt="Gelo do Sertão Capa" className="w-full h-full object-cover" containerClassName="w-full h-full" fetchPriority="high" />
           {/* Overlay escuro para garantir leitura */}
           <div className="absolute inset-0 bg-slate-900/60" />
           <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/80 to-transparent" />
         </div>
 
-        <div className="relative z-10 max-w-7xl mx-auto px-6 text-center mt-20">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-cyan-300 font-semibold text-sm mb-8 animate-fade-in-up">
+        <motion.div 
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, ease: "easeOut" }}
+          className="relative z-10 max-w-7xl mx-auto px-6 text-center mt-20"
+        >
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-cyan-300 font-semibold text-sm mb-8">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500"></span>
@@ -148,7 +157,7 @@ const B2BLanding: React.FC = () => {
               Ver Produtos
             </button>
           </div>
-        </div>
+        </motion.div>
       </section>
 
       {/* Products Section */}
@@ -179,8 +188,8 @@ const B2BLanding: React.FC = () => {
                       .overflow-x-auto::-webkit-scrollbar { display: none; }
                     `}</style>
                     {FLAVORS.map((flavor, idx) => (
-                      <div key={idx} className="snap-center shrink-0 relative group/pack hover:-translate-y-4 transition-transform duration-500 cursor-grab active:cursor-grabbing">
-                        <img src={flavor.src} alt={`Gelo de ${flavor.name}`} className="h-56 md:h-80 w-auto object-contain drop-shadow-[0_20px_20px_rgba(0,0,0,0.5)]" fetchPriority="high" />
+                      <div key={idx} className="snap-center shrink-0 relative group/pack hover:-translate-y-4 transition-transform duration-500 cursor-grab active:cursor-grabbing w-auto h-56 md:h-80">
+                        <ImageWithSkeleton src={flavor.src} alt={`Gelo de ${flavor.name}`} className="h-full w-auto object-contain drop-shadow-[0_20px_20px_rgba(0,0,0,0.5)]" containerClassName="h-full" fetchPriority="high" />
                         <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 md:opacity-0 group-hover/pack:opacity-100 transition-opacity bg-slate-800 text-white text-xs md:text-sm font-bold px-4 py-2 rounded-full whitespace-nowrap shadow-xl border border-slate-700">
                           {flavor.name}
                         </div>
@@ -242,10 +251,16 @@ const B2BLanding: React.FC = () => {
             </div>
 
             <div className="relative">
-              <div className="aspect-square rounded-[3rem] overflow-hidden bg-slate-100 relative shadow-2xl">
-                <img src="/freezer-gelo.svg" alt="Equipe Gelo do Sertão" className="w-full h-full object-cover" />
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.6, ease: "easeOut" }}
+                className="aspect-square rounded-[3rem] overflow-hidden bg-slate-100 relative shadow-2xl"
+              >
+                <ImageWithSkeleton src="/freezer-gelo.svg" alt="Equipe Gelo do Sertão" className="w-full h-full object-cover" containerClassName="w-full h-full" />
                 <div className="absolute inset-0 bg-gradient-to-tr from-blue-900/60 to-transparent pointer-events-none" />
-              </div>
+              </motion.div>
 
               {/* Floating Stat Card */}
               <div className="absolute -bottom-8 -left-8 bg-white p-6 rounded-3xl shadow-xl border border-slate-100 max-w-xs animate-bounce-slow">
