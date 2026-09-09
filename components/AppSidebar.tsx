@@ -1,5 +1,8 @@
 import React from 'react';
 import { LayoutDashboard, Package, ShoppingCart, DollarSign, Sparkles, Settings, LogOut, Users, Calculator, ChevronLeft, ChevronRight, Factory, Globe, Truck, PieChart, Lock, TrendingUp, Store, PartyPopper } from 'lucide-react';
+import * as Avatar from '@radix-ui/react-avatar';
+import * as Separator from '@radix-ui/react-separator';
+import * as Tooltip from '@radix-ui/react-tooltip';
 import { Link } from 'react-router-dom';
 import { ViewState, User } from '../types';
 
@@ -71,7 +74,7 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, setView, currentUs
   });
 
   return (
-    <>
+    <Tooltip.Provider delayDuration={250} skipDelayDuration={100}>
       {/* MOBILE BACKDROP */}
       {isMobileMenuOpen && (
         <div
@@ -83,19 +86,19 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, setView, currentUs
       {/* SIDEBAR (Desktop & Mobile Drawer) */}
       <div className={`
         fixed left-0 top-0 z-50 h-dvh flex flex-col 
-        bg-gai-navy text-white shadow-2xl border-r border-white/5
+        brand-sidebar text-white shadow-2xl border-r border-white/10
         transition-all duration-300 ease-in-out pt-safe
         ${isMobileMenuOpen ? 'translate-x-0 w-72' : '-translate-x-full md:translate-x-0'}
         ${isCollapsed ? 'md:w-20' : 'md:w-64'}
       `}>
         <div className="flex flex-col items-center justify-center relative shrink-0 transition-all duration-300">
-          <div className={`w-full bg-white flex flex-col items-center border-b border-slate-200 transition-all duration-500 ${isCollapsed ? 'p-1.5 h-16' : 'p-4 h-32'}`}>
+          <div className={`brand-sidebar__header w-full flex flex-col items-center transition-all duration-500 ${isCollapsed ? 'p-1.5 h-16' : 'p-4 h-28'}`}>
             {/* Logo Container - Persists on Collapse */}
             <div className={`relative z-10 w-full h-full flex items-center justify-center select-none duration-500`}>
               <img
                 src="/logo.png"
                 alt="Gelo do Sertão"
-                className={`object-contain transition-all duration-500 drop-shadow-sm ${isCollapsed ? 'max-h-[66px] max-w-[90%] w-auto' : 'max-h-32 w-auto'}`}
+                className={`object-contain transition-all duration-500 drop-shadow-sm ${isCollapsed ? 'max-h-[58px] max-w-[90%] w-auto' : 'max-h-24 w-auto'}`}
               />
             </div>
           </div>
@@ -118,7 +121,7 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, setView, currentUs
           <button
             onClick={toggleSidebar}
             className={`hidden md:flex absolute z-50 top-1/2 -right-4 -translate-y-1/2 
-              w-8 h-8 rounded-full bg-gai-navy text-white shadow-xl
+              w-8 h-8 rounded-lg bg-blue-950 text-white shadow-xl
               items-center justify-center hover:bg-gai-tech transition-all duration-300
               border border-white/20
             `}
@@ -132,35 +135,43 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, setView, currentUs
           {visibleItems.map((item) => {
             const isActive = currentView === item.id;
             return (
-              <Link
-                key={item.id}
-                to={getPathForView(item.id)}
-                onClick={() => { closeMobileMenu?.(); }}
-                className={`w-full flex items-center justify-start gap-3 p-3 rounded-xl transition-all duration-300 group relative active-scale touch-target
-                  ${isActive
-                    ? 'bg-gai-tech text-white shadow-lg shadow-gai-tech/20'
-                    : 'text-slate-400 hover:bg-white/5 hover:text-white'
-                  }
-                  ${isCollapsed ? 'md:justify-center' : ''}
-                `}
-                title={isCollapsed ? item.label : ''}
-              >
-                <item.icon size={20} className={`shrink-0 transition-transform duration-300 ${isActive ? 'text-white scale-110' : 'group-hover:scale-110'}`} />
-                <span className={`font-semibold text-sm whitespace-nowrap transition-all duration-300 ${isCollapsed ? 'md:opacity-0 md:w-0' : 'opacity-100'}`}>{item.label}</span>
-                {isActive && <div className={`absolute right-3 w-1 h-4 rounded-full bg-white/30 ${isCollapsed ? 'md:hidden' : 'block'}`} />}
+              <Tooltip.Root key={item.id}>
+                <Tooltip.Trigger asChild>
+                  <Link
+                    to={getPathForView(item.id)}
+                    onClick={() => { closeMobileMenu?.(); }}
+                    className={`brand-nav-item w-full flex items-center justify-start gap-3 p-3 rounded-xl transition-all duration-200 group relative active-scale touch-target
+                      ${isActive ? 'text-white' : 'text-blue-100/70 hover:text-white'}
+                      ${isCollapsed ? 'md:justify-center' : ''}
+                    `}
+                    data-active={isActive}
+                    aria-current={isActive ? 'page' : undefined}
+                  >
+                    <item.icon size={20} strokeWidth={isActive ? 2.4 : 2} className={`shrink-0 transition-transform duration-200 ${isActive ? 'text-white scale-110' : 'group-hover:scale-110'}`} />
+                    <span className={`font-semibold text-sm whitespace-nowrap transition-all duration-300 ${isCollapsed ? 'md:opacity-0 md:w-0' : 'opacity-100'}`}>{item.label}</span>
+                    {isActive && <div className={`absolute right-3 w-1 h-5 rounded-full bg-white/45 ${isCollapsed ? 'md:hidden' : 'block'}`} />}
 
-                {/* Pending Badge */}
-                {item.id === 'SALES' && (pendingOrdersCount || 0) > 0 && (
-                  <div className={`absolute right-2 bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-lg border border-white/20 animate-pulse ${isCollapsed ? 'top-1 right-1' : ''}`}>
-                    {pendingOrdersCount}
-                  </div>
+                    {item.id === 'SALES' && (pendingOrdersCount || 0) > 0 && (
+                      <div className={`absolute right-2 bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-lg border border-white/20 animate-pulse ${isCollapsed ? 'top-1 right-1' : ''}`}>
+                        {pendingOrdersCount}
+                      </div>
+                    )}
+                  </Link>
+                </Tooltip.Trigger>
+                {isCollapsed && (
+                  <Tooltip.Portal>
+                    <Tooltip.Content side="right" sideOffset={10} className="brand-tooltip hidden md:block">
+                      {item.label}
+                    </Tooltip.Content>
+                  </Tooltip.Portal>
                 )}
-              </Link>
+              </Tooltip.Root>
             );
           })}
         </nav>
 
-        <div className="p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] border-t border-white/5 space-y-3 bg-black/10 shrink-0">
+        <Separator.Root className="h-px bg-white/10" />
+        <div className="brand-sidebar__footer p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] space-y-3 shrink-0">
           {currentUser.role === 'ADMIN' && (
             <Link
               to={getPathForView('SETTINGS')}
@@ -177,9 +188,9 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, setView, currentUs
           )}
 
           <div className={`flex items-center gap-3 pt-1 ${isCollapsed ? 'md:hidden' : ''}`}>
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-gai-tech to-gai-navy flex items-center justify-center font-bold text-white shadow-lg border border-white/10 shrink-0 capitalize">
-              {currentUser.avatarInitials}
-            </div>
+            <Avatar.Root className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center font-bold text-white shadow-lg border border-white/10 shrink-0 capitalize overflow-hidden">
+              <Avatar.Fallback delayMs={0}>{currentUser.avatarInitials}</Avatar.Fallback>
+            </Avatar.Root>
             <div className="flex-1 overflow-hidden">
               <p className="text-sm font-bold truncate text-white leading-tight">{currentUser.name}</p>
               <p className="text-[10px] text-gai-tech font-black uppercase tracking-widest opacity-70">
@@ -199,7 +210,7 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, setView, currentUs
           </div>
         </div>
       </div>
-    </>
+    </Tooltip.Provider>
   );
 };
 

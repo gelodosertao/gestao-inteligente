@@ -815,7 +815,7 @@ const App: React.FC = () => {
           <Routes>
             <Route path="/pdv-atacado" element={
               <Suspense fallback={<div className="h-dvh w-screen flex items-center justify-center bg-slate-50"><Loader2 size={48} className="animate-spin text-orange-500" /></div>}>
-                <div className="flex w-full min-h-dvh bg-slate-50 text-slate-900 font-sans">
+                <div className="brand-shell app-workspace flex w-full min-h-dvh bg-slate-50 text-slate-900 font-sans">
                   <WholesalePOS
                     products={products}
                     sales={sales}
@@ -834,7 +834,7 @@ const App: React.FC = () => {
 
             <Route path="/pdv-adega" element={
               <Suspense fallback={<div className="h-dvh w-screen flex items-center justify-center bg-slate-50"><Loader2 size={48} className="animate-spin text-orange-500" /></div>}>
-                <div className="flex w-full min-h-dvh bg-slate-50 text-slate-900 font-sans">
+                <div className="brand-shell app-workspace flex w-full min-h-dvh bg-slate-50 text-slate-900 font-sans">
                   <Sales
                     sales={sales}
                     products={products}
@@ -854,25 +854,26 @@ const App: React.FC = () => {
 
             <Route path="*" element={
               <Suspense fallback={<div className="h-dvh w-screen flex items-center justify-center bg-slate-50"><Loader2 size={48} className="animate-spin text-orange-500" /></div>}>
-                <div className="flex w-full min-h-dvh bg-slate-50 text-slate-900 font-sans">
-                  <div className="md:hidden fixed top-0 left-0 right-0 pt-safe glass z-40 shadow-xl">
+                <div className="brand-shell app-workspace flex w-full min-h-dvh bg-slate-50 text-slate-900 font-sans">
+                  <div className="brand-mobile-header md:hidden fixed top-0 left-0 right-0 pt-safe z-40">
                     <div className="h-16 flex items-center justify-between px-4">
                       <div className="flex items-center">
                         <button
                           onClick={() => setIsMobileMenuOpen(true)}
-                          className="text-slate-800 p-2 hover:bg-slate-100 rounded-xl active-scale touch-target"
+                          className="text-blue-950 p-2 hover:bg-blue-50 rounded-xl active-scale touch-target"
+                          aria-label="Abrir menu"
                         >
                           <Menu size={24} />
                         </button>
-                        <span className="ml-3 text-slate-900 font-black text-sm tracking-[0.2em] uppercase">GELO DO SERTÃO</span>
+                        <span className="brand-wordmark ml-3 text-sm uppercase">GELO DO SERTÃO</span>
                         {isNative && (
                           <span className="ml-2 px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold rounded uppercase">App</span>
                         )}
                       </div>
                       <div className="flex items-center gap-3">
                         <ExpirationAlert products={products} />
-                        <div className="bg-orange-500 w-8 h-8 rounded-lg flex items-center justify-center text-white font-black text-xs shadow-lg shadow-orange-500/20">
-                          GS
+                        <div className="bg-white w-10 h-10 rounded-xl flex items-center justify-center shadow-brand border border-blue-100 overflow-hidden">
+                          <img src="/logo.png" alt="" className="h-9 w-9 object-contain" />
                         </div>
                       </div>
                     </div>
