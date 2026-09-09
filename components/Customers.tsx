@@ -1,7 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { User, Customer, Branch } from '../types';
 import { Users, Plus, Upload, Search, Trash2, Save, X, FileText, Edit, ArrowLeft, ArrowUpDown, ArrowUp, ArrowDown, Building2 } from 'lucide-react';
-import { read, utils } from 'xlsx';
 import { CUSTOMER_SEGMENTS } from '../constants';
 import { getFixedFeeByNeighborhood } from '../services/utils';
 
@@ -163,13 +162,64 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
         setShowEditModal(true);
     };
 
+    const parseCSV = (csvText: string): Record<string, string>[] => {
+        const rows: string[][] = [];
+        let row: string[] = [];
+        let value = '';
+        let inQuotes = false;
+
+        for (let i = 0; i < csvText.length; i++) {
+            const char = csvText[i];
+            const next = csvText[i + 1];
+
+            if (char === '"' && inQuotes && next === '"') {
+                value += '"';
+                i++;
+            } else if (char === '"') {
+                inQuotes = !inQuotes;
+            } else if (char === ',' && !inQuotes) {
+                row.push(value.trim());
+                value = '';
+            } else if ((char === '\n' || char === '\r') && !inQuotes) {
+                if (char === '\r' && next === '\n') i++;
+                row.push(value.trim());
+                if (row.some(cell => cell.length > 0)) rows.push(row);
+                row = [];
+                value = '';
+            } else {
+                value += char;
+            }
+        }
+
+        row.push(value.trim());
+        if (row.some(cell => cell.length > 0)) rows.push(row);
+
+        const [headers, ...dataRows] = rows;
+        if (!headers || headers.length === 0) return [];
+
+        return dataRows.map(dataRow => {
+            const record: Record<string, string> = {};
+            headers.forEach((header, index) => {
+                record[header] = dataRow[index] || '';
+            });
+            return record;
+        });
+    };
+
     const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file) return;
 
+        const lowerName = file.name.toLowerCase();
+        if (!lowerName.endsWith('.csv') && !lowerName.endsWith('.xml')) {
+            alert("Formato nao permitido. Importe apenas arquivos CSV ou XML.");
+            if (fileInputRef.current) fileInputRef.current.value = '';
+            return;
+        }
+
         const reader = new FileReader();
 
-        if (file.name.endsWith('.xml')) {
+        if (lowerName.endsWith('.xml')) {
             reader.onload = (e) => {
                 const text = e.target?.result as string;
                 parseXML(text);
@@ -177,19 +227,16 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
             reader.readAsText(file);
         } else {
             reader.onload = (e) => {
-                const data = e.target?.result;
+                const text = e.target?.result as string;
                 try {
-                    const workbook = read(data, { type: 'array' });
-                    const sheetName = workbook.SheetNames[0];
-                    const sheet = workbook.Sheets[sheetName];
-                    const json = utils.sheet_to_json(sheet);
+                    const json = parseCSV(text);
                     processImportedData(json);
                 } catch (error) {
-                    console.error("Erro ao ler arquivo Excel:", error);
-                    alert("Erro ao processar arquivo. Verifique se é um Excel válido.");
+                    console.error("Erro ao ler arquivo CSV:", error);
+                    alert("Erro ao processar arquivo. Verifique se e um CSV valido.");
                 }
             };
-            reader.readAsArrayBuffer(file);
+            reader.readAsText(file);
         }
     };
 
@@ -317,13 +364,13 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
                         onClick={() => fileInputRef.current?.click()}
                         className="bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 px-4 py-2 rounded-lg font-bold flex items-center gap-2 transition-colors"
                     >
-                        <Upload size={18} /> Importar (Excel/XML)
+                        <Upload size={18} /> Importar (CSV/XML)
                     </button>
                     <input
                         type="file"
                         ref={fileInputRef}
                         onChange={handleFileUpload}
-                        accept=".xml,.xlsx,.xls,.csv"
+                        accept=".xml,.csv"
                         className="hidden"
                     />
                     <button

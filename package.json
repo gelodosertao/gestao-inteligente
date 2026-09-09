@@ -35,14 +35,12 @@
     "react-markdown": "^9.0.0",
     "react-router-dom": "^7.13.1",
     "recharts": "^2.12.0",
-    "vite": "^5.4.21",
-    "xlsx": "^0.18.5"
+    "vite": "^5.4.21"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
     "@types/react": "^18.2.56",
     "@types/react-dom": "^18.2.19",
-    "@types/xlsx": "^0.0.35",
     "autoprefixer": "^10.4.17",
     "dotenv": "^17.4.2",
     "postcss": "^8.4.35",

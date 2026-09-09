@@ -615,7 +615,7 @@ const App: React.FC = () => {
   const renderContent = () => {
     if (isLoading) {
       return (
-        <div className="bg-gai-navy p-10 text-center relative overflow-hidden flex flex-col items-center justify-center text-slate-500 gap-4">
+        <div className="panel p-10 text-center relative overflow-hidden flex flex-col items-center justify-center text-slate-500 gap-4">
           <Loader2 size={48} className="animate-spin text-orange-500" />
           <p>Sincronizando dados com a Nuvem...</p>
         </div>
@@ -624,14 +624,14 @@ const App: React.FC = () => {
 
     if (dbError) {
       return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-sky-950 to-slate-900 flex items-center justify-center p-6 relative overflow-hidden">
+        <div className="min-h-screen app-workspace flex items-center justify-center p-6 relative overflow-hidden">
           {/* Background particles */}
           <div className="absolute inset-0 opacity-20">
             <div className="absolute top-1/4 left-1/4 w-32 h-32 bg-blue-400/20 rounded-full blur-3xl animate-pulse"></div>
             <div className="absolute bottom-1/3 right-1/4 w-48 h-48 bg-cyan-400/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
           </div>
 
-          <div className="relative bg-white/5 backdrop-blur-2xl border border-white/10 rounded-3xl p-8 md:p-12 max-w-lg w-full text-center shadow-2xl">
+          <div className="relative panel p-8 md:p-12 max-w-lg w-full text-center">
             {/* Animated Ice Cube SVG */}
             <div className="relative w-32 h-36 mx-auto mb-6 select-none">
               <svg viewBox="0 0 120 140" className="w-full h-full" fill="none">
@@ -681,13 +681,13 @@ const App: React.FC = () => {
               </svg>
             </div>
 
-            <h2 className="text-2xl font-black text-white mb-2">Ops! O gelo derreteu...</h2>
-            <p className="text-sm text-slate-300 mb-6 leading-relaxed">
+            <h2 className="text-2xl font-black text-slate-900 mb-2">Ops! O gelo derreteu...</h2>
+            <p className="text-sm text-slate-600 mb-6 leading-relaxed">
               A conexão com o servidor falhou. Pode ser apenas uma instabilidade passageira.
             </p>
 
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-4 mb-6 text-left">
-              <p className="text-xs text-slate-400 font-mono leading-relaxed">
+            <div className="surface-muted rounded-lg p-4 mb-6 text-left">
+              <p className="text-xs text-slate-500 font-mono leading-relaxed">
                 {dbError}
               </p>
             </div>
@@ -695,7 +695,7 @@ const App: React.FC = () => {
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <button
                 onClick={() => refetch()}
-                className="flex-1 py-3.5 px-6 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-400 hover:to-cyan-400 text-white font-bold rounded-xl text-sm transition-all hover:scale-[1.02] active:scale-98 shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2"
+                className="primary-action flex-1"
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="23 4 23 10 17 10" />
@@ -705,7 +705,7 @@ const App: React.FC = () => {
               </button>
               <button
                 onClick={handleLogout}
-                className="flex-1 py-3.5 px-6 border border-white/10 hover:bg-white/5 text-slate-300 hover:text-white font-bold rounded-xl text-sm transition-all flex items-center justify-center gap-2"
+                className="secondary-action flex-1"
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
@@ -741,7 +741,7 @@ const App: React.FC = () => {
       case 'DASHBOARD':
         if (currentUser?.role !== 'ADMIN' && !(currentUser?.allowedModules || []).includes('DASHBOARD')) {
           return (
-            <div className="flex flex-col items-center justify-center p-12 mt-10 bg-white rounded-2xl shadow-sm border border-slate-200">
+            <div className="flex flex-col items-center justify-center p-12 mt-10 panel">
               <h2 className="text-2xl font-bold text-slate-800 mb-2">Acesso Restrito</h2>
               <p className="text-slate-500">Você não tem permissão para visualizar o Dashboard geral.</p>
             </div>
@@ -776,7 +776,7 @@ const App: React.FC = () => {
         return <FestasRadar />;
       case 'LOGISTICS':
         return (
-          <div className="w-full h-[calc(100vh-10rem)] md:h-[calc(100vh-7rem)] rounded-2xl overflow-hidden border border-slate-200 bg-white shadow-sm">
+          <div className="w-full h-[calc(100vh-10rem)] md:h-[calc(100vh-7rem)] panel overflow-hidden">
             <iframe
               src={import.meta.env.VITE_LOGISTICS_URL || (window.location.hostname === 'localhost' ? 'http://localhost:3000' : '/logistica')}
               className="w-full h-full border-none"
@@ -815,7 +815,8 @@ const App: React.FC = () => {
           <Routes>
             <Route path="/pdv-atacado" element={
               <Suspense fallback={<div className="h-dvh w-screen flex items-center justify-center bg-slate-50"><Loader2 size={48} className="animate-spin text-orange-500" /></div>}>
-                <div className="flex w-full min-h-dvh bg-slate-50 text-slate-900 font-sans">
+                <div className="flex w-full min-h-dvh app-workspace text-slate-900 font-sans">
+                  <a href="#main-content" className="skip-link">Pular para o conteudo</a>
                   <WholesalePOS
                     products={products}
                     sales={sales}
@@ -834,7 +835,7 @@ const App: React.FC = () => {
 
             <Route path="/pdv-adega" element={
               <Suspense fallback={<div className="h-dvh w-screen flex items-center justify-center bg-slate-50"><Loader2 size={48} className="animate-spin text-orange-500" /></div>}>
-                <div className="flex w-full min-h-dvh bg-slate-50 text-slate-900 font-sans">
+                <div className="flex w-full min-h-dvh app-workspace text-slate-900 font-sans">
                   <Sales
                     sales={sales}
                     products={products}
@@ -854,24 +855,24 @@ const App: React.FC = () => {
 
             <Route path="*" element={
               <Suspense fallback={<div className="h-dvh w-screen flex items-center justify-center bg-slate-50"><Loader2 size={48} className="animate-spin text-orange-500" /></div>}>
-                <div className="flex w-full min-h-dvh bg-slate-50 text-slate-900 font-sans">
-                  <div className="md:hidden fixed top-0 left-0 right-0 pt-safe glass z-40 shadow-xl">
+                <div className="flex w-full min-h-dvh app-workspace text-slate-900 font-sans">
+                  <div className="md:hidden fixed top-0 left-0 right-0 pt-safe glass z-40">
                     <div className="h-16 flex items-center justify-between px-4">
                       <div className="flex items-center">
                         <button
                           onClick={() => setIsMobileMenuOpen(true)}
-                          className="text-slate-800 p-2 hover:bg-slate-100 rounded-xl active-scale touch-target"
+                          className="icon-button border-0 bg-transparent shadow-none"
                         >
                           <Menu size={24} />
                         </button>
-                        <span className="ml-3 text-slate-900 font-black text-sm tracking-[0.2em] uppercase">GELO DO SERTÃO</span>
+                        <span className="ml-3 text-slate-900 font-black text-sm uppercase">GELO DO SERTÃO</span>
                         {isNative && (
                           <span className="ml-2 px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold rounded uppercase">App</span>
                         )}
                       </div>
                       <div className="flex items-center gap-3">
                         <ExpirationAlert products={products} />
-                        <div className="bg-orange-500 w-8 h-8 rounded-lg flex items-center justify-center text-white font-black text-xs shadow-lg shadow-orange-500/20">
+                        <div className="bg-orange-600 w-8 h-8 rounded-lg flex items-center justify-center text-white font-black text-xs shadow-lg shadow-orange-500/20">
                           GS
                         </div>
                       </div>
@@ -890,11 +891,11 @@ const App: React.FC = () => {
                     pendingOrdersCount={pendingOrdersCount}
                   />
 
-                  <main className={`flex-1 transition-all duration-300 pb-safe ${currentView === 'SALES' ? 'pt-[calc(4rem+env(safe-area-inset-top))] p-0' : 'pt-[calc(5rem+env(safe-area-inset-top))] px-4 pb-4 md:p-4 lg:p-8'} ${isSidebarCollapsed ? 'md:ml-20' : 'md:ml-20 lg:ml-64'}`}>
+                  <main id="main-content" className={`flex-1 transition-all duration-300 pb-safe ${currentView === 'SALES' ? 'pt-[calc(4rem+env(safe-area-inset-top))] p-0' : 'pt-[calc(5rem+env(safe-area-inset-top))] px-4 pb-4 md:p-4 lg:p-8'} ${isSidebarCollapsed ? 'md:ml-20' : 'md:ml-20 lg:ml-64'}`}>
                     <div className="hidden md:block fixed top-4 right-4 z-50 md:top-6 md:right-8">
                       <ExpirationAlert products={products} />
                     </div>
-                    <div className={`${currentView === 'SALES' ? 'w-full px-2' : 'max-w-7xl mx-auto'} h-full pb-8 md:pb-4`}>
+                    <div className={`${currentView === 'SALES' ? 'w-full px-2' : 'max-w-7xl mx-auto app-page'} h-full pb-8 md:pb-4`}>
                       {renderContent()}
                     </div>
                   </main>

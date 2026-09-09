@@ -9,6 +9,9 @@ interface MenuConfigProps {
     tenantId: string;
 }
 
+const FACEBOOK_PIXEL_ID_REGEX = /^\d{5,30}$/;
+const GOOGLE_TAG_ID_REGEX = /^(G|GT|AW|DC)-[A-Z0-9-]{4,40}$/i;
+
 const MenuConfig: React.FC<MenuConfigProps> = ({ onBack, tenantId }) => {
     const [settings, setSettings] = useState<StoreSettings>({
         id: 'default',
@@ -79,7 +82,22 @@ const MenuConfig: React.FC<MenuConfigProps> = ({ onBack, tenantId }) => {
     const handleSave = async () => {
         setIsSaving(true);
         try {
-            await dbSettings.save(settings, tenantId);
+            const facebookPixelId = settings.facebookPixelId?.trim() || '';
+            const googleTagId = settings.googleTagId?.trim() || '';
+
+            if (facebookPixelId && !FACEBOOK_PIXEL_ID_REGEX.test(facebookPixelId)) {
+                throw new Error("Facebook Pixel ID invalido. Use apenas numeros.");
+            }
+
+            if (googleTagId && !GOOGLE_TAG_ID_REGEX.test(googleTagId)) {
+                throw new Error("Google Tag ID invalido. Use formatos como G-XXXX, GT-XXXX, AW-XXXX ou DC-XXXX.");
+            }
+
+            await dbSettings.save({
+                ...settings,
+                facebookPixelId,
+                googleTagId: googleTagId.toUpperCase(),
+            }, tenantId);
             alert("Configurações salvas com sucesso!");
         } catch (error: any) {
             console.error("Erro ao salvar:", error);

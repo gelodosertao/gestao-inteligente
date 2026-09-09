@@ -98,21 +98,21 @@ const Login: React.FC<LoginProps> = ({ onLogin, onOpenMenu }) => {
 
 
   return (
-    <div className="min-h-dvh w-full bg-slate-100 flex items-start sm:items-center justify-center p-4 pt-safe-offset-4 sm:p-4">
-      <div className="max-w-md w-full bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-500 border border-slate-200">
+    <div className="min-h-dvh w-full app-workspace flex items-start sm:items-center justify-center p-4 pt-safe-offset-4 sm:p-4">
+      <div className="max-w-md w-full panel overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-500">
 
         {/* Header Visual */}
-        <div className="bg-blue-950 p-8 text-center relative overflow-hidden flex flex-col items-center">
+        <div className="bg-slate-950 p-8 text-center relative overflow-hidden flex flex-col items-center border-b border-slate-800">
 
           <div className="absolute -right-10 -top-10 text-orange-500/10">
             <Sun size={200} />
           </div>
 
-          <div className="transform scale-90 md:scale-100 mb-2 filter drop-shadow-2xl">
-            <img src="/logo.png" alt="Gelo do Sertão" className="h-40 w-auto object-contain" />
+          <div className="transform scale-90 md:scale-100 mb-2 filter drop-shadow-2xl bg-white rounded-lg px-5 py-4">
+            <img src="/logo.png" alt="Gelo do Sertão" className="h-32 w-auto object-contain" />
           </div>
 
-          <p className="text-blue-200 text-xs mt-4 font-medium tracking-wider uppercase opacity-80 relative z-20">
+          <p className="text-orange-200 text-xs mt-4 font-bold uppercase opacity-90 relative z-20">
             {isRegistering ? 'Cadastro de Novo Usuário' : 'Acesso ao Sistema'}
           </p>
         </div>
@@ -139,35 +139,35 @@ const Login: React.FC<LoginProps> = ({ onLogin, onOpenMenu }) => {
                 <label className="block text-sm font-medium text-slate-700 mb-1">Nome Completo</label>
                 <div className="relative">
                   <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                  <input type="text" required value={regName} onChange={(e) => setRegName(e.target.value)} className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl outline-none focus:border-orange-500 transition-all" placeholder="Seu Nome" />
+                  <input type="text" required value={regName} onChange={(e) => setRegName(e.target.value)} className="form-field w-full pl-10" placeholder="Seu Nome" />
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">E-mail</label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                  <input type="email" required value={regEmail} onChange={(e) => setRegEmail(e.target.value)} className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl outline-none focus:border-orange-500 transition-all" placeholder="seu@email.com" />
+                  <input type="email" required value={regEmail} onChange={(e) => setRegEmail(e.target.value)} className="form-field w-full pl-10" placeholder="seu@email.com" />
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Senha</label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                  <input type="password" required value={regPassword} onChange={(e) => setRegPassword(e.target.value)} className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl outline-none focus:border-orange-500 transition-all" placeholder="Mínimo 6 caracteres" />
+                  <input type="password" required value={regPassword} onChange={(e) => setRegPassword(e.target.value)} className="form-field w-full pl-10" placeholder="Mínimo 8 caracteres" />
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Perfil</label>
-                <select value={regRole} onChange={(e) => setRegRole(e.target.value as Role)} className="w-full px-4 py-2 border border-slate-200 rounded-xl outline-none focus:border-orange-500 bg-white">
+                <select value={regRole} onChange={(e) => setRegRole(e.target.value as Role)} className="form-field w-full">
                   <option value="OPERATOR">Operador (Caixa/Estoque)</option>
                   <option value="FACTORY">Fábrica (Produção)</option>
                   <option value="WHOLESALE_REPRESENTATIVE">Representante (Vendas Atacado)</option>
                 </select>
               </div>
-              <button type="submit" disabled={loading} className="w-full bg-orange-500 hover:bg-orange-600 text-white py-3 rounded-xl font-bold text-lg shadow-lg shadow-orange-900/20 transition-all mt-4 flex justify-center">
+              <button type="submit" disabled={loading} className="primary-action w-full mt-4 text-base disabled:opacity-70 disabled:cursor-not-allowed">
                 {loading ? <Loader2 className="animate-spin" /> : 'Criar Conta'}
               </button>
-              <button type="button" onClick={() => setIsRegistering(false)} className="w-full text-slate-500 hover:text-slate-700 py-2 font-medium flex items-center justify-center gap-2">
+              <button type="button" onClick={() => setIsRegistering(false)} className="secondary-action w-full">
                 <ArrowLeft size={16} /> Voltar para Login
               </button>
             </form>
@@ -178,7 +178,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onOpenMenu }) => {
                 <label className="block text-sm font-medium text-slate-700 mb-2">E-mail Corporativo</label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-                  <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all" placeholder="seu@email.com" />
+                  <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="form-field w-full pl-10 py-3" placeholder="seu@email.com" />
                 </div>
               </div>
 
@@ -186,14 +186,14 @@ const Login: React.FC<LoginProps> = ({ onLogin, onOpenMenu }) => {
                 <label className="block text-sm font-medium text-slate-700 mb-2">Senha</label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-                  <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all" placeholder="••••••••" />
+                  <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="form-field w-full pl-10 py-3" placeholder="••••••••" />
                 </div>
               </div>
 
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-blue-700 hover:bg-blue-600 text-white py-3 rounded-xl font-bold text-lg shadow-lg shadow-blue-900/20 transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed group"
+                className="primary-action w-full text-base disabled:opacity-70 disabled:cursor-not-allowed group"
               >
                 {loading ? <Loader2 className="animate-spin" /> : <>Entrar <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" /></>}
               </button>

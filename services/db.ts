@@ -311,37 +311,66 @@ export const dbCategories = {
 };
 
 // --- PRODUCTS ---
+const mapProductRow = (row: any): Product => ({
+  id: row.id,
+  name: row.name,
+  category: row.category,
+  priceMatriz: row.price_matriz || 0,
+  priceFilial: row.price_filial || 0,
+  cost: row.cost || 0,
+  stockMatrizIbotirama: row.stock_matriz_ibotirama || 0,
+  stockMatrizBarreiras: row.stock_matriz_barreiras || 0,
+  stockFilial: row.stock_filial || 0,
+  unit: row.unit,
+  minStock: row.min_stock || 0,
+  packSize: row.pack_size,
+  pricePack: row.price_pack,
+  isStockControlled: row.is_stock_controlled,
+  comboItems: row.combo_items,
+  image: row.image,
+  recipe: row.recipe,
+  recipeBatchSize: row.recipe_batch_size,
+  operationalCost: row.operational_cost,
+  options: row.options,
+  barcode: row.barcode,
+  expirationDate: row.expiration_date
+});
+
 export const dbProducts = {
   async getAll(tenantId: string): Promise<Product[]> {
     const data = await fetchAllRecords((from, to) => supabase.from('products').select('*').eq('tenant_id', tenantId).range(from, to));
     
     if (!data) return [];
 
-    return (data || []).map((row: any) => ({
-      id: row.id,
-      name: row.name,
-      category: row.category,
-      priceMatriz: row.price_matriz,
-      priceFilial: row.price_filial,
-      cost: row.cost,
-      stockMatrizIbotirama: row.stock_matriz_ibotirama || 0,
-      stockMatrizBarreiras: row.stock_matriz_barreiras || 0,
-      stockFilial: row.stock_filial,
-      unit: row.unit,
-      minStock: row.min_stock,
-      packSize: row.pack_size,
-      pricePack: row.price_pack,
-      isStockControlled: row.is_stock_controlled,
-      comboItems: row.combo_items,
-      image: row.image,
-      recipe: row.recipe,
-      recipeBatchSize: row.recipe_batch_size,
+    return (data || []).map(mapProductRow);
+  },
 
-      operationalCost: row.operational_cost,
-      options: row.options,
-      barcode: row.barcode,
-      expirationDate: row.expiration_date
-    }));
+  async getPublicMenu(tenantId: string): Promise<Product[]> {
+    const publicColumns = [
+      'id',
+      'name',
+      'category',
+      'price_filial',
+      'stock_filial',
+      'unit',
+      'pack_size',
+      'price_pack',
+      'is_stock_controlled',
+      'combo_items',
+      'image',
+      'options',
+      'tenant_id',
+    ].join(',');
+
+    const data = await fetchAllRecords((from, to) =>
+      supabase
+        .from('products')
+        .select(publicColumns)
+        .eq('tenant_id', tenantId)
+        .range(from, to)
+    );
+
+    return (data || []).map(mapProductRow);
   },
 
   async add(product: Product, tenantId: string) {
@@ -1128,7 +1157,7 @@ export const dbCrm = {
     if (error) throw error;
   },
 
-  // EMAIL SENDING (via Supabase Edge Function + Resend)
+  // EMAIL SENDING (via Supabase Edge Function + Brevo)
   async sendEmail(to: string, subject: string, html: string): Promise<void> {
     const { error } = await supabase.functions.invoke('send-email', {
       body: { to, subject, html }
