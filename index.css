@@ -2,6 +2,16 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --brand-navy: #0b2b63;
+  --brand-blue: #2e5ead;
+  --brand-ice: #57b8f2;
+  --brand-orange: #f28c28;
+  --brand-sun: #f5a340;
+  --brand-earth: #3b2a2a;
+  --brand-snow: #f7f5f0;
+}
+
 @layer utilities {
   .pt-safe {
     padding-top: env(safe-area-inset-top);
@@ -68,7 +78,10 @@ html {
 }
 
 body {
-  font-family: 'Inter', sans-serif;
+  min-height: 100dvh;
+  background: var(--brand-snow);
+  color: var(--brand-navy);
+  font-family: 'Montserrat', ui-sans-serif, system-ui, sans-serif;
   overscroll-behavior: none;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -294,4 +307,181 @@ body {
 .ice-steam:nth-child(3) {
   animation-delay: 1.4s;
   animation-duration: 1.8s;
+}
+
+/* --- GELO DO SERTÃO: BRAND UI SYSTEM --- */
+.brand-shell {
+  position: relative;
+  isolation: isolate;
+  background:
+    radial-gradient(circle at 92% -10%, rgba(245, 163, 64, 0.16), transparent 24rem),
+    radial-gradient(circle at 8% 108%, rgba(87, 184, 242, 0.18), transparent 28rem),
+    var(--brand-snow);
+}
+
+.brand-shell::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.55;
+  background-image:
+    linear-gradient(rgba(46, 94, 173, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(46, 94, 173, 0.035) 1px, transparent 1px);
+  background-size: 32px 32px;
+  mask-image: linear-gradient(to bottom, black, transparent 70%);
+}
+
+.brand-mobile-header {
+  background: rgba(247, 245, 240, 0.96);
+  border-bottom: 1px solid rgba(46, 94, 173, 0.18);
+  box-shadow: 0 14px 35px -28px rgba(11, 43, 99, 0.75);
+  backdrop-filter: blur(18px);
+}
+
+.brand-mobile-header::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--brand-orange) 0 22%, var(--brand-ice) 22% 68%, var(--brand-blue) 68% 100%);
+}
+
+.brand-wordmark {
+  color: var(--brand-navy);
+  font-family: 'Roboto Slab', Georgia, serif;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.brand-sidebar {
+  background:
+    radial-gradient(circle at 50% 0%, rgba(87, 184, 242, 0.17), transparent 17rem),
+    linear-gradient(180deg, #0b2b63 0%, #071f48 58%, #061a39 100%);
+}
+
+.brand-sidebar__header {
+  background: linear-gradient(145deg, #fff 0%, #f7f5f0 100%);
+  border-bottom: 3px solid var(--brand-orange);
+}
+
+.brand-nav-item {
+  min-height: 48px;
+  border: 1px solid transparent;
+}
+
+.brand-nav-item[data-active="true"] {
+  background: linear-gradient(135deg, var(--brand-orange), #ea6a12);
+  border-color: rgba(255, 255, 255, 0.25);
+  box-shadow: 0 14px 28px -18px rgba(242, 140, 40, 0.9);
+}
+
+.brand-nav-item[data-active="false"]:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(87, 184, 242, 0.18);
+}
+
+.brand-sidebar__footer {
+  background: rgba(2, 15, 35, 0.28);
+}
+
+.brand-tooltip {
+  z-index: 80;
+  border: 1px solid rgba(87, 184, 242, 0.28);
+  border-radius: 0.625rem;
+  background: var(--brand-navy);
+  padding: 0.5rem 0.75rem;
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 700;
+  box-shadow: 0 16px 36px -20px rgba(2, 15, 35, 0.85);
+  animation: tooltip-enter 160ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.app-workspace,
+.brand-shell {
+  color: var(--brand-navy);
+}
+
+.app-workspace .bg-white,
+.brand-shell .bg-white {
+  background-color: rgba(255, 255, 255, 0.96);
+}
+
+.app-workspace .rounded-2xl,
+.brand-shell .rounded-2xl {
+  border-radius: 1rem;
+}
+
+.app-workspace .rounded-3xl,
+.brand-shell .rounded-3xl {
+  border-radius: 1.25rem;
+}
+
+.app-workspace :is(input, select, textarea),
+.brand-shell :is(input, select, textarea) {
+  border-color: rgba(46, 94, 173, 0.2);
+  background-color: rgba(255, 255, 255, 0.96);
+  color: var(--brand-navy);
+}
+
+.app-workspace :is(input, select, textarea):focus,
+.brand-shell :is(input, select, textarea):focus {
+  border-color: var(--brand-orange);
+  box-shadow: 0 0 0 3px rgba(242, 140, 40, 0.16);
+}
+
+.app-workspace table,
+.brand-shell table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.app-workspace thead,
+.brand-shell thead {
+  color: var(--brand-navy);
+  background: rgba(221, 241, 255, 0.62);
+}
+
+.app-workspace tbody tr,
+.brand-shell tbody tr {
+  transition: background-color 160ms ease;
+}
+
+.app-workspace tbody tr:hover,
+.brand-shell tbody tr:hover {
+  background: rgba(87, 184, 242, 0.07);
+}
+
+@keyframes tooltip-enter {
+  from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (max-width: 767px) {
+  .app-workspace :is(button, a, input, select),
+  .brand-shell :is(button, a, input, select) {
+    min-height: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+h1,
+h2,
+h3 {
+  font-family: 'Roboto Slab', Georgia, serif;
+  letter-spacing: -0.025em;
 }

@@ -98,18 +98,18 @@ const Login: React.FC<LoginProps> = ({ onLogin, onOpenMenu }) => {
 
 
   return (
-    <div className="min-h-dvh w-full bg-slate-100 flex items-start sm:items-center justify-center p-4 pt-safe-offset-4 sm:p-4">
-      <div className="max-w-md w-full bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-500 border border-slate-200">
+    <div className="brand-shell min-h-dvh w-full bg-slate-100 flex items-start sm:items-center justify-center p-4 pt-safe-offset-4 sm:p-4">
+      <div className="max-w-md w-full bg-white rounded-2xl shadow-brand-lg overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-500 border border-blue-100">
 
         {/* Header Visual */}
-        <div className="bg-blue-950 p-8 text-center relative overflow-hidden flex flex-col items-center">
+        <div className="bg-gradient-to-br from-blue-950 via-blue-900 to-blue-700 px-6 py-8 text-center relative overflow-hidden flex flex-col items-center border-b-4 border-orange-500">
 
           <div className="absolute -right-10 -top-10 text-orange-500/10">
             <Sun size={200} />
           </div>
 
-          <div className="transform scale-90 md:scale-100 mb-2 filter drop-shadow-2xl">
-            <img src="/logo.png" alt="Gelo do Sertão" className="h-40 w-auto object-contain" />
+          <div className="transform scale-90 md:scale-100 mb-1 filter drop-shadow-2xl">
+            <img src="/logo.png" alt="Gelo do Sertão" className="h-36 sm:h-40 w-auto object-contain" />
           </div>
 
           <p className="text-blue-200 text-xs mt-4 font-medium tracking-wider uppercase opacity-80 relative z-20">
@@ -131,7 +131,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onOpenMenu }) => {
           </div>
         )}
 
-        <div className="p-8">
+        <div className="p-5 sm:p-8">
           {isRegistering ? (
             // REGISTER FORM
             <form onSubmit={handleRegister} className="space-y-4">
