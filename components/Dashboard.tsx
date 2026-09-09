@@ -11,24 +11,23 @@ interface DashboardProps {
   onNavigate?: (view: ViewState) => void;
 }
 
-// Updated Colors: Blue (Primary), Orange (Secondary/Highlight)
-const COLORS = ['#f97316', '#1e40af', '#3b82f6', '#fb923c'];
+const COLORS = ['#ea580c', '#0f766e', '#0284c7', '#84cc16'];
 
 // Helper Components
 const Card = ({ title, value, icon, trend, color, isVisible }: any) => {
   const isNegative = value.toString().includes('-');
   return (
-    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between hover:shadow-md transition-shadow group">
+    <div className="metric-card flex items-center justify-between group">
       <div>
-        <p className="text-sm font-medium text-slate-500 mb-1">{title}</p>
-        <h3 className={`text-2xl font-bold transition-all duration-300 ${isNegative ? 'text-red-600' : 'text-slate-800'} ${!isVisible ? 'blur-md select-none' : ''}`}>{value}</h3>
+        <p className="text-xs font-bold text-slate-500 mb-1 uppercase">{title}</p>
+        <h3 className={`text-2xl font-black transition-all duration-300 ${isNegative ? 'text-red-600' : 'text-slate-900'} ${!isVisible ? 'blur-md select-none' : ''}`}>{value}</h3>
         {trend && (
           <span className={`text-xs font-medium px-2 py-0.5 rounded mt-2 inline-block ${trend.includes('-') ? 'text-red-600 bg-red-50' : 'text-emerald-600 bg-emerald-50'}`}>
             {trend}
           </span>
         )}
       </div>
-      <div className={`w-12 h-12 rounded-xl ${color} flex items-center justify-center text-white shadow-lg transition-transform group-hover:scale-110`}>
+      <div className={`w-11 h-11 rounded-lg ${color} flex items-center justify-center text-white shadow-lg transition-transform group-hover:-translate-y-0.5`}>
         {React.cloneElement(icon, { size: 24 })}
       </div>
     </div>
@@ -291,31 +290,31 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 relative">
-      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
+      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end gap-4">
         <div>
           <div className="flex items-center gap-3">
-            <h2 className="text-2xl font-bold text-slate-800">Visão Geral</h2>
+            <h2 className="text-3xl font-black text-slate-950">Visão Geral</h2>
             <button
               onClick={() => setIsValuesVisible(!isValuesVisible)}
-              className="p-2 hover:bg-slate-100 rounded-full transition-all text-slate-400 hover:text-orange-500"
+              className="icon-button h-10 w-10"
               title={isValuesVisible ? "Esconder Valores" : "Mostrar Valores"}
             >
               {isValuesVisible ? <Eye size={20} /> : <EyeOff size={20} />}
             </button>
           </div>
-          <p className="text-slate-500">Acompanhe o desempenho da Gelo do Sertão em tempo real.</p>
+          <p className="text-sm text-slate-500 mt-1">Operação, caixa, estoque e pedidos em tempo real.</p>
         </div>
 
         <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
           {/* Date Navigation */}
-          <div className="bg-white p-1 rounded-lg border border-slate-200 flex items-center justify-between md:justify-start">
-            <button onClick={() => navigatePeriod('prev')} className="p-2 hover:bg-slate-100 rounded text-slate-500"><ChevronLeft size={20} /></button>
+          <div className="segmented-control flex items-center justify-between md:justify-start">
+            <button onClick={() => navigatePeriod('prev')} className="p-2 hover:bg-slate-100 rounded-md text-slate-500"><ChevronLeft size={20} /></button>
             <span className="px-2 text-sm font-bold text-slate-700 min-w-[100px] text-center capitalize truncate">{formatPeriodLabel()}</span>
-            <button onClick={() => navigatePeriod('next')} className="p-2 hover:bg-slate-100 rounded text-slate-500"><ChevronRight size={20} /></button>
+            <button onClick={() => navigatePeriod('next')} className="p-2 hover:bg-slate-100 rounded-md text-slate-500"><ChevronRight size={20} /></button>
           </div>
 
           {/* Period Selector */}
-          <div className="bg-white p-1 rounded-lg border border-slate-200 flex flex-wrap justify-center gap-1">
+          <div className="segmented-control flex flex-wrap justify-center gap-1">
             <button onClick={() => setPeriod('DAY')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${period === 'DAY' ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}>Dia</button>
             <button onClick={() => setPeriod('WEEK')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${period === 'WEEK' ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}>Semana</button>
             <button onClick={() => setPeriod('MONTH')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${period === 'MONTH' ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}>Mês</button>
@@ -324,7 +323,7 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
           </div>
 
           {period === 'CUSTOM' && (
-            <div className="flex items-center gap-2 bg-white p-1 rounded-lg border border-slate-200">
+            <div className="control-shell flex items-center gap-2 p-1">
               <input type="date" value={customStartDate} onChange={e => setCustomStartDate(e.target.value)} className="text-sm border-none focus:ring-0 text-slate-600" />
               <span className="text-slate-400">-</span>
               <input type="date" value={customEndDate} onChange={e => setCustomEndDate(e.target.value)} className="text-sm border-none focus:ring-0 text-slate-600" />
@@ -332,7 +331,7 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
           )}
 
           {/* Branch Selector */}
-          <div className="bg-white p-1 rounded-lg border border-slate-200 flex justify-center">
+          <div className="segmented-control flex justify-center">
             <button
               onClick={() => setSelectedBranch('ALL')}
               className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${selectedBranch === 'ALL' ? 'bg-blue-900 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}
@@ -362,7 +361,7 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
           value={formatCurrency(currentPeriodRevenue)}
           icon={<TrendingUp />}
           trend={revenueTrend}
-          color="bg-blue-600"
+          color="bg-sky-600"
           isVisible={isValuesVisible}
         />
         <Card
@@ -402,8 +401,8 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
 
       {/* Charts Row 1 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-          <h3 className="font-semibold text-slate-700 mb-4">Estoque: Matriz vs Filial</h3>
+        <div className="panel p-5 md:p-6">
+          <h3 className="font-bold text-slate-800 mb-4">Estoque: Matriz vs Filial</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={stockData}>
@@ -419,8 +418,8 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-          <h3 className="font-semibold text-slate-700 mb-4">Evolução de Vendas</h3>
+        <div className="panel p-5 md:p-6">
+          <h3 className="font-bold text-slate-800 mb-4">Evolução de Vendas</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={currentPeriodSales
@@ -449,8 +448,8 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
 
       {/* Charts Row 2 */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-1">
-          <h3 className="font-semibold text-slate-700 mb-4">Mix de Vendas</h3>
+        <div className="panel p-5 md:p-6 lg:col-span-1">
+          <h3 className="font-bold text-slate-800 mb-4">Mix de Vendas</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -475,7 +474,7 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-blue-900 to-blue-800 p-6 rounded-2xl shadow-lg lg:col-span-2 text-white flex flex-col justify-center relative overflow-hidden">
+        <div className="bg-slate-950 p-6 rounded-lg shadow-[0_22px_60px_-38px_rgba(15,23,42,0.95)] lg:col-span-2 text-white flex flex-col justify-center relative overflow-hidden border border-slate-800">
           <div className="relative z-10">
             <h3 className="text-xl font-bold mb-2">Relatórios Power BI</h3>
             <p className="text-blue-100 mb-6 max-w-md">
@@ -483,7 +482,7 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
             </p>
             <button
               onClick={() => setShowPowerBI(true)}
-              className="bg-orange-500 hover:bg-orange-400 text-white px-6 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 w-fit shadow-lg shadow-orange-900/20"
+              className="primary-action w-fit"
             >
               Gerar Relatório Completo <ArrowUpRight size={18} />
             </button>

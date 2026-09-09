@@ -16,6 +16,19 @@ interface OnlineMenuProps {
     onBack?: () => void;
 }
 
+const FACEBOOK_PIXEL_ID_REGEX = /^\d{5,30}$/;
+const GOOGLE_TAG_ID_REGEX = /^(G|GT|AW|DC)-[A-Z0-9-]{4,40}$/i;
+
+const cleanFacebookPixelId = (value?: string) => {
+    const id = value?.trim();
+    return id && FACEBOOK_PIXEL_ID_REGEX.test(id) ? id : '';
+};
+
+const cleanGoogleTagId = (value?: string) => {
+    const id = value?.trim();
+    return id && GOOGLE_TAG_ID_REGEX.test(id) ? id.toUpperCase() : '';
+};
+
 const OnlineMenu: React.FC<OnlineMenuProps> = ({ onBack }) => {
     // --- STATE ---
     const [products, setProducts] = useState<Product[]>([]);
@@ -209,7 +222,7 @@ const OnlineMenu: React.FC<OnlineMenuProps> = ({ onBack }) => {
 
         try {
             const [allProducts, storeSettings] = await Promise.all([
-                dbProducts.getAll(tenantId),
+                dbProducts.getPublicMenu(tenantId),
                 dbSettings.get(tenantId)
             ]);
 
@@ -247,44 +260,50 @@ const OnlineMenu: React.FC<OnlineMenuProps> = ({ onBack }) => {
         if (!settings) return;
 
         // 1. Meta Pixel (Facebook)
-        if (settings.facebookPixelId) {
-            const fbId = settings.facebookPixelId;
+        const fbId = cleanFacebookPixelId(settings.facebookPixelId);
+        if (settings.facebookPixelId && !fbId) {
+            console.warn('Facebook Pixel ID invalido ignorado');
+        }
+        if (fbId) {
             const scriptContent = `
               !function(f,b,e,v,n,t,s)
               {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
               n.callMethod.apply(n,arguments):n.queue.push(arguments)};
               if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
               n.queue=[];t=b.createElement(e);t.async=!0;
-              t.src=v;s=b.getElementsByTagName(e)[0];
-              s.parentNode.insertBefore(t,s)}(window, document,'script',
-              'https://connect.facebook.net/en_US/fbevents.js');
-              fbq('init', '${fbId}');
-              fbq('track', 'PageView');
+               t.src=v;s=b.getElementsByTagName(e)[0];
+               s.parentNode.insertBefore(t,s)}(window, document,'script',
+               'https://connect.facebook.net/en_US/fbevents.js');
+               fbq('init', ${JSON.stringify(fbId)});
+               fbq('track', 'PageView');
             `;
             if (!document.getElementById('fb-pixel')) {
                 const script = document.createElement('script');
                 script.id = 'fb-pixel';
-                script.innerHTML = scriptContent;
+                script.textContent = scriptContent;
                 document.head.appendChild(script);
             }
         }
 
         // 2. Google Tag (gtag.js)
-        if (settings.googleTagId) {
-            const gtagId = settings.googleTagId;
+        const gtagId = cleanGoogleTagId(settings.googleTagId);
+        if (settings.googleTagId && !gtagId) {
+            console.warn('Google Tag ID invalido ignorado');
+        }
+        if (gtagId) {
             if (!document.getElementById('google-analytics')) {
                 const script1 = document.createElement('script');
                 script1.id = 'google-analytics';
                 script1.async = true;
-                script1.src = `https://www.googletagmanager.com/gtag/js?id=${gtagId}`;
+                script1.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(gtagId)}`;
                 document.head.appendChild(script1);
 
                 const script2 = document.createElement('script');
-                script2.innerHTML = `
+                script2.textContent = `
                 window.dataLayer = window.dataLayer || [];
                 function gtag() { dataLayer.push(arguments); }
                 gtag('js', new Date());
-                gtag('config', '${gtagId}');
+                gtag('config', ${JSON.stringify(gtagId)});
                 `;
                 document.head.appendChild(script2);
             }

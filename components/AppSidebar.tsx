@@ -75,7 +75,7 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, setView, currentUs
       {/* MOBILE BACKDROP */}
       {isMobileMenuOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-40 md:hidden backdrop-blur-sm animate-in fade-in duration-200"
+          className="fixed inset-0 bg-slate-950/55 z-40 md:hidden animate-in fade-in duration-200"
           onClick={closeMobileMenu}
         />
       )}
@@ -83,19 +83,19 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, setView, currentUs
       {/* SIDEBAR (Desktop & Mobile Drawer) */}
       <div className={`
         fixed left-0 top-0 z-50 h-dvh flex flex-col 
-        bg-gai-navy text-white shadow-2xl border-r border-white/5
+        bg-[#0a1220] text-white shadow-[24px_0_70px_-50px_rgba(15,23,42,0.9)] border-r border-white/10
         transition-all duration-300 ease-in-out pt-safe
         ${isMobileMenuOpen ? 'translate-x-0 w-72' : '-translate-x-full md:translate-x-0'}
         ${isCollapsed ? 'md:w-20' : 'md:w-64'}
       `}>
         <div className="flex flex-col items-center justify-center relative shrink-0 transition-all duration-300">
-          <div className={`w-full bg-white flex flex-col items-center border-b border-slate-200 transition-all duration-500 ${isCollapsed ? 'p-1.5 h-16' : 'p-4 h-32'}`}>
+          <div className={`w-full bg-white flex flex-col items-center border-b border-slate-200 transition-all duration-500 ${isCollapsed ? 'p-1.5 h-16' : 'p-4 h-28'}`}>
             {/* Logo Container - Persists on Collapse */}
             <div className={`relative z-10 w-full h-full flex items-center justify-center select-none duration-500`}>
               <img
                 src="/logo.png"
                 alt="Gelo do Sertão"
-                className={`object-contain transition-all duration-500 drop-shadow-sm ${isCollapsed ? 'max-h-[66px] max-w-[90%] w-auto' : 'max-h-32 w-auto'}`}
+                className={`object-contain transition-all duration-500 drop-shadow-sm ${isCollapsed ? 'max-h-[60px] max-w-[90%] w-auto' : 'max-h-24 w-auto'}`}
               />
             </div>
           </div>
@@ -103,14 +103,14 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, setView, currentUs
           {/* Company Name Section */}
           {!isCollapsed && (
             <div className="w-full pt-4 pb-2 text-center animate-in slide-in-from-top-2 duration-700">
-              <p className="text-[10px] font-black text-gai-tech tracking-[0.3em] uppercase opacity-90 leading-none">
+              <p className="text-[10px] font-black text-orange-400 uppercase opacity-90 leading-none">
                 GELO DO SERTÃO
               </p>
             </div>
           )}
 
           {/* Sparkles Clipped Separately */}
-          <div className="absolute -right-6 -top-6 text-gai-tech opacity-5 rotate-12 pointer-events-none overflow-hidden h-40 w-40">
+          <div className="absolute -right-6 -top-6 text-orange-400 opacity-5 rotate-12 pointer-events-none overflow-hidden h-40 w-40">
             <Sparkles size={100} />
           </div>
 
@@ -118,8 +118,8 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, setView, currentUs
           <button
             onClick={toggleSidebar}
             className={`hidden md:flex absolute z-50 top-1/2 -right-4 -translate-y-1/2 
-              w-8 h-8 rounded-full bg-gai-navy text-white shadow-xl
-              items-center justify-center hover:bg-gai-tech transition-all duration-300
+              w-8 h-8 rounded-lg bg-slate-950 text-white shadow-xl
+              items-center justify-center hover:bg-orange-600 transition-all duration-300
               border border-white/20
             `}
             title={isCollapsed ? "Expandir Menu" : "Recolher Menu"}
@@ -128,7 +128,7 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, setView, currentUs
           </button>
         </div>
 
-        <nav className="flex-1 py-6 px-3 space-y-1.5 overflow-y-auto overflow-x-hidden scrollbar-hide">
+        <nav className="flex-1 py-5 px-3 space-y-1.5 overflow-y-auto overflow-x-hidden scrollbar-hide">
           {visibleItems.map((item) => {
             const isActive = currentView === item.id;
             return (
@@ -136,10 +136,10 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, setView, currentUs
                 key={item.id}
                 to={getPathForView(item.id)}
                 onClick={() => { closeMobileMenu?.(); }}
-                className={`w-full flex items-center justify-start gap-3 p-3 rounded-xl transition-all duration-300 group relative active-scale touch-target
+                className={`w-full flex items-center justify-start gap-3 p-3 rounded-lg transition-all duration-200 group relative active-scale touch-target
                   ${isActive
-                    ? 'bg-gai-tech text-white shadow-lg shadow-gai-tech/20'
-                    : 'text-slate-400 hover:bg-white/5 hover:text-white'
+                    ? 'bg-orange-600 text-white shadow-[0_16px_35px_-24px_rgba(234,88,12,0.9)]'
+                    : 'text-slate-400 hover:bg-white/10 hover:text-white'
                   }
                   ${isCollapsed ? 'md:justify-center' : ''}
                 `}
@@ -147,7 +147,7 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, setView, currentUs
               >
                 <item.icon size={20} className={`shrink-0 transition-transform duration-300 ${isActive ? 'text-white scale-110' : 'group-hover:scale-110'}`} />
                 <span className={`font-semibold text-sm whitespace-nowrap transition-all duration-300 ${isCollapsed ? 'md:opacity-0 md:w-0' : 'opacity-100'}`}>{item.label}</span>
-                {isActive && <div className={`absolute right-3 w-1 h-4 rounded-full bg-white/30 ${isCollapsed ? 'md:hidden' : 'block'}`} />}
+                {isActive && <div className={`absolute right-3 w-1 h-5 rounded-full bg-white/45 ${isCollapsed ? 'md:hidden' : 'block'}`} />}
 
                 {/* Pending Badge */}
                 {item.id === 'SALES' && (pendingOrdersCount || 0) > 0 && (
@@ -160,13 +160,13 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, setView, currentUs
           })}
         </nav>
 
-        <div className="p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] border-t border-white/5 space-y-3 bg-black/10 shrink-0">
+        <div className="p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] border-t border-white/10 space-y-3 bg-black/20 shrink-0">
           {currentUser.role === 'ADMIN' && (
             <Link
               to={getPathForView('SETTINGS')}
               onClick={() => closeMobileMenu?.()}
-              className={`w-full flex items-center justify-start gap-3 p-2.5 rounded-xl transition-all active-scale touch-target
-                ${currentView === 'SETTINGS' ? 'bg-white/10 text-gai-tech' : 'text-slate-400 hover:text-white hover:bg-white/5'}
+              className={`w-full flex items-center justify-start gap-3 p-2.5 rounded-lg transition-all active-scale touch-target
+                ${currentView === 'SETTINGS' ? 'bg-white/10 text-orange-300' : 'text-slate-400 hover:text-white hover:bg-white/5'}
                 ${isCollapsed ? 'md:justify-center' : ''}
               `}
               title={isCollapsed ? "Configurações" : ''}
@@ -177,12 +177,12 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, setView, currentUs
           )}
 
           <div className={`flex items-center gap-3 pt-1 ${isCollapsed ? 'md:hidden' : ''}`}>
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-gai-tech to-gai-navy flex items-center justify-center font-bold text-white shadow-lg border border-white/10 shrink-0 capitalize">
+            <div className="w-10 h-10 rounded-lg bg-orange-600 flex items-center justify-center font-bold text-white shadow-lg border border-white/10 shrink-0 capitalize">
               {currentUser.avatarInitials}
             </div>
             <div className="flex-1 overflow-hidden">
               <p className="text-sm font-bold truncate text-white leading-tight">{currentUser.name}</p>
-              <p className="text-[10px] text-gai-tech font-black uppercase tracking-widest opacity-70">
+              <p className="text-[10px] text-orange-300 font-black uppercase opacity-70">
                 {currentUser.role}
               </p>
             </div>
