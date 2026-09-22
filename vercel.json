@@ -1,7 +1,7 @@
 {
     "rewrites": [
         {
-            "source": "/((?!logistica/|logistica$).*)",
+            "source": "/(.*)",
             "destination": "/index.html"
         }
     ],

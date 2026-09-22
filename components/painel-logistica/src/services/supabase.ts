@@ -10,6 +10,3 @@ if (!supabaseUrl || !supabaseKey) {
 }
 
 export const supabase = createClient(supabaseUrl || '', supabaseKey || '');
-
-/** Tenant ID configurado no .env — identifica a empresa no banco multi-tenant */
-export const TENANT_ID = import.meta.env.VITE_TENANT_ID || '';

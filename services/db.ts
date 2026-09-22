@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { Product, StoreSettings, Sale, SaleItem, FinancialRecord, Customer, StockMovement, Branch, Category, ProductionRecord, Shift, User, Role, CategoryItem, CashClosing, Order } from '../types';
+import { mapUserProfile } from '../security/userProfile';
 
 // --- HELPER DE PAGINAÇÃO PARA BYPASS LIMITE 1000 DO SUPABASE ---
 const fetchAllRecords = async (getQuery: (from: number, to: number) => any) => {
@@ -27,11 +28,43 @@ const fetchAllRecords = async (getQuery: (from: number, to: number) => any) => {
 
 // --- USERS & AUTH ---
 
-// --- USERS & AUTH ---
+const USER_PROFILE_SELECT = `
+  id,
+  name,
+  email,
+  role,
+  avatar_initials,
+  tenant_id,
+  allowed_modules,
+  is_active,
+  must_change_password,
+  temporary_password_expires_at,
+  tenants (name)
+`;
+
+async function loadUserProfile(userId: string): Promise<User> {
+  const { data, error } = await supabase
+    .from('app_users')
+    .select(USER_PROFILE_SELECT)
+    .eq('id', userId)
+    .single();
+
+  if (error || !data) {
+    throw new Error('Perfil de usuário não localizado no sistema.');
+  }
+
+  return mapUserProfile(data);
+}
+
+async function invokeAdminUsers<T>(body: Record<string, unknown>): Promise<T> {
+  const { data, error } = await supabase.functions.invoke('admin-users', { body });
+  if (error) throw new Error(error.message || 'Falha ao executar operação administrativa.');
+  if (!data?.success) throw new Error(data?.error || 'Operação administrativa recusada.');
+  return data as T;
+}
 
 export const dbUsers = {
   async login(email: string, password: string): Promise<User> {
-    // 1. Logar usando o Auth Oficial do Supabase
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -42,134 +75,35 @@ export const dbUsers = {
       throw new Error('Usuário não encontrado ou senha incorreta.');
     }
 
-    // 2. Com a sessão gerada e protegida (JWT em mãos), puxar o perfil do usuário e a Empresa
-    const { data: user, error } = await supabase
-      .from('app_users')
-      .select(`
-        *,
-        tenants (name)
-      `)
-      .eq('id', authData.user.id)
-      .single();
-
-    if (error || !user) {
-      throw new Error('Perfil de usuário não localizado no sistema.');
+    const sessionUser = await loadUserProfile(authData.user.id);
+    if (!sessionUser.isActive) {
+      await supabase.auth.signOut();
+      throw new Error('Conta desativada. Procure o administrador da sua empresa.');
     }
 
-    // 3. Save to LocalStorage (Simple Session)
-    const sessionUser: User = {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role as Role,
-      avatarInitials: user.avatar_initials,
-      tenantId: user.tenant_id || '00000000-0000-0000-0000-000000000000',
-      tenantName: user.tenants?.name || 'G.AI Gestão',
-      allowedModules: user.allowed_modules
-    };
-    localStorage.setItem('app_user', JSON.stringify(sessionUser));
-
+    localStorage.removeItem('app_user');
     return sessionUser;
   },
 
-  async register(user: { name: string, email: string, password: string, role: Role, allowedModules?: string[] }, existingTenantId?: string): Promise<User> {
-    let tenantId = existingTenantId;
-
-    // 2. Create Tenant ONLY if not provided
-    if (!tenantId) {
-      const { data: tenant, error: tenantError } = await supabase
-        .from('tenants')
-        .insert([{ name: user.name + " Store" }])
-        .select()
-        .single();
-
-      if (tenantError) {
-        console.error("Erro ao criar tenant:", tenantError);
-        throw new Error("Erro ao criar organização.");
-      }
-      tenantId = tenant.id;
-    }
-
-    // 3. Criar a conta oficial no Supabase Auth usando o Client Secundário
-    // (Avisando que, se um admin estiver logado e criando contas pra gerentes, o persistSession:false impede ele de ser deslogado!)
-    const { createClient } = await import('@supabase/supabase-js');
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-    if (!supabaseUrl || !supabaseKey) {
-      throw new Error("Configuração do Supabase (URL/Key) não encontrada no .env");
-    }
-
-    const registerClient = createClient(supabaseUrl, supabaseKey, { auth: { persistSession: false, autoRefreshToken: false } });
-
-    // Criar conta de autenticação
-    const { data: authData, error: authError } = await registerClient.auth.signUp({
-      email: user.email,
-      password: user.password
-    });
-
-    if (authError) {
-      throw new Error(authError.message === 'User already registered' ? 'Este email já está cadastrado.' : authError.message);
-    }
-
-    const authUid = authData.user!.id;
-
-    // 4. Inserir na app_users ligando ao UID do Auth
-    const newUser = {
-      id: authUid,
+  async register(user: { name: string, email: string, password: string, role: Role, allowedModules?: string[] }): Promise<User> {
+    const result = await invokeAdminUsers<{ success: true; user: unknown }>({
+      action: 'create',
       name: user.name,
       email: user.email,
+      temporaryPassword: user.password,
       role: user.role,
-      avatar_initials: user.name.substring(0, 2).toUpperCase(),
-      tenant_id: tenantId,
-      allowed_modules: user.allowedModules
-    };
-
-    const { data, error } = await supabase
-      .from('app_users')
-      .insert([newUser])
-      .select()
-      .single();
-
-    if (error) {
-      console.error("Erro ao registrar perfíl:", error);
-      throw new Error("Conta Auth criada, mas falhou ao gravar perfil: " + error.message);
-    }
-
-    const sessionUser: User = {
-      id: data.id,
-      name: data.name,
-      email: data.email,
-      role: data.role as Role,
-      avatarInitials: data.avatar_initials,
-      tenantId: data.tenant_id,
-      allowedModules: data.allowed_modules
-    };
-
-    // Puxar o nome da empresa para guardar na sessão inicial
-    if (sessionUser.tenantId) {
-      const { data: tenantData } = await supabase.from('tenants').select('name').eq('id', sessionUser.tenantId).single();
-      if (tenantData) sessionUser.tenantName = tenantData.name;
-    }
-
-    if (!existingTenantId) {
-      localStorage.setItem('app_user', JSON.stringify(sessionUser));
-      // Precisamos avisar o client atual do Supabase caso seja auto-registro sem ser admin
-      await supabase.auth.signInWithPassword({ email: user.email, password: user.password });
-    }
-
-    return sessionUser;
+      allowedModules: user.allowedModules ?? [],
+    });
+    return mapUserProfile(result.user as Record<string, unknown>);
   },
 
   async logout(): Promise<void> {
     localStorage.removeItem('app_user');
-    // Also sign out from Supabase just in case
     await supabase.auth.signOut();
   },
 
   async getCurrentUser(): Promise<User | null> {
     try {
-      // Verify with Supabase Auth to ensure session is still valid
       const { data: { session }, error } = await supabase.auth.getSession();
 
       if (error || !session) {
@@ -177,15 +111,13 @@ export const dbUsers = {
         return null;
       }
 
-      // Check LocalStorage cache 
-      const stored = localStorage.getItem('app_user');
-      if (stored) {
-        const user = JSON.parse(stored);
-        if (user && !user.tenantId) {
-          user.tenantId = '00000000-0000-0000-0000-000000000000';
-        }
-        return user;
+      localStorage.removeItem('app_user');
+      const user = await loadUserProfile(session.user.id);
+      if (!user.isActive) {
+        await supabase.auth.signOut();
+        return null;
       }
+      return user;
     } catch (e) {
       console.error("Erro ao ler usuário:", e);
       localStorage.removeItem('app_user');
@@ -194,88 +126,43 @@ export const dbUsers = {
   },
 
   async getAll(): Promise<User[]> {
-    const data = await fetchAllRecords((from, to) => supabase.from('app_users').select('*').range(from, to));
-
-    return (data || []).map((row: any) => ({
-      id: row.id,
-      name: row.name,
-      email: row.email,
-      role: row.role as Role,
-      avatarInitials: row.avatar_initials,
-      tenantId: row.tenant_id || '00000000-0000-0000-0000-000000000000',
-      allowedModules: row.allowed_modules
-    }));
+    const data = await fetchAllRecords((from, to) => supabase
+      .from('app_users')
+      .select(USER_PROFILE_SELECT)
+      .range(from, to));
+    return (data || []).map(mapUserProfile);
   },
 
   async update(user: User): Promise<void> {
-    const { error } = await supabase
-      .from('app_users')
-      .update({
-        name: user.name,
-        role: user.role,
-        allowed_modules: user.allowedModules
-      })
-      .eq('id', user.id);
-    if (error) throw error;
+    await invokeAdminUsers({
+      action: 'update',
+      userId: user.id,
+      name: user.name,
+      role: user.role,
+      allowedModules: user.allowedModules ?? [],
+      isActive: user.isActive,
+    });
   },
 
   async updatePassword(userId: string, newPassword: string): Promise<void> {
-    const { error } = await supabase.rpc('update_user_password', {
-      target_user_id: userId,
-      new_password: newPassword
+    await invokeAdminUsers({
+      action: 'reset-password',
+      userId,
+      temporaryPassword: newPassword,
     });
-
-    if (error) throw new Error(error.message || 'Falha ao atualizar a senha no servidor.');
   },
 
   async delete(userId: string): Promise<void> {
-    const { error } = await supabase.rpc('delete_auth_user', {
-      target_user_id: userId
-    });
-
-    if (error) throw new Error(error.message || 'Falha ao excluir o usuário do servidor.');
-  }
-};
-
-// --- TENANTS & SaaS ---
-export const dbTenants = {
-  async registerCompany(data: {
-    companyName: string,
-    cnpj: string,
-    ownerName: string,
-    ownerEmail: string,
-    ownerPassword: string
-  }): Promise<User> {
-    // 1. Criar a Empresa (Tenant)
-    const { data: tenant, error: tenantError } = await supabase
-      .from('tenants')
-      .insert([{
-        name: data.companyName,
-        cnpj: data.cnpj,
-        subscription_status: 'TRIAL'
-      }])
-      .select()
-      .single();
-
-    if (tenantError) {
-      if (tenantError.code === '23505') throw new Error("Este CNPJ já está cadastrado em nosso sistema.");
-      throw new Error("Falha ao registrar empresa: " + tenantError.message);
-    }
-
-    // 2. Registrar o Usuário como ADMIN (Owner) vinculado a essa empresa
-    return dbUsers.register({
-      name: data.ownerName,
-      email: data.ownerEmail,
-      password: data.ownerPassword,
-      role: 'ADMIN',
-      allowedModules: ['DASHBOARD', 'SALES', 'INVENTORY', 'FINANCIAL', 'CUSTOMERS', 'PRODUCTION', 'ORDER_CENTER', 'REPORTS', 'CRM', 'SETTINGS']
-    }, tenant.id);
+    await invokeAdminUsers({ action: 'delete', userId });
   },
 
-  async getMyCompany(tenantId: string) {
-    const { data, error } = await supabase.from('tenants').select('*').eq('id', tenantId).single();
-    if (error) throw error;
-    return data;
+  async changeOwnPassword(newPassword: string): Promise<User> {
+    const { data, error } = await supabase.functions.invoke('change-password', {
+      body: { newPassword },
+    });
+    if (error) throw new Error(error.message || 'Falha ao alterar a senha.');
+    if (!data?.success) throw new Error(data?.error || 'Alteração de senha recusada.');
+    return mapUserProfile(data.user);
   }
 };
 

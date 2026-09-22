@@ -8,6 +8,7 @@ import { Loader2, Menu } from 'lucide-react';
 import { usePlatform } from './hooks/usePlatform';
 import { useAppLifecycle } from './hooks/useAppLifecycle';
 import ExpirationAlert from './components/ExpirationAlert';
+import { canLoadDataset, getInitialView, hasModuleAccess } from './security/accessControl';
 
 // Lazy Load Components to prevent circular dependencies and "Cannot access before initialization" errors
 const AppSidebar = React.lazy(() => import('./components/AppSidebar'));
@@ -20,8 +21,8 @@ const Settings = React.lazy(() => import('./components/Settings'));
 const Login = React.lazy(() => import('./components/Login'));
 const Customers = React.lazy(() => import('./components/Customers'));
 const Pricing = React.lazy(() => import('./components/Pricing'));
-const OnlineMenu = React.lazy(() => import('./components/OnlineMenu'));
-const MenuConfig = React.lazy(() => import('./components/MenuConfig'));
+const PasswordChange = React.lazy(() => import('./components/PasswordChange'));
+const FeatureUnavailable = React.lazy(() => import('./components/PublicMenuUnavailable'));
 const Production = React.lazy(() => import('./components/Production'));
 const OrderCenter = React.lazy(() => import('./components/OrderCenter'));
 const Reports = React.lazy(() => import('./components/Reports'));
@@ -30,7 +31,6 @@ const WholesalePOS = React.lazy(() => import('./components/WholesalePOS'));
 const VisitorLanding = React.lazy(() => import('./components/VisitorLanding'));
 const B2BLanding = React.lazy(() => import('./components/B2BLanding'));
 const WhatsAppRedirect = React.lazy(() => import('./components/WhatsAppRedirect'));
-const FestasRadar = React.lazy(() => import('./components/FestasRadar'));
 const TermsAndPrivacy = React.lazy(() => import('./components/TermsAndPrivacy'));
 // CRM Temporarily Disabled
 // const CRM = React.lazy(() => import('./components/CRM'));
@@ -39,6 +39,7 @@ const App: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [authResolved, setAuthResolved] = useState(false);
   const { isNative } = usePlatform();
   const { isActive } = useAppLifecycle();
 
@@ -107,27 +108,36 @@ const App: React.FC = () => {
   // --- AUTH & INITIAL DATA ---
   useEffect(() => {
     const isMenuMode = location.pathname === '/cardapio-adega';
+    let cancelled = false;
 
-    // Check for active session on load
-    dbUsers.getCurrentUser().then(user => {
-      if (user) {
+    const restoreSession = async () => {
+      try {
+        const securityVersion = 'security-p0-v1';
+        if (localStorage.getItem('security_session_version') !== securityVersion) {
+          await dbUsers.logout();
+          localStorage.setItem('security_session_version', securityVersion);
+          return;
+        }
+
+        const user = await dbUsers.getCurrentUser();
+        if (cancelled || !user) return;
         setCurrentUser(user);
 
-        // Only navigate if NOT in menu mode and currently at root or login
-        if (!isMenuMode && (location.pathname === '/' || location.pathname === '/login')) {
-          let initialView: ViewState = 'DASHBOARD';
-          if (user.role === 'WHOLESALE_REPRESENTATIVE' || (user.role as string) === 'WHOLESALE_SUPERVISOR') {
-            initialView = 'ATACADO';
-          } else if (user.allowedModules && user.allowedModules.length > 0) {
-            initialView = user.allowedModules[0] as ViewState;
-          } else {
-            if (user.role === 'FACTORY') initialView = 'PRODUCTION';
-            else if (user.role === 'OPERATOR') initialView = 'SALES';
-          }
-          setCurrentView(initialView);
+        if (user.mustChangePassword && !isMenuMode) {
+          navigate('/alterar-senha', { replace: true });
+        } else if (!isMenuMode && (location.pathname === '/' || location.pathname === '/login')) {
+          setCurrentView(getInitialView(user));
         }
+      } catch (error) {
+        console.error('Falha ao restaurar sessão:', error);
+        setCurrentUser(null);
+      } finally {
+        if (!cancelled) setAuthResolved(true);
       }
-    });
+    };
+
+    void restoreSession();
+    return () => { cancelled = true; };
   }, []);
 
   const tenantId = currentUser?.tenantId || '00000000-0000-0000-0000-000000000000';
@@ -135,16 +145,17 @@ const App: React.FC = () => {
   const { data: appData, isFetching: isQueryFetching, error: queryError, refetch } = useQuery({
     queryKey: ['app-data', tenantId],
     queryFn: async () => {
+      if (!currentUser) return { p: [], s: [], f: [], c: [], cc: [] };
       const [p, s, f, c, cc] = await Promise.all([
-        dbProducts.getAll(tenantId),
-        dbSales.getAll(tenantId),
-        dbFinancials.getAll(tenantId),
-        dbCustomers.getAll(tenantId),
-        dbCashClosings.getAll(tenantId)
+        canLoadDataset(currentUser, 'products') ? dbProducts.getAll(tenantId) : Promise.resolve([]),
+        canLoadDataset(currentUser, 'sales') ? dbSales.getAll(tenantId) : Promise.resolve([]),
+        canLoadDataset(currentUser, 'financials') ? dbFinancials.getAll(tenantId) : Promise.resolve([]),
+        canLoadDataset(currentUser, 'customers') ? dbCustomers.getAll(tenantId) : Promise.resolve([]),
+        canLoadDataset(currentUser, 'cashClosings') ? dbCashClosings.getAll(tenantId) : Promise.resolve([]),
       ]);
       return { p, s, f, c, cc };
     },
-    enabled: !!currentUser && isActive,
+    enabled: !!currentUser && currentUser.isActive && !currentUser.mustChangePassword && isActive,
     staleTime: 1000 * 60 * 5, // 5 min
     networkMode: 'offlineFirst',
   });
@@ -176,7 +187,7 @@ const App: React.FC = () => {
   }, [isQueryFetching, appData]);
 
   useEffect(() => {
-    if (currentUser && isActive) {
+    if (currentUser && currentUser.isActive && !currentUser.mustChangePassword && isActive) {
       // Initial Order Count
       checkPendingOrders();
       // Poll every 30s - only when app is active
@@ -230,6 +241,10 @@ const App: React.FC = () => {
   };
 
   const handleDeleteProduct = async (productId: string) => {
+    if (currentUser?.role !== 'ADMIN') {
+      alert('Apenas administradores podem excluir registros.');
+      return;
+    }
     setProducts(prev => prev.filter(p => p.id !== productId));
     try {
       await dbProducts.delete(productId);
@@ -381,6 +396,10 @@ const App: React.FC = () => {
   };
 
   const handleDeleteFinancialRecord = async (recordId: string) => {
+    if (currentUser?.role !== 'ADMIN') {
+      alert('Apenas administradores podem excluir registros.');
+      return;
+    }
     if (!confirm("Tem certeza que deseja excluir este registro financeiro?")) return;
     setFinancials(prev => prev.filter(r => r.id !== recordId));
     try {
@@ -422,6 +441,10 @@ const App: React.FC = () => {
   };
 
   const handleDeleteCustomer = async (customerId: string) => {
+    if (currentUser?.role !== 'ADMIN') {
+      alert('Apenas administradores podem excluir registros.');
+      return;
+    }
     if (!confirm("Tem certeza que deseja excluir este cliente?")) return;
     setCustomers(prev => prev.filter(c => c.id !== customerId));
     try {
@@ -504,6 +527,10 @@ const App: React.FC = () => {
   };
 
   const handleDeleteSale = async (saleId: string) => {
+    if (currentUser?.role !== 'ADMIN') {
+      alert('Apenas administradores podem excluir registros.');
+      return;
+    }
     const saleToDelete = sales.find(s => s.id === saleId);
     if (!saleToDelete) return;
 
@@ -572,6 +599,10 @@ const App: React.FC = () => {
   };
 
   const handleDeleteCashClosing = async (id: string) => {
+    if (currentUser?.role !== 'ADMIN') {
+      alert('Apenas administradores podem excluir registros.');
+      return;
+    }
     if (!confirm("Tem certeza que deseja excluir este fechamento?")) return;
     setCashClosings(prev => prev.filter(c => c.id !== id));
     try {
@@ -588,17 +619,16 @@ const App: React.FC = () => {
 
   const handleLogin = (user: User) => {
     setCurrentUser(user);
-    let initialView: ViewState = 'DASHBOARD';
-    // Compatibilidade: Aceitar tanto a nova role quanto a antiga para redirecionamento
-    if (user.role === 'WHOLESALE_REPRESENTATIVE' || (user.role as string) === 'WHOLESALE_SUPERVISOR') {
-      initialView = 'ATACADO';
-    } else if (user.allowedModules && user.allowedModules.length > 0) {
-      initialView = user.allowedModules[0] as ViewState;
-    } else {
-      if (user.role === 'FACTORY') initialView = 'PRODUCTION';
-      else if (user.role === 'OPERATOR') initialView = 'SALES';
+    if (user.mustChangePassword) {
+      navigate('/alterar-senha', { replace: true });
+      return;
     }
-    setCurrentView(initialView);
+    setCurrentView(getInitialView(user));
+  };
+
+  const handlePasswordChanged = (user: User) => {
+    setCurrentUser(user);
+    setCurrentView(getInitialView(user));
   };
 
   const handleLogout = async () => {
@@ -737,6 +767,15 @@ const App: React.FC = () => {
   };
 
   const renderContentInternal = () => {
+    if (!currentUser || !hasModuleAccess(currentUser, currentView)) {
+      return (
+        <div className="flex flex-col items-center justify-center p-12 mt-10 bg-white rounded-2xl shadow-sm border border-slate-200">
+          <h2 className="text-2xl font-bold text-slate-800 mb-2">Acesso restrito</h2>
+          <p className="text-slate-500">Seu perfil não possui permissão para acessar este módulo.</p>
+        </div>
+      );
+    }
+
     switch (currentView) {
       case 'DASHBOARD':
         if (currentUser?.role !== 'ADMIN' && !(currentUser?.allowedModules || []).includes('DASHBOARD')) {
@@ -751,7 +790,6 @@ const App: React.FC = () => {
       case 'REPORTS':
         return <Reports sales={sales} products={products} customers={customers} onBack={() => setCurrentView('DASHBOARD')} />;
       case 'CONCILIACAO':
-        if (currentUser?.role !== 'ADMIN') return <Dashboard products={products} sales={sales} financials={financials} customers={customers} onNavigate={setCurrentView} />;
         return <Conciliacao sales={sales} financials={financials} products={products} onBack={() => setCurrentView('DASHBOARD')} onAddFinancialRecord={handleAddFinancialRecord} />;
       case 'INVENTORY':
         return <Inventory products={products} sales={sales} financials={financials} onUpdateProduct={handleUpdateProduct} onAddProduct={handleAddProduct} onDeleteProduct={handleDeleteProduct} onOpenPricing={(id) => { setPricingProductId(id); setCurrentView('PRICING'); }} onAddFinancialRecord={handleAddFinancialRecord} onBack={() => setCurrentView('DASHBOARD')} currentUser={currentUser!} />;
@@ -767,24 +805,15 @@ const App: React.FC = () => {
       case 'AI_INSIGHTS':
         return <AIAssistant products={products} sales={sales} financials={financials} onBack={() => setCurrentView('DASHBOARD')} />;
       case 'MENU_CONFIG':
-        return <MenuConfig onBack={() => setCurrentView('DASHBOARD')} tenantId={currentUser!.tenantId} />;
+        return <FeatureUnavailable featureName="Site / Cardápio" />;
       case 'PRODUCTION':
         return <Production products={products} currentUser={currentUser!} onUpdateProduct={handleUpdateProduct} onAddProduct={handleAddProduct} onBack={() => setCurrentView('DASHBOARD')} />;
       case 'SETTINGS':
         return <Settings currentUser={currentUser!} onResetData={handleResetData} />;
       case 'FESTAS_RADAR':
-        return <FestasRadar />;
+        return <FeatureUnavailable featureName="Caçador de Festas" />;
       case 'LOGISTICS':
-        return (
-          <div className="w-full h-[calc(100vh-10rem)] md:h-[calc(100vh-7rem)] rounded-2xl overflow-hidden border border-slate-200 bg-white shadow-sm">
-            <iframe
-              src={import.meta.env.VITE_LOGISTICS_URL || (window.location.hostname === 'localhost' ? 'http://localhost:3000' : '/logistica')}
-              className="w-full h-full border-none"
-              title="Painel de Logística"
-              allow="geolocation"
-            />
-          </div>
-        );
+        return <FeatureUnavailable featureName="Painel de Logística" />;
       // CRM removido temporariamente
       default:
         return <Dashboard products={products} sales={sales} financials={financials} customers={customers} onNavigate={setCurrentView} />;
@@ -792,12 +821,22 @@ const App: React.FC = () => {
   };
 
   // Master Render Logic using Routes
+  if (!authResolved && location.pathname !== '/cardapio-adega') {
+    return <div className="h-dvh w-screen flex items-center justify-center bg-slate-50"><Loader2 size={48} className="animate-spin text-orange-500" /></div>;
+  }
+
   return (
     <Routes>
       {/* Public Route */}
       <Route path="/cardapio-adega" element={
         <Suspense fallback={<div className="h-dvh w-screen flex items-center justify-center bg-slate-50"><Loader2 size={48} className="animate-spin text-orange-500" /></div>}>
-          <OnlineMenu />
+          <FeatureUnavailable featureName="Cardápio" fullScreen />
+        </Suspense>
+      } />
+
+      <Route path="/logistica/*" element={
+        <Suspense fallback={<div className="h-dvh w-screen flex items-center justify-center bg-slate-50"><Loader2 size={48} className="animate-spin text-orange-500" /></div>}>
+          <FeatureUnavailable featureName="Painel de Logística" fullScreen />
         </Suspense>
       } />
 
@@ -805,16 +844,24 @@ const App: React.FC = () => {
       <Route path="/login" element={
         !currentUser ? (
           <Suspense fallback={<div className="h-dvh w-screen flex items-center justify-center bg-blue-900"><Loader2 size={48} className="animate-spin text-white" /></div>}>
-            <Login onLogin={handleLogin} onOpenMenu={() => navigate('/cardapio-adega')} />
+            <Login onLogin={handleLogin} />
           </Suspense>
-        ) : <Navigate to="/gestao" replace />
+        ) : <Navigate to={currentUser.mustChangePassword ? '/alterar-senha' : '/gestao'} replace />
+      } />
+
+      <Route path="/alterar-senha" element={
+        currentUser ? (
+          <Suspense fallback={<div className="h-dvh w-screen flex items-center justify-center bg-slate-50"><Loader2 size={48} className="animate-spin text-orange-500" /></div>}>
+            <PasswordChange user={currentUser} onChanged={handlePasswordChanged} onLogout={handleLogout} />
+          </Suspense>
+        ) : <Navigate to="/login" replace />
       } />
 
       <Route path="/*" element={
-        !currentUser ? <Navigate to="/login" replace /> : (
+        !currentUser ? <Navigate to="/login" replace /> : currentUser.mustChangePassword ? <Navigate to="/alterar-senha" replace /> : (
           <Routes>
             <Route path="/pdv-atacado" element={
-              <Suspense fallback={<div className="h-dvh w-screen flex items-center justify-center bg-slate-50"><Loader2 size={48} className="animate-spin text-orange-500" /></div>}>
+              hasModuleAccess(currentUser, 'ATACADO') ? <Suspense fallback={<div className="h-dvh w-screen flex items-center justify-center bg-slate-50"><Loader2 size={48} className="animate-spin text-orange-500" /></div>}>
                 <div className="flex w-full min-h-dvh bg-slate-50 text-slate-900 font-sans">
                   <WholesalePOS
                     products={products}
@@ -829,11 +876,11 @@ const App: React.FC = () => {
                     onBack={currentUser.role === 'ADMIN' || currentUser.role === 'WHOLESALE_REPRESENTATIVE' ? () => navigate('/gestao') : undefined}
                   />
                 </div>
-              </Suspense>
+              </Suspense> : <Navigate to="/gestao" replace />
             } />
 
             <Route path="/pdv-adega" element={
-              <Suspense fallback={<div className="h-dvh w-screen flex items-center justify-center bg-slate-50"><Loader2 size={48} className="animate-spin text-orange-500" /></div>}>
+              hasModuleAccess(currentUser, 'SALES') ? <Suspense fallback={<div className="h-dvh w-screen flex items-center justify-center bg-slate-50"><Loader2 size={48} className="animate-spin text-orange-500" /></div>}>
                 <div className="flex w-full min-h-dvh bg-slate-50 text-slate-900 font-sans">
                   <Sales
                     sales={sales}
@@ -849,7 +896,7 @@ const App: React.FC = () => {
                     pendingOrdersCount={pendingOrdersCount}
                   />
                 </div>
-              </Suspense>
+              </Suspense> : <Navigate to="/gestao" replace />
             } />
 
             <Route path="*" element={

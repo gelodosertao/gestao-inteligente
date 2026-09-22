@@ -187,6 +187,9 @@ export interface User {
   tenantId: string;
   tenantName?: string;
   allowedModules?: string[]; // IDs of modules the user can access
+  isActive: boolean;
+  mustChangePassword: boolean;
+  temporaryPasswordExpiresAt?: string;
 }
 
 export type ViewState = 'DASHBOARD' | 'INVENTORY' | 'SALES' | 'FINANCIAL' | 'AI_INSIGHTS' | 'SETTINGS' | 'CUSTOMERS' | 'PRICING' | 'ONLINE_MENU' | 'MENU_CONFIG' | 'PRODUCTION' | 'ORDER_CENTER' | 'REPORTS' | 'ATACADO' | 'CRM' | 'FESTAS_RADAR' | 'LOGISTICS' | 'CONCILIACAO';
