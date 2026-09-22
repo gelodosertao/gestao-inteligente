@@ -28,6 +28,8 @@ const DRE_CATEGORIES: Record<string, string[]> = {
    'Outras Despesas': ['Outras Despesas Operacionais']
 };
 
+const parseCurrencyInput = (value: string) => Number(value.replace(/\D/g, '').slice(0, 13)) / 100;
+
 const AccordionSection: React.FC<{ title: string; icon: React.ReactNode; sectionKey: string; expanded: boolean; onToggle: () => void; children: React.ReactNode }> = ({ title, icon, sectionKey, expanded, onToggle, children }) => (
    <div className="border-b border-slate-100 last:border-b-0">
       <button
@@ -464,6 +466,10 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
 
    const handleUpdateRecordSave = () => {
       if (!editingRecord) return;
+      if (!Number.isFinite(editingRecord.amount) || editingRecord.amount <= 0) {
+         alert('Informe um valor maior que zero.');
+         return;
+      }
       if (editingRecord.type === 'Income' && !editingRecord.description.trim()) {
          alert('Informe a justificativa da entrada.');
          return;
@@ -483,7 +489,11 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
    const handleSaveRecord = () => {
       const amount = Number(newRecord.amount);
       const description = newRecord.description?.trim() || (newRecord.type === 'Income' ? '' : 'Sem descrição');
-      if (!Number.isFinite(amount) || amount <= 0 || !newRecord.date) return;
+      if (!Number.isFinite(amount) || amount <= 0) {
+         alert('Informe um valor maior que zero.');
+         return;
+      }
+      if (!newRecord.date) return;
       if (!description) {
          alert('Informe a justificativa da entrada.');
          return;
@@ -654,7 +664,6 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                         <input
                            type="text"
-                           required={editingRecord.type === 'Income'}
                            placeholder="Buscar movimentação..."
                            className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                            value={searchTerm}
@@ -953,7 +962,7 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
                       <div className="grid grid-cols-2 gap-4">
                          <div>
                             <label htmlFor="new-financial-amount" className="block text-sm font-bold text-slate-700 mb-1">Valor</label>
-                            <input id="new-financial-amount" type="number" min="0.01" step="0.01" required value={newRecord.amount || ''} onChange={(event) => setNewRecord({ ...newRecord, amount: Number(event.target.value) })} className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white text-slate-900" />
+                            <input id="new-financial-amount" type="text" inputMode="numeric" value={formatCurrency(newRecord.amount || 0)} onChange={(event) => setNewRecord({ ...newRecord, amount: parseCurrencyInput(event.target.value) })} className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white text-slate-900" />
                          </div>
                          <div>
                             <label htmlFor="new-financial-date" className="block text-sm font-bold text-slate-700 mb-1">Data</label>
@@ -1025,6 +1034,7 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
                         <label className="block text-sm font-bold text-slate-700 mb-1">{editingRecord.type === 'Income' ? 'Justificativa da entrada' : 'Descrição'}</label>
                         <input
                            type="text"
+                           required={editingRecord.type === 'Income'}
                            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white text-slate-900 font-medium"
                            value={editingRecord.description}
                            onChange={(e) => setEditingRecord({ ...editingRecord, description: e.target.value })}
@@ -1035,12 +1045,12 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
                         <div>
                            <label className="block text-sm font-bold text-slate-700 mb-1">Valor</label>
                            <div className="relative">
-                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold">R$</span>
                               <input
-                                 type="number"
-                                 className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 font-bold text-lg bg-white text-slate-900 text-right"
-                                 value={editingRecord.amount}
-                                 onChange={(e) => setEditingRecord({ ...editingRecord, amount: Number(e.target.value) })}
+                                 type="text"
+                                 inputMode="numeric"
+                                 className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 font-bold text-lg bg-white text-slate-900 text-right"
+                                 value={formatCurrency(editingRecord.amount)}
+                                 onChange={(e) => setEditingRecord({ ...editingRecord, amount: parseCurrencyInput(e.target.value) })}
                               />
                            </div>
                         </div>

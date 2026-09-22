@@ -582,10 +582,18 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
     // ---------------- UI RENDERS ----------------
 
     const renderCatalog = () => (
-        <div className="p-4 pb-48">
-            <div className="relative mb-6">
-                <label className="block text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider">Filtrar por Categoria</label>
-                <div className="flex bg-slate-100 rounded-2xl p-1 gap-1 border border-slate-200 shadow-inner mb-3">
+        <div className="p-4 sm:p-6 lg:p-0">
+            <div className="mb-5 flex items-end justify-between gap-3">
+                <div>
+                    <h2 className="text-xl font-bold text-slate-800 sm:text-2xl">Catálogo de produtos</h2>
+                    <p className="mt-1 text-sm text-slate-500">Selecione os produtos para montar o pedido.</p>
+                </div>
+                <span className="hidden shrink-0 text-sm text-slate-500 sm:block">{filteredProducts.length} produtos</span>
+            </div>
+            <div className="mb-5 grid items-end gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                <div>
+                <p className="block text-xs font-bold text-slate-500 mb-1">Categoria</p>
+                <div className="flex bg-slate-100 rounded-xl p-1 gap-1 border border-slate-200">
                     <button
                         onClick={() => setCategoryFilter('ALL')}
                         className={`flex-1 py-2.5 text-xs font-black rounded-xl transition-all ${categoryFilter === 'ALL' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-200'}`}
@@ -607,11 +615,13 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                         SABOR
                     </button>
                 </div>
+                </div>
 
                 <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
                     <input
                         type="text"
+                        aria-label="Buscar produtos"
                         placeholder={`Buscar em ${categoryFilter === 'ALL' ? 'Gelo Atacado' : categoryFilter}...`}
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
@@ -635,7 +645,8 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                 </div>
             )}
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(145px,1fr))] gap-3 sm:grid-cols-[repeat(auto-fill,minmax(190px,1fr))] sm:gap-4">
+                {filteredProducts.length === 0 && <p className="col-span-full py-12 text-center text-slate-500">Nenhum produto encontrado. Tente outra busca ou categoria.</p>}
                 {filteredProducts.map(product => {
                     const cartItem = cart.find(c => c.product.id === product.id);
                     const totalStock = product.stockMatrizIbotirama + product.stockMatrizBarreiras;
@@ -644,18 +655,18 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                         <div
                             key={product.id}
                             onClick={() => !cartItem && addToCart(product)}
-                            className={`bg-white p-3 rounded-2xl shadow-sm border-2 transition-all group flex flex-col justify-between cursor-pointer ${cartItem ? 'border-blue-500 ring-4 ring-blue-50' : 'border-slate-100 hover:border-blue-300 hover:shadow-xl active:scale-95'}`}
+                            className={`min-w-0 bg-white p-3 sm:p-4 rounded-2xl shadow-sm border-2 transition-colors group flex flex-col justify-between cursor-pointer ${cartItem ? 'border-blue-500 ring-2 ring-blue-50' : 'border-slate-200 hover:border-blue-300'}`}
                         >
                             <div>
-                                <div className="flex justify-between items-start mb-1">
+                                <div className="flex flex-wrap justify-between items-start gap-1 mb-2">
                                     <p className="text-[10px] text-blue-500 font-black uppercase tracking-widest">{product.category}</p>
                                     {cartItem && (
-                                        <div className="bg-blue-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full animate-bounce">
+                                        <div className="bg-blue-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full">
                                             {cartItem.quantity} No Carrinho
                                         </div>
                                     )}
                                 </div>
-                                <h3 className="font-bold text-slate-800 leading-tight mb-1 text-sm group-hover:text-blue-700 transition-colors">{product.name}</h3>
+                                <h3 className="font-bold text-slate-800 leading-snug mb-2 text-sm sm:text-base break-words group-hover:text-blue-700 transition-colors">{product.name}</h3>
                                 <p className="text-lg font-black text-slate-900 mb-2 tracking-tighter">
                                     R$ {getProductPrice(product).toFixed(2)}
                                     {product.category === 'Gelo Sabor' && <span className="text-[10px] text-orange-500 ml-1 font-bold italic">dinâmico</span>}
@@ -666,20 +677,21 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                                 <div className="flex flex-col gap-1 mt-auto" onClick={(e) => e.stopPropagation()}>
                                     {product.category === 'Gelo Sabor' && (
                                         <div className="flex gap-1 mb-1">
-                                            <button onClick={() => updateQuantity(product.id, cartItem.quantity + 10)} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-black py-1.5 rounded-lg transition-all">+10</button>
-                                            <button onClick={() => updateQuantity(product.id, cartItem.quantity + 50)} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-black py-1.5 rounded-lg transition-all">+50</button>
+                                            <button aria-label={`Adicionar 10 unidades de ${product.name}`} onClick={() => updateQuantity(product.id, cartItem.quantity + 10)} className="min-h-11 flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold rounded-lg transition-colors">+10</button>
+                                            <button aria-label={`Adicionar 50 unidades de ${product.name}`} onClick={() => updateQuantity(product.id, cartItem.quantity + 50)} className="min-h-11 flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold rounded-lg transition-colors">+50</button>
                                         </div>
                                     )}
-                                    <div className="flex items-center justify-between bg-blue-50 rounded-xl p-1.5 border border-blue-100 shadow-inner">
-                                        <button onClick={() => updateQuantity(product.id, cartItem.quantity - (product.category === 'Gelo Sabor' ? 10 : 1))} className="w-9 h-9 flex items-center justify-center bg-white text-blue-600 rounded-lg shadow-sm font-black active:scale-90 transition-all border border-blue-100">-</button>
+                                    <div className="flex items-center justify-between bg-blue-50 rounded-xl p-1 border border-blue-100">
+                                        <button aria-label={`Diminuir quantidade de ${product.name}`} onClick={() => updateQuantity(product.id, cartItem.quantity - (product.category === 'Gelo Sabor' ? 10 : 1))} className="w-11 h-11 shrink-0 flex items-center justify-center bg-white text-blue-600 rounded-lg font-bold border border-blue-100">-</button>
                                         <input
                                             type="number"
                                             value={cartItem.quantity || ''}
                                             onChange={(e) => updateQuantity(product.id, parseInt(e.target.value) || 0)}
                                             onFocus={(e) => e.target.select()}
-                                            className="w-12 text-center font-black text-blue-900 bg-transparent outline-none hide-arrows text-lg"
+                                            aria-label={`Quantidade de ${product.name}`}
+                                            className="min-w-0 w-10 flex-1 text-center font-black text-blue-900 bg-transparent outline-none hide-arrows text-base"
                                         />
-                                        <button onClick={() => updateQuantity(product.id, cartItem.quantity + (product.category === 'Gelo Sabor' ? 10 : 1))} className="w-9 h-9 flex items-center justify-center bg-blue-600 text-white rounded-lg shadow-lg font-black active:scale-90 transition-all shadow-blue-200">+</button>
+                                        <button aria-label={`Aumentar quantidade de ${product.name}`} onClick={() => updateQuantity(product.id, cartItem.quantity + (product.category === 'Gelo Sabor' ? 10 : 1))} className="w-11 h-11 shrink-0 flex items-center justify-center bg-blue-600 text-white rounded-lg font-bold">+</button>
                                     </div>
                                 </div>
                             ) : (
@@ -700,11 +712,11 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
     const renderCart = () => {
         if (cart.length === 0) {
             return (
-                <div className="flex flex-col items-center justify-center h-[60vh] text-slate-400 p-6 text-center">
+                <div className="flex min-h-full flex-col items-center justify-center text-slate-500 p-6 text-center">
                     <ShoppingCart size={64} className="mb-4 text-slate-300" />
                     <h2 className="text-xl font-bold mb-2">Carrinho Vazio</h2>
                     <p>Adicione produtos pelo catálogo para iniciar um pedido.</p>
-                    <button onClick={() => setActiveTab('CATALOG')} className="mt-6 px-6 py-2 bg-orange-500 text-white font-bold rounded-lg shadow-lg">
+                    <button onClick={() => setActiveTab('CATALOG')} className="mt-6 px-6 py-3 bg-orange-500 text-white font-bold rounded-lg shadow-lg lg:hidden">
                         Ir para Catálogo
                     </button>
                 </div>
@@ -721,14 +733,15 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
             const displayCommissionRate = effectiveSellerRole === 'WHOLESALE_REPRESENTATIVE' ? 0.05 : 0;
 
             return (
-                <div className="p-4 pb-28 animate-in fade-in slide-in-from-right-4 duration-300">
+                <div className="mx-auto w-full max-w-6xl p-4 sm:p-6 lg:p-0">
                     <button onClick={() => setIsCheckingOut(false)} className="flex items-center gap-2 text-slate-500 mb-6 font-medium">
                         <ArrowLeft size={18} /> Voltar ao Carrinho
                     </button>
 
                     <h2 className="text-2xl font-black text-slate-800 mb-4">Finalizar Pedido</h2>
 
-                    <div className="space-y-4">
+                    <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_340px] xl:grid-cols-[minmax(0,1fr)_380px]">
+                    <div className="min-w-0 space-y-4">
                         {/* Customer Selection */}
                         <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
                             <div className="flex justify-between items-center mb-3">
@@ -922,7 +935,13 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                             </div>
                         </div>
 
+                    </div>
+                    <div className="min-w-0 space-y-4 lg:sticky lg:top-0">
                         <div className="bg-slate-800 text-white p-5 rounded-2xl shadow-lg">
+                            <h3 className="mb-4 text-lg font-bold">Resumo do pedido</h3>
+                            <div className="mb-4 max-h-60 overflow-y-auto space-y-2 border-b border-slate-700 pb-4">
+                                {cart.map(item => <div key={item.product.id} className="flex justify-between gap-3 text-sm"><span className="min-w-0 break-words text-slate-300">{item.quantity} × {item.product.name}</span><span className="shrink-0 font-medium">{formatCurrency(item.quantity * getProductPrice(item.product, item.customPrice))}</span></div>)}
+                            </div>
                             {isAdmin && adminDiscount > 0 && (
                                 <div className="flex justify-between items-center mb-2 border-b border-slate-700 pb-2 text-orange-300">
                                     <span className="font-medium text-sm">Desconto aplicado:</span>
@@ -952,22 +971,23 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                             <CheckCircle size={24} /> Confirmar Pedido
                         </button>
                     </div>
+                    </div>
                 </div>
             );
         }
 
         return (
-            <div className="p-4 pb-48">
-                <h2 className="text-2xl font-black text-slate-800 mb-6 flex items-center gap-2">
+            <div className="flex h-full min-h-0 flex-col">
+                <h2 className="shrink-0 p-4 sm:p-5 text-xl font-bold text-slate-800 flex items-center gap-2 border-b border-slate-200">
                     <ShoppingCart /> Carrinho
                 </h2>
 
-                <div className="space-y-3 mb-6">
-                    {cart.map((item, idx) => {
+                <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4 sm:p-5">
+                    {cart.map(item => {
                         const currentPrice = getProductPrice(item.product, item.customPrice);
                         return (
-                            <div key={idx} className="bg-white p-3 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between">
-                                <div className="flex-1">
+                            <div key={item.product.id} className="bg-white p-3 rounded-xl border border-slate-200 flex flex-wrap items-center justify-between gap-3">
+                                <div className="min-w-0 flex-1 basis-36">
                                     <h4 className="font-bold text-slate-800 leading-tight">{item.product.name}</h4>
                                     {isAdmin ? (
                                         <div className="flex items-center gap-1 mt-1">
@@ -987,31 +1007,32 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                                         </p>
                                     )}
                                 </div>
-                                <div className="flex items-center gap-2 bg-slate-50 rounded-lg p-1 border border-slate-100">
-                                    <button onClick={() => updateQuantity(item.product.id, item.quantity - (item.product.category === 'Gelo Sabor' ? 10 : 1))} className="w-8 h-8 flex items-center justify-center text-slate-500 font-bold text-xl active:scale-95">-</button>
+                                <div className="flex shrink-0 items-center gap-1 bg-slate-50 rounded-lg p-1 border border-slate-100">
+                                    <button aria-label={`Diminuir no carrinho: ${item.product.name}`} onClick={() => updateQuantity(item.product.id, item.quantity - (item.product.category === 'Gelo Sabor' ? 10 : 1))} className="w-11 h-11 flex items-center justify-center text-slate-500 font-bold text-xl active:scale-95">-</button>
                                     <input
                                         type="number"
+                                        aria-label={`Quantidade no carrinho de ${item.product.name}`}
                                         value={item.quantity || ''}
                                         onChange={(e) => updateQuantity(item.product.id, parseInt(e.target.value) || 0)}
                                         onFocus={(e) => e.target.select()}
                                         className="w-10 text-center font-bold text-slate-800 bg-transparent outline-none hide-arrows"
                                     />
-                                    <button onClick={() => updateQuantity(item.product.id, item.quantity + (item.product.category === 'Gelo Sabor' ? 10 : 1))} className="w-8 h-8 flex items-center justify-center text-orange-500 font-bold text-xl active:scale-95">+</button>
+                                    <button aria-label={`Aumentar no carrinho: ${item.product.name}`} onClick={() => updateQuantity(item.product.id, item.quantity + (item.product.category === 'Gelo Sabor' ? 10 : 1))} className="w-11 h-11 flex items-center justify-center text-orange-500 font-bold text-xl active:scale-95">+</button>
                                 </div>
                             </div>
                         );
                     })}
                 </div>
 
-                <div className="fixed bottom-20 left-4 right-4 z-10">
-                    <div className="bg-white p-4 rounded-2xl shadow-2xl border border-slate-200 flex items-center justify-between">
+                <div className="shrink-0 border-t border-slate-200 bg-white p-4 sm:p-5">
+                    <div className="flex flex-wrap items-center justify-between gap-3 lg:flex-col lg:items-stretch">
                         <div>
                             <p className="text-xs font-bold text-slate-500 uppercase">Total</p>
                             <p className="text-2xl font-black text-slate-800">R$ {cartTotal.toFixed(2)}</p>
                         </div>
                         <button
-                            onClick={() => setIsCheckingOut(true)}
-                            className="bg-orange-500 active:bg-orange-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg flex items-center gap-2 transition-all"
+                            onClick={() => { setActiveTab('CART'); setIsCheckingOut(true); }}
+                            className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-colors"
                         >
                             Avançar <ArrowLeft size={18} className="rotate-180" />
                         </button>
@@ -1179,7 +1200,8 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
     };
 
     const renderHistory = () => (
-        <div className="grid gap-4 pb-20 md:pb-0 p-4">
+        <div className="mx-auto grid w-full max-w-7xl gap-4 p-4 sm:p-6 lg:p-0">
+            <h2 className="text-xl font-bold text-slate-800 sm:text-2xl">Histórico de vendas</h2>
             <div className="flex flex-col md:flex-row gap-4 mb-4">
                 <div className="relative flex-1">
                     <Search size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -1373,13 +1395,13 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
     );
 
     return (
-        <div className="h-[100dvh] overflow-hidden bg-slate-50 flex flex-col font-sans">
+        <div className="h-[100dvh] min-h-0 w-full min-w-0 flex-1 overflow-hidden bg-slate-50 flex flex-col font-sans [&_button:focus-visible]:outline [&_button:focus-visible]:outline-2 [&_button:focus-visible]:outline-offset-2 [&_button:focus-visible]:outline-orange-500">
             {/* Top Header */}
-            <header className="bg-blue-900 text-white sticky top-0 z-20 w-full pt-safe shadow-xl">
-                <div className="h-16 flex items-center justify-between px-4">
+            <header className="shrink-0 bg-blue-900 text-white z-20 w-full pt-safe shadow-sm">
+                <div className="mx-auto max-w-[1600px] h-16 lg:h-20 flex items-center justify-between gap-4 px-4 sm:px-6">
                     <div className="flex items-center gap-2">
                         {onBack && (
-                            <button onClick={onBack} className="p-2 hover:bg-white/10 rounded-xl transition-colors active-scale touch-target">
+                            <button onClick={onBack} aria-label="Voltar à gestão" className="p-2 hover:bg-white/10 rounded-xl transition-colors active-scale touch-target">
                                 <ArrowLeft size={20} />
                             </button>
                         )}
@@ -1387,14 +1409,19 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                             <img src="/logo.png" alt="Logo" className="h-6 w-auto object-contain" />
                         </div>
                         <div className="flex flex-col ml-1">
-                            <h1 className="font-black leading-none text-sm uppercase tracking-wider">Pedidos</h1>
-                            <p className="text-[9px] text-blue-200 uppercase tracking-[0.2em] font-black">Atacado</p>
+                            <h1 className="font-bold leading-none text-sm sm:text-lg">PDV Atacado</h1>
+                            <p className="mt-1 text-xs text-blue-200">Gelo do Sertão</p>
                         </div>
                     </div>
+                    <nav aria-label="Navegação do PDV" className="hidden items-center gap-2 lg:flex">
+                        <button onClick={() => { setActiveTab('CATALOG'); setIsCheckingOut(false); }} aria-current={activeTab !== 'HISTORY' && !isCheckingOut ? 'page' : undefined} className={`flex items-center gap-2 rounded-lg px-4 py-3 text-sm font-bold transition-colors ${activeTab !== 'HISTORY' && !isCheckingOut ? 'bg-white text-blue-900' : 'text-blue-100 hover:bg-white/10'}`}><Store size={18} /> Novo pedido</button>
+                        {activeTab === 'CART' && isCheckingOut && <span aria-current="page" className="rounded-lg bg-white px-4 py-3 text-sm font-bold text-blue-900">Finalizar pedido</span>}
+                        <button onClick={() => { setActiveTab('HISTORY'); setIsCheckingOut(false); }} aria-current={activeTab === 'HISTORY' ? 'page' : undefined} className={`flex items-center gap-2 rounded-lg px-4 py-3 text-sm font-bold transition-colors ${activeTab === 'HISTORY' ? 'bg-white text-blue-900' : 'text-blue-100 hover:bg-white/10'}`}><History size={18} /> Vendas</button>
+                    </nav>
                     <div className="flex items-center gap-3">
                         <div className="text-right hidden sm:block">
-                            <p className="text-sm font-bold truncate max-w-[80px]">{currentUser.name.split(' ')[0]}</p>
-                            <p className="text-[10px] text-blue-300 font-bold uppercase tracking-widest">Vendedor</p>
+                            <p className="text-sm font-bold truncate max-w-[160px]">{currentUser.name.split(' ')[0]}</p>
+                            <p className="text-xs text-blue-200">{isAdmin ? 'Administrador' : 'Vendedor'}</p>
                         </div>
                         <button onClick={onLogout} className="p-2 bg-white/10 text-white hover:bg-red-500/20 hover:text-red-200 rounded-xl transition-all active-scale touch-target" aria-label="Sair">
                             <LogOut size={18} />
@@ -1404,17 +1431,25 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
             </header>
 
             {/* Main Content Area */}
-            <main className="flex-1 overflow-y-auto pb-16 md:pb-0">
-                {activeTab === 'CATALOG' && renderCatalog()}
-                {activeTab === 'CART' && renderCart()}
-                {activeTab === 'HISTORY' && renderHistory()}
+            <main className="mx-auto w-full max-w-[1600px] flex-1 min-h-0 overflow-hidden lg:p-6">
+                {activeTab === 'HISTORY' ? (
+                    <section aria-label="Vendas" className="h-full overflow-y-auto">{renderHistory()}</section>
+                ) : activeTab === 'CART' && isCheckingOut ? (
+                    <section aria-label="Finalização do pedido" className="h-full overflow-y-auto">{renderCart()}</section>
+                ) : (
+                    <div className="grid h-full min-h-0 grid-cols-1 gap-0 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-6 xl:grid-cols-[minmax(0,1fr)_400px]">
+                        <section aria-label="Catálogo" className={`min-h-0 min-w-0 overflow-y-auto lg:block lg:pr-1 ${activeTab === 'CATALOG' ? 'block' : 'hidden'}`}>{renderCatalog()}</section>
+                        <aside aria-label="Carrinho do pedido" className={`min-h-0 min-w-0 overflow-hidden lg:block lg:rounded-2xl lg:border lg:border-slate-200 lg:bg-white ${activeTab === 'CART' ? 'block' : 'hidden'}`}>{renderCart()}</aside>
+                    </div>
+                )}
             </main>
 
             {/* Bottom Navigation */}
-            <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 flex justify-around p-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] shadow-[0_-8px_30px_rgba(0,0,0,0.08)] z-20">
+            <nav aria-label="Navegação do PDV no celular" className="shrink-0 bg-white border-t border-slate-200 flex justify-around gap-1 px-2 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] z-20 lg:hidden">
                 <button
                     onClick={() => { setActiveTab('CATALOG'); setIsCheckingOut(false); }}
-                    className={`flex flex-col items-center p-2 px-6 rounded-2xl transition-all active-scale touch-target ${activeTab === 'CATALOG' ? 'text-orange-500 bg-orange-50/50 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                    aria-current={activeTab === 'CATALOG' ? 'page' : undefined}
+                    className={`flex flex-1 min-w-0 flex-col items-center p-2 rounded-xl transition-colors touch-target ${activeTab === 'CATALOG' ? 'text-orange-600 bg-orange-50' : 'text-slate-500 hover:text-slate-700'}`}
                 >
                     <Store size={24} className={activeTab === 'CATALOG' ? 'scale-110 transition-transform' : ''} />
                     <span className="text-[10px] font-black uppercase tracking-[0.1em] mt-1">Produtos</span>
@@ -1422,12 +1457,13 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
 
                 <button
                     onClick={() => setActiveTab('CART')}
-                    className={`relative flex flex-col items-center p-2 px-6 rounded-2xl transition-all active-scale touch-target ${activeTab === 'CART' ? 'text-orange-500 bg-orange-50/50 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                    aria-current={activeTab === 'CART' ? 'page' : undefined}
+                    className={`relative flex flex-1 min-w-0 flex-col items-center p-2 rounded-xl transition-colors touch-target ${activeTab === 'CART' ? 'text-orange-600 bg-orange-50' : 'text-slate-500 hover:text-slate-700'}`}
                 >
                     <div className="relative">
                         <ShoppingCart size={24} className={activeTab === 'CART' ? 'scale-110 transition-transform' : ''} />
                         {cart.length > 0 && (
-                            <span className="absolute -top-2 -right-2 bg-red-600 text-white text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-full border-2 border-white shadow-md animate-in zoom-in duration-300">
+                            <span className="absolute -top-2 left-4 bg-red-600 text-white text-[10px] font-bold min-w-5 h-5 px-1 flex items-center justify-center rounded-full border-2 border-white">
                                 {cart.reduce((a, b) => a + b.quantity, 0)}
                             </span>
                         )}
@@ -1437,7 +1473,8 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
 
                 <button
                     onClick={() => { setActiveTab('HISTORY'); setIsCheckingOut(false); }}
-                    className={`flex flex-col items-center p-2 px-6 rounded-2xl transition-all active-scale touch-target ${activeTab === 'HISTORY' ? 'text-orange-500 bg-orange-50/50 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                    aria-current={activeTab === 'HISTORY' ? 'page' : undefined}
+                    className={`flex flex-1 min-w-0 flex-col items-center p-2 rounded-xl transition-colors touch-target ${activeTab === 'HISTORY' ? 'text-orange-600 bg-orange-50' : 'text-slate-500 hover:text-slate-700'}`}
                 >
                     <History size={24} className={activeTab === 'HISTORY' ? 'scale-110 transition-transform' : ''} />
                     <span className="text-[10px] font-black uppercase tracking-[0.1em] mt-1">Vendas</span>
