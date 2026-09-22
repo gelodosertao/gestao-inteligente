@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { Product, StoreSettings, Sale, SaleItem, FinancialRecord, Customer, StockMovement, Branch, Category, ProductionRecord, Shift, User, Role, CategoryItem, CashClosing, Order } from '../types';
+import { Product, StoreSettings, Sale, SaleItem, FinancialRecord, Customer, StockMovement, Branch, Category, ProductionRecord, Shift, User, Role, CategoryItem, CashClosing, Order, ReconciliationAction, ReconciliationCase } from '../types';
 import { mapUserProfile } from '../security/userProfile';
 
 // --- HELPER DE PAGINAÇÃO PARA BYPASS LIMITE 1000 DO SUPABASE ---
@@ -343,6 +343,15 @@ export const dbSettings = {
 };
 
 // --- SALES ---
+export type SaleOperationAction = 'create' | 'update' | 'cancel';
+
+export interface SaleOperationResult {
+  operationId: string;
+  saleId: string;
+  action: SaleOperationAction;
+  status: Sale['status'];
+}
+
 export const dbSales = {
   async getAll(tenantId: string): Promise<Sale[]> {
     const data = await fetchAllRecords((from, to) => supabase.from('sales').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false }).range(from, to));
@@ -380,6 +389,22 @@ export const dbSales = {
       invoiceKey: row.invoice_key,
       invoiceUrl: row.invoice_url
     }));
+  },
+
+  async applyOperation(
+    action: SaleOperationAction,
+    sale: Sale,
+    operationId: string
+  ): Promise<SaleOperationResult> {
+    const { data, error } = await supabase.rpc('apply_sale_operation', {
+      p_operation_id: operationId,
+      p_sale_id: sale.id,
+      p_action: action,
+      p_payload: action === 'cancel' ? {} : sale
+    });
+
+    if (error) throw error;
+    return data as SaleOperationResult;
   },
 
   async add(sale: Sale, tenantId: string) {
@@ -1023,5 +1048,30 @@ export const dbCrm = {
 
     // Fallback error handling if Edge Function fails
     if (error) throw new Error(error.message || 'Erro ao comunicar com o servidor de e-mail.');
+  },
+};
+
+// --- FINANCIAL RECONCILIATION ---
+export const dbReconciliation = {
+  async getCases(): Promise<ReconciliationCase[]> {
+    const { data, error } = await supabase.rpc('get_financial_reconciliation_cases');
+    if (error) throw error;
+    return Array.isArray(data) ? data as ReconciliationCase[] : [];
+  },
+
+  async resolveCase(
+    caseKey: string,
+    action: ReconciliationAction,
+    options: { financialId?: string; saleId?: string; note?: string } = {}
+  ) {
+    const { data, error } = await supabase.rpc('resolve_financial_reconciliation_case', {
+      p_case_key: caseKey,
+      p_action: action,
+      p_financial_id: options.financialId ?? null,
+      p_sale_id: options.saleId ?? null,
+      p_note: options.note ?? null,
+    });
+    if (error) throw error;
+    return data as { caseKey: string; status: string; adjustmentFinancialId?: string | null; idempotent: boolean };
   },
 };

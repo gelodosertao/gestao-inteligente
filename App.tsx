@@ -220,6 +220,27 @@ const App: React.FC = () => {
 
   // --- GLOBAL ACTIONS (Connected to DB) ---
 
+  const pendingSaleOperations = React.useRef(new Map<string, string>());
+
+  const getSaleOperation = (action: 'create' | 'update' | 'cancel', sale: Sale) => {
+    const key = `${action}:${sale.id}:${JSON.stringify(action === 'cancel' ? {} : sale)}`;
+    const existing = pendingSaleOperations.current.get(key);
+    if (existing) return { key, operationId: existing };
+
+    const operationId = crypto.randomUUID();
+    pendingSaleOperations.current.set(key, operationId);
+    return { key, operationId };
+  };
+
+  const refreshSaleData = async () => {
+    const refreshed = await refetch();
+    if (!refreshed.data) return;
+
+    setProducts(refreshed.data.p);
+    setSales(refreshed.data.s);
+    setFinancials(refreshed.data.f);
+  };
+
   const handleUpdateProduct = async (updatedProduct: Product) => {
     setProducts(prev => prev.map(p => p.id === updatedProduct.id ? updatedProduct : p));
     try {
@@ -255,85 +276,17 @@ const App: React.FC = () => {
   };
 
   const handleAddSale = async (newSale: Sale) => {
-    setSales(prev => [newSale, ...prev]);
+    const operation = getSaleOperation('create', newSale);
 
-    // Calculate total quantity sold for each product (handling Combos)
-    const soldQuantities: Record<string, number> = {};
-
-    newSale.items.forEach(item => {
-      const product = products.find(p => p.id === item.productId);
-      if (product?.comboItems && product.comboItems.length > 0) {
-        // It's a Combo: deduct stock from components
-        product.comboItems.forEach(component => {
-          soldQuantities[component.productId] = (soldQuantities[component.productId] || 0) + (component.quantity * item.quantity);
-        });
-      } else {
-        // Simple Product: deduct directly
-        soldQuantities[item.productId] = (soldQuantities[item.productId] || 0) + item.quantity;
-      }
-    });
-
-    const updatedProductsList = products.map(prod => {
-      const qtySold = soldQuantities[prod.id];
-      if (qtySold) {
-        if (newSale.branch === Branch.FILIAL) {
-          return { ...prod, stockFilial: Math.max(0, prod.stockFilial - qtySold) };
-        } else {
-          // For Matriz, only deduct if deposit is explicitly chosen
-          if (newSale.matrizDeposit === 'Barreiras') {
-            return { ...prod, stockMatrizBarreiras: Math.max(0, prod.stockMatrizBarreiras - qtySold) };
-          } else if (newSale.matrizDeposit === 'Ibotirama') {
-            return { ...prod, stockMatrizIbotirama: Math.max(0, prod.stockMatrizIbotirama - qtySold) };
-          }
-          // If no deposit chosen (e.g. Pending from Wholesale POS), do not deduct yet
-          return prod;
-        }
-      }
-      return prod;
-    });
-    setProducts(updatedProductsList);
-
-    // Only add to financials if Completed
-    if (newSale.status === 'Completed') {
-      const newFinancial: FinancialRecord = {
-        id: crypto.randomUUID(),
-        date: newSale.date,
-        description: `Venda #${newSale.id} - ${newSale.customerName}`,
-        amount: newSale.total,
-        type: 'Income',
-        category: 'Vendas',
-        branch: newSale.branch,
-        paymentMethod: newSale.paymentMethod as any
-      };
-      setFinancials(prev => [newFinancial, ...prev]);
-
-      try {
-        await dbSales.add(newSale, currentUser!.tenantId);
-        await dbFinancials.addBatch([newFinancial], currentUser!.tenantId);
-
-        for (const prodId of Object.keys(soldQuantities)) {
-          const product = updatedProductsList.find(p => p.id === prodId);
-          if (product) {
-            await dbProducts.update(product);
-          }
-        }
-      } catch (error: any) {
-        console.error("Erro ao sincronizar venda com banco:", error);
-        alert(`A venda (ID: ${newSale.id}) foi registrada localmente mas houve erro ao salvar na nuvem: ${error.message || JSON.stringify(error)}`);
-      }
-    } else {
-      // If Pending, just save sale and update stock (stock is reserved even if pending? Usually yes)
-      try {
-        await dbSales.add(newSale, currentUser!.tenantId);
-        for (const prodId of Object.keys(soldQuantities)) {
-          const product = updatedProductsList.find(p => p.id === prodId);
-          if (product) {
-            await dbProducts.update(product);
-          }
-        }
-      } catch (error: any) {
-        console.error("Erro ao sincronizar venda pendente:", error);
-      }
+    try {
+      await dbSales.applyOperation('create', newSale, operation.operationId);
+      await refreshSaleData();
+      pendingSaleOperations.current.delete(operation.key);
+    } catch (error: any) {
+      console.error("Erro ao registrar venda:", error);
+      await refreshSaleData().catch(refreshError => console.error("Erro ao recarregar vendas:", refreshError));
+      alert(`A venda não foi confirmada. Tente novamente: ${error.message || JSON.stringify(error)}`);
+      return;
     }
 
     // Logistics Integration for Wholesale POS Deliveries
@@ -456,73 +409,16 @@ const App: React.FC = () => {
   };
 
   const handleUpdateSale = async (updatedSale: Sale) => {
-    const oldSale = sales.find(s => s.id === updatedSale.id);
-    setSales(prev => prev.map(s => s.id === updatedSale.id ? updatedSale : s));
+    const operation = getSaleOperation('update', updatedSale);
 
-    // If it was Pending/Cancelled and now it's Completed, we should deduct stock and record financial
-    const finalizeStatuses = ['Completed', 'Finalizado pela Fábrica'];
-    const isFinalizing = oldSale && !finalizeStatuses.includes(oldSale.status) && finalizeStatuses.includes(updatedSale.status);
-
-    if (isFinalizing) {
-      const soldQuantities: Record<string, number> = {};
-      updatedSale.items.forEach(item => {
-        const product = products.find(p => p.id === item.productId);
-        if (product?.comboItems && product.comboItems.length > 0) {
-          product.comboItems.forEach(component => {
-            soldQuantities[component.productId] = (soldQuantities[component.productId] || 0) + (component.quantity * item.quantity);
-          });
-        } else {
-          soldQuantities[item.productId] = (soldQuantities[item.productId] || 0) + item.quantity;
-        }
-      });
-
-      const updatedProductsList = products.map(prod => {
-        const qtySold = soldQuantities[prod.id];
-        if (qtySold) {
-          if (updatedSale.branch === Branch.FILIAL) {
-            return { ...prod, stockFilial: Math.max(0, prod.stockFilial - qtySold) };
-          } else {
-            if (updatedSale.matrizDeposit === 'Barreiras') {
-              return { ...prod, stockMatrizBarreiras: Math.max(0, prod.stockMatrizBarreiras - qtySold) };
-            } else if (updatedSale.matrizDeposit === 'Ibotirama') {
-              return { ...prod, stockMatrizIbotirama: Math.max(0, prod.stockMatrizIbotirama - qtySold) };
-            }
-          }
-        }
-        return prod;
-      });
-      setProducts(updatedProductsList);
-
-      const newFinancial: FinancialRecord = {
-        id: crypto.randomUUID(),
-        date: updatedSale.date,
-        description: `Finalização Venda #${updatedSale.id} - ${updatedSale.customerName}`,
-        amount: updatedSale.total,
-        type: 'Income',
-        category: 'Vendas',
-        branch: updatedSale.branch,
-        paymentMethod: updatedSale.paymentMethod as any
-      };
-      setFinancials(prev => [newFinancial, ...prev]);
-
-      try {
-        await dbSales.update(updatedSale);
-        await dbFinancials.addBatch([newFinancial], currentUser!.tenantId);
-        for (const prodId of Object.keys(soldQuantities)) {
-          const product = updatedProductsList.find(p => p.id === prodId);
-          if (product) await dbProducts.update(product);
-        }
-      } catch (e) {
-        console.error("Erro ao atualizar stock/financeiro na finalização:", e);
-      }
-    } else {
-      // Just update the sale info
-      try {
-        await dbSales.update(updatedSale);
-      } catch (e) {
-        console.error(e);
-        alert("Erro ao atualizar venda no banco.");
-      }
+    try {
+      await dbSales.applyOperation('update', updatedSale, operation.operationId);
+      await refreshSaleData();
+      pendingSaleOperations.current.delete(operation.key);
+    } catch (error: any) {
+      console.error("Erro ao atualizar venda:", error);
+      await refreshSaleData().catch(refreshError => console.error("Erro ao recarregar vendas:", refreshError));
+      alert(`A alteração não foi confirmada. Tente novamente: ${error.message || JSON.stringify(error)}`);
     }
   };
 
@@ -536,55 +432,16 @@ const App: React.FC = () => {
 
     if (!confirm("Tem certeza que deseja excluir esta venda? O estoque será devolvido automaticamente.")) return;
 
-    // Calculate stock to return
-    const returnedQuantities: Record<string, number> = {};
-
-    saleToDelete.items.forEach(item => {
-      const product = products.find(p => p.id === item.productId);
-      if (product?.comboItems && product.comboItems.length > 0) {
-        // It's a Combo: return stock to components
-        product.comboItems.forEach(component => {
-          returnedQuantities[component.productId] = (returnedQuantities[component.productId] || 0) + (component.quantity * item.quantity);
-        });
-      } else {
-        // Simple Product: return directly
-        returnedQuantities[item.productId] = (returnedQuantities[item.productId] || 0) + item.quantity;
-      }
-    });
-
-    // Update local products state
-    const updatedProductsList = products.map(prod => {
-      const qtyReturned = returnedQuantities[prod.id];
-      if (qtyReturned) {
-        if (saleToDelete.branch === Branch.FILIAL) {
-          return { ...prod, stockFilial: prod.stockFilial + qtyReturned };
-        } else {
-          if (saleToDelete.matrizDeposit === 'Barreiras') {
-            return { ...prod, stockMatrizBarreiras: prod.stockMatrizBarreiras + qtyReturned };
-          }
-          return { ...prod, stockMatrizIbotirama: prod.stockMatrizIbotirama + qtyReturned };
-        }
-      }
-      return prod;
-    });
-    setProducts(updatedProductsList);
-
-    // Update local sales state
-    setSales(prev => prev.filter(s => s.id !== saleId));
+    const operation = getSaleOperation('cancel', saleToDelete);
 
     try {
-      await dbSales.delete(saleId);
-
-      // Update products in DB
-      for (const prodId of Object.keys(returnedQuantities)) {
-        const product = updatedProductsList.find(p => p.id === prodId);
-        if (product) {
-          await dbProducts.update(product);
-        }
-      }
-    } catch (e) {
-      console.error(e);
-      alert("Erro ao excluir venda no banco.");
+      await dbSales.applyOperation('cancel', saleToDelete, operation.operationId);
+      await refreshSaleData();
+      pendingSaleOperations.current.delete(operation.key);
+    } catch (error: any) {
+      console.error("Erro ao cancelar venda:", error);
+      await refreshSaleData().catch(refreshError => console.error("Erro ao recarregar vendas:", refreshError));
+      alert(`O cancelamento não foi confirmado. Tente novamente: ${error.message || JSON.stringify(error)}`);
     }
   };
 
@@ -790,7 +647,10 @@ const App: React.FC = () => {
       case 'REPORTS':
         return <Reports sales={sales} products={products} customers={customers} onBack={() => setCurrentView('DASHBOARD')} />;
       case 'CONCILIACAO':
-        return <Conciliacao sales={sales} financials={financials} products={products} onBack={() => setCurrentView('DASHBOARD')} onAddFinancialRecord={handleAddFinancialRecord} />;
+        if (currentUser?.role !== 'ADMIN') {
+          return <div className="flex flex-col items-center justify-center p-12 mt-10 bg-white rounded-2xl shadow-sm border border-slate-200"><h2 className="text-2xl font-bold text-slate-800 mb-2">Acesso restrito</h2><p className="text-slate-500">A conciliação financeira é exclusiva para administradores.</p></div>;
+        }
+        return <Conciliacao sales={sales} financials={financials} products={products} onBack={() => setCurrentView('DASHBOARD')} onDataChanged={refreshSaleData} />;
       case 'INVENTORY':
         return <Inventory products={products} sales={sales} financials={financials} onUpdateProduct={handleUpdateProduct} onAddProduct={handleAddProduct} onDeleteProduct={handleDeleteProduct} onOpenPricing={(id) => { setPricingProductId(id); setCurrentView('PRICING'); }} onAddFinancialRecord={handleAddFinancialRecord} onBack={() => setCurrentView('DASHBOARD')} currentUser={currentUser!} />;
       case 'SALES':

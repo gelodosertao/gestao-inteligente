@@ -2,13 +2,14 @@ import React, { useState, useMemo } from 'react';
 import { Sale, FinancialRecord, Product, Branch } from '../types';
 import { ArrowLeft, AlertTriangle, CheckCircle, XCircle, DollarSign, Download, FileSpreadsheet, Search, Filter, ArrowUpCircle, ArrowDownCircle, Calendar, Building2, CreditCard, Clock } from 'lucide-react';
 import { getTodayDate } from '../services/utils';
+import ReconciliationCases from './ReconciliationCases';
 
 interface ConciliacaoProps {
   sales: Sale[];
   financials: FinancialRecord[];
   products: Product[];
   onBack: () => void;
-  onAddFinancialRecord: (records: FinancialRecord[]) => void;
+  onDataChanged: () => Promise<void>;
 }
 
 interface Divergencia {
@@ -41,8 +42,8 @@ const formatCurrency = (value: number) =>
 
 const getTodayLocal = () => new Date().toISOString().split('T')[0];
 
-const Conciliacao: React.FC<ConciliacaoProps> = ({ sales, financials, products, onBack, onAddFinancialRecord }) => {
-  const [activeTab, setActiveTab] = useState<'resumo' | 'conciliacao' | 'fiado' | 'divergencias' | 'exportar'>('resumo');
+const Conciliacao: React.FC<ConciliacaoProps> = ({ sales, financials, products, onBack, onDataChanged }) => {
+  const [activeTab, setActiveTab] = useState<'resumo' | 'casos' | 'conciliacao' | 'fiado' | 'divergencias' | 'exportar'>('casos');
   const [dateRange, setDateRange] = useState<'ALL_TIME' | 'THIS_MONTH' | 'LAST_30_DAYS' | 'LAST_90_DAYS'>('THIS_MONTH');
   const [selectedBranch, setSelectedBranch] = useState<'ALL' | Branch>('ALL');
   const [searchTerm, setSearchTerm] = useState('');
@@ -203,19 +204,9 @@ const Conciliacao: React.FC<ConciliacaoProps> = ({ sales, financials, products, 
   }, [reconciliation.completedSales]);
 
   // Create missing financial records for selected sales
-  const handleCreateFinancialRecords = async (items: MissingFinancial[]) => {
-    const newRecords: FinancialRecord[] = items.map(s => ({
-      id: crypto.randomUUID(),
-      date: s.date,
-      description: `Venda #${s.saleId} - ${s.customer} (conciliado)`,
-      amount: s.amount,
-      type: 'Income',
-      category: 'Vendas',
-      branch: s.branch,
-      paymentMethod: s.paymentMethod as any,
-    }));
-    onAddFinancialRecord(newRecords);
-    setSuccessMsg(`${newRecords.length} registro(s) financeiro(s) criado(s) com sucesso!`);
+  const handleCreateFinancialRecords = (_items: MissingFinancial[]) => {
+    setActiveTab('casos');
+    setSuccessMsg('Use os casos auditados para corrigir com confirmação e trilha de auditoria.');
     setTimeout(() => setSuccessMsg(''), 4000);
   };
 
@@ -292,6 +283,9 @@ const Conciliacao: React.FC<ConciliacaoProps> = ({ sales, financials, products, 
           <button onClick={() => setActiveTab('resumo')} className={tabClass('resumo')}>
             <span className="hidden sm:inline">Resumo</span><span className="sm:hidden">Resumo</span>
           </button>
+          <button onClick={() => setActiveTab('casos')} className={tabClass('casos')}>
+            Casos auditados
+          </button>
           <button onClick={() => setActiveTab('conciliacao')} className={tabClass('conciliacao')}>
             Conciliação {reconciliation.missingFinancial.length > 0 && `(${reconciliation.missingFinancial.length})`}
           </button>
@@ -311,6 +305,8 @@ const Conciliacao: React.FC<ConciliacaoProps> = ({ sales, financials, products, 
           <CheckCircle size={18} /> {successMsg}
         </div>
       )}
+
+      {activeTab === 'casos' && <ReconciliationCases sales={sales} onDataChanged={onDataChanged} />}
 
       {/* === TAB: RESUMO === */}
       {activeTab === 'resumo' && (

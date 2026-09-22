@@ -176,6 +176,42 @@ export interface FinancialRecord {
   paymentMethod?: 'Pix' | 'Credit' | 'Debit' | 'Cash';
 }
 
+export type ReconciliationCaseType =
+  | 'missing_revenue'
+  | 'orphan_revenue'
+  | 'duplicate_revenue'
+  | 'amount_mismatch'
+  | 'pending_sale_revenue'
+  | 'duplicate_reversal';
+
+export type ReconciliationCaseStatus = 'PENDING_REVIEW' | 'APPLIED' | 'RESOLVED';
+export type ReconciliationAction = 'review' | 'create_missing_revenue' | 'reverse_financial' | 'link_financial';
+
+export interface ReconciliationFinancial {
+  id: string;
+  date: string;
+  description: string;
+  amount: number;
+  paymentMethod?: FinancialRecord['paymentMethod'];
+}
+
+export interface ReconciliationCase {
+  caseKey: string;
+  caseType: ReconciliationCaseType;
+  status: ReconciliationCaseStatus;
+  saleId?: string | null;
+  financialId?: string | null;
+  adjustmentFinancialId?: string | null;
+  proposedAmount?: number | null;
+  evidence: Record<string, unknown>;
+  resolutionNote?: string | null;
+  resolutionAction?: ReconciliationAction | null;
+  createdAt: string;
+  resolvedAt?: string | null;
+  sale?: Pick<Sale, 'id' | 'date' | 'customerName' | 'total' | 'status' | 'branch' | 'paymentMethod'> | null;
+  financials: ReconciliationFinancial[];
+}
+
 export type Role = 'ADMIN' | 'OPERATOR' | 'FACTORY' | 'WHOLESALE_REPRESENTATIVE';
 
 export interface User {
