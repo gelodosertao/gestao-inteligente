@@ -62,8 +62,8 @@ begin
 end;
 $$;
 
--- A assinatura antiga permitiria gerar placas sem participante.
-drop function public.gelo_premiado_create(text, integer);
+-- Mantém a assinatura antiga enquanto o frontend de produção ainda não foi atualizado.
+-- Ela será removida em uma migração posterior, depois do deploy da página nova.
 revoke all on function public.gelo_premiado_create(text, integer, text) from public;
 grant execute on function public.gelo_premiado_create(text, integer, text) to authenticated;
 
@@ -86,3 +86,4 @@ $$;
 
 revoke all on function public.gelo_premiado_list() from public;
 grant execute on function public.gelo_premiado_list() to authenticated;
+notify pgrst, 'reload schema';
