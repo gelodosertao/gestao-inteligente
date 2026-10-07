@@ -59,11 +59,12 @@ export interface SaleWithItems {
 
 const supabase = createClient(env.supabaseUrl, env.supabaseServiceKey);
 
-export async function getSaleWithItems(saleId: string): Promise<SaleWithItems> {
+export async function getSaleWithItems(saleId: string, tenantId: string): Promise<SaleWithItems> {
   const { data: sale, error: saleError } = await supabase
     .from('sales')
     .select('*')
     .eq('id', saleId)
+    .eq('tenant_id', tenantId)
     .single();
 
   if (saleError || !sale) {
@@ -73,7 +74,8 @@ export async function getSaleWithItems(saleId: string): Promise<SaleWithItems> {
   const { data: items, error: itemsError } = await supabase
     .from('sale_items')
     .select('*')
-    .eq('sale_id', saleId);
+    .eq('sale_id', saleId)
+    .eq('tenant_id', tenantId);
 
   if (itemsError) {
     throw new Error(`Erro ao buscar itens da venda: ${itemsError.message}`);
@@ -82,13 +84,14 @@ export async function getSaleWithItems(saleId: string): Promise<SaleWithItems> {
   return { sale, items: items || [] };
 }
 
-export async function findCustomerByDoc(doc: string): Promise<CustomerData | null> {
+export async function findCustomerByDoc(doc: string, tenantId: string): Promise<CustomerData | null> {
   const cleanDoc = doc.replace(/\D/g, '');
   if (!cleanDoc) return null;
 
   const { data, error } = await supabase
     .from('customers')
     .select('*')
+    .eq('tenant_id', tenantId)
     .or(`cpf_cnpj.eq.${cleanDoc},cpf_cnpj.eq.${cleanDoc.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, '$1.$2.$3-$4')},cpf_cnpj.eq.${cleanDoc.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5')}`)
     .maybeSingle();
 
@@ -111,7 +114,7 @@ export interface NfeXmlEntry {
   nfe_issued_at?: string;
 }
 
-export async function* getPaginatedNfeXmlsByMonth(ano: number, mes: number, batchSize = 100): AsyncGenerator<NfeXmlEntry[], void, unknown> {
+export async function* getPaginatedNfeXmlsByMonth(ano: number, mes: number, tenantId: string, batchSize = 100): AsyncGenerator<NfeXmlEntry[], void, unknown> {
   const start = `${ano}-${String(mes).padStart(2, '0')}-01`;
   const end = mes === 12
     ? `${ano + 1}-01-01`
@@ -122,12 +125,14 @@ export async function* getPaginatedNfeXmlsByMonth(ano: number, mes: number, batc
 
   while (hasMore) {
     const { data, error } = await supabase
-      .from('sales')
-      .select('id, customer_name, date, total, nfe_xml, invoice_key, nfe_number, nfe_issued_at')
-      .eq('nfe_status', 'autorizada')
-      .not('nfe_xml', 'is', null)
-      .gte('nfe_issued_at', start)
-      .lt('nfe_issued_at', end)
+      .from('nfe_documents')
+      .select('id, sale_id, authorized_xml, access_key, number, authorized_at')
+      .eq('status', 'authorized')
+      .eq('tenant_id', tenantId)
+      .eq('environment', env.sefazAmbiente)
+      .not('authorized_xml', 'is', null)
+      .gte('authorized_at', start)
+      .lt('authorized_at', end)
       .range(offset, offset + batchSize - 1);
 
     if (error) {
@@ -139,7 +144,8 @@ export async function* getPaginatedNfeXmlsByMonth(ano: number, mes: number, batc
       break;
     }
 
-    yield data as NfeXmlEntry[];
+    yield data.map(row => ({ id: row.id, customer_name: '', date: row.authorized_at || '', total: 0,
+      nfe_xml: row.authorized_xml, invoice_key: row.access_key, nfe_number: String(row.number), nfe_issued_at: row.authorized_at || '' }));
 
     if (data.length < batchSize) {
       hasMore = false;
@@ -178,7 +184,7 @@ export interface RelatorioMensal {
   vendas: VendaRelatorio[];
 }
 
-export async function getSalesReportByMonth(ano: number, mes: number): Promise<RelatorioMensal> {
+export async function getSalesReportByMonth(ano: number, mes: number, tenantId: string): Promise<RelatorioMensal> {
   const start = `${ano}-${String(mes).padStart(2, '0')}-01`;
   const end = mes === 12
     ? `${ano + 1}-01-01`
@@ -188,6 +194,8 @@ export async function getSalesReportByMonth(ano: number, mes: number): Promise<R
     .from('sales')
     .select('id, date, customer_name, total, payment_method, payment_splits, discount, delivery_fee, amount_paid, invoice_key, nfe_number')
     .eq('nfe_status', 'autorizada')
+    .eq('tenant_id', tenantId)
+    .eq('nfe_environment', env.sefazAmbiente)
     .gte('nfe_issued_at', start)
     .lt('nfe_issued_at', end);
 
@@ -253,36 +261,60 @@ export async function getSalesReportByMonth(ano: number, mes: number): Promise<R
 export interface NfeCancelData {
   saleId: string;
   invoiceKey: string;
-  nfeNumber: string;
+  nfeProtocol: string;
   customerName: string;
 }
 
-export async function getSaleNfeForCancel(saleId: string): Promise<NfeCancelData> {
-  const { data, error } = await supabase
-    .from('sales')
-    .select('id, invoice_key, nfe_number, customer_name')
-    .eq('id', saleId)
-    .single();
+export async function getSaleNfeForCancel(saleId: string, tenantId: string): Promise<NfeCancelData> {
+  const { data, error } = await supabase.from('nfe_documents')
+    .select('access_key, protocol, status, sale_id')
+    .eq('sale_id', saleId).eq('tenant_id', tenantId).eq('environment', env.sefazAmbiente).single();
 
   if (error || !data) {
     throw new Error(`Venda não encontrada: ${error?.message || saleId}`);
   }
 
-  if (!data.invoice_key || !data.nfe_number) {
+  if (!data.access_key || !data.protocol || data.status !== 'authorized') {
     throw new Error(`NF-e não emitida para venda ${saleId}. Emita a NF-e primeiro.`);
   }
 
   return {
-    saleId: data.id,
-    invoiceKey: data.invoice_key,
-    nfeNumber: data.nfe_number,
-    customerName: data.customer_name,
+    saleId: data.sale_id,
+    invoiceKey: data.access_key,
+    nfeProtocol: data.protocol,
+    customerName: '',
   };
+}
+
+export async function getNfeIssue(saleId: string, tenantId: string): Promise<{ access_key: string | null; status: string; protocol: string | null; signed_xml: string | null; cancellation_signed_xml: string | null; last_error: string | null }> {
+  const { data, error } = await supabase.from('nfe_documents')
+    .select('access_key, status, protocol, signed_xml, cancellation_signed_xml, last_error')
+    .eq('sale_id', saleId).eq('tenant_id', tenantId).eq('environment', env.sefazAmbiente).single();
+  if (error || !data) throw new Error('Tentativa fiscal não encontrada para esta venda.');
+  return data;
+}
+
+export async function completeNfeCancellation(
+  saleId: string, tenantId: string, status: 'cancelled' | 'cancel_unknown', receipt?: unknown,
+): Promise<void> {
+  const { error } = await supabase.rpc('complete_nfe_cancellation_v2', {
+    p_tenant_id: tenantId, p_sale_id: saleId, p_environment: env.sefazAmbiente, p_status: status,
+    p_receipt: receipt ?? null,
+  });
+  if (error) throw new Error(`Falha ao registrar cancelamento fiscal: ${error.message}`);
+}
+
+export async function prepareNfeCancellation(saleId: string, tenantId: string, signedEvent: string): Promise<void> {
+  const { error } = await supabase.rpc('prepare_nfe_cancellation_v2', {
+    p_tenant_id: tenantId, p_sale_id: saleId, p_environment: env.sefazAmbiente, p_signed_event: signedEvent,
+  });
+  if (error) throw new Error(`Falha ao persistir evento assinado: ${error.message}`);
 }
 
 export async function updateSaleNfeStatus(
   saleId: string,
   nfeStatus: string,
+  tenantId: string,
   invoiceKey?: string,
   invoiceUrl?: string,
   nfeNumber?: string,
@@ -302,7 +334,8 @@ export async function updateSaleNfeStatus(
   const { error } = await supabase
     .from('sales')
     .update(updateData)
-    .eq('id', saleId);
+    .eq('id', saleId)
+    .eq('tenant_id', tenantId);
 
   if (error) {
     throw new Error(`Erro ao atualizar status NF-e: ${error.message}`);

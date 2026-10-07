@@ -95,23 +95,19 @@ export function buildXmlFromJson(data: Record<string, any>): string {
 }
 
 export function formatNfeDateTime(date: Date = new Date()): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
-  const hh = String(date.getHours()).padStart(2, '0');
-  const mm = String(date.getMinutes()).padStart(2, '0');
-  const ss = String(date.getSeconds()).padStart(2, '0');
-  const tz = -date.getTimezoneOffset();
-  const tzSign = tz >= 0 ? '+' : '-';
-  const tzHours = String(Math.floor(Math.abs(tz) / 60)).padStart(2, '0');
-  const tzMin = String(Math.abs(tz) % 60).padStart(2, '0');
-  return `${y}-${m}-${d}T${hh}:${mm}:${ss}${tzSign}${tzHours}:${tzMin}`;
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Bahia', year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23', timeZoneName: 'shortOffset',
+  }).formatToParts(date).map(part => [part.type, part.value]));
+  const offset = /^GMT([+-])(\d{1,2})(?::(\d{2}))?$/.exec(parts.timeZoneName);
+  if (!offset) throw new Error('Fuso horário fiscal da Bahia indisponível.');
+  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}${offset[1]}${offset[2].padStart(2, '0')}:${offset[3] || '00'}`;
 }
 
 export function formatNfeAaMm(date: Date = new Date()): string {
-  const y = String(date.getFullYear()).slice(2);
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  return `${y}${m}`;
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: 'America/Bahia',
+    year: '2-digit', month: '2-digit' }).formatToParts(date).map(part => [part.type, part.value]));
+  return `${parts.year}${parts.month}`;
 }
 
 const TEMP_MAX_AGE_MS = 60 * 60 * 1000;

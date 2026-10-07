@@ -36,8 +36,9 @@ interface EnvConfig {
   cnpjEmitente: string;
   supabaseUrl: string;
   supabaseServiceKey: string;
+  supabaseAnonKey: string;
   serverCorsOrigin: string;
-  apiAuthToken: string;
+  nfeTenantId: string;
   isProduction: boolean;
 }
 
@@ -86,6 +87,10 @@ function validateEnv(): EnvConfig {
   if (!supabaseServiceKey) {
     throw new Error('[FAIL-FAST] SUPABASE_SERVICE_KEY ausente.');
   }
+  const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+  if (!supabaseAnonKey) {
+    throw new Error('[FAIL-FAST] SUPABASE_ANON_KEY ausente.');
+  }
 
   const timeoutRaw = process.env.SEFAZ_TIMEOUT_MS;
   const sefazTimeoutMs = timeoutRaw ? parseInt(timeoutRaw, 10) : 60000;
@@ -96,6 +101,10 @@ function validateEnv(): EnvConfig {
   const serverCorsOrigin = process.env.SERVER_CORS_ORIGIN || 'http://localhost:5173,http://localhost:3000';
 
   const isProduction = parseInt(ambiente, 10) === 1;
+
+  if (process.env.MOCK_LOCAL_ONLY === 'true') {
+    throw new Error('[FAIL-FAST] O modo de emissão simulada foi desativado. Use testes unitários sem transmissão.');
+  }
 
   if (serverCorsOrigin === '*') {
     if (isProduction) {
@@ -109,10 +118,13 @@ function validateEnv(): EnvConfig {
     }
   }
 
-  const apiAuthToken = process.env.API_AUTH_TOKEN || '';
-  if (isProduction && !apiAuthToken) {
+  const nfeTenantId = process.env.NFE_TENANT_ID || '';
+  if (nfeTenantId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(nfeTenantId)) {
+    throw new Error('[FAIL-FAST] NFE_TENANT_ID inválido: UUID esperado.');
+  }
+  if (!nfeTenantId) {
     throw new Error(
-      '[FAIL-FAST] API_AUTH_TOKEN é obrigatório em produção. Gere um token seguro e defina no .env.'
+      '[FAIL-FAST] NFE_TENANT_ID é obrigatório para o serviço fiscal.'
     );
   }
 
@@ -125,8 +137,9 @@ function validateEnv(): EnvConfig {
     cnpjEmitente: cnpj,
     supabaseUrl,
     supabaseServiceKey,
+    supabaseAnonKey,
     serverCorsOrigin,
-    apiAuthToken,
+    nfeTenantId,
     isProduction,
   };
 }

@@ -1,456 +1,168 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import { env } from '../config/env';
 import { NFe } from '@treeunfe/nfe';
-import type { NFe as NFePayload } from '@treeunfe/types';
-import { NFeEnvelopeSchema } from '../types/nfe-schemas';
-import { retryWithBackoff, buildXmlFromJson, gerarCNF, formatNfeDateTime } from '../utils/nfe-utils';
-import { resolveCityIbge, truncateString } from '../utils/ibge-utils';
-import { logger } from '../utils/logger';
-
-interface StatusServicoResponse {
-  status: string;
-  motivo: string;
-  ambiente: string;
-  uf: string;
-  dataHora: string;
-  tempoMedio?: string;
-}
-
-function maskKey(key: string): string {
-  if (!key || key.length < 10) return '***';
-  return `${key.substring(0, 6)}...${key.substring(key.length - 4)}`;
-}
-
-export interface NfeEmitirParams {
-  saleId: string;
-  nNF: string;
-  serie: string;
-  customerName: string;
-  customerDoc: string;
-  total: number;
-  customerData?: {
-    logradouro: string;
-    numero: string;
-    bairro: string;
-    city: string;
-    state: string;
-    zipCode: string;
-    phone: string;
-    ie: string;
-    indIEDest: string;
-  };
-  items: {
-    productName: string;
-    quantity: number;
-    priceAtSale: number;
-    ncm: string;
-    cfop: string;
-  }[];
-}
+import { env } from '../config/env';
+import { buildFiscalPayload, type FiscalEmission } from './FiscalPayload';
+import { formatNfeDateTime } from '../utils/nfe-utils';
+import { extractXmlElement, parseProtocol, recoverAuthorizedXml, signedNfeIdentity, verifiedRejection, xmlText } from './XmlProtocol';
 
 export interface NfeEmitirResult {
-  success: boolean;
-  invoiceKey?: string;
-  invoiceUrl?: string;
-  nfeNumber?: string;
-  nfeXml?: string;
-  message: string;
+  success: boolean; message: string; invoiceKey?: string; invoiceUrl?: string;
+  nfeNumber?: string; nfeProtocol?: string; nfeXml?: string;
 }
+type InternalNfe = { loadEnvironmentPromise: Promise<void>; axios: {
+  interceptors: { request: { use(fn: (config: { data?: unknown }) => Promise<unknown>): number; eject(id: number): void };
+    response: { use(fn: (result: { data?: unknown }) => unknown): number; eject(id: number): void } } } };
 
-function ensureResourcesDir(): void {
-  const nodeModules = path.resolve(__dirname, '../../node_modules');
-  const brokenDir = path.join(nodeModules, 'resources');
-  const actualDir = path.join(nodeModules, '@treeunfe/shared/resources');
-
-  if (fs.existsSync(brokenDir)) return;
-
-  if (!fs.existsSync(actualDir)) {
-    logger.warn('[SefazService] Diretório @treeunfe/shared/resources não encontrado.');
-    return;
-  }
-
-  try {
-    fs.symlinkSync(actualDir, brokenDir, 'junction');
-    logger.info('[SefazService] Symlink criado: node_modules/resources -> @treeunfe/shared/resources');
-  } catch {
-    try {
-      fs.cpSync(actualDir, brokenDir, { recursive: true, force: false });
-      logger.info('[SefazService] Diretório copiado: node_modules/resources <- @treeunfe/shared/resources');
-    } catch (copyErr) {
-      logger.warn('[SefazService] Não foi possível fixar resources path:', copyErr);
-    }
+class FiscalResponseError extends Error {
+  constructor(readonly responseXml: string, cause: unknown) {
+    super(cause instanceof Error ? cause.message : String(cause));
   }
 }
 
 export class SefazService {
-  private certificadoPassword: string;
-  private ambiente: number;
-  private uf: string;
-  private cnpj: string;
-  private nfeInstance: NFe | null = null;
-
+  private readonly nfe: NFe;
+  private pending: Promise<void> = Promise.resolve();
   constructor() {
-    this.ambiente = env.sefazAmbiente;
-    this.uf = env.sefazUf;
-    this.cnpj = env.cnpjEmitente;
-    this.certificadoPassword = env.certificadoPassword;
-
-    ensureResourcesDir();
-
-    const certBuffer = Buffer.from(env.certificadoA1Base64, 'base64');
-    if (certBuffer.length === 0) {
-      throw new Error('[SefazService] O buffer do certificado está vazio após decodificação Base64.');
-    }
-
-    logger.info(`[SefazService] Certificado A1 decodificado (${certBuffer.length} bytes)`);
-
-    this.createNfeInstance(certBuffer);
-
-    certBuffer.fill(0);
+    // @treeunfe/nfe computes the access-key AAMM with Date#getMonth from dhEmi.
+    process.env.TZ = 'America/Bahia';
+    const cert = Buffer.from(env.certificadoA1Base64, 'base64');
+    if (!cert.length) throw new Error('Certificado digital inválido.');
+    this.nfe = new NFe({ ambiente: env.sefazAmbiente, versaoDF: '4.00', UF: env.sefazUf,
+      certificadoPfx: cert, senhaCertificado: env.certificadoPassword, useOpenSSL: false,
+      useForSchemaValidation: 'validateSchemaJsBased', connection: { timeout: env.sefazTimeoutMs } });
+    cert.fill(0);
   }
 
-  private createNfeInstance(certificadoPfx: Buffer): void {
-    this.nfeInstance = new NFe({
-      ambiente: this.ambiente,
-      versaoDF: '4.00',
-      UF: this.uf,
-      certificadoPfx,
-      senhaCertificado: this.certificadoPassword,
-      useOpenSSL: false,
-      useForSchemaValidation: 'validateSchemaJsBased',
-      connection: { timeout: env.sefazTimeoutMs },
+  private async exclusive<T>(operation: () => Promise<T>): Promise<T> {
+    const previous = this.pending;
+    let release!: () => void;
+    this.pending = new Promise<void>(resolve => { release = resolve; });
+    await previous;
+    try { return await operation(); } finally { release(); }
+  }
+
+  async checkStatus() { return this.exclusive(async () => {
+    const result = await this.nfe.ConsultaStatusServico();
+    return { status: String(result.cStat || ''), motivo: String(result.xMotivo || ''),
+      ambiente: env.sefazAmbiente === 1 ? 'Produção' : 'Homologação', uf: env.sefazUf,
+      dataHora: result.dhRecbto || new Date().toISOString() };
+  }); }
+
+  private async capture<T>(matches: (xml: string) => boolean, beforeSend: (xml: string) => Promise<void>,
+    call: () => Promise<T>): Promise<{ result: T; responseXml?: string }> {
+    return this.exclusive(async () => {
+    const internal = this.nfe as unknown as InternalNfe;
+    await internal.loadEnvironmentPromise;
+    if (!internal.axios?.interceptors?.request || !internal.axios.interceptors.response) {
+      throw new Error('Versão da biblioteca fiscal incompatível com a persistência prévia do XML.');
+    }
+    let responseXml: string | undefined;
+    let persisted = false;
+    const requestId = internal.axios.interceptors.request.use(async config => {
+      const xml = typeof config.data === 'string' ? config.data : '';
+      if (matches(xml)) { await beforeSend(xml); persisted = true; }
+      return config;
+    });
+    const responseId = internal.axios.interceptors.response.use(response => {
+      if (typeof response.data === 'string') responseXml = response.data;
+      return response;
+    });
+    try {
+      let result: T;
+      try { result = await call(); }
+      catch (error) {
+        if (responseXml) throw new FiscalResponseError(responseXml, error);
+        throw error;
+      }
+      if (!persisted) throw new Error('XML assinado não persistido antes da transmissão. Consulte a SEFAZ.');
+      return { result, responseXml };
+    } finally {
+      internal.axios.interceptors.request.eject(requestId);
+      internal.axios.interceptors.response.eject(responseId);
+    }
     });
   }
 
-  private getOrCreateNFe(): NFe {
-    if (!this.nfeInstance) {
-      throw new Error('[SefazService] Instância NFe não foi inicializada corretamente no construtor.');
+  async emitirNFe(params: FiscalEmission, beforeTransmit: (signedXml: string, accessKey: string) => Promise<void>): Promise<NfeEmitirResult> {
+    let signedXml: string | undefined;
+    let accessKey: string | undefined;
+    let captured;
+    try { captured = await this.capture(xml => /<(?:\w+:)?enviNFe[\s>]/.test(xml), async envelope => {
+      signedXml = extractXmlElement(envelope, 'NFe');
+      if (!signedXml) throw new Error('XML NF-e assinado ausente do lote.');
+      const identity = signedNfeIdentity(signedXml);
+      if (identity.environment !== env.sefazAmbiente) throw new Error('Ambiente fiscal divergente.');
+      accessKey = identity.accessKey;
+      await beforeTransmit(signedXml, accessKey);
+    }, () => this.nfe.Autorizacao(buildFiscalPayload(params))); }
+    catch (error) {
+      if (error instanceof FiscalResponseError && accessKey) {
+        try {
+          const message = verifiedRejection(error.responseXml, accessKey, env.sefazAmbiente);
+          if (message) return { success: false, message };
+        } catch { /* Without a matching protocol, the outcome remains uncertain. */ }
+      }
+      throw error;
     }
-    return this.nfeInstance;
+    if (!signedXml || !accessKey || !captured.responseXml) {
+      return { success: false, message: 'Resposta fiscal sem protocolo completo. Consulte a SEFAZ.' };
+    }
+    let protocol;
+    try { protocol = parseProtocol(captured.responseXml); }
+    catch { return { success: false, message: 'Resposta fiscal não pôde ser conciliada. Consulte a SEFAZ.' }; }
+    if (['100', '150'].includes(protocol.cStat)) {
+      const xml = recoverAuthorizedXml(signedXml, captured.responseXml, env.sefazAmbiente);
+      return { success: true, message: `NF-e autorizada: ${protocol.motivo}`, invoiceKey: accessKey,
+        nfeNumber: params.nNF, nfeProtocol: protocol.protocolo, nfeXml: xml };
+    }
+    if (!protocol.protocolXml || protocol.accessKey !== accessKey || !/^\d{3}$/.test(protocol.cStat) ||
+        ['539', '204'].includes(protocol.cStat) || Number(protocol.cStat) < 200) {
+      return { success: false, message: `Resultado fiscal incerto (${protocol.cStat || 'sem código'}). Consulte a SEFAZ.` };
+    }
+    return { success: false, message: `Rejeição ${protocol.cStat}: ${protocol.motivo}` };
   }
 
-  async checkStatus(): Promise<StatusServicoResponse> {
-    logger.info(`[SefazService] Consultando status do serviço SEFAZ-${this.uf} (ambiente: ${this.ambiente === 1 ? 'Produção' : 'Homologação'})`);
-
+  async consultarNFe(accessKey: string) { return this.exclusive(async () => {
+    const internal = this.nfe as unknown as InternalNfe;
+    await internal.loadEnvironmentPromise;
+    let raw: string | undefined;
+    const id = internal.axios.interceptors.response.use(response => {
+      if (typeof response.data === 'string') raw = response.data;
+      return response;
+    });
     try {
-      const nfe = this.getOrCreateNFe();
-      const resultado = await nfe.ConsultaStatusServico();
+      const result = await this.nfe.ConsultaProtocolo(accessKey);
+      const parsed = raw ? parseProtocol(raw) : null;
+      const prot = result?.protNFe?.infProt ?? result?.retConsSitNFe?.protNFe?.infProt;
+      const retEvento = raw ? extractXmlElement(raw, 'retEvento') : undefined;
+      const cancellation = retEvento && xmlText(retEvento, 'chNFe') === accessKey &&
+        ['101', '135', '155'].includes(xmlText(retEvento, 'cStat'))
+        ? { cStat: xmlText(retEvento, 'cStat'), xml: raw } : undefined;
+      return { cStat: parsed?.cStat || String(prot?.cStat ?? result?.cStat ?? ''),
+        motivo: parsed?.motivo || String(prot?.xMotivo ?? result?.xMotivo ?? ''),
+        protocolo: parsed?.protocolo || (prot?.nProt ? String(prot.nProt) : undefined),
+        protocolXml: parsed?.protocolXml, cancellation };
+    } finally { internal.axios.interceptors.response.eject(id); }
+  }); }
 
-      console.log('[SefazService] Resposta da SEFAZ recebida com sucesso');
-
-      return {
-        status: resultado.cStat ?? 'Desconhecido',
-        motivo: resultado.xMotivo ?? 'Sem motivo informado',
-        ambiente: this.ambiente === 1 ? 'Produção' : 'Homologação',
-        uf: this.uf,
-        dataHora: resultado.dhRecbto ?? new Date().toISOString(),
-        tempoMedio: resultado.tMed ?? undefined,
-      };
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      console.error(`[SefazService] Erro na consulta de status: ${message}`);
-
-      if (error instanceof Error && error.message.includes('certificate')) {
-        throw new Error(`Falha na carga do certificado digital: ${message}`);
-      }
-
-      if (error instanceof Error && (error.message.includes('ETIMEOUT') || error.message.includes('timeout'))) {
-        throw new Error(`Timeout na comunicação com a SEFAZ-${this.uf}: ${message}`);
-      }
-
-      throw new Error(`Erro ao consultar status SEFAZ-${this.uf}: ${message}`);
-    }
-  }
-
-  async emitirNFe(params: NfeEmitirParams): Promise<NfeEmitirResult> {
-    console.log(`[SefazService] Emitindo NF-e para venda ${params.saleId}`);
-
-    try {
-      const nfe = this.getOrCreateNFe();
-      const isConsumidorFinal = !params.customerDoc || params.customerName.toUpperCase() === 'CONSUMIDOR NÃO IDENTIFICADO';
-      const indFinal = params.customerDoc && params.customerDoc.length === 14 ? 0 : 1;
-
-      const total = Number(params.total) || 0;
-
-      const isHomologacao = this.ambiente === 2;
-      const hasValidDoc = !isConsumidorFinal && params.customerDoc && (params.customerDoc.length === 11 || params.customerDoc.length === 14);
-      
-      const destNome = truncateString(
-        isHomologacao ? 'NF-E EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL' : params.customerName,
-        60,
-        'CONSUMIDOR NAO IDENTIFICADO'
-      );
-      const destDoc = isHomologacao ? '99999999000191' : (hasValidDoc ? params.customerDoc : undefined);
-
-      const ie = params.customerData?.ie || '';
-      const indIEDest = isConsumidorFinal
-        ? '9'
-        : ie.toUpperCase() === 'ISENTO' || !ie
-          ? '9'
-          : '1';
-
-      const cityInfo = resolveCityIbge(params.customerData?.city, params.customerData?.state);
-
-      const enderDest = params.customerData ? {
-        xLgr: truncateString(params.customerData.logradouro, 60, 'RUA NAO INFORMADA'),
-        nro: truncateString(params.customerData.numero, 60, 'S/N'),
-        xBairro: truncateString(params.customerData.bairro, 60, 'CENTRO'),
-        cMun: cityInfo.cMun,
-        xMun: cityInfo.xMun,
-        UF: cityInfo.UF,
-        CEP: (params.customerData.zipCode || '47520000').replace(/\D/g, ''),
-        cPais: 1058,
-        xPais: 'BRASIL',
-        fone: truncateString((params.customerData.phone || '').replace(/\D/g, ''), 14),
-      } : undefined;
-
-      const nfePayload = {
-        idLote: Number(params.nNF),
-        indSinc: 1,
-        NFe: {
-          infNFe: {
-            ide: {
-              cUF: 29,
-              cNF: gerarCNF(),
-              natOp: 'Venda de mercadoria',
-              mod: 55,
-              serie: truncateString(params.serie, 3, '1'),
-              nNF: Number(params.nNF),
-              dhEmi: formatNfeDateTime(),
-              tpNF: 1,
-              idDest: 1,
-              cMunFG: cityInfo.cMun,
-              tpImp: 1,
-              tpEmis: 1,
-              tpAmb: this.ambiente,
-              finNFe: 1,
-              indFinal,
-              indPres: 1,
-              procEmi: 0,
-              verProc: truncateString('Geleiro PRO NF-e 1.0', 20),
-            },
-
-            emit: {
-              CNPJCPF: this.cnpj,
-              xNome: truncateString('GDS PRODUTOS ALIMENTICIOS LTDA', 60),
-              xFant: truncateString('Gelo do Sertao', 60),
-              enderEmit: {
-                xLgr: truncateString('RODOVIA BA 160', 60),
-                nro: truncateString('2040', 60),
-                xBairro: truncateString('SAO JOAO', 60),
-                cMun: 2927408,
-                xMun: 'IBOTIRAMA',
-                UF: this.uf,
-                CEP: '47520000',
-                cPais: 1058,
-                xPais: 'BRASIL',
-                fone: '77999820028',
-              },
-              IE: '117178795',
-              CRT: 1,
-            },
-            dest: {
-              CNPJCPF: destDoc,
-              xNome: destNome,
-              ...(enderDest ? { enderDest } : {}),
-              indIEDest,
-              ...(indIEDest === '1' && ie ? { IE: ie } : {}),
-            },
-            det: params.items.map(item => ({
-              prod: {
-                cProd: truncateString(item.productName.replace(/[^a-zA-Z0-9]/g, '_'), 20, '1'),
-                cEAN: 'SEM GTIN',
-                xProd: truncateString(item.productName, 120, 'PRODUTO'),
-                NCM: item.ncm || '22019000',
-                CFOP: item.cfop || '5101',
-                uCom: 'UN',
-                qCom: item.quantity,
-                vUnCom: item.priceAtSale,
-                vProd: item.quantity * item.priceAtSale,
-                cEANTrib: 'SEM GTIN',
-                uTrib: 'UN',
-                qTrib: item.quantity,
-                vUnTrib: item.priceAtSale,
-                indTot: 1,
-              },
-              imposto: {
-                ICMS: {
-                  ICMSSN102: {
-                    orig: 0,
-                    CSOSN: '102',
-                  },
-                },
-                PIS: { PISNT: { CST: '07' } },
-                COFINS: { COFINSNT: { CST: '07' } },
-              },
-            })),
-            total: {
-              ICMSTot: {
-                vBC: '0.00',
-                vICMS: '0.00',
-                vICMSDeson: '0.00',
-                vFCP: '0.00',
-                vBCST: '0.00',
-                vST: '0.00',
-                vFCPST: '0.00',
-                vFCPSTRet: '0.00',
-                vProd: total.toFixed(2),
-                vFrete: '0.00',
-                vSeg: '0.00',
-                vDesc: '0.00',
-                vII: '0.00',
-                vIPI: '0.00',
-                vIPIDevol: '0.00',
-                vPIS: '0.00',
-                vCOFINS: '0.00',
-                vOutro: '0.00',
-                vNF: total.toFixed(2),
-              },
-            },
-            transp: {
-              modFrete: 9,
-            },
-            pag: {
-              detPag: {
-                tPag: '01',
-                vPag: total.toFixed(2),
-              },
-            },
-          },
-        },
-      };
-
-      const validatedPayload: NFePayload = NFeEnvelopeSchema.parse(nfePayload) as unknown as NFePayload;
-
-      logger.info('[SefazService] Enviando NF-e para autorização SEFAZ...');
-      const resultado = await retryWithBackoff(
-        () => nfe.Autorizacao(validatedPayload),
-        { maxRetries: 2, baseDelayMs: 2000 }
-      );
-
-      const xmls = Array.isArray(resultado) ? resultado : (resultado?.xmls ?? resultado);
-      const primeiroXml = Array.isArray(xmls) ? xmls[0] : xmls;
-      const prot = primeiroXml?.protNFe;
-      const cStat = prot?.infProt?.cStat;
-      const xMotivo = prot?.infProt?.xMotivo || '';
-
-      if (cStat === '100' || cStat === '101' || cStat === '150' || cStat === '151') {
-        const chave = prot.infProt.chNFe || '';
-        const nProt = prot.infProt.nProt || '';
-
-        let nfeXml: string | undefined = undefined;
-        if (primeiroXml?.NFe && prot) {
-          try {
-            nfeXml = buildXmlFromJson({
-              nfeProc: {
-                '@versao': '4.00',
-                '@xmlns': 'http://www.portalfiscal.inf.br/nfe',
-                NFe: primeiroXml.NFe,
-                protNFe: prot,
-              },
-            });
-          } catch (xmlErr) {
-            console.warn('[SefazService] Não foi possível montar o nfeProc XML:', xmlErr);
-          }
-        }
-
-        logger.info(`[SefazService] NF-e autorizada: (nProt: ${nProt}, cStat: ${cStat})`);
-
-        return {
-          success: true,
-          invoiceKey: chave,
-          invoiceUrl: `https://www.sefaz.fazenda.gov.br/nfe/${chave}`,
-          nfeNumber: nProt,
-          nfeXml,
-          message: `NF-e autorizada: ${xMotivo}`,
-        };
-      }
-
-      if (cStat === '539') {
-        const chave = prot.infProt.chNFe || '';
-        const nProt = prot.infProt.nProt || '';
-        logger.info(`[SefazService] NF-e duplicata (cStat=539). Recuperando autorização existente`);
-
-        return {
-          success: true,
-          invoiceKey: chave,
-          invoiceUrl: `https://www.sefaz.fazenda.gov.br/nfe/${chave}`,
-          nfeNumber: nProt,
-          message: `NF-e já autorizada anteriormente (duplicata): ${xMotivo}`,
-        };
-      }
-
-      logger.error(`[SefazService] NF-e rejeitada (cStat=${cStat}): ${xMotivo}`);
-
-      return {
-        success: false,
-        message: `NF-e rejeitada pela SEFAZ: ${xMotivo}`,
-      };
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      console.error(`[SefazService] Erro na emissão NF-e: ${message}`);
-
-      if (error instanceof Error && error.message.includes('certificate')) {
-        throw new Error(`Falha na carga do certificado digital: ${message}`);
-      }
-
-      throw new Error(`Erro na emissão NF-e: ${message}`);
-    }
-  }
-
-  dispose(): void {
-    this.nfeInstance = null;
-    console.log('[SefazService] Instância NFe liberada');
-  }
-
-  async cancelarNFe(chNFe: string, nProt: string, justificativa: string): Promise<{ success: boolean; message: string }> {
-    console.log(`[SefazService] Cancelando NF-e: ${maskKey(chNFe)}`);
-
-    try {
-      const nfe = this.getOrCreateNFe();
-
-      const resultado = await nfe.Cancelamento({
-        idLote: Number(new Date().getTime() % 1000000),
-        modelo: '55',
-        evento: [{
-          tpAmb: this.ambiente,
-          cOrgao: 29,
-          CNPJ: this.cnpj,
-          chNFe,
-          dhEvento: new Date().toISOString(),
-          tpEvento: '110111',
-          nSeqEvento: 1,
-          verEvento: '1.00',
-          detEvento: {
-            descEvento: 'Cancelamento',
-            nProt,
-            xJust: justificativa,
-          },
-        }],
-      });
-
-      const xMotivos = resultado?.xMotivos || [];
-      const primeiro = Array.isArray(xMotivos) ? xMotivos[0] : xMotivos;
-      const cStat = primeiro?.cStat || '';
-      const xMotivo = primeiro?.xMotivo || '';
-
-      if (cStat === '101' || cStat === '135' || cStat === '155') {
-        console.log(`[SefazService] NF-e cancelada: ${maskKey(chNFe)} (cStat=${cStat})`);
-        return { success: true, message: `NF-e cancelada: ${xMotivo}` };
-      }
-
-      console.error(`[SefazService] Falha no cancelamento (cStat=${cStat}): ${xMotivo}`);
-      return { success: false, message: `Falha no cancelamento: ${xMotivo}` };
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      console.error(`[SefazService] Erro no cancelamento NF-e: ${message}`);
-
-      if (error instanceof Error && error.message.includes('certificate')) {
-        throw new Error(`Falha na carga do certificado digital: ${message}`);
-      }
-
-      throw new Error(`Erro no cancelamento NF-e: ${message}`);
-    }
+  async cancelarNFe(chNFe: string, nProt: string, justificativa: string, beforeTransmit: (signedEvent: string) => Promise<void>) {
+    const event = { idLote: Number(Date.now() % 1000000), modelo: '55' as const, evento: [{
+      tpAmb: env.sefazAmbiente, cOrgao: 29, CNPJ: env.cnpjEmitente, chNFe,
+      dhEvento: formatNfeDateTime(), tpEvento: '110111' as const, nSeqEvento: 1, verEvento: '1.00',
+      detEvento: { descEvento: 'Cancelamento', nProt, xJust: justificativa },
+    }] };
+    const captured = await this.capture(xml => /<(?:\w+:)?envEvento[\s>]/.test(xml), async envelope => {
+      const signed = extractXmlElement(envelope, 'evento');
+      if (!signed || !extractXmlElement(signed, 'Signature')) throw new Error('Evento de cancelamento sem assinatura.');
+      await beforeTransmit(signed);
+    }, () => this.nfe.Cancelamento(event));
+    const codes = captured.result?.xMotivos || [];
+    const first = Array.isArray(codes) ? codes[0] : codes;
+    const retEvento = captured.responseXml ? extractXmlElement(captured.responseXml, 'retEvento') : undefined;
+    const eventStatus = retEvento ? xmlText(retEvento, 'cStat') : '';
+    const eventKey = retEvento ? xmlText(retEvento, 'chNFe') : '';
+    const success = ['101', '135', '155'].includes(String(first?.cStat || '')) &&
+      ['101', '135', '155'].includes(eventStatus) && eventKey === chNFe;
+    return { success, message: String(first?.xMotivo || (success ? 'Cancelamento autorizado.' : 'Cancelamento requer consulta.')),
+      receipt: success && captured.responseXml ? { xml: captured.responseXml, cStat: String(first?.cStat) } : undefined };
   }
 }

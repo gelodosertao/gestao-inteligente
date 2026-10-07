@@ -4,16 +4,21 @@
   "description": "Microserviço de NF-e para comunicação com a SEFAZ-BA",
   "main": "dist/server.js",
   "scripts": {
+    "postinstall": "node scripts/ensure-treeunfe-resources.cjs",
+    "predev": "node scripts/ensure-treeunfe-resources.cjs",
     "dev": "ts-node src/server.ts",
     "build": "tsc",
+    "prestart": "node scripts/ensure-treeunfe-resources.cjs",
     "start": "node dist/server.js",
+    "pretest": "node scripts/ensure-treeunfe-resources.cjs",
     "test": "node -r ts-node/register test/nfe-utils.node-test.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@nfewizard/danfe": "^1.0.2",
     "@supabase/supabase-js": "^2.110.0",
-    "@treeunfe/nfe": "^2.2.8",
+    "@treeunfe/nfe": "2.3.0",
+    "@treeunfe/shared": "2.4.0",
     "archiver": "^8.0.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",

@@ -10,22 +10,25 @@ import rateLimit from 'express-rate-limit';
 import { env } from './config/env';
 import { z } from 'zod';
 import { SefazService } from './services/SefazService';
-import { getSaleWithItems, getSaleNfeForCancel, getPaginatedNfeXmlsByMonth, getSalesReportByMonth, updateSaleNfeStatus } from './services/SupabaseService';
+import { getSaleNfeForCancel, getNfeIssue, getPaginatedNfeXmlsByMonth, getSalesReportByMonth, completeNfeCancellation, prepareNfeCancellation } from './services/SupabaseService';
+import { authenticateFiscalUser, AuthError, type FiscalActor } from './services/AuthService';
 import { generateNfeXml } from './services/NfeGenerator';
+import { getDraftReview, saveDraft } from './services/NfeDraftService';
+import { FiscalContextSchema } from './services/FiscalRules';
+import { recoverAuthorizedXml } from './services/XmlProtocol';
+import { completeNfeIssue } from './services/NfeCounterService';
 import { generateDanfePdf } from './services/DanfeService';
 import { cleanupTempFiles } from './utils/nfe-utils';
+import { getFiscalConsole, saveFiscalConfiguration, searchFiscalDocuments, FiscalConfigurationInput } from './services/FiscalConfigurationService';
 
 const app = express();
 const PORT = 3001;
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const DOC_REGEX = /^\d{11}$|^\d{14}$/;
 
-const EmitirBodySchema = z.object({
-  customerDoc: z.string().min(1).optional(),
-}).strict();
-
-const AUTH_TOKEN = env.apiAuthToken;
+const EmitirBodySchema = z.object({ revision: z.number().int().positive() }).strict();
+const RascunhoBodySchema = z.object({ customerId: z.string().min(1).max(100), context: FiscalContextSchema,
+  revision: z.number().int().positive().optional() }).strict();
 
 const apiLimiter = rateLimit({
   windowMs: 60 * 1000,
@@ -45,27 +48,20 @@ app.use('/api', apiLimiter);
 app.use(express.json({ limit: '10mb' }));
 
 function authMiddleware(req: Request, res: Response, next: NextFunction): void {
-  if (!AUTH_TOKEN) {
-    res.status(503).json({
-      sucesso: false,
-      erro: 'Serviço indisponível: API_AUTH_TOKEN não configurado no servidor.',
+  authenticateFiscalUser(req.headers.authorization)
+    .then(actor => {
+      res.locals.actor = actor;
+      res.locals.tenantId = actor.tenantId;
+      next();
+    })
+    .catch((error: unknown) => {
+      if (error instanceof AuthError) {
+        res.status(error.status).json({ sucesso: false, erro: error.message });
+      } else {
+        console.error('[server] Falha na autenticação fiscal:', error);
+        res.status(503).json({ sucesso: false, erro: 'Autenticação fiscal indisponível.' });
+      }
     });
-    return;
-  }
-
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    res.status(401).json({ sucesso: false, erro: 'Token de autenticação ausente' });
-    return;
-  }
-
-  const token = authHeader.slice(7);
-  if (token !== AUTH_TOKEN) {
-    res.status(403).json({ sucesso: false, erro: 'Token de autenticação inválido' });
-    return;
-  }
-
-  next();
 }
 
 app.get('/health', (_req: Request, res: Response) => {
@@ -74,12 +70,15 @@ app.get('/health', (_req: Request, res: Response) => {
 
 app.use('/api', authMiddleware);
 
-function isValidUUID(value: string): boolean {
-  return UUID_REGEX.test(value);
+function adminOnly(_req: Request, res: Response, next: NextFunction): void {
+  if ((res.locals.actor as FiscalActor).role !== 'ADMIN') {
+    res.status(403).json({ sucesso: false, erro: 'Ação restrita ao administrador.' }); return;
+  }
+  next();
 }
 
-function isValidDoc(value: string): boolean {
-  return DOC_REGEX.test(value);
+function isValidUUID(value: string): boolean {
+  return UUID_REGEX.test(value);
 }
 
 let sefazService: SefazService | null = null;
@@ -91,6 +90,41 @@ try {
   const message = error instanceof Error ? error.message : String(error);
   console.error(`[server] Falha ao inicializar SefazService: ${message}. Emissão indisponível.`);
 }
+
+app.get('/api/nfe/rascunho/:sale_id', async (req: Request, res: Response) => {
+  if (!isValidUUID(String(req.params.sale_id))) return res.status(400).json({ sucesso: false, erro: 'sale_id inválido.' });
+  try { return res.json({ sucesso: true, dados: await getDraftReview(String(req.params.sale_id), res.locals.actor) }); }
+  catch (error) { return res.status(error instanceof AuthError ? error.status : 503).json({ sucesso: false,
+    erro: error instanceof Error ? error.message : 'Rascunho indisponível.' }); }
+});
+
+app.put('/api/nfe/rascunho/:sale_id', async (req: Request, res: Response) => {
+  if (!isValidUUID(String(req.params.sale_id))) return res.status(400).json({ sucesso: false, erro: 'sale_id inválido.' });
+  const input = RascunhoBodySchema.safeParse(req.body);
+  if (!input.success) return res.status(400).json({ sucesso: false, erro: 'Dados do rascunho inválidos.', detalhes: input.error.flatten() });
+  try { return res.json({ sucesso: true, dados: await saveDraft(String(req.params.sale_id), res.locals.actor, input.data) }); }
+  catch (error) { return res.status(error instanceof AuthError ? error.status : 503).json({ sucesso: false,
+    erro: error instanceof Error ? error.message : 'Falha ao salvar rascunho.' }); }
+});
+
+app.use('/api/nfe', adminOnly);
+
+app.get('/api/nfe/configuracoes', async (_req: Request, res: Response) => {
+  try { return res.json({ sucesso: true, dados: await getFiscalConsole(res.locals.actor) }); }
+  catch (error) { return res.status(503).json({ sucesso: false, erro: error instanceof Error ? error.message : 'Configurações indisponíveis.' }); }
+});
+
+app.get('/api/nfe/configuracoes/notas', async (req: Request, res: Response) => {
+  try { return res.json({ sucesso: true, dados: await searchFiscalDocuments(res.locals.actor, String(req.query.busca || '')) }); }
+  catch (error) { return res.status(400).json({ sucesso: false, erro: error instanceof Error ? error.message : 'Consulta indisponível.' }); }
+});
+
+app.post('/api/nfe/configuracoes', async (req: Request, res: Response) => {
+  const input = FiscalConfigurationInput.safeParse(req.body);
+  if (!input.success) return res.status(400).json({ sucesso: false, erro: 'Configuração fiscal inválida.', detalhes: input.error.flatten() });
+  try { return res.json({ sucesso: true, dados: await saveFiscalConfiguration(res.locals.actor, input.data) }); }
+  catch (error) { return res.status(409).json({ sucesso: false, erro: error instanceof Error ? error.message : 'Falha ao salvar configuração.' }); }
+});
 
 app.get('/api/nfe/status', async (_req: Request, res: Response) => {
   console.log('[server] GET /api/nfe/status');
@@ -113,17 +147,50 @@ app.get('/api/nfe/status', async (_req: Request, res: Response) => {
   }
 });
 
+app.get('/api/nfe/consultar/:sale_id', async (req: Request, res: Response): Promise<any> => {
+  const saleId = String(req.params.sale_id);
+  if (!isValidUUID(saleId)) return res.status(400).json({ sucesso: false, erro: 'sale_id inválido' });
+  if (!sefazService) return res.status(503).json({ sucesso: false, erro: 'Serviço SEFAZ indisponível.' });
+  try {
+    const issue = await getNfeIssue(saleId, res.locals.tenantId);
+    if (!issue.access_key) return res.status(409).json({ sucesso: false, erro: 'Tentativa ainda sem chave de acesso.' });
+    const sefaz = await sefazService.consultarNFe(issue.access_key);
+    let reconciled = false;
+    if (issue.status === 'cancel_unknown' && sefaz.cancellation) {
+      await completeNfeCancellation(saleId, res.locals.tenantId, 'cancelled', sefaz.cancellation);
+      return res.json({ sucesso: true, dados: { statusLocal: 'cancelled', chave: issue.access_key,
+        cStat: sefaz.cancellation.cStat, reconciled: true, message: 'Cancelamento conciliado com a SEFAZ.' } });
+    }
+    if (['unknown', 'transmitting'].includes(issue.status) && ['100', '150'].includes(sefaz.cStat)) {
+      if (!issue.signed_xml || !sefaz.protocolXml || !sefaz.protocolo) throw new Error('Protocolo/assinatura ausente; conciliação manual necessária.');
+      const xml = recoverAuthorizedXml(issue.signed_xml, sefaz.protocolXml, env.sefazAmbiente);
+      await completeNfeIssue(saleId, res.locals.tenantId, 'authorized', sefaz.protocolo, xml);
+      reconciled = true;
+    }
+    if (issue.status === 'unknown' && sefaz.cStat === '217' &&
+        /NFE_Autorizacao: Rejei(?:ç|c)[aã]o:/i.test(issue.last_error || '')) {
+      await completeNfeIssue(saleId, res.locals.tenantId, 'rejected', undefined, undefined,
+        `${issue.last_error} Consulta SEFAZ: 217 - NF-e não consta na base.`);
+      return res.json({ sucesso: true, dados: { statusLocal: 'rejected', chave: issue.access_key,
+        cStat: sefaz.cStat, reconciled: true,
+        message: 'Tentativa confirmada como rejeitada. A chave não consta na base da SEFAZ.' } });
+    }
+    return res.json({ sucesso: true, dados: { statusLocal: reconciled ? 'authorized' : issue.status,
+      chave: issue.access_key, cStat: sefaz.cStat, motivo: sefaz.motivo, protocol: sefaz.protocolo,
+      reconciled, message: reconciled ? 'NF-e conciliada e autorizada.' : issue.status === 'cancel_unknown'
+        ? 'Cancelamento ainda não confirmado. Solicite conciliação fiscal antes de qualquer nova ação.' : sefaz.motivo } });
+  } catch (error) {
+    console.error('[API Consulta NF-e]', error);
+    return res.status(502).json({ sucesso: false, erro: 'Falha na consulta da NF-e.' });
+  }
+});
+
 app.post('/api/nfe/emitir/:sale_id', async (req: Request, res: Response): Promise<any> => {
   try {
     const sale_id = String(req.params.sale_id);
-    const { customerDoc } = req.body;
 
     if (!isValidUUID(sale_id)) {
       return res.status(400).json({ sucesso: false, erro: 'sale_id inválido: formato UUID esperado' });
-    }
-
-    if (customerDoc && !isValidDoc(String(customerDoc).replace(/\D/g, ''))) {
-      return res.status(400).json({ sucesso: false, erro: 'customerDoc inválido: deve conter 11 (CPF) ou 14 (CNPJ) dígitos' });
     }
 
     const bodyParse = EmitirBodySchema.safeParse(req.body);
@@ -137,7 +204,7 @@ app.post('/api/nfe/emitir/:sale_id', async (req: Request, res: Response): Promis
       return res.status(503).json({ sucesso: false, erro: 'Serviço SEFAZ indisponível.' });
     }
 
-    const resultado = await generateNfeXml(String(sale_id), customerDoc, sefazService);
+    const resultado = await generateNfeXml(String(sale_id), bodyParse.data.revision, sefazService, res.locals.tenantId);
 
     if (resultado.success) {
       return res.status(200).json({ sucesso: true, dados: resultado, mensagem: 'Rota conectada', sale_id });
@@ -147,7 +214,7 @@ app.post('/api/nfe/emitir/:sale_id', async (req: Request, res: Response): Promis
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error('[API NF-e] Erro:', message);
-    return res.status(500).json({ sucesso: false, erro: 'Erro interno no servidor' });
+    return res.status(error instanceof AuthError ? error.status : 500).json({ sucesso: false, erro: message });
   }
 });
 
@@ -160,7 +227,7 @@ app.get('/api/nfe/xml/:ano/:mes', async (req: Request, res: Response): Promise<a
       return res.status(400).json({ sucesso: false, erro: 'Período inválido. Use /api/nfe/xml/AAAA/MM' });
     }
 
-    const generator = getPaginatedNfeXmlsByMonth(ano, mes);
+    const generator = getPaginatedNfeXmlsByMonth(ano, mes, res.locals.tenantId);
     const firstBatch = await generator.next();
 
     if (firstBatch.done || !firstBatch.value || firstBatch.value.length === 0) {
@@ -215,7 +282,7 @@ app.get('/api/nfe/relatorio/mensal/:ano/:mes', async (req: Request, res: Respons
       return res.status(400).json({ sucesso: false, erro: 'Período inválido. Use /api/nfe/relatorio/mensal/AAAA/MM' });
     }
 
-    const relatorio = await getSalesReportByMonth(ano, mes);
+    const relatorio = await getSalesReportByMonth(ano, mes, res.locals.tenantId);
     return res.json({ sucesso: true, dados: relatorio });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -233,7 +300,7 @@ app.post('/api/nfe/cancelar/:sale_id', async (req: Request, res: Response): Prom
     }
 
     const { justificativa } = req.body;
-    if (!justificativa || typeof justificativa !== 'string' || justificativa.trim().length < 15) {
+    if (!justificativa || typeof justificativa !== 'string' || justificativa.trim().length < 15 || justificativa.trim().length > 255) {
       return res.status(400).json({ sucesso: false, erro: 'justificativa inválida: mínimo 15 caracteres' });
     }
 
@@ -243,18 +310,35 @@ app.post('/api/nfe/cancelar/:sale_id', async (req: Request, res: Response): Prom
       return res.status(503).json({ sucesso: false, erro: 'Serviço SEFAZ indisponível.' });
     }
 
-    const nfeData = await getSaleNfeForCancel(sale_id);
-    const resultado = await sefazService.cancelarNFe(nfeData.invoiceKey, nfeData.nfeNumber, justificativa.trim());
+    const nfeData = await getSaleNfeForCancel(sale_id, res.locals.tenantId);
+    let resultado: Awaited<ReturnType<SefazService['cancelarNFe']>>;
+    try {
+      resultado = await sefazService.cancelarNFe(nfeData.invoiceKey, nfeData.nfeProtocol, justificativa.trim(),
+        async signedEvent => { await prepareNfeCancellation(sale_id, res.locals.tenantId, signedEvent); });
+    } catch (error) {
+      // A local schema/signature error happens before the event is persisted or transmitted.
+      // Only an event persisted for transmission can have an uncertain SEFAZ outcome.
+      const issue = await getNfeIssue(sale_id, res.locals.tenantId);
+      if (issue.cancellation_signed_xml) {
+        await completeNfeCancellation(sale_id, res.locals.tenantId, 'cancel_unknown');
+      }
+      throw error;
+    }
 
     if (resultado.success) {
-      await updateSaleNfeStatus(sale_id, 'cancelada');
+      await completeNfeCancellation(sale_id, res.locals.tenantId, 'cancelled', resultado.receipt);
       return res.status(200).json({ sucesso: true, dados: resultado });
     }
 
+    await completeNfeCancellation(sale_id, res.locals.tenantId, 'cancel_unknown');
     return res.status(422).json({ sucesso: false, erro: resultado.message });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error('[API Cancelamento] Erro:', message);
+    if (/^NFE_Cancelamento: Rejei(?:c|ç)[aã]o:/i.test(message)) {
+      return res.status(422).json({ sucesso: false,
+        erro: `${message} Consulte a situação da NF-e na SEFAZ antes de qualquer nova tentativa.` });
+    }
     return res.status(500).json({ sucesso: false, erro: 'Erro interno ao cancelar NF-e' });
   }
 });
@@ -269,7 +353,7 @@ app.post('/api/nfe/danfe/:sale_id', async (req: Request, res: Response): Promise
 
     console.log(`[API DANFE] Pedido recebido para sale_id: ${sale_id}`);
 
-    const resultado = await generateDanfePdf(String(sale_id));
+    const resultado = await generateDanfePdf(String(sale_id), res.locals.tenantId);
 
     if (resultado.success) {
       return res.status(200).json({ sucesso: true, dados: resultado });
@@ -303,7 +387,6 @@ const server = app.listen(PORT, HOST, () => {
 function gracefulShutdown(signal: string) {
   console.log(`[server] Recebido ${signal}. Encerrando servidor...`);
 
-  if (sefazService) sefazService.dispose();
 
   server.close(() => {
     console.log('[server] Servidor encerrado.');

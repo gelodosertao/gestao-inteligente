@@ -1,8 +1,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { randomUUID } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import { env } from '../config/env';
-import { getSaleWithItems } from './SupabaseService';
+import { readCompletePdf } from '../utils/pdf-utils';
 
 const supabase = createClient(env.supabaseUrl, env.supabaseServiceKey);
 
@@ -20,53 +21,53 @@ export interface DanfeResult {
   message: string;
 }
 
-async function getNfeXmlFromSale(saleId: string): Promise<{ xml: string; invoiceKey?: string }> {
+async function getNfeXmlFromSale(saleId: string, tenantId: string): Promise<{ xml: string; invoiceKey?: string }> {
   const { data, error } = await supabase
-    .from('sales')
-    .select('nfe_xml, invoice_key')
-    .eq('id', saleId)
+    .from('nfe_documents')
+    .select('authorized_xml, access_key, status')
+    .eq('sale_id', saleId)
+    .eq('tenant_id', tenantId)
+    .eq('environment', env.sefazAmbiente)
     .single();
 
   if (error || !data) {
     throw new Error(`Venda não encontrada: ${error?.message || saleId}`);
   }
 
-  const xml = data.nfe_xml as string;
-  if (!xml) {
+  const xml = data.authorized_xml as string;
+  if (data.status === 'cancel_unknown') {
+    throw new Error('Cancelamento pendente de conciliação na SEFAZ. Consulte a situação da NF-e antes de gerar o DANFE.');
+  }
+  if (data.status === 'cancelled') {
+    throw new Error('NF-e cancelada. O DANFE da nota autorizada não está disponível para impressão.');
+  }
+  if (!xml || data.status !== 'authorized') {
     throw new Error(`Nenhum XML de NF-e encontrado para a venda ${saleId}. Emita a NF-e primeiro.`);
   }
 
-  return { xml, invoiceKey: data.invoice_key as string | undefined };
+  return { xml, invoiceKey: data.access_key as string | undefined };
 }
 
-export async function generateDanfePdf(saleId: string): Promise<DanfeResult> {
+export async function generateDanfePdf(saleId: string, tenantId: string): Promise<DanfeResult> {
   console.log(`[DanfeService] Gerando DANFE para sale_id: ${saleId}`);
 
   const tempDir = ensureTempDir();
-  const outputPath = path.join(tempDir, `danfe_${saleId.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`);
+  const outputPath = path.join(tempDir, `danfe_${saleId.replace(/[^a-zA-Z0-9]/g, '_')}_${randomUUID()}.pdf`);
 
   try {
-    const { xml, invoiceKey } = await getNfeXmlFromSale(saleId);
+    const { xml, invoiceKey } = await getNfeXmlFromSale(saleId, tenantId);
 
     const { NFE_GerarDanfe } = await import('@nfewizard/danfe');
 
     const chave = invoiceKey || '';
 
-    const result = await NFE_GerarDanfe({
-      data: {
-        NFe: xml as any,
-        protNFe: undefined,
-        forceTransmitida: true,
-      },
-      chave,
-      outputPath,
-    });
+    const result = await NFE_GerarDanfe({ data: xml, chave, outputPath });
 
     if (!result.success) {
       return { success: false, message: result.message || 'Falha ao gerar DANFE' };
     }
 
-    const pdfBuffer = fs.readFileSync(outputPath);
+    const pdfBuffer = await readCompletePdf(outputPath);
     const base64 = pdfBuffer.toString('base64');
 
     return { success: true, base64, message: 'DANFE gerado com sucesso' };
@@ -75,6 +76,7 @@ export async function generateDanfePdf(saleId: string): Promise<DanfeResult> {
     console.error(`[GerarDanfe] Erro: ${message}`);
     return { success: false, message };
   } finally {
-    try { fs.unlinkSync(outputPath); } catch (e) { console.warn(`[DanfeService] Não foi possível remover ${outputPath}:`, e); }
+    try { await fs.promises.unlink(outputPath); }
+    catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') console.warn('[DanfeService] Falha ao remover PDF temporário:', error); }
   }
 }
