@@ -18,6 +18,7 @@ const Sales = React.lazy(() => import('./components/Sales'));
 const Financial = React.lazy(() => import('./components/Financial'));
 const AIAssistant = React.lazy(() => import('./components/AIAssistant'));
 const Settings = React.lazy(() => import('./components/Settings'));
+const FiscalConfigurationConsole = React.lazy(() => import('./components/FiscalConfigurationConsole'));
 const Login = React.lazy(() => import('./components/Login'));
 const Customers = React.lazy(() => import('./components/Customers'));
 const Pricing = React.lazy(() => import('./components/Pricing'));
@@ -63,6 +64,7 @@ const App: React.FC = () => {
     if (path.startsWith('/gestao/festas')) return 'FESTAS_RADAR';
     if (path.startsWith('/gestao/logistica')) return 'LOGISTICS';
     if (path.startsWith('/gestao/conciliacao')) return 'CONCILIACAO';
+    if (path.startsWith('/gestao/emissor')) return 'EMISSOR';
     if (path === '/gestao') return 'DASHBOARD';
     return 'DASHBOARD';
   }, [location.pathname]);
@@ -87,6 +89,7 @@ const App: React.FC = () => {
       case 'FESTAS_RADAR': navigate('/gestao/festas'); break;
       case 'LOGISTICS': navigate('/gestao/logistica'); break;
       case 'CONCILIACAO': navigate('/gestao/conciliacao'); break;
+      case 'EMISSOR': navigate('/gestao/emissor'); break;
       default: navigate('/gestao');
     }
   };
@@ -645,7 +648,7 @@ const App: React.FC = () => {
         }
         return <Dashboard products={products} sales={sales} financials={financials} customers={customers} onNavigate={setCurrentView} />;
       case 'REPORTS':
-        return <Reports sales={sales} products={products} customers={customers} onBack={() => setCurrentView('DASHBOARD')} />;
+        return <Reports sales={sales} products={products} customers={customers} currentUser={currentUser} onBack={() => setCurrentView('DASHBOARD')} />;
       case 'CONCILIACAO':
         if (currentUser?.role !== 'ADMIN') {
           return <div className="flex flex-col items-center justify-center p-12 mt-10 bg-white rounded-2xl shadow-sm border border-slate-200"><h2 className="text-2xl font-bold text-slate-800 mb-2">Acesso restrito</h2><p className="text-slate-500">A conciliação financeira é exclusiva para administradores.</p></div>;
@@ -670,6 +673,8 @@ const App: React.FC = () => {
         return <Production products={products} currentUser={currentUser!} onUpdateProduct={handleUpdateProduct} onAddProduct={handleAddProduct} onBack={() => setCurrentView('DASHBOARD')} />;
       case 'SETTINGS':
         return <Settings currentUser={currentUser!} onResetData={handleResetData} />;
+      case 'EMISSOR':
+        return <FiscalConfigurationConsole currentUser={currentUser!} onLogout={handleLogout} />;
       case 'FESTAS_RADAR':
         return <FeatureUnavailable featureName="Caçador de Festas" />;
       case 'LOGISTICS':
@@ -683,6 +688,14 @@ const App: React.FC = () => {
   // Master Render Logic using Routes
   if (!authResolved && location.pathname !== '/cardapio-adega') {
     return <div className="h-dvh w-screen flex items-center justify-center bg-slate-50"><Loader2 size={48} className="animate-spin text-orange-500" /></div>;
+  }
+
+  if (window.location.hostname === 'emissor.gelodosertao.com.br') {
+    return <Suspense fallback={<div className="flex min-h-dvh items-center justify-center"><Loader2 className="animate-spin" /></div>}>
+      {!currentUser ? <Login onLogin={handleLogin} /> : currentUser.mustChangePassword
+        ? <PasswordChange user={currentUser} onChanged={handlePasswordChanged} onLogout={handleLogout} />
+        : <div className="min-h-dvh bg-slate-50 px-4 py-6 md:px-8"><FiscalConfigurationConsole currentUser={currentUser} onLogout={handleLogout} standalone /></div>}
+    </Suspense>;
   }
 
   return (
@@ -733,6 +746,7 @@ const App: React.FC = () => {
                     onLogout={handleLogout}
                     onUpdateSale={handleUpdateSale}
                     onDeleteSale={handleDeleteSale}
+                    onFiscalChange={refreshSaleData}
                     onBack={currentUser.role === 'ADMIN' || currentUser.role === 'WHOLESALE_REPRESENTATIVE' ? () => navigate('/gestao') : undefined}
                   />
                 </div>

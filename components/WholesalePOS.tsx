@@ -1,14 +1,14 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Product, Sale, Customer, User, Branch, SaleItem, InvoiceCustomerDetails, PaymentEntry } from '../types';
-import { ShoppingCart, LogOut, User as UserIcon, Plus, Minus, Search, CheckCircle, ArrowLeft, History, Store, Banknote, MapPin, Edit, Trash2, Save, X, Printer, Check, FileText, Clock, Send, Download, AlertTriangle } from 'lucide-react';
+import { Product, Sale, Customer, User, Branch, SaleItem, FiscalContext, PaymentEntry } from '../types';
+import { ShoppingCart, LogOut, User as UserIcon, Plus, Minus, Search, CheckCircle, ArrowLeft, History, Store, Banknote, MapPin, Edit, Trash2, Save, X, Printer, Check, FileText, Clock, Download } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { CUSTOMER_SEGMENTS } from '../constants';
 import { hardwareBridge } from '../services/hardwareBridge';
 import { translatePaymentMethod } from '../services/utils';
-import { dbCustomers, dbSales } from '../services/db';
-import { invoiceService } from '../services/invoiceService';
+import { dbCustomers } from '../services/db';
+import InvoiceDraftModal, { FiscalContextFields } from './InvoiceDraftModal';
 import { generateDanfe } from '../services/danfeService';
 
 interface WholesalePOSProps {
@@ -21,6 +21,7 @@ interface WholesalePOSProps {
     onLogout: () => void;
     onUpdateSale?: (sale: Sale) => Promise<void>;
     onDeleteSale?: (saleId: string) => Promise<void>;
+    onFiscalChange?: () => Promise<void>;
     onBack?: () => void;
 }
 
@@ -76,6 +77,7 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
     onLogout,
     onUpdateSale,
     onDeleteSale,
+    onFiscalChange,
     onBack
 }) => {
     const isAdmin = currentUser.role === 'ADMIN';
@@ -99,12 +101,9 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
     const [tempAddress, setTempAddress] = useState<string>('');
     const [tempCity, setTempCity] = useState<string>('');
 
-    // NF-e Modal State
-    // NF-e Modal State
     const [nfeSale, setNfeSale] = useState<Sale | null>(null);
-    const [nfeStep, setNfeStep] = useState<'FORM' | 'DADOS_FISCAIS' | 'PROCESSING' | 'SUCCESS'>('FORM');
-    const [nfeCpf, setNfeCpf] = useState('');
-    const [nfeDetailsForm, setNfeDetailsForm] = useState<Partial<InvoiceCustomerDetails>>({});
+    const [fiscalContext, setFiscalContext] = useState<FiscalContext>({ operation: 'internal_b2b_own_production', operationDate: new Date().toLocaleDateString('en-CA'), intermediary: 0 });
+    const [savingPayment, setSavingPayment] = useState(false);
 
     // Debt Payment State
     const [showDebtModal, setShowDebtModal] = useState(false);
@@ -128,8 +127,8 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
         setShowDebtModal(true);
     };
 
-    const handleRegisterPayment = () => {
-        if (!selectedDebtSale) return;
+    const handleRegisterPayment = async () => {
+        if (!selectedDebtSale || !onUpdateSale || savingPayment) return;
 
         const amount = parseFloat(paymentAmountInput.replace(',', '.'));
         if (isNaN(amount) || amount <= 0) {
@@ -166,9 +165,14 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
             status: isFullyPaid ? 'Completed' : 'Pending',
         };
 
-        onUpdateSale?.(updatedSale);
-        setShowDebtModal(false);
-        setSelectedDebtSale(null);
+        setSavingPayment(true);
+        try {
+            await onUpdateSale(updatedSale);
+            setShowDebtModal(false);
+            setSelectedDebtSale(null);
+        } catch {
+            alert('Falha ao registrar pagamento. Confira a venda antes de tentar novamente.');
+        } finally { setSavingPayment(false); }
     };
 
     useEffect(() => {
@@ -432,7 +436,10 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
             date: saleDate,
             createdAt: new Date().toISOString(),
             customerName: selectedCustomer.name,
+            customerId: selectedCustomer.id,
+            fiscalContext: { ...fiscalContext, operationDate: saleDate },
             customerDetails: {
+                cpfCnpj: selectedCustomer.cpfCnpj,
                 razaoSocial: selectedCustomer.razaoSocial || undefined,
                 inscricaoEstadual: selectedCustomer.inscricaoEstadual || undefined,
                 logradouro: selectedCustomer.logradouro || undefined,
@@ -444,7 +451,7 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                 state: selectedCustomer.state || undefined,
             },
             total: finalTotal,
-            items: saleItems.map(item => ({ ...item, ncm: '22019000', cfop: '5101' })),
+            items: saleItems,
             branch: Branch.MATRIZ,
             status: 'Pending',
             paymentMethod,
@@ -471,6 +478,7 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
             setCustomerSearchQuery('');
             setIsCheckingOut(false);
             setAdminDiscount(0);
+            setFiscalContext({ operation: 'internal_b2b_own_production', operationDate: saleDate, intermediary: 0 });
             setShowSuccessModal(true);
         } catch (e) {
             console.error(e);
@@ -923,6 +931,12 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                             </div>
                         )}
 
+                        <details className="mb-4 rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
+                            <summary className="cursor-pointer font-bold text-slate-700">Preparar dados para a nota fiscal</summary>
+                            <p className="my-3 text-sm text-slate-500">Informe as condições combinadas ou complete depois, ao salvar a nota.</p>
+                            <FiscalContextFields value={{ ...fiscalContext, operationDate: saleDate }} onChange={value => { setFiscalContext(value); setSaleDate(value.operationDate); }} />
+                        </details>
+
                         {/* Payment Method */}
                         <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
                             <label className="block text-sm font-bold text-slate-700 mb-3">Forma de Pagamento</label>
@@ -1040,163 +1054,6 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                 </div>
             </div>
         );
-    };
-
-    const getMissingCustomerFields = (customer: Customer): string[] => {
-        const missing: string[] = [];
-        if (!customer.razaoSocial) missing.push('Razão Social');
-        if (!customer.logradouro) missing.push('Logradouro');
-        if (!customer.numero) missing.push('Número');
-        if (!customer.bairro) missing.push('Bairro');
-        if (!customer.city) missing.push('Cidade');
-        if (!customer.state) missing.push('UF');
-        if (!customer.phone) missing.push('Telefone');
-        if (!customer.zipCode) missing.push('CEP');
-        return missing;
-    };
-
-    const handleEmitirNfe = async () => {
-        if (!nfeSale) return;
-
-        const customer = myCustomers.find(c =>
-            c.name.toLowerCase() === nfeSale.customerName.toLowerCase()
-        );
-
-        if (customer) {
-            const missing = getMissingCustomerFields(customer);
-            if (missing.length > 0) {
-                setNfeDetailsForm({
-                    razaoSocial: customer.razaoSocial || '',
-                    inscricaoEstadual: customer.inscricaoEstadual || '',
-                    logradouro: customer.logradouro || '',
-                    numero: customer.numero || '',
-                    bairro: customer.bairro || '',
-                    city: customer.city || '',
-                    state: customer.state || '',
-                    phone: customer.phone || '',
-                    zipCode: customer.zipCode || '',
-                });
-                setNfeStep('DADOS_FISCAIS');
-                return;
-            }
-            const hasAddress = customer.logradouro &&
-                customer.bairro &&
-                customer.city &&
-                customer.state;
-
-            if (!hasAddress) {
-                setNfeDetailsForm({
-                    razaoSocial: customer.razaoSocial || '',
-                    inscricaoEstadual: customer.inscricaoEstadual || '',
-                    logradouro: customer.logradouro || '',
-                    numero: customer.numero || '',
-                    bairro: customer.bairro || '',
-                    city: customer.city || '',
-                    state: customer.state || '',
-                    phone: customer.phone || '',
-                    zipCode: customer.zipCode || '',
-                });
-                setNfeStep('DADOS_FISCAIS');
-                return;
-            }
-        }
-
-        setNfeStep('PROCESSING');
-        try {
-            const updated = { ...nfeSale, nfeStatus: 'pendente' as const };
-            await dbSales.update(updated);
-            const result = await invoiceService.emitNFCe(nfeSale, nfeCpf);
-            if (result.success) {
-                await dbSales.update({
-                    ...updated,
-                    hasInvoice: true,
-                    nfeStatus: 'autorizada',
-                    invoiceKey: result.invoiceKey,
-                    invoiceUrl: result.invoiceUrl,
-                    nfeXml: result.nfeXml,
-                    nfeNumber: result.nfeNumber,
-                    nfeIssuedAt: new Date().toISOString(),
-                });
-                setNfeStep('SUCCESS');
-            } else {
-                await dbSales.update({ ...updated, nfeStatus: 'rejeitada' });
-                alert("Erro ao emitir nota: " + result.message);
-                setNfeStep('FORM');
-            }
-        } catch (e) {
-            console.error(e);
-            await dbSales.update({ ...nfeSale, nfeStatus: 'rejeitada', hasInvoice: false });
-            alert("Erro técnico ao tentar emitir nota.");
-            setNfeStep('FORM');
-        }
-    };
-
-    const handleSaveCustomerDetailsAndEmit = async () => {
-        if (!nfeSale) return;
-
-        const customer = myCustomers.find(c =>
-            c.name.toLowerCase() === nfeSale.customerName.toLowerCase()
-        );
-
-        const snapshot: InvoiceCustomerDetails = {
-            razaoSocial: nfeDetailsForm.razaoSocial || undefined,
-            inscricaoEstadual: nfeDetailsForm.inscricaoEstadual || undefined,
-            logradouro: nfeDetailsForm.logradouro || undefined,
-            numero: nfeDetailsForm.numero || undefined,
-            bairro: nfeDetailsForm.bairro || undefined,
-            zipCode: nfeDetailsForm.zipCode || undefined,
-            phone: nfeDetailsForm.phone || undefined,
-            city: nfeDetailsForm.city || undefined,
-            state: nfeDetailsForm.state || undefined,
-        };
-
-        try {
-            // 1. Update customer record for future emissions
-            if (customer) {
-                await dbCustomers.update({
-                    ...customer,
-                    razaoSocial: nfeDetailsForm.razaoSocial || customer.razaoSocial,
-                    inscricaoEstadual: nfeDetailsForm.inscricaoEstadual || customer.inscricaoEstadual,
-                    logradouro: nfeDetailsForm.logradouro || customer.logradouro,
-                    numero: nfeDetailsForm.numero || customer.numero,
-                    bairro: nfeDetailsForm.bairro || customer.bairro,
-                    city: nfeDetailsForm.city || customer.city,
-                    state: nfeDetailsForm.state || customer.state,
-                    phone: nfeDetailsForm.phone || customer.phone,
-                    zipCode: nfeDetailsForm.zipCode || customer.zipCode,
-                });
-            }
-
-            // 2. Save snapshot to the sale
-            const saleWithDetails = { ...nfeSale, customerDetails: snapshot };
-            await dbSales.update(saleWithDetails);
-            setNfeSale(saleWithDetails);
-
-            // 3. Proceed with emission
-            setNfeStep('PROCESSING');
-            const result = await invoiceService.emitNFCe(nfeSale, nfeCpf);
-            if (result.success) {
-                await dbSales.update({
-                    ...saleWithDetails,
-                    hasInvoice: true,
-                    nfeStatus: 'autorizada',
-                    invoiceKey: result.invoiceKey,
-                    invoiceUrl: result.invoiceUrl,
-                    nfeXml: result.nfeXml,
-                    nfeNumber: result.nfeNumber,
-                    nfeIssuedAt: new Date().toISOString(),
-                });
-                setNfeStep('SUCCESS');
-            } else {
-                await dbSales.update({ ...saleWithDetails, nfeStatus: 'rejeitada' });
-                alert("Erro ao emitir nota: " + result.message);
-                setNfeStep('DADOS_FISCAIS');
-            }
-        } catch (e) {
-            console.error(e);
-            alert("Erro ao salvar dados do cliente ou emitir nota.");
-            setNfeStep('DADOS_FISCAIS');
-        }
     };
 
     const renderHistory = () => (
@@ -1325,8 +1182,8 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                                         <span className="px-2 py-1 rounded-md text-[10px] md:text-xs font-bold bg-slate-50 text-slate-600 border border-slate-200">
                                             {translatePaymentMethod(sale.paymentMethod)}
                                         </span>
-                                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${sale.nfeStatus === 'autorizada' ? 'bg-green-100 text-green-700' : sale.nfeStatus === 'pendente' ? 'bg-amber-100 text-amber-700' : sale.nfeStatus === 'rejeitada' ? 'bg-red-100 text-red-700' : sale.nfeStatus === 'cancelada' ? 'bg-slate-200 text-slate-500' : 'bg-slate-100 text-slate-500'}`}>
-                                            {sale.nfeStatus === 'autorizada' ? 'NF-e OK' : sale.nfeStatus === 'pendente' ? 'Pendente SEFAZ' : sale.nfeStatus === 'rejeitada' ? 'Rejeitada' : sale.nfeStatus === 'cancelada' ? 'Cancelada' : 'Sem NF-e'}
+                                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${sale.nfeStatus === 'autorizada' && sale.nfeEnvironment === 1 ? 'bg-green-100 text-green-700' : sale.nfeStatus === 'autorizada' && sale.nfeEnvironment === 2 ? 'bg-blue-100 text-blue-700' : ['pendente', 'pendente_emissao', 'pendente_consulta', 'pendente_cancelamento', 'rascunho'].includes(sale.nfeStatus || '') ? 'bg-amber-100 text-amber-700' : sale.nfeStatus === 'rejeitada' ? 'bg-red-100 text-red-700' : sale.nfeStatus === 'cancelada' ? 'bg-slate-200 text-slate-500' : 'bg-slate-100 text-slate-500'}`}>
+                                            {sale.nfeStatus === 'autorizada' && sale.nfeEnvironment === 2 ? 'Teste SEFAZ' : sale.nfeStatus === 'autorizada' ? 'NF-e OK' : sale.nfeStatus === 'rascunho' ? 'Nota salva' : sale.nfeStatus === 'pendente_consulta' ? 'Consultar SEFAZ' : sale.nfeStatus === 'pendente_cancelamento' ? 'Consultar cancelamento' : ['pendente', 'pendente_emissao'].includes(sale.nfeStatus || '') ? 'Pendente SEFAZ' : sale.nfeStatus === 'rejeitada' ? 'Rejeitada' : sale.nfeStatus === 'cancelada' ? 'Cancelada' : 'Sem NF-e'}
                                         </span>
                                     </div>
                                     <div className="flex flex-wrap gap-2 mt-3 md:justify-end w-full">
@@ -1354,17 +1211,12 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                                         )}
                                         {sale.status !== 'Cancelled' && (
                                             <div className="flex gap-2 flex-1 md:flex-none min-w-full md:min-w-0 mt-1 md:mt-0">
-                                                {(sale.nfeStatus === 'nao_emitir' || !sale.nfeStatus) && (
-                                                    <button onClick={() => {
-                                                        const c = customers.find(c2 => c2.name === sale.customerName);
-                                                        setNfeSale(sale);
-                                                        setNfeStep('FORM');
-                                                        setNfeCpf(c?.cpfCnpj || '');
-                                                    }} className="flex-1 md:flex-none justify-center text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 rounded flex items-center gap-1 font-bold border border-blue-200 px-3 py-2">
-                                                        <Send size={14} /> NF-e
+                                                {sale.nfeStatus !== 'cancelada' && (
+                                                    <button onClick={() => setNfeSale(sale)} className="flex-1 md:flex-none justify-center text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 rounded flex items-center gap-1 font-bold border border-blue-200 px-3 py-2">
+                                                        <FileText size={14} /> Nota fiscal
                                                     </button>
                                                 )}
-                                                {sale.nfeStatus === 'autorizada' && (
+                                                {isAdmin && sale.nfeStatus === 'autorizada' && (
                                                     <button onClick={() => generateDanfe(sale)} className="flex-1 md:flex-none justify-center text-xs bg-green-50 hover:bg-green-100 text-green-700 rounded flex items-center gap-1 font-bold border border-green-200 px-3 py-2">
                                                         <Download size={14} /> DANFE
                                                     </button>
@@ -1762,6 +1614,9 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                         <p className="text-slate-500 font-medium mb-8">O pedido foi enviado para conferência administrativa.</p>
 
                         <div className="space-y-3">
+                            <button onClick={() => { if (lastCompletedSale) { setNfeSale(lastCompletedSale); setShowSuccessModal(false); } }} className="w-full rounded-2xl border border-blue-600 py-3 font-bold text-blue-700">
+                                Preparar nota fiscal
+                            </button>
                             <button
                                 onClick={() => lastCompletedSale && handlePrint(lastCompletedSale)}
                                 className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-2xl font-black flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20 active:scale-95 transition-all text-lg"
@@ -1779,156 +1634,14 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                 </div>
             )}
 
-            {/* NF-e Modal */}
-            {nfeSale && (
-                <div className="fixed inset-0 bg-blue-900/50 backdrop-blur-sm z-50 flex items-start sm:items-center justify-center p-4 pt-safe-offset-4 sm:p-4 overflow-y-auto animate-in fade-in duration-200">
-                    <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
-                        <div className="p-4 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
-                            <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                                <FileText size={18} className="text-blue-600" /> Emissão de NF-e
-                            </h3>
-                            <button onClick={() => setNfeSale(null)} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
-                        </div>
+            {nfeSale && <InvoiceDraftModal
+                sale={sales.find(sale => sale.id === nfeSale.id) || nfeSale}
+                customers={customers}
+                isAdmin={isAdmin}
+                onClose={() => setNfeSale(null)}
+                onChanged={onFiscalChange}
+            />}
 
-                        <div className="p-6">
-                            {nfeStep === 'FORM' && (
-                                <>
-                                    <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-100 text-sm text-blue-700">
-                                        <p><strong>Venda #{nfeSale.id.substring(0, 8)}</strong> — {nfeSale.customerName}</p>
-                                        <p>Valor: <strong>R$ {nfeSale.total.toFixed(2)}</strong></p>
-                                    </div>
-
-                                    <div className="space-y-4">
-                                        <div>
-                                            <label className="block text-sm font-medium text-slate-700 mb-1">CPF / CNPJ do Cliente</label>
-                                            <input
-                                                type="text"
-                                                placeholder="000.000.000-00"
-                                                className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:outline-none"
-                                                value={nfeCpf}
-                                                onChange={(e) => setNfeCpf(e.target.value)}
-                                            />
-                                        </div>
-                                        {(() => {
-                                            const c = customers.find(c2 => c2.name === nfeSale.customerName);
-                                            if (!c) return null;
-                                            return (
-                                                <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 text-xs text-slate-600 space-y-1">
-                                                    {c.razaoSocial && <p><span className="font-medium text-slate-700">Razão Social:</span> {c.razaoSocial}</p>}
-                                                    {c.inscricaoEstadual && <p><span className="font-medium text-slate-700">IE:</span> {c.inscricaoEstadual}</p>}
-                                                    <p>
-                                                        <span className="font-medium text-slate-700">Endereço:</span>{' '}
-                                                        {[c.logradouro, c.numero, c.bairro, c.city, c.state].filter(Boolean).join(', ') || 'Não informado'}
-                                                    </p>
-                                                </div>
-                                            );
-                                        })()}
-                                    </div>
-
-                                    <button
-                                        onClick={handleEmitirNfe}
-                                        className="w-full mt-6 bg-blue-600 hover:bg-blue-500 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20 transition-all"
-                                    >
-                                        <Send size={18} /> Transmitir para SEFAZ
-                                    </button>
-                                </>
-                            )}
-
-                            {nfeStep === 'DADOS_FISCAIS' && (
-                                <div className="space-y-4">
-                                    <div className="mb-2 p-3 bg-amber-50 rounded-lg border border-amber-200 text-sm text-amber-800">
-                                        <p className="font-bold flex items-center gap-1"><AlertTriangle size={16} /> Dados fiscais incompletos</p>
-                                        <p className="text-xs mt-1">Preencha os dados abaixo para emitir a NF-e. Eles serão salvos no cadastro do cliente para emissões futuras.</p>
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Razão Social</label>
-                                        <input type="text" placeholder="Razão Social" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:outline-none" value={nfeDetailsForm.razaoSocial || ''} onChange={(e) => setNfeDetailsForm(p => ({ ...p, razaoSocial: e.target.value }))} />
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Inscrição Estadual</label>
-                                        <input type="text" placeholder="Inscrição Estadual" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:outline-none" value={nfeDetailsForm.inscricaoEstadual || ''} onChange={(e) => setNfeDetailsForm(p => ({ ...p, inscricaoEstadual: e.target.value }))} />
-                                    </div>
-                                    <div className="grid grid-cols-3 gap-2">
-                                        <div className="col-span-2">
-                                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Logradouro</label>
-                                            <input type="text" placeholder="Logradouro" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:outline-none" value={nfeDetailsForm.logradouro || ''} onChange={(e) => setNfeDetailsForm(p => ({ ...p, logradouro: e.target.value }))} />
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Número</label>
-                                            <input type="text" placeholder="Nº" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:outline-none" value={nfeDetailsForm.numero || ''} onChange={(e) => setNfeDetailsForm(p => ({ ...p, numero: e.target.value }))} />
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Bairro</label>
-                                        <input type="text" placeholder="Bairro" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:outline-none" value={nfeDetailsForm.bairro || ''} onChange={(e) => setNfeDetailsForm(p => ({ ...p, bairro: e.target.value }))} />
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <div>
-                                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Cidade</label>
-                                            <input type="text" placeholder="Cidade" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:outline-none" value={nfeDetailsForm.city || ''} onChange={(e) => setNfeDetailsForm(p => ({ ...p, city: e.target.value }))} />
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">UF</label>
-                                            <input type="text" placeholder="UF" maxLength={2} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:outline-none uppercase" value={nfeDetailsForm.state || ''} onChange={(e) => setNfeDetailsForm(p => ({ ...p, state: e.target.value }))} />
-                                        </div>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <div>
-                                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">CEP</label>
-                                            <input type="text" placeholder="CEP" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:outline-none" value={nfeDetailsForm.zipCode || ''} onChange={(e) => setNfeDetailsForm(p => ({ ...p, zipCode: e.target.value }))} />
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Telefone</label>
-                                            <input type="text" placeholder="Telefone" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:outline-none" value={nfeDetailsForm.phone || ''} onChange={(e) => setNfeDetailsForm(p => ({ ...p, phone: e.target.value }))} />
-                                        </div>
-                                    </div>
-                                    <button
-                                        onClick={handleSaveCustomerDetailsAndEmit}
-                                        className="w-full bg-blue-600 hover:bg-blue-500 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20 transition-all"
-                                    >
-                                        <Send size={18} /> Salvar e Transmitir para SEFAZ
-                                    </button>
-                                    <button
-                                        onClick={() => setNfeStep('FORM')}
-                                        className="w-full bg-slate-100 hover:bg-slate-200 text-slate-600 py-2 rounded-lg font-medium text-sm"
-                                    >
-                                        Voltar
-                                    </button>
-                                </div>
-                            )}
-
-                            {nfeStep === 'PROCESSING' && (
-                                <div className="flex flex-col items-center justify-center py-8">
-                                    <div className="w-12 h-12 border-4 border-blue-100 border-t-blue-500 rounded-full animate-spin mb-4"></div>
-                                    <h4 className="font-bold text-slate-800">Autorizando Nota...</h4>
-                                    <p className="text-sm text-slate-500">Conectando aos servidores da SEFAZ</p>
-                                </div>
-                            )}
-
-                            {nfeStep === 'SUCCESS' && (
-                                <div className="flex flex-col items-center justify-center py-4 text-center">
-                                    <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-4">
-                                        <CheckCircle size={32} />
-                                    </div>
-                                    <h4 className="text-xl font-bold text-slate-800 mb-1">Nota Autorizada!</h4>
-                                    <p className="text-sm text-slate-500 mb-6">Chave: {nfeSale.invoiceKey || 'Processada com sucesso'}</p>
-
-                                    <div className="flex gap-3 w-full">
-                                        <button
-                                            onClick={() => setNfeSale(null)}
-                                            className="flex-1 bg-blue-600 hover:bg-blue-500 text-white py-2 rounded-lg font-medium"
-                                        >
-                                            Fechar
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* --- DEBT PAYMENT MODAL --- */}
             {showDebtModal && selectedDebtSale && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-start sm:items-center justify-center p-4 pt-safe-offset-4 sm:p-4 overflow-y-auto animate-in fade-in duration-200">
                     <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col ">
@@ -2011,10 +1724,11 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                             </div>
 
                             <button
+                                disabled={savingPayment}
                                 onClick={handleRegisterPayment}
                                 className="w-full bg-orange-600 hover:bg-orange-700 text-white py-3 rounded-xl font-bold text-lg shadow-lg shadow-orange-900/10 flex items-center justify-center gap-2 mt-2"
                             >
-                                <Save size={20} /> Confirmar Pagamento
+                                <Save size={20} /> {savingPayment ? 'Salvando pagamento...' : 'Confirmar Pagamento'}
                             </button>
                         </div>
                     </div>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Package, ShoppingCart, DollarSign, Sparkles, Settings, LogOut, Users, Calculator, ChevronLeft, ChevronRight, Factory, Globe, Truck, PieChart, Lock, TrendingUp, Store, PartyPopper } from 'lucide-react';
+import { LayoutDashboard, Package, ShoppingCart, DollarSign, Sparkles, Settings, LogOut, Users, Calculator, ChevronLeft, ChevronRight, Factory, Globe, Truck, PieChart, Lock, TrendingUp, Store, PartyPopper, FileText } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { ViewState, User } from '../types';
 
@@ -161,6 +161,15 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, setView, currentUs
         </nav>
 
         <div className="p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] border-t border-white/5 space-y-3 bg-black/10 shrink-0">
+          {currentUser.role === 'ADMIN' && (
+            <a href={import.meta.env.DEV ? '/gestao/emissor' : 'https://emissor.gelodosertao.com.br'}
+              onClick={() => closeMobileMenu?.()}
+              className={`w-full flex items-center justify-start gap-3 p-2.5 rounded-xl transition-all active-scale touch-target text-sky-200 hover:text-white hover:bg-white/10 ${isCollapsed ? 'md:justify-center' : ''}`}
+              title="Emissor NF-e">
+              <FileText size={20} className="shrink-0" />
+              <span className={`text-sm font-semibold whitespace-nowrap ${isCollapsed ? 'md:hidden' : 'block'}`}>Emissor NF-e</span>
+            </a>
+          )}
           {currentUser.role === 'ADMIN' && (
             <Link
               to={getPathForView('SETTINGS')}

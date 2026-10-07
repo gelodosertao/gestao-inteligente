@@ -99,6 +99,7 @@ export interface PaymentEntry {
 }
 
 export interface InvoiceCustomerDetails {
+  cpfCnpj?: string;
   razaoSocial?: string;
   inscricaoEstadual?: string;
   logradouro?: string;
@@ -110,10 +111,23 @@ export interface InvoiceCustomerDetails {
   state?: string;
 }
 
+export interface FiscalContext {
+  operation: 'internal_b2b_own_production' | 'interstate_b2b_own_production';
+  operationDate: string;
+  buyerPresence?: 1 | 2 | 3 | 5 | 9;
+  intermediary?: 0 | 1;
+  freightMode?: 0 | 1 | 2 | 3 | 4 | 9;
+  finalConsumer?: boolean;
+  paymentTiming?: 'cash' | 'term';
+  dueDate?: string;
+}
+
 export interface Sale {
   id: string;
   date: string;
   customerName: string;
+  customerId?: string;
+  fiscalContext?: FiscalContext;
   customerDetails?: InvoiceCustomerDetails; // Snapshot for DANFE
   total: number;
   items: SaleItem[];
@@ -142,8 +156,10 @@ export interface Sale {
   sellerRole?: string; // Role of the user who made the sale
   commissionAmount?: number; // Calculated commission at the time of sale
   // NF-e fields
-  nfeStatus?: 'nao_emitir' | 'pendente' | 'autorizada' | 'cancelada' | 'rejeitada';
+  nfeStatus?: 'nao_emitir' | 'rascunho' | 'pendente' | 'pendente_emissao' | 'pendente_consulta' | 'pendente_cancelamento' | 'autorizada' | 'cancelada' | 'rejeitada';
   nfeNumber?: string;
+  nfeEnvironment?: 1 | 2;
+  nfeProtocol?: string;
   nfeSeries?: string;
   nfeXml?: string;
   nfeIssuedAt?: string;
@@ -228,7 +244,7 @@ export interface User {
   temporaryPasswordExpiresAt?: string;
 }
 
-export type ViewState = 'DASHBOARD' | 'INVENTORY' | 'SALES' | 'FINANCIAL' | 'AI_INSIGHTS' | 'SETTINGS' | 'CUSTOMERS' | 'PRICING' | 'ONLINE_MENU' | 'MENU_CONFIG' | 'PRODUCTION' | 'ORDER_CENTER' | 'REPORTS' | 'ATACADO' | 'CRM' | 'FESTAS_RADAR' | 'LOGISTICS' | 'CONCILIACAO';
+export type ViewState = 'DASHBOARD' | 'INVENTORY' | 'SALES' | 'FINANCIAL' | 'AI_INSIGHTS' | 'SETTINGS' | 'CUSTOMERS' | 'PRICING' | 'ONLINE_MENU' | 'MENU_CONFIG' | 'PRODUCTION' | 'ORDER_CENTER' | 'REPORTS' | 'ATACADO' | 'CRM' | 'FESTAS_RADAR' | 'LOGISTICS' | 'CONCILIACAO' | 'EMISSOR';
 
 // --- FESTAS RADAR MODULE ---
 

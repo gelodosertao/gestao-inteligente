@@ -355,11 +355,22 @@ export interface SaleOperationResult {
 export const dbSales = {
   async getAll(tenantId: string): Promise<Sale[]> {
     const data = await fetchAllRecords((from, to) => supabase.from('sales').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false }).range(from, to));
+    let draftRows: any[] = [];
+    try {
+      draftRows = await fetchAllRecords((from, to) => supabase.from('nfe_drafts')
+        .select('sale_id').eq('tenant_id', tenantId).order('sale_id', { ascending: true }).range(from, to));
+    } catch (error) {
+      if ((error as { code?: string })?.code !== 'PGRST205') throw error;
+      console.warn('Rascunhos de NF-e indisponíveis: migration nfe_drafts ainda não aplicada.');
+    }
+    const drafted = new Set(draftRows.map((row: any) => row.sale_id));
 
     return (data || []).map((row: any) => ({
       id: row.id,
       date: row.date,
       customerName: row.customer_name,
+      customerId: row.customer_id,
+      fiscalContext: row.fiscal_context,
       total: row.total,
       branch: row.branch as Branch,
       matrizDeposit: row.matriz_deposit,
@@ -380,8 +391,10 @@ export const dbSales = {
       sellerName: row.seller_name,
       sellerRole: row.seller_role,
       commissionAmount: row.commission_amount,
-      nfeStatus: row.nfe_status,
+      nfeStatus: row.nfe_status === 'nao_emitir' && drafted.has(row.id) ? 'rascunho' : row.nfe_status,
       nfeNumber: row.nfe_number,
+      nfeEnvironment: row.nfe_environment,
+      nfeProtocol: row.nfe_protocol,
       nfeSeries: row.nfe_series,
       nfeXml: row.nfe_xml,
       nfeIssuedAt: row.nfe_issued_at,
@@ -412,6 +425,8 @@ export const dbSales = {
       id: sale.id,
       date: sale.date,
       customer_name: sale.customerName,
+      customer_id: sale.customerId,
+      fiscal_context: sale.fiscalContext,
       total: sale.total,
       branch: sale.branch,
       matriz_deposit: sale.matrizDeposit,
@@ -473,6 +488,8 @@ export const dbSales = {
     const saleData: any = {
       date: sale.date,
       customer_name: sale.customerName,
+      customer_id: sale.customerId,
+      fiscal_context: sale.fiscalContext,
       total: sale.total,
       branch: sale.branch,
       matriz_deposit: sale.matrizDeposit,
@@ -570,6 +587,18 @@ export const dbFinancials = {
 
 // --- CUSTOMERS ---
 export const dbCustomers = {
+  async updateFiscalForSale(saleId: string, customer: Customer): Promise<void> {
+    const { error } = await supabase.rpc('update_nfe_customer', {
+      p_sale_id: saleId, p_customer_id: customer.id,
+      p_patch: {
+        cpf_cnpj: customer.cpfCnpj || '', razao_social: customer.razaoSocial || '',
+        inscricao_estadual: customer.inscricaoEstadual || '', logradouro: customer.logradouro || '',
+        numero: customer.numero || '', bairro: customer.bairro || '', zip_code: customer.zipCode || '',
+        phone: customer.phone || '', city: customer.city || '', state: customer.state || '',
+      },
+    });
+    if (error) throw error;
+  },
   async getAll(tenantId: string): Promise<Customer[]> {
     const data = await fetchAllRecords((from, to) => supabase.from('customers').select('*').eq('tenant_id', tenantId).order('name', { ascending: true }).range(from, to));
 

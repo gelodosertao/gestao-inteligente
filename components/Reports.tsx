@@ -1,6 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
-import { Sale, Product, Customer, Branch } from '../types';
+import { Sale, Product, Customer, Branch, User } from '../types';
+import { fiscalApiUrl, fiscalHeaders } from '../services/invoiceService';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
 import { Calendar, Filter, Download, DollarSign, TrendingUp, Users, ShoppingBag, CreditCard, ChevronLeft, ChevronRight, Search, Archive, FileText, Loader2 } from 'lucide-react';
 import { getTodayDate, normalizePaymentMethod, translatePaymentMethod } from '../services/utils';
@@ -12,11 +13,12 @@ interface ReportsProps {
     products: Product[];
     customers: Customer[];
     onBack?: () => void;
+    currentUser: User;
 }
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
 
-const Reports: React.FC<ReportsProps> = ({ sales, products, customers, onBack }) => {
+const Reports: React.FC<ReportsProps> = ({ sales, products, customers, onBack, currentUser }) => {
     const [activeTab, setActiveTab] = useState<'SALES_LIST' | 'SALES_ANALYSIS' | 'PRODUCTS' | 'CUSTOMERS' | 'MENU_ANALYTICS' | 'FISCAL_ACCOUNTING'>('SALES_ANALYSIS');
 
     // Fiscal Panel state
@@ -224,7 +226,7 @@ const Reports: React.FC<ReportsProps> = ({ sales, products, customers, onBack })
     const downloadFiscalReport = async () => {
         try {
             setIsDownloadingFiscal(true);
-            const response = await fetch(`${import.meta.env.VITE_NFE_API_URL || 'http://localhost:3001'}/api/nfe/relatorio/mensal/${fiscalYear}/${fiscalMonth}`);
+            const response = await fetch(fiscalApiUrl(`/api/nfe/relatorio/mensal/${fiscalYear}/${fiscalMonth}`), { headers: await fiscalHeaders() });
             const data = await response.json();
             
             if (!data.sucesso || !data.dados) {
@@ -296,6 +298,21 @@ const Reports: React.FC<ReportsProps> = ({ sales, products, customers, onBack })
             alert("Falha ao gerar relatório fiscal contábil: " + (error.message || 'Erro desconhecido'));
         } finally {
             setIsDownloadingFiscal(false);
+        }
+    };
+
+    const downloadFiscalXmls = async () => {
+        try {
+            const response = await fetch(fiscalApiUrl(`/api/nfe/xml/${fiscalYear}/${fiscalMonth}`), { headers: await fiscalHeaders() });
+            if (!response.ok) throw new Error('Não foi possível baixar os XMLs.');
+            const url = URL.createObjectURL(await response.blob());
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `nfe-${fiscalYear}-${fiscalMonth}.zip`;
+            link.click();
+            URL.revokeObjectURL(url);
+        } catch (error) {
+            alert(error instanceof Error ? error.message : 'Falha ao baixar XMLs.');
         }
     };
 
@@ -425,12 +442,12 @@ const Reports: React.FC<ReportsProps> = ({ sales, products, customers, onBack })
                 >
                     <ShoppingBag size={16} className="inline mr-2" /> Análise do Cardápio
                 </button>
-                <button
+                {currentUser.role === 'ADMIN' && <button
                     onClick={() => setActiveTab('FISCAL_ACCOUNTING')}
                     className={`px-4 py-2 font-bold rounded-t-lg transition-colors whitespace-nowrap ${activeTab === 'FISCAL_ACCOUNTING' ? 'bg-white text-blue-600 border-x border-t border-slate-200' : 'text-slate-500 hover:text-slate-700'}`}
                 >
                     <FileText size={16} className="inline mr-2" /> Painel Fiscal
-                </button>
+                </button>}
             </div>
 
             {/* CONTENT */}
@@ -712,7 +729,7 @@ const Reports: React.FC<ReportsProps> = ({ sales, products, customers, onBack })
                 )}
 
                 {/* TAB: FISCAL / ACCOUNTING */}
-                {activeTab === 'FISCAL_ACCOUNTING' && (
+                {currentUser.role === 'ADMIN' && activeTab === 'FISCAL_ACCOUNTING' && (
                     <div className="space-y-6 animate-in fade-in duration-500">
                         <div className="bg-slate-50 border border-slate-200 rounded-xl p-8 max-w-4xl">
                             <h3 className="text-xl font-black text-slate-800 mb-2 flex items-center gap-3">
@@ -755,9 +772,9 @@ const Reports: React.FC<ReportsProps> = ({ sales, products, customers, onBack })
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <a 
-                                    href={`${import.meta.env.VITE_NFE_API_URL || 'http://localhost:3001'}/api/nfe/xml/${fiscalYear}/${fiscalMonth}`}
-                                    target="_blank"
+                                <button
+                                    type="button"
+                                    onClick={downloadFiscalXmls}
                                     className="flex items-center justify-between p-6 bg-white border-2 border-slate-200 rounded-2xl hover:border-orange-400 hover:shadow-lg hover:shadow-orange-100 transition-all group"
                                 >
                                     <div className="flex items-center gap-5">
@@ -770,7 +787,7 @@ const Reports: React.FC<ReportsProps> = ({ sales, products, customers, onBack })
                                         </div>
                                     </div>
                                     <Download size={24} className="text-slate-300 group-hover:text-orange-500" />
-                                </a>
+                                </button>
 
                                 <button 
                                     onClick={downloadFiscalReport}
