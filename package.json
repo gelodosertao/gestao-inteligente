@@ -23,6 +23,7 @@
     "@vitejs/plugin-react": "^4.3.4",
     "@zxing/browser": "^0.1.5",
     "@zxing/library": "^0.21.3",
+    "framer-motion": "^13.1.0",
     "html2canvas": "^1.4.1",
     "idb-keyval": "^6.2.2",
     "jspdf": "^4.2.0",

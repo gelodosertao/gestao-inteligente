@@ -1,9 +1,11 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import Ice3DBackground from './Ice3DBackground';
+import React, { useEffect, useState, useCallback } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { motion, useReducedMotion, Variants } from 'framer-motion';
+import ScrollProgress from './ScrollProgress';
+import ImageWithSkeleton from './ImageWithSkeleton';
 import {
   Snowflake, MapPin, Phone, Instagram, Clock,
-  ShieldCheck, Truck, Droplets, Award, Building2, Users,
+  ShieldCheck, Truck, Droplets,
   Menu, X, ChevronUp, HelpCircle, Heart, Leaf, Star, ArrowRight, Citrus
 } from 'lucide-react';
 
@@ -16,16 +18,16 @@ const segments = [
 ];
 
 const products = [
-  { name: 'Gelo de Sabor', desc: 'Carro-chefe! Gelos saborizados com frutas selecionadas. Dura 3x mais e transforma sua bebida.', icon: Citrus, highlight: true },
-  { name: 'Gelo em Cubos', desc: 'Ideal para drinks e copos. Cristalino e de rápido resfriamento.', icon: Snowflake, highlight: false },
-  { name: 'Gelo em Escama', desc: 'Perfeito para conservação de alimentos. Alta superfície de contato.', icon: Droplets, highlight: false },
-  { name: 'Gelo em Barra', desc: 'Alta durabilidade para transporte e eventos. Resistência superior.', icon: ShieldCheck, highlight: false },
+  { slug: 'gelo-de-sabor', name: 'Gelo de Sabor', desc: 'Carro-chefe! Gelos saborizados com frutas selecionadas. Dura 3x mais e transforma sua bebida.', icon: Citrus, highlight: true },
+  { slug: 'gelo-em-cubos', name: 'Gelo em Cubos', desc: 'Ideal para drinks e copos. Cristalino e de rápido resfriamento.', icon: Snowflake, highlight: false },
+  { slug: 'gelo-em-escama', name: 'Gelo em Escama', desc: 'Perfeito para conservação de alimentos. Alta superfície de contato.', icon: Droplets, highlight: false },
+  { slug: 'gelo-em-barra', name: 'Gelo em Barra', desc: 'Alta durabilidade para transporte e eventos. Resistência superior.', icon: ShieldCheck, highlight: false },
 ];
 
 const stats = [
-  { value: '20+', label: 'Anos de experiência', icon: Award },
-  { value: '15+', label: 'Cidades atendidas', icon: Building2 },
-  { value: '500+', label: 'Clientes ativos', icon: Users },
+  { value: '20+', label: 'Anos de experiência' },
+  { value: '15+', label: 'Cidades atendidas' },
+  { value: '500+', label: 'Clientes ativos' },
 ];
 
 const faqData = [
@@ -53,74 +55,64 @@ const faqData = [
 
 const navLinks = [
   { href: '#diferenciais', label: 'Diferenciais' },
-  { href: '#produtos', label: 'Produtos' },
+  { href: '/produtos', label: 'Nossos gelos' },
   { href: '#faq', label: 'FAQ' },
+  { href: '/sobre', label: 'Sobre nós' },
+  { href: '/parceiro', label: 'Quero revender' },
   { href: '#contato', label: 'Contato' },
 ];
 
-function useInView(threshold = 0.15) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [inView, setInView] = useState(false);
+const fadeInUp: Variants = {
+  hidden: { opacity: 0, y: 40 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.8, ease: "easeOut" } }
+};
 
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      setInView(true);
-      return;
+const staggerContainer: Variants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1
     }
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setInView(true);
-          observer.unobserve(el);
-        }
-      },
-      { threshold }
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [threshold]);
-
-  return [ref, inView] as const;
-}
+  }
+};
 
 function AnimatedSection({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  const [ref, inView] = useInView();
   return (
-    <div
-      ref={ref}
-      className={`transition-all duration-1000 ease-out ${
-        inView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12'
-      } ${className}`}
+    <motion.div
+      variants={fadeInUp}
+      initial={false}
+      whileInView="visible"
+      viewport={{ once: true, margin: "-100px" }}
+      className={className}
     >
       {children}
-    </div>
+    </motion.div>
   );
 }
 
 function StaggeredGrid({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  const [ref, inView] = useInView(0.1);
   return (
-    <div ref={ref} className={className}>
-      {React.Children.map(children, (child, i) => (
-        <div
-          className={`transition-all duration-700 ease-out ${
-            inView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
-          }`}
-          style={{ transitionDelay: `${i * 100}ms` }}
-        >
+    <motion.div
+      variants={staggerContainer}
+      initial={false}
+      whileInView="visible"
+      viewport={{ once: true, margin: "-100px" }}
+      className={className}
+    >
+      {React.Children.map(children, (child) => (
+        <motion.div variants={fadeInUp}>
           {child}
-        </div>
+        </motion.div>
       ))}
-    </div>
+    </motion.div>
   );
 }
 
 const VisitorLanding: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const reduceMotion = useReducedMotion();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [showBackTop, setShowBackTop] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
@@ -129,6 +121,12 @@ const VisitorLanding: React.FC = () => {
   useEffect(() => {
     document.title = 'Gelo do Sertão - O Gelo que Refresca o Sertão | Pureza e Confiança';
   }, []);
+
+  useEffect(() => {
+    if (!location.hash) return;
+    const frame = requestAnimationFrame(() => document.getElementById(location.hash.slice(1))?.scrollIntoView());
+    return () => cancelAnimationFrame(frame);
+  }, [location.hash]);
 
   useEffect(() => {
     const onScroll = () => {
@@ -149,12 +147,13 @@ const VisitorLanding: React.FC = () => {
   const whatsappRevenda = `${whatsappLink}?text=Olá!%20Quero%20ser%20revendedor%20do%20Gelo%20do%20Sertão`;
 
   return (
-    <div className="min-h-dvh w-full bg-white text-slate-800 font-sans overflow-x-hidden">
-      <header className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
+    <div className="site-world visitor-world min-h-dvh w-full overflow-x-hidden">
+      <ScrollProgress />
+      <header className="site-header fixed top-0 left-0 right-0 z-50">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <a href="/" className="flex items-center gap-2" aria-label="Gelo do Sertão - Página inicial">
-            <img src="/logo.png" alt="" width="36" height="36" className="h-9 w-auto" aria-hidden="true" />
-            <span className="hidden sm:inline font-bold text-sm tracking-widest uppercase text-blue-700">
+            <img src="/logo.png" alt="" width="48" height="48" className="h-12 w-auto" aria-hidden="true" />
+            <span className="font-bold text-sm tracking-tight uppercase text-blue-800 sm:tracking-widest">
               Gelo do <span className="text-blue-500">Sertão</span>
             </span>
           </a>
@@ -164,7 +163,7 @@ const VisitorLanding: React.FC = () => {
               <a
                 key={link.href}
                 href={link.href}
-                onClick={(e) => { e.preventDefault(); scrollTo(link.href.replace('#', '')); }}
+                onClick={(e) => { if (link.href.startsWith('#')) { e.preventDefault(); scrollTo(link.href.slice(1)); } }}
                 className="text-sm text-slate-600 hover:text-blue-600 transition-colors font-semibold focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:outline-none rounded"
               >
                 {link.label}
@@ -184,8 +183,9 @@ const VisitorLanding: React.FC = () => {
 
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
-            className="md:hidden p-2 text-slate-500 hover:text-blue-600 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:outline-none rounded"
+            className="md:hidden min-h-11 min-w-11 p-2 text-slate-700 hover:text-blue-700 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:outline-none rounded"
             aria-label={mobileOpen ? 'Fechar menu' : 'Abrir menu'}
+            aria-expanded={mobileOpen}
           >
             {mobileOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
@@ -198,7 +198,7 @@ const VisitorLanding: React.FC = () => {
                 <a
                   key={link.href}
                   href={link.href}
-                  onClick={(e) => { e.preventDefault(); scrollTo(link.href.replace('#', '')); }}
+                  onClick={(e) => { setMobileOpen(false); if (link.href.startsWith('#')) { e.preventDefault(); scrollTo(link.href.slice(1)); } }}
                   className="block text-sm text-slate-600 hover:text-blue-600 transition-colors py-2 font-medium"
                 >
                   {link.label}
@@ -221,19 +221,11 @@ const VisitorLanding: React.FC = () => {
       <main>
         {/* HERO */}
         <section
-          className="relative min-h-dvh flex flex-col justify-center items-center px-4 pt-16 overflow-hidden bg-gradient-to-br from-blue-900 via-blue-700 to-cyan-600 text-white"
+          className="site-hero relative px-4 pt-24 overflow-hidden"
           aria-label="Apresentação"
         >
-          <div className="absolute inset-0 z-0 opacity-10">
-            <svg className="w-full h-full" viewBox="0 0 1440 800" preserveAspectRatio="none" fill="none" aria-hidden="true">
-              <path d="M0 200 Q 360 0 720 200 T 1440 200 L 1440 800 L 0 800 Z" fill="white"/>
-              <path d="M0 400 Q 360 200 720 400 T 1440 400 L 1440 800 L 0 800 Z" fill="white" opacity="0.5"/>
-            </svg>
-          </div>
-
-          <Ice3DBackground />
-
-          <div className="relative z-10 text-center space-y-8 max-w-4xl mx-auto">
+          <div className="site-hero-grid relative z-10 max-w-7xl mx-auto">
+          <div className="site-hero-copy space-y-8">
             <div className="space-y-4">
               <h1 className="text-4xl md:text-7xl font-black tracking-tight text-balance leading-[1.1]">
                 O Gelo que<br />
@@ -244,7 +236,7 @@ const VisitorLanding: React.FC = () => {
               </p>
             </div>
 
-            <div className="flex flex-col sm:flex-row justify-center gap-4 pt-4">
+            <div className="flex flex-col sm:flex-row gap-4 pt-4">
               <a
                 href={whatsappRevenda}
                 target="_blank"
@@ -262,42 +254,21 @@ const VisitorLanding: React.FC = () => {
               </button>
             </div>
           </div>
+          <div className="site-hero-image" aria-hidden="true"><img src="/gelo-cubo.jpg" alt="" /></div>
+          </div>
+          <div id="numeros" className="site-fact-strip max-w-7xl mx-auto" aria-label="Nossos números">
+            {stats.map((stat) => (
+              <div key={stat.label}><strong>{stat.value}</strong><span>{stat.label}</span></div>
+            ))}
+          </div>
 
           <button
-            onClick={() => scrollTo('numeros')}
-            className="absolute bottom-10 animate-bounce text-cyan-300 hover:text-white transition-colors focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none rounded-full"
+            onClick={() => scrollTo('diferenciais')}
+            className="site-scroll-cue absolute bottom-6 min-h-11 min-w-11 focus-visible:ring-2 focus-visible:outline-none"
             aria-label="Rolar para baixo"
           >
             <ChevronUp size={32} className="rotate-180" />
           </button>
-        </section>
-
-        {/* NÚMEROS */}
-        <section id="numeros" className="relative py-20 md:py-24 px-4 bg-gradient-to-br from-blue-950 via-blue-900 to-blue-800 scroll-mt-24 overflow-hidden" aria-label="Nossos números">
-          <div className="absolute inset-0 opacity-[0.08]" aria-hidden="true" style={{ backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.15) 1px, transparent 1px)', backgroundSize: '24px 24px' }}></div>
-          <div className="absolute top-0 -left-20 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl" aria-hidden="true"></div>
-          <div className="absolute bottom-0 -right-20 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl" aria-hidden="true"></div>
-          <div className="max-w-7xl mx-auto relative z-10">
-            <AnimatedSection>
-              <StaggeredGrid className="grid grid-cols-1 sm:grid-cols-3 gap-6 md:gap-8">
-                {stats.map((stat, i) => (
-                  <div
-                    key={i}
-                    className="relative bg-white/5 backdrop-blur-sm border border-white/10 rounded-3xl p-6 md:p-8 text-center hover:bg-white/10 hover:border-white/20 hover:shadow-2xl hover:-translate-y-1 transition-all duration-500 group overflow-hidden"
-                  >
-                    <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-cyan-400 to-blue-500 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                    <div className="flex justify-center mb-4">
-                      <div className="bg-white/10 p-4 rounded-2xl group-hover:scale-110 group-hover:bg-white/20 transition-all duration-500">
-                        <stat.icon className="text-cyan-400" size={28} strokeWidth={1.5} />
-                      </div>
-                    </div>
-                    <p className="text-4xl md:text-5xl font-black text-white mb-1 tabular-nums">{stat.value}</p>
-                    <p className="text-sm text-blue-200 font-semibold">{stat.label}</p>
-                  </div>
-                ))}
-              </StaggeredGrid>
-            </AnimatedSection>
-          </div>
         </section>
 
         {/* DIFERENCIAIS */}
@@ -347,7 +318,7 @@ const VisitorLanding: React.FC = () => {
               </div>
               <StaggeredGrid className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
                 {products.map((prod, i) => (
-                  <div key={i} className={`group bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl border-2 transition-all duration-300 ${
+                  <a href={`/produtos/${prod.slug}`} key={i} className={`group bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl border-2 transition-all duration-300 ${
                     prod.highlight
                       ? 'border-orange-300 hover:border-orange-400 relative'
                       : 'border-gray-100 hover:border-blue-200'
@@ -372,10 +343,31 @@ const VisitorLanding: React.FC = () => {
                       }`}>{prod.name}</h3>
                       <p className="text-slate-500 text-sm leading-relaxed">{prod.desc}</p>
                     </div>
-                  </div>
+                  </a>
                 ))}
               </StaggeredGrid>
             </AnimatedSection>
+          </div>
+        </section>
+
+        <section className="brand-cup-feature" aria-label="Gelo de sabor">
+          <div className="brand-cup-content">
+            <div className="brand-cup-copy">
+              <h2>Mais sabor para o seu momento.</h2>
+              <p>Gelos saborizados com frutas selecionadas. Dura 3x mais e transforma sua bebida.</p>
+              <a href="/produtos/gelo-de-sabor" className="brand-cup-link">Conhecer o gelo de sabor <ArrowRight size={20} aria-hidden="true" /></a>
+            </div>
+            <motion.img
+              className="brand-cup-visual"
+              src="/copao-gelo-do-sertao.svg"
+              alt="Copo de bebida gelada com a marca Gelo do Sertão"
+              loading="lazy"
+              initial={reduceMotion ? false : { opacity: 0.92, y: 34, rotate: -3 }}
+              whileInView={reduceMotion ? undefined : { opacity: 1, y: 0, rotate: 0 }}
+              viewport={{ once: true, amount: 0.25 }}
+              transition={{ duration: 0.75, ease: [0.16, 1, 0.3, 1] }}
+              whileHover={reduceMotion ? undefined : { y: -8, rotate: 2, transition: { duration: 0.28 } }}
+            />
           </div>
         </section>
 
@@ -423,14 +415,12 @@ const VisitorLanding: React.FC = () => {
                   </div>
                 </div>
                 <div className="relative">
-                  <div className="aspect-[4/3] rounded-[32px] overflow-hidden shadow-xl border border-slate-100">
-                    <img
+                  <div className="aspect-[4/3] rounded-[32px] overflow-hidden shadow-xl border border-slate-100 bg-slate-100">
+                    <ImageWithSkeleton
                       src="/gelo-cubo.jpg"
                       alt="Produção de gelo cristalino Gelo do Sertão - pureza e qualidade"
-                      width="600"
-                      height="450"
                       className="w-full h-full object-cover"
-                      loading="lazy"
+                      containerClassName="w-full h-full"
                     />
                   </div>
                   <div className="absolute -bottom-4 -left-4 bg-white border border-slate-100 rounded-2xl p-4 md:p-6 shadow-xl">
@@ -457,17 +447,15 @@ const VisitorLanding: React.FC = () => {
               <StaggeredGrid className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                 {segments.map((seg, i) => (
                   <div key={i} className="group cursor-default">
-                    <div className="relative aspect-[3/4] rounded-[24px] overflow-hidden border border-slate-100 hover:border-blue-200 hover:shadow-lg transition-all duration-500">
-                      <img
+                    <div className="relative aspect-[3/4] rounded-[24px] overflow-hidden border border-slate-100 hover:border-blue-200 hover:shadow-lg transition-all duration-500 bg-slate-100">
+                      <ImageWithSkeleton
                         src={seg.image}
                         alt={`Atendimento Gelo do Sertão para ${seg.name} - confiança e qualidade`}
-                        width="400"
-                        height="533"
                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                        loading="lazy"
+                        containerClassName="w-full h-full"
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-slate-900/20 to-transparent"></div>
-                      <div className="absolute bottom-0 left-0 right-0 p-4">
+                      <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-slate-900/20 to-transparent pointer-events-none"></div>
+                      <div className="absolute bottom-0 left-0 right-0 p-4 pointer-events-none">
                         <h3 className="font-bold text-lg text-white">{seg.name}</h3>
                       </div>
                     </div>
@@ -528,10 +516,7 @@ const VisitorLanding: React.FC = () => {
         </section>
 
         {/* CTA */}
-        <section className="relative py-20 md:py-28 px-4 bg-gradient-to-br from-blue-600 via-blue-700 to-cyan-600 overflow-hidden" aria-label="Chamada para ação">
-          <div className="absolute -top-40 -right-40 w-96 h-96 bg-white/5 rounded-full blur-3xl" aria-hidden="true"></div>
-          <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-cyan-400/10 rounded-full blur-3xl" aria-hidden="true"></div>
-          <div className="absolute inset-0 opacity-[0.05]" aria-hidden="true" style={{ backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.3) 1px, transparent 1px)', backgroundSize: '24px 24px' }}></div>
+        <section className="site-closing relative py-20 md:py-28 px-4 overflow-hidden" aria-label="Chamada para ação">
           <div className="max-w-4xl mx-auto text-center relative z-10">
             <AnimatedSection>
               <div className="space-y-6">
@@ -561,7 +546,7 @@ const VisitorLanding: React.FC = () => {
       {/* BACK TO TOP */}
       <button
         onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-        className={`fixed bottom-6 right-6 z-40 p-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-lg shadow-blue-200 transition-all duration-500 hover:scale-110 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:outline-none ${
+        className={`fixed bottom-6 right-6 z-40 p-3 bg-[#b74336] hover:bg-[#91352c] text-white rounded-sm transition-all duration-300 focus-visible:ring-2 focus-visible:ring-[#b74336] focus-visible:ring-offset-2 focus-visible:outline-none ${
           showBackTop ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'
         }`}
         aria-label="Voltar ao topo"
@@ -611,7 +596,7 @@ const VisitorLanding: React.FC = () => {
                 <a
                   key={link.href}
                   href={link.href}
-                  onClick={(e) => { e.preventDefault(); scrollTo(link.href.replace('#', '')); }}
+                  onClick={(e) => { if (link.href.startsWith('#')) { e.preventDefault(); scrollTo(link.href.slice(1)); } }}
                   className="block text-sm text-slate-400 hover:text-blue-400 transition-colors focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 focus-visible:outline-none rounded"
                 >
                   {link.label}
@@ -658,6 +643,7 @@ const VisitorLanding: React.FC = () => {
         </div>
 
         <div className="max-w-7xl mx-auto mt-16 pt-8 border-t border-slate-800 text-center">
+          <a href="/termos" className="inline-block mb-4 text-sm text-blue-100 hover:text-white underline underline-offset-4">Privacidade e termos</a>
           <p className="text-slate-500 text-xs">
             &copy; {new Date().getFullYear()} Gelo do Sertão. Todos os direitos reservados.
           </p>

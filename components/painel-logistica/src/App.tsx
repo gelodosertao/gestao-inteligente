@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { APIProvider } from '@vis.gl/react-google-maps';
+import { APIProvider, Map } from '@vis.gl/react-google-maps';
 import { Delivery, DepotSettings, RouteHistoryItem } from './types';
 import { defaultDepot, sampleDeliveries } from './utils/sampleData';
 import { dbLogistics, isSupabaseConfigured } from './services/dbLogistics';
@@ -31,6 +31,12 @@ const API_KEY =
   (globalThis as any).GOOGLE_MAPS_PLATFORM_KEY ||
   '';
 const hasValidKey = Boolean(API_KEY) && API_KEY !== 'YOUR_API_KEY';
+const mapAuthFailureEvent = 'gds-map-auth-failure';
+if (typeof window !== 'undefined') {
+  (window as Window & { gm_authFailure?: () => void }).gm_authFailure = () => {
+    window.dispatchEvent(new Event(mapAuthFailureEvent));
+  };
+}
 
 export default function App() {
   // 1. Core Logistics States
@@ -38,11 +44,15 @@ export default function App() {
     const saved = localStorage.getItem('iceroute_depot');
     return saved ? JSON.parse(saved) : defaultDepot;
   });
+  const isSampleDepot = depot.name === defaultDepot.name && depot.address === defaultDepot.address;
 
   const [deliveries, setDeliveries] = useState<Delivery[]>(() => {
     const saved = localStorage.getItem('iceroute_deliveries');
     return saved ? JSON.parse(saved) : [];
   });
+  const isDemoRoute = isSampleDepot || deliveries.some((delivery) =>
+    sampleDeliveries.some((sample) => sample.id === delivery.id && sample.address === delivery.address)
+  );
 
   const [returnToDepot, setReturnToDepot] = useState<boolean>(true);
   
@@ -66,6 +76,33 @@ export default function App() {
   const [isDepotOpen, setIsDepotOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [mapLoaded, setMapLoaded] = useState(false);
+  const [mapError, setMapError] = useState(false);
+  const mapViewportRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleAuthFailure = () => setMapError(true);
+    window.addEventListener(mapAuthFailureEvent, handleAuthFailure);
+    return () => window.removeEventListener(mapAuthFailureEvent, handleAuthFailure);
+  }, []);
+
+  useEffect(() => {
+    const viewport = mapViewportRef.current;
+    if (!viewport) return;
+    const checkMapError = () => {
+      if (viewport.querySelector('img[src*="google_gray.svg"]')) setMapError(true);
+    };
+    const observer = new MutationObserver(checkMapError);
+    observer.observe(viewport, { childList: true, subtree: true });
+    checkMapError();
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (mapLoaded) return;
+    const timeout = window.setTimeout(() => setMapError(true), 12000);
+    return () => window.clearTimeout(timeout);
+  }, [mapLoaded]);
 
   // ============================================================
   // SUPABASE: Carregar dados do banco na montagem
@@ -484,6 +521,10 @@ export default function App() {
 
   // Share message trigger to clipboard
   const handleShareRoute = () => {
+    if (isDemoRoute) {
+      showToast('Configure uma fábrica e use entregas reais antes de compartilhar o itinerário.');
+      return;
+    }
     const activeStops = [...deliveries]
       .filter((d) => d.status !== 'delivered')
       .sort((a, b) => a.sequence - b.sequence);
@@ -519,6 +560,10 @@ export default function App() {
   };
 
   const handlePrintManifest = () => {
+    if (isDemoRoute) {
+      showToast('Configure uma fábrica e use entregas reais antes de imprimir o itinerário.');
+      return;
+    }
     window.print();
   };
 
@@ -568,33 +613,33 @@ export default function App() {
   }
 
   return (
-    <APIProvider apiKey={API_KEY} version="weekly">
-      <div className="bg-[#0f172a] min-h-screen text-slate-100 flex flex-col font-sans print:bg-white print:text-black relative overflow-hidden">
+    <APIProvider apiKey={API_KEY} version="weekly" onError={() => setMapError(true)}>
+      <div className="route-world min-h-screen text-slate-100 flex flex-col font-sans print:bg-white print:text-black relative overflow-hidden">
         
         {/* Background Mesh Gradients */}
-        <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0 print:hidden">
+        <div className="route-decor absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0 print:hidden">
           <div className="absolute top-[-100px] left-[-100px] w-[600px] h-[600px] bg-blue-600/15 rounded-full blur-[120px]"></div>
           <div className="absolute bottom-[-100px] right-[-100px] w-[700px] h-[700px] bg-indigo-600/15 rounded-full blur-[150px]"></div>
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] bg-cyan-500/10 rounded-full blur-[100px] rotate-45"></div>
         </div>
 
         {/* Navigation / Header */}
-        <header className="border-b border-white/10 backdrop-blur-xl bg-slate-900/40 px-6 py-4 flex flex-col sm:flex-row gap-4 justify-between items-center print:hidden z-20 relative">
+        <header className="route-header border-b px-4 py-4 flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center print:hidden z-20 relative sm:px-6">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20 text-white font-black text-lg">
+            <div className="route-mark w-10 h-10 flex items-center justify-center text-white font-black text-lg">
               🧊
             </div>
             <div>
               <h1 className="text-lg font-black tracking-tight text-white flex items-center gap-2 leading-none">
                 IceRoute <span className="text-blue-400 font-medium">Logística</span>
-                <span className="text-[10px] tracking-widest px-2 py-0.5 bg-blue-500/20 text-blue-300 border border-blue-400/30 rounded-full uppercase font-bold">Microservice</span>
+                <span className="route-brand text-[10px] tracking-widest px-2 py-0.5 uppercase font-bold">Gelo do Sertão</span>
               </h1>
               <p className="text-[10.5px] text-slate-400 mt-1">Otimização e Gerenciamento Logístico Diário de Gelo</p>
             </div>
           </div>
 
           {/* Core Controls */}
-          <div className="flex flex-wrap gap-2">
+          <div className="flex w-full flex-wrap gap-2 sm:w-auto">
             <button
               onClick={handleResetToPresets}
               className="px-3.5 py-1.5 text-xs font-bold border border-white/10 rounded-xl bg-white/5 hover:bg-white/10 text-slate-200 flex items-center gap-1.5 cursor-pointer transition-colors backdrop-blur-md"
@@ -605,6 +650,8 @@ export default function App() {
             </button>
             <button
               onClick={handlePrintManifest}
+              disabled={isDemoRoute}
+              title={isDemoRoute ? 'Disponível apenas para rotas reais' : undefined}
               className="px-3.5 py-1.5 text-xs font-bold border border-white/10 rounded-xl bg-white/5 hover:bg-white/10 text-slate-200 flex items-center gap-1.5 cursor-pointer transition-colors backdrop-blur-md"
             >
               <Printer size={13} />
@@ -612,6 +659,8 @@ export default function App() {
             </button>
             <button
               onClick={handleShareRoute}
+              disabled={isDemoRoute}
+              title={isDemoRoute ? 'Disponível apenas para rotas reais' : undefined}
               className="px-4 py-1.5 text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white rounded-xl shadow-lg shadow-blue-600/30 flex items-center gap-1.5 cursor-pointer transition-all hover:scale-[1.02] active:scale-98"
             >
               <Share2 size={13} />
@@ -624,7 +673,8 @@ export default function App() {
         <main className="flex-1 max-w-8xl w-full mx-auto p-4 md:p-6 lg:p-8 flex flex-col lg:flex-row gap-6 print:p-0 z-10 relative">
           
           {/* Printing Manifest Overlay Section (Only displays during printing, completely clean & styled) */}
-          <div className="hidden print:block w-full text-slate-900 font-sans p-6">
+          {isDemoRoute && <div className="hidden print:block w-full p-6 text-black text-lg font-bold">Rota de demonstração. Configure uma fábrica e use entregas reais antes de emitir o itinerário.</div>}
+          <div className={`hidden w-full text-slate-900 font-sans p-6 ${isDemoRoute ? 'print:hidden' : 'print:block'}`}>
             <div className="border-b-2 border-slate-900 pb-3 mb-6 flex justify-between items-end">
               <div>
                 <h1 className="text-xl font-bold tracking-tight uppercase">MANIFESTO DIÁRIO DE ENTREGAS</h1>
@@ -668,15 +718,9 @@ export default function App() {
 
           {/* Main User Interface Viewports */}
           <div className="w-full lg:w-5/12 flex flex-col print:hidden animate-fade-in gap-4 relative z-10">
-            {/* High-level KPIs */}
-            <StatsDashboard 
-              deliveries={deliveries} 
-              routeMetrics={routeMetrics} 
-              returnToDepot={returnToDepot} 
-            />
-
             {/* List and Operations Card */}
-            <div className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-3xl p-5 space-y-4 shadow-2xl relative text-white">
+            <div className="route-board p-5 space-y-4 relative">
+              {isDemoRoute && <div role="status" className="route-demo-notice"><strong>Dados de demonstração</strong><span>{isSampleDepot ? 'O ponto de partida está em São Paulo. Configure a fábrica antes de planejar uma rota real.' : 'Há paradas simuladas neste itinerário. Use entregas reais antes de imprimir ou compartilhar.'} Imprimir e compartilhar ficam indisponíveis enquanto houver dados de demonstração.</span>{isSampleDepot && <button type="button" onClick={() => setIsDepotOpen(true)}>Configurar fábrica</button>}</div>}
               <div className="flex justify-between items-center border-b border-white/5 pb-3">
                 <div>
                   <h3 className="font-extrabold text-slate-100 text-sm">Quadro de Itinerários</h3>
@@ -771,10 +815,15 @@ export default function App() {
                 />
               </div>
             </div>
+            <StatsDashboard
+              deliveries={deliveries}
+              routeMetrics={routeMetrics}
+              returnToDepot={returnToDepot}
+            />
           </div>
 
           {/* Interactive Routing Map viewport */}
-          <div className="w-full lg:w-7/12 rounded-3xl overflow-hidden border border-white/10 shadow-2xl bg-slate-950/40 backdrop-blur-2xl print:hidden flex flex-col self-start lg:sticky lg:top-5 relative h-[560px] md:h-[650px] z-10">
+          <div ref={mapViewportRef} className="w-full lg:w-7/12 rounded-3xl overflow-hidden border border-white/10 shadow-2xl bg-slate-950/40 backdrop-blur-2xl print:hidden flex flex-col self-start lg:sticky lg:top-5 relative h-[560px] md:h-[650px] z-10">
             {/* Floating indicator info panel */}
             <div className="absolute top-3 left-3 bg-slate-900/90 backdrop-blur-md px-3.5 py-2 text-white rounded-xl shadow-lg z-10 border border-white/10 flex items-center gap-2.5 max-w-[85%] sm:max-w-md">
               <div className="w-5.5 h-5.5 bg-blue-500 rounded-full flex items-center justify-center text-[10px]">🗺️</div>
@@ -784,12 +833,23 @@ export default function App() {
               </div>
             </div>
 
-            <IceRouteMap
-              depot={depot}
-              deliveries={deliveries}
-              returnToDepot={returnToDepot}
-              onUpdateSegmentMetrics={(metrics) => setRouteMetrics(metrics)}
-            />
+            <Map
+              mapId={import.meta.env.VITE_GOOGLE_MAPS_MAP_ID || 'DEMO_MAP_ID'}
+              defaultCenter={{ lat: depot.lat, lng: depot.lng }}
+              defaultZoom={12}
+              gestureHandling="greedy"
+              disableDefaultUI={false}
+              style={{ width: '100%', height: '100%' }}
+              onTilesLoaded={() => setMapLoaded(true)}
+            >
+              <IceRouteMap
+                depot={depot}
+                deliveries={deliveries}
+                returnToDepot={returnToDepot}
+                onUpdateSegmentMetrics={(metrics) => setRouteMetrics(metrics)}
+              />
+            </Map>
+            {(mapError || !mapLoaded) && <div role="status" className="route-map-status">{mapError ? 'Mapa indisponível no momento. Confira a chave e a conexão do Google Maps; o quadro de itinerários continua acessível.' : 'Carregando mapa e localização das paradas…'}</div>}
           </div>
         </main>
 

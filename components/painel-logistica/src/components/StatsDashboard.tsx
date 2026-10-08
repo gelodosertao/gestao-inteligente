@@ -62,7 +62,7 @@ export default function StatsDashboard({
   };
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+    <div className="route-stats grid grid-cols-2 md:grid-cols-5 gap-0 mb-6">
       {/* Total Deliveries */}
       <div className="bg-white/5 backdrop-blur-md border border-white/10 p-3.5 rounded-2xl shadow-lg flex flex-col justify-between transition-all hover:bg-white/10">
         <div className="flex items-center justify-between mb-1.5">

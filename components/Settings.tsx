@@ -162,7 +162,7 @@ const Settings: React.FC<SettingsProps> = ({ currentUser, onResetData }) => {
    return (
       <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 relative">
          <div>
-            <h2 className="text-2xl font-bold text-slate-800">Configurações</h2>
+            <h1 className="text-2xl font-bold text-slate-900">Configurações</h1>
             <p className="text-slate-500">Gerencie integrações, usuários e dados da empresa.</p>
          </div>
 
