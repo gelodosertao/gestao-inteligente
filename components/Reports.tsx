@@ -305,15 +305,16 @@ const Reports: React.FC<ReportsProps> = ({ sales, products, customers, onBack })
             {/* Header & Controls */}
             <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-white p-4 rounded-xl shadow-sm border border-slate-200">
                 <div>
-                    <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+                    <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
                         <TrendingUp className="text-blue-600" /> Relatórios Detalhados
-                    </h2>
+                    </h1>
                     <p className="text-slate-500 text-sm">Análise profunda de vendas e performance.</p>
                 </div>
 
                 <div className="flex flex-wrap gap-2 items-center">
                     {/* Branch */}
                     <select
+                        aria-label="Filial dos relatórios"
                         value={selectedBranch}
                         onChange={(e) => setSelectedBranch(e.target.value as any)}
                         className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 font-medium"
@@ -325,6 +326,7 @@ const Reports: React.FC<ReportsProps> = ({ sales, products, customers, onBack })
 
                     {/* Date Range */}
                     <select
+                        aria-label="Período dos relatórios"
                         value={dateRange}
                         onChange={(e) => setDateRange(e.target.value as any)}
                         className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 font-medium"

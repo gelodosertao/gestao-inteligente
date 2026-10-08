@@ -29,6 +29,7 @@ const Conciliacao = React.lazy(() => import('./components/Conciliacao'));
 const WholesalePOS = React.lazy(() => import('./components/WholesalePOS'));
 const VisitorLanding = React.lazy(() => import('./components/VisitorLanding'));
 const B2BLanding = React.lazy(() => import('./components/B2BLanding'));
+const PublicContentPage = React.lazy(() => import('./components/PublicContentPage'));
 const WhatsAppRedirect = React.lazy(() => import('./components/WhatsAppRedirect'));
 const FestasRadar = React.lazy(() => import('./components/FestasRadar'));
 const TermsAndPrivacy = React.lazy(() => import('./components/TermsAndPrivacy'));
@@ -611,6 +612,27 @@ const App: React.FC = () => {
 
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [location.pathname]);
+  useEffect(() => {
+    if (!isMobileMenuOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsMobileMenuOpen(false);
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [isMobileMenuOpen]);
+
+  const currentViewLabel = {
+    DASHBOARD: 'Dashboard', INVENTORY: 'Estoque', FINANCIAL: 'Financeiro',
+    CUSTOMERS: 'Clientes', PRODUCTION: 'Produção', REPORTS: 'Relatórios',
+    ORDER_CENTER: 'Pedidos', PRICING: 'Custos', SETTINGS: 'Ajustes do sistema',
+    MENU_CONFIG: 'Site / Cardápio', AI_INSIGHTS: 'Assistente', CRM: 'CRM',
+    FESTAS_RADAR: 'Caçador de Festas', LOGISTICS: 'Logística',
+    CONCILIACAO: 'Conciliação',
+    SALES: 'PDV Varejo', ATACADO: 'PDV Atacado', ONLINE_MENU: 'Cardápio',
+  }[currentView];
 
   const renderContent = () => {
     if (isLoading) {
@@ -622,7 +644,7 @@ const App: React.FC = () => {
       );
     }
 
-    if (dbError) {
+    if (dbError && !appData) {
       return (
         <div className="min-h-screen bg-gradient-to-br from-slate-900 via-sky-950 to-slate-900 flex items-center justify-center p-6 relative overflow-hidden">
           {/* Background particles */}
@@ -805,7 +827,7 @@ const App: React.FC = () => {
       <Route path="/login" element={
         !currentUser ? (
           <Suspense fallback={<div className="h-dvh w-screen flex items-center justify-center bg-blue-900"><Loader2 size={48} className="animate-spin text-white" /></div>}>
-            <Login onLogin={handleLogin} onOpenMenu={() => navigate('/cardapio-adega')} />
+            <Login onLogin={handleLogin} />
           </Suspense>
         ) : <Navigate to="/gestao" replace />
       } />
@@ -815,7 +837,7 @@ const App: React.FC = () => {
           <Routes>
             <Route path="/pdv-atacado" element={
               <Suspense fallback={<div className="h-dvh w-screen flex items-center justify-center bg-slate-50"><Loader2 size={48} className="animate-spin text-orange-500" /></div>}>
-                <div className="flex w-full min-h-dvh bg-slate-50 text-slate-900 font-sans">
+                <div className="app-shell operation-world flex w-full min-h-dvh text-slate-900 font-sans">
                   <WholesalePOS
                     products={products}
                     sales={sales}
@@ -834,7 +856,7 @@ const App: React.FC = () => {
 
             <Route path="/pdv-adega" element={
               <Suspense fallback={<div className="h-dvh w-screen flex items-center justify-center bg-slate-50"><Loader2 size={48} className="animate-spin text-orange-500" /></div>}>
-                <div className="flex w-full min-h-dvh bg-slate-50 text-slate-900 font-sans">
+                <div className="app-shell operation-world flex w-full min-h-dvh text-slate-900 font-sans">
                   <Sales
                     sales={sales}
                     products={products}
@@ -854,17 +876,20 @@ const App: React.FC = () => {
 
             <Route path="*" element={
               <Suspense fallback={<div className="h-dvh w-screen flex items-center justify-center bg-slate-50"><Loader2 size={48} className="animate-spin text-orange-500" /></div>}>
-                <div className="flex w-full min-h-dvh bg-slate-50 text-slate-900 font-sans">
-                  <div className="md:hidden fixed top-0 left-0 right-0 pt-safe glass z-40 shadow-xl">
+                <div className="app-shell operation-world flex w-full min-h-dvh text-slate-900 font-sans">
+                  <div className="md:hidden fixed top-0 left-0 right-0 pt-safe bg-white/95 z-40 border-b border-slate-200 shadow-sm">
                     <div className="h-16 flex items-center justify-between px-4">
                       <div className="flex items-center">
                         <button
                           onClick={() => setIsMobileMenuOpen(true)}
+                          aria-label="Abrir menu de navegação"
+                          aria-expanded={isMobileMenuOpen}
+                          aria-controls="app-navigation"
                           className="text-slate-800 p-2 hover:bg-slate-100 rounded-xl active-scale touch-target"
                         >
                           <Menu size={24} />
                         </button>
-                        <span className="ml-3 text-slate-900 font-black text-sm tracking-[0.2em] uppercase">GELO DO SERTÃO</span>
+                        <span className="ml-3 text-slate-900 font-bold text-sm truncate">{currentViewLabel}</span>
                         {isNative && (
                           <span className="ml-2 px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold rounded uppercase">App</span>
                         )}
@@ -890,11 +915,18 @@ const App: React.FC = () => {
                     pendingOrdersCount={pendingOrdersCount}
                   />
 
-                  <main className={`flex-1 transition-all duration-300 pb-safe ${currentView === 'SALES' ? 'pt-[calc(4rem+env(safe-area-inset-top))] p-0' : 'pt-[calc(5rem+env(safe-area-inset-top))] px-4 pb-4 md:p-4 lg:p-8'} ${isSidebarCollapsed ? 'md:ml-20' : 'md:ml-20 lg:ml-64'}`}>
+                  <main id="main-content" className={`min-w-0 flex-1 transition-all duration-300 pb-safe ${currentView === 'SALES' ? 'pt-[calc(4rem+env(safe-area-inset-top))] p-0' : 'pt-[calc(5rem+env(safe-area-inset-top))] px-4 pb-4 md:p-4 lg:p-8'} ${isSidebarCollapsed ? 'md:ml-20' : 'md:ml-64'}`}>
                     <div className="hidden md:block fixed top-4 right-4 z-50 md:top-6 md:right-8">
                       <ExpirationAlert products={products} />
                     </div>
                     <div className={`${currentView === 'SALES' ? 'w-full px-2' : 'max-w-7xl mx-auto'} h-full pb-8 md:pb-4`}>
+                      {currentView !== 'SALES' && <div className="operation-context"><span>Gelo do Sertão <span aria-hidden="true">/</span> Sistema</span><strong>{currentViewLabel}</strong></div>}
+                      {dbError && appData && (
+                        <div role="status" className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-950 ring-1 ring-amber-200">
+                          <span>{dbError}</span>
+                          <button type="button" onClick={() => void refetch()} className="min-h-11 rounded-lg px-3 font-semibold underline underline-offset-4 hover:bg-amber-100">Tentar sincronizar novamente</button>
+                        </div>
+                      )}
                       {renderContent()}
                     </div>
                   </main>
@@ -916,6 +948,10 @@ const App: React.FC = () => {
           <B2BLanding />
         </Suspense>
       } />
+
+      <Route path="/sobre" element={<Suspense fallback={null}><PublicContentPage page="about" /></Suspense>} />
+      <Route path="/produtos" element={<Suspense fallback={null}><PublicContentPage page="products" /></Suspense>} />
+      <Route path="/produtos/:slug" element={<Suspense fallback={null}><PublicContentPage page="detail" /></Suspense>} />
 
       <Route path="/wpp" element={
         <Suspense fallback={<div className="h-dvh w-screen flex items-center justify-center bg-slate-50"><Loader2 size={48} className="animate-spin text-green-500" /></div>}>

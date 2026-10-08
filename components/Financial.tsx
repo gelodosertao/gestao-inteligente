@@ -566,7 +566,7 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
                    <ArrowLeft size={24} className="text-slate-600" />
                 </button>
                 <div>
-                   <h2 className="text-xl md:text-2xl font-bold text-slate-800">Gestão Financeira</h2>
+                   <h1 className="text-xl md:text-2xl font-bold text-slate-900">Gestão Financeira</h1>
                    <p className="text-xs md:text-sm text-slate-500">Fluxo de caixa, DRE, fechamento de caixa e controle de despesas.</p>
                 </div>
              </div>
@@ -629,6 +629,7 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
 
                   <div className="bg-white p-1 rounded-lg border border-slate-200 flex shrink-0 items-center gap-2">
                      <select
+                        aria-label="Período das movimentações"
                         value={dateRange}
                         onChange={(e) => setDateRange(e.target.value as any)}
                         className="px-3 py-1.5 rounded-md text-xs font-bold text-slate-600 bg-transparent outline-none cursor-pointer hover:bg-slate-50"
@@ -647,6 +648,7 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
                         <div className="flex items-center gap-1 pr-2 animate-in fade-in slide-in-from-right-2">
                            <input
                               type="date"
+                              aria-label="Data inicial"
                               value={customStartDate}
                               onChange={(e) => setCustomStartDate(e.target.value)}
                               className="w-24 px-2 py-1 border border-slate-200 rounded text-xs"
@@ -654,6 +656,7 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
                            <span className="text-slate-400">-</span>
                            <input
                               type="date"
+                              aria-label="Data final"
                               value={customEndDate}
                               onChange={(e) => setCustomEndDate(e.target.value)}
                               className="w-24 px-2 py-1 border border-slate-200 rounded text-xs"
@@ -673,6 +676,7 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                         <input
                            type="text"
+                           aria-label="Buscar movimentação"
                            placeholder="Buscar movimentação..."
                            className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                            value={searchTerm}
@@ -683,8 +687,8 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
                     <div className="overflow-x-auto w-full custom-scrollbar">
                        <div className="divide-y divide-slate-100 max-h-[400px] min-w-0">
                       {searchedRecords.length === 0 ? (
-                         <div className="p-8 text-center text-slate-500">
-                            Nenhuma movimentação encontrada.
+                         <div className="p-8 text-center text-slate-600">
+                            {searchTerm ? 'Nenhuma movimentação corresponde à busca. Tente outro termo.' : 'Nenhuma movimentação no período selecionado. Escolha outro período para consultar.'}
                          </div>
                       ) : (
                          searchedRecords.map(record => {

@@ -257,11 +257,11 @@ const Conciliacao: React.FC<ConciliacaoProps> = ({ sales, financials, products, 
       {/* Header */}
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
         <div className="flex items-center gap-3 w-full lg:w-auto">
-          <button onClick={onBack} className="p-2 hover:bg-slate-200 rounded-full transition-colors shrink-0">
+          <button onClick={onBack} aria-label="Voltar à gestão" className="p-2 hover:bg-slate-200 rounded-full transition-colors shrink-0 touch-target">
             <ArrowLeft size={24} className="text-slate-600" />
           </button>
           <div>
-            <h2 className="text-xl md:text-2xl font-bold text-slate-800">Conciliação Financeira</h2>
+            <h1 className="text-xl md:text-2xl font-bold text-slate-900">Conciliação Financeira</h1>
             <p className="text-xs md:text-sm text-slate-500">Auditoria e reconciliação de vendas, financeiro e divergências.</p>
           </div>
         </div>
