@@ -294,7 +294,7 @@ const Dashboard: React.FC<DashboardProps> = ({ products, sales, financials, cust
       <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
         <div>
           <div className="flex items-center gap-3">
-            <h2 className="text-2xl font-bold text-slate-800">Visão Geral</h2>
+            <h1 className="text-2xl font-bold text-slate-900">Visão Geral</h1>
             <button
               onClick={() => setIsValuesVisible(!isValuesVisible)}
               className="p-2 hover:bg-slate-100 rounded-full transition-all text-slate-400 hover:text-orange-500"

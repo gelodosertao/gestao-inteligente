@@ -31,13 +31,13 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ products, sales, financials, 
     <div className="h-[calc(100vh-2rem)] flex flex-col animate-in fade-in zoom-in-95 duration-300">
       <div className="flex-none mb-6">
         <div className="flex items-center gap-3">
-          <button onClick={onBack} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
+          <button onClick={onBack} aria-label="Voltar à gestão" className="p-2 hover:bg-slate-200 rounded-full transition-colors touch-target">
             <ArrowLeft size={24} className="text-slate-600" />
           </button>
           <div>
-            <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+            <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
               <Sparkles className="text-orange-500" /> Consultor IA
-            </h2>
+            </h1>
             <p className="text-slate-500">
               Pergunte sobre estratégias de vendas, redução de custos ou análise de estoque.
             </p>

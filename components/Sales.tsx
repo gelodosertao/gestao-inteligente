@@ -595,15 +595,15 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
 
    return (
       <>
-         <div className={`animate-in fade-in slide-in-from-bottom-4 duration-500 relative flex flex-col ${activeTab === 'POS' ? 'h-[calc(100dvh-5rem)] md:h-[calc(100dvh-2rem)]' : 'h-full space-y-6'}`}>
+         <div className={`app-shell relative flex min-w-0 flex-col ${activeTab === 'POS' ? 'h-[calc(100dvh-5rem)] md:h-[calc(100dvh-2rem)]' : 'h-full space-y-6'}`}>
             {activeTab !== 'POS' && (
                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
                   <div className="flex items-center gap-3 w-full md:w-auto">
-                     <button onClick={onBack} className="p-2 hover:bg-slate-200 rounded-full transition-colors shrink-0" title="Voltar para Início">
+                     <button onClick={onBack} aria-label="Voltar à gestão" className="p-2 hover:bg-slate-200 rounded-full transition-colors shrink-0 touch-target" title="Voltar para Início">
                         <ArrowLeft size={24} className="text-slate-600" />
                      </button>
                      <div>
-                        <h2 className="text-2xl font-bold text-slate-800">Vendas & PDV</h2>
+                        <h1 className="text-2xl font-bold text-slate-900">Vendas & PDV</h1>
                         <p className="text-slate-500 text-xs md:text-sm">Gerencie vendas e emita Notas.</p>
                      </div>
                   </div>
@@ -847,10 +847,10 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
 
                      <div className="flex-1 overflow-y-auto bg-white">
                         {cart.length === 0 ? (
-                           <div className="h-full flex flex-col items-center justify-center p-8 text-slate-200">
-                              <ShoppingCart size={56} strokeWidth={1} className="opacity-10 mb-3" />
-                              <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">Carrinho Vazio</p>
-                              <p className="text-[10px] text-slate-300 mt-1">Busque ou escaneie produtos ao lado</p>
+                           <div className="h-full flex flex-col items-center justify-center p-8 text-slate-600 text-center">
+                              <ShoppingCart size={40} strokeWidth={1.5} className="mb-3 text-slate-400" aria-hidden="true" />
+                              <p className="text-sm font-semibold text-slate-800">Carrinho vazio</p>
+                              <p className="mt-1 text-sm">Busque ou escaneie produtos para iniciar a venda.</p>
                            </div>
                         ) : (
                            <div className="divide-y divide-slate-100">

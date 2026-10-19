@@ -504,11 +504,11 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
       <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 relative pb-safe">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div className="flex items-center gap-3">
-            <button onClick={onBack} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
+            <button onClick={onBack} aria-label="Voltar à gestão" className="p-2 hover:bg-slate-200 rounded-full transition-colors touch-target">
               <ArrowLeft size={24} className="text-slate-600" />
             </button>
             <div>
-              <h2 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-orange-500 tracking-tight">Controle de Estoque</h2>
+              <h1 className="text-2xl font-bold text-slate-900 tracking-tight sm:text-3xl">Controle de Estoque</h1>
               <p className="text-slate-500 font-medium mt-1">Gerenciamento dinâmico de níveis e movimentações</p>
             </div>
           </div>
@@ -549,20 +549,21 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
             >
               <Plus size={18} /> <span className="text-xs">Novo</span>
             </button>
-            <label className="flex-1 sm:flex-none bg-slate-800 active-scale text-white px-4 py-3 rounded-xl font-bold flex items-center justify-center gap-2 cursor-pointer shadow-md touch-target">
+            <label className="flex-1 sm:flex-none bg-slate-800 active-scale text-white px-4 py-3 rounded-xl font-bold flex items-center justify-center gap-2 cursor-pointer shadow-md touch-target focus-within:outline focus-within:outline-2 focus-within:outline-orange-500">
               <Upload size={18} /> <span className="text-xs">XML</span>
-              <input type="file" accept=".xml" className="hidden" onChange={handleFileUpload} />
+              <input type="file" accept=".xml" aria-label="Importar produtos de arquivo XML" className="sr-only" onChange={handleFileUpload} />
             </label>
           </div>
         </div>
 
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
           {/* Toolbar */}
-          <div className="p-5 border-b border-slate-100 flex gap-4 bg-slate-50/50 backdrop-blur-md">
+          <div className="p-4 border-b border-slate-100 flex flex-wrap gap-3 bg-slate-50/70 sm:p-5">
             <div className="relative flex-1 max-w-2xl group">
               <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={20} />
               <input
                 type="text"
+                aria-label="Buscar produto por nome ou categoria"
                 placeholder="Buscar produto por nome ou categoria..."
                 className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 shadow-sm transition-all text-slate-900 font-medium"
                 value={filter}
@@ -571,6 +572,7 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
             </div>
             <button
               onClick={() => filter ? setFilter('') : setShowCategoryModal(true)}
+              aria-label={filter ? 'Limpar busca de produtos' : 'Filtrar produtos por categoria'}
               className="p-2 text-slate-500 hover:bg-slate-50 rounded-lg border border-slate-200"
               title={filter ? "Limpar Filtro" : "Filtrar por Categoria"}
             >
