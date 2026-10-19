@@ -1,10 +1,11 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { ArrowRight, CheckCircle2, ChevronRight, Play, Snowflake, Truck, MapPin, Phone, Instagram } from 'lucide-react';
+import React, { useRef } from 'react';
+import { ArrowRight, CheckCircle2, ChevronLeft, ChevronRight, Play, Snowflake, Truck, MapPin, Phone, Instagram } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import SegmentCard from './SegmentCard';
 import ScrollProgress from './ScrollProgress';
 import ImageWithSkeleton from './ImageWithSkeleton';
+import { PublicHeader } from './PublicContentPage';
 
 const FLAVORS = [
   { src: '/morango.png', name: 'Morango' },
@@ -31,80 +32,18 @@ const SEGMENTS = [
 ];
 const B2BLanding: React.FC = () => {
   const navigate = useNavigate();
-  const [scrolled, setScrolled] = useState(false);
   const carouselRef = useRef<HTMLDivElement>(null);
   const segmentRef = useRef<HTMLDivElement>(null);
-  // Efeito de rolagem do menu
-  useEffect(() => {
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 50);
-    };
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  // Efeito de Auto-Play do Carrossel
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (carouselRef.current) {
-        const { scrollLeft, scrollWidth, clientWidth } = carouselRef.current;
-        // Se chegou no final (com uma margem de erro de 10px), volta pro começo
-        if (scrollLeft + clientWidth >= scrollWidth - 10) {
-          carouselRef.current.scrollTo({ left: 0, behavior: 'smooth' });
-        } else {
-          // Rola um pedaço pra frente; o CSS "snap-mandatory" cuida de encaixar no próximo item perfeitamente
-          carouselRef.current.scrollBy({ left: 300, behavior: 'smooth' });
-        }
-      }
-    }, 2500); // Troca a cada 2.5 segundos
-
-    return () => clearInterval(interval);
-  }, []);
-
-  // Efeito de Auto-Play do Carrossel de Segmentos
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (segmentRef.current) {
-        const { scrollLeft, scrollWidth, clientWidth } = segmentRef.current;
-        if (scrollLeft + clientWidth >= scrollWidth - 10) {
-          segmentRef.current.scrollTo({ left: 0, behavior: 'smooth' });
-        } else {
-          segmentRef.current.scrollBy({ left: 350, behavior: 'smooth' });
-        }
-      }
-    }, 3000);
-
-    return () => clearInterval(interval);
-  }, []);
-
+  const moveCarousel = (target: React.RefObject<HTMLDivElement>, amount: number) => {
+    target.current?.scrollBy({ left: amount, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+  };
   return (
-    <div className="min-h-screen bg-slate-50 font-sans selection:bg-blue-500 selection:text-white">
+    <div className="site-world trade-world min-h-screen selection:bg-[#b74336] selection:text-white">
       <ScrollProgress />
-      {/* Navbar (Glassmorphism) */}
-      <nav className={`fixed top-0 w-full z-50 transition-all duration-300 ${scrolled ? 'bg-slate-900/80 backdrop-blur-md shadow-lg py-4' : 'bg-transparent py-6'}`}>
-        <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <img src="/logo.png" alt="Gelo do Sertão Logo" className="h-12 w-auto object-contain drop-shadow-md" />
-            <span className="font-black text-xl tracking-wider uppercase hidden sm:block text-white drop-shadow-md">
-              Gelo do Sertão
-            </span>
-          </div>
-          <div className="hidden md:flex items-center gap-8">
-            <a href="#produtos" className="text-sm font-semibold text-white drop-shadow-md hover:text-cyan-400 transition-colors">Produtos</a>
-            <a href="#vantagens" className="text-sm font-semibold text-white drop-shadow-md hover:text-cyan-400 transition-colors">Por que nós?</a>
-            <a href="#logistica" className="text-sm font-semibold text-white drop-shadow-md hover:text-cyan-400 transition-colors">Logística</a>
-          </div>
-          <button
-            onClick={() => navigate('/wpp')}
-            className="bg-white text-slate-900 px-6 py-2.5 rounded-full font-bold text-sm hover:bg-slate-100 hover:scale-105 transition-all shadow-xl flex items-center gap-2"
-          >
-            Seja um Revendedor
-          </button>
-        </div>
-      </nav>
+      <PublicHeader />
 
       {/* Hero Section */}
-      <section className="relative h-screen flex items-center justify-center overflow-hidden">
+      <section className="site-hero trade-hero relative min-h-dvh flex items-center overflow-hidden">
         {/* Placeholder for Video/Image Background */}
         <div className="absolute inset-0 bg-slate-900 z-0">
           {/* <video autoPlay loop muted playsInline className="w-full h-full object-cover opacity-60">
@@ -121,7 +60,7 @@ const B2BLanding: React.FC = () => {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, ease: "easeOut" }}
-          className="relative z-10 max-w-7xl mx-auto px-6 text-center mt-20"
+          className="relative z-10 max-w-7xl mx-auto px-6 text-left mt-20 w-full"
         >
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-cyan-300 font-semibold text-sm mb-8">
             <span className="relative flex h-2 w-2">
@@ -133,7 +72,7 @@ const B2BLanding: React.FC = () => {
 
           <h1 className="text-5xl md:text-7xl font-black text-white mb-6 tracking-tight leading-tight drop-shadow-2xl">
             Seu Fornecedor Nº 1 em <br className="hidden md:block" />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">Gelo de Sabor</span>
+            <span className="text-[#b74336]">Gelo de Sabor</span>
           </h1>
 
           <p className="text-lg md:text-xl text-white mb-12 max-w-2xl mx-auto font-medium leading-relaxed drop-shadow-lg">
@@ -174,6 +113,10 @@ const B2BLanding: React.FC = () => {
               <div className="bg-slate-950 relative overflow-hidden p-8 md:p-12">
                 {/* Linha de Sabores (Embalagens) Carrossel */}
                 <div className="relative w-full">
+                  <div className="flex justify-end gap-2 mb-3 relative z-10">
+                    <button type="button" onClick={() => moveCarousel(carouselRef, -300)} aria-label="Sabores anteriores" className="min-h-11 min-w-11 border border-slate-500 text-white flex items-center justify-center rounded-sm"><ChevronLeft size={18} /></button>
+                    <button type="button" onClick={() => moveCarousel(carouselRef, 300)} aria-label="Próximos sabores" className="min-h-11 min-w-11 border border-slate-500 text-white flex items-center justify-center rounded-sm"><ChevronRight size={18} /></button>
+                  </div>
                   {/* Dica de Scroll no Desktop/Mobile */}
                   <div className="absolute -top-6 right-0 text-slate-500 text-xs font-bold uppercase tracking-widest flex items-center gap-2 md:hidden">
                     Deslize <ArrowRight size={14} />
@@ -204,7 +147,7 @@ const B2BLanding: React.FC = () => {
               <div className="p-8 w-full flex flex-col md:flex-row md:items-end justify-between gap-6 bg-slate-900 z-10 relative">
                 <div>
                   <div className="inline-block px-3 py-1 bg-cyan-500/20 text-cyan-400 rounded-full text-xs font-bold uppercase tracking-wider mb-3 backdrop-blur-sm">O Novo Padrão B2B</div>
-                  <h3 className="text-4xl md:text-5xl font-black text-white mb-2">Linha Drink <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">Premium</span></h3>
+                  <h3 className="text-4xl md:text-5xl font-black text-white mb-2">Linha Drink <span className="text-[#e5ada5]">Premium</span></h3>
                   <p className="text-slate-300 max-w-2xl text-lg mt-4">
                     As embalagens mais bonitas e resistentes do mercado, em <strong>7 sabores incríveis</strong>. 
                     Seus clientes não vão comprar apenas um, vão querer experimentar todos.
@@ -263,7 +206,7 @@ const B2BLanding: React.FC = () => {
               </motion.div>
 
               {/* Floating Stat Card */}
-              <div className="absolute -bottom-8 -left-8 bg-white p-6 rounded-3xl shadow-xl border border-slate-100 max-w-xs animate-bounce-slow">
+              <div className="absolute -bottom-8 -left-8 bg-white p-6 rounded-3xl shadow-xl border border-slate-100 max-w-xs">
                 <div className="flex items-center gap-4 mb-2">
                   <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center text-blue-600">
                     <Truck size={24} />
@@ -282,6 +225,10 @@ const B2BLanding: React.FC = () => {
       <section id="segmentos" className="py-32 bg-slate-100">
         <div className="max-w-7xl mx-auto px-6">
           <h2 className="text-4xl md:text-5xl font-black text-slate-900 mb-8 text-center">Para quem somos a solução</h2>
+          <div className="flex justify-end gap-2 mb-3">
+            <button type="button" onClick={() => moveCarousel(segmentRef, -350)} aria-label="Segmentos anteriores" className="min-h-11 min-w-11 border border-slate-500 text-slate-900 flex items-center justify-center rounded-sm"><ChevronLeft size={18} /></button>
+            <button type="button" onClick={() => moveCarousel(segmentRef, 350)} aria-label="Próximos segmentos" className="min-h-11 min-w-11 border border-slate-500 text-slate-900 flex items-center justify-center rounded-sm"><ChevronRight size={18} /></button>
+          </div>
           <div className="relative">
             <div
               ref={segmentRef}
@@ -297,10 +244,7 @@ const B2BLanding: React.FC = () => {
         </div>
       </section>
       {/* CTA Section */}
-      <section className="py-24 bg-gradient-to-br from-blue-900 to-slate-900 relative overflow-hidden">
-        {/* Decorative background elements */}
-        <div className="absolute top-0 right-0 w-96 h-96 bg-cyan-500/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3" />
-        <div className="absolute bottom-0 left-0 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl translate-y-1/2 -translate-x-1/3" />
+      <section className="py-24 bg-[#17252b] relative overflow-hidden border-t border-[#607075]">
 
         <div className="max-w-4xl mx-auto px-6 text-center relative z-10">
           <h2 className="text-4xl md:text-6xl font-black text-white mb-8">
@@ -311,7 +255,7 @@ const B2BLanding: React.FC = () => {
           </p>
           <button
             onClick={() => navigate('/wpp')}
-            className="bg-cyan-400 text-slate-900 px-10 py-5 rounded-full font-black text-xl hover:bg-cyan-300 hover:scale-105 transition-all shadow-xl shadow-cyan-500/30 flex items-center justify-center gap-3 mx-auto"
+            className="bg-[#b74336] text-white px-10 py-5 rounded-sm font-black text-xl hover:bg-[#91352c] transition-colors flex items-center justify-center gap-3 mx-auto"
           >
             Quero a Tabela de Preços
             <ChevronRight size={24} />
