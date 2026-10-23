@@ -1,12 +1,10 @@
 
 import React, { useState, useMemo } from 'react';
 import { Sale, Product, Customer, Branch, User } from '../types';
-import { fiscalApiUrl, fiscalHeaders } from '../services/invoiceService';
+import FiscalIntegrationNotice from './FiscalIntegrationNotice';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
-import { Calendar, Filter, Download, DollarSign, TrendingUp, Users, ShoppingBag, CreditCard, ChevronLeft, ChevronRight, Search, Archive, FileText, Loader2 } from 'lucide-react';
+import { Calendar, Filter, Download, DollarSign, TrendingUp, Users, ShoppingBag, CreditCard, ChevronLeft, ChevronRight, Search, FileText } from 'lucide-react';
 import { getTodayDate, normalizePaymentMethod, translatePaymentMethod } from '../services/utils';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 
 interface ReportsProps {
     sales: Sale[];
@@ -20,11 +18,6 @@ const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'
 
 const Reports: React.FC<ReportsProps> = ({ sales, products, customers, onBack, currentUser }) => {
     const [activeTab, setActiveTab] = useState<'SALES_LIST' | 'SALES_ANALYSIS' | 'PRODUCTS' | 'CUSTOMERS' | 'MENU_ANALYTICS' | 'FISCAL_ACCOUNTING'>('SALES_ANALYSIS');
-
-    // Fiscal Panel state
-    const [fiscalMonth, setFiscalMonth] = useState((new Date().getMonth() + 1).toString().padStart(2, '0'));
-    const [fiscalYear, setFiscalYear] = useState(new Date().getFullYear().toString());
-    const [isDownloadingFiscal, setIsDownloadingFiscal] = useState(false);
 
     // Filters
     const [dateRange, setDateRange] = useState<'THIS_MONTH' | 'LAST_MONTH' | 'LAST_30_DAYS' | 'CUSTOM'>('THIS_MONTH');
@@ -221,99 +214,6 @@ const Reports: React.FC<ReportsProps> = ({ sales, products, customers, onBack, c
         link.href = encodedUri;
         link.download = `vendas_relatorio_${getTodayDate()}.csv`;
         link.click();
-    };
-
-    const downloadFiscalReport = async () => {
-        try {
-            setIsDownloadingFiscal(true);
-            const response = await fetch(fiscalApiUrl(`/api/nfe/relatorio/mensal/${fiscalYear}/${fiscalMonth}`), { headers: await fiscalHeaders() });
-            const data = await response.json();
-            
-            if (!data.sucesso || !data.dados) {
-                throw new Error(data.erro || 'Erro ao obter relatório');
-            }
-
-            const { resumo, formas_pagamento, vendas } = data.dados;
-
-            const doc = new jsPDF();
-            
-            // Header
-            doc.setFontSize(18);
-            doc.text(`Relatório Contábil Mensal - ${fiscalMonth}/${fiscalYear}`, 14, 22);
-            doc.setFontSize(11);
-            doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 14, 30);
-            
-            // Resumo
-            autoTable(doc, {
-                startY: 40,
-                head: [['Resumo Mensal', 'Valores']],
-                body: [
-                    ['Total de Vendas', resumo.total_vendas.toString()],
-                    ['Valor Total', `R$ ${resumo.valor_total.toFixed(2).replace('.', ',')}`],
-                    ['Ticket Médio', `R$ ${resumo.valor_medio.toFixed(2).replace('.', ',')}`]
-                ],
-                theme: 'striped'
-            });
-
-            // Formas de Pagamento
-            const paymentBody = formas_pagamento.map((fp: any) => [
-                translatePaymentMethod(fp.metodo),
-                fp.quantidade.toString(),
-                `R$ ${fp.valor_total.toFixed(2).replace('.', ',')}`
-            ]);
-
-            autoTable(doc, {
-                startY: (doc as any).lastAutoTable.finalY + 10,
-                head: [['Forma de Pagamento', 'Quantidade', 'Valor Total']],
-                body: paymentBody,
-                theme: 'striped'
-            });
-
-            // Vendas Individuais
-            const vendasBody = vendas.map((v: any) => {
-                const metodosStr = v.parcelas && v.parcelas.length > 0 
-                    ? v.parcelas.map((p: any) => translatePaymentMethod(p.metodo)).join(' + ')
-                    : translatePaymentMethod(v.forma_pagamento);
-                
-                return [
-                    v.data,
-                    v.nfe_numero || '-',
-                    v.cliente.substring(0, 30),
-                    `R$ ${v.total.toFixed(2).replace('.', ',')}`,
-                    metodosStr
-                ];
-            });
-
-            autoTable(doc, {
-                startY: (doc as any).lastAutoTable.finalY + 15,
-                head: [['Data', 'NF-e', 'Cliente', 'Valor Total', 'Pagamento']],
-                body: vendasBody,
-                theme: 'striped',
-                styles: { fontSize: 8 }
-            });
-
-            doc.save(`relatorio_fiscal_contabil_${fiscalYear}_${fiscalMonth}.pdf`);
-        } catch (error: any) {
-            console.error("Erro ao baixar relatório fiscal:", error);
-            alert("Falha ao gerar relatório fiscal contábil: " + (error.message || 'Erro desconhecido'));
-        } finally {
-            setIsDownloadingFiscal(false);
-        }
-    };
-
-    const downloadFiscalXmls = async () => {
-        try {
-            const response = await fetch(fiscalApiUrl(`/api/nfe/xml/${fiscalYear}/${fiscalMonth}`), { headers: await fiscalHeaders() });
-            if (!response.ok) throw new Error('Não foi possível baixar os XMLs.');
-            const url = URL.createObjectURL(await response.blob());
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `nfe-${fiscalYear}-${fiscalMonth}.zip`;
-            link.click();
-            URL.revokeObjectURL(url);
-        } catch (error) {
-            alert(error instanceof Error ? error.message : 'Falha ao baixar XMLs.');
-        }
     };
 
     return (
@@ -732,83 +632,14 @@ const Reports: React.FC<ReportsProps> = ({ sales, products, customers, onBack, c
 
                 {/* TAB: FISCAL / ACCOUNTING */}
                 {currentUser.role === 'ADMIN' && activeTab === 'FISCAL_ACCOUNTING' && (
-                    <div className="space-y-6 animate-in fade-in duration-500">
-                        <div className="bg-slate-50 border border-slate-200 rounded-xl p-8 max-w-4xl">
-                            <h3 className="text-xl font-black text-slate-800 mb-2 flex items-center gap-3">
-                                <FileText className="text-blue-600" size={28} />
-                                Exportação Contábil e Fiscal
-                            </h3>
-                            <p className="text-slate-600 mb-8 text-sm leading-relaxed">
-                                Ferramenta de integração com a contabilidade. Selecione o período de fechamento mensal para 
-                                exportar o lote de XMLs emitidos e o relatório consolidado de vendas e formas de pagamento.
-                            </p>
-                            
-                            <div className="flex flex-wrap items-end gap-6 mb-10 bg-white p-6 rounded-xl shadow-sm border border-slate-100">
-                                <div className="flex-1 min-w-[150px]">
-                                    <label className="block text-sm font-bold text-slate-700 mb-2">Mês de Competência</label>
-                                    <select 
-                                        value={fiscalMonth} 
-                                        onChange={e => setFiscalMonth(e.target.value)}
-                                        className="w-full px-4 py-3 border border-slate-300 rounded-xl bg-slate-50 text-slate-700 font-semibold focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-                                    >
-                                        {Array.from({ length: 12 }).map((_, i) => {
-                                            const m = (i + 1).toString().padStart(2, '0');
-                                            const label = new Date(2020, i, 1).toLocaleString('pt-BR', { month: 'long' });
-                                            return <option key={m} value={m}>{m} - {label.charAt(0).toUpperCase() + label.slice(1)}</option>;
-                                        })}
-                                    </select>
-                                </div>
-                                <div className="flex-1 min-w-[150px]">
-                                    <label className="block text-sm font-bold text-slate-700 mb-2">Ano</label>
-                                    <select 
-                                        value={fiscalYear} 
-                                        onChange={e => setFiscalYear(e.target.value)}
-                                        className="w-full px-4 py-3 border border-slate-300 rounded-xl bg-slate-50 text-slate-700 font-semibold focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-                                    >
-                                        <option value="2024">2024</option>
-                                        <option value="2025">2025</option>
-                                        <option value="2026">2026</option>
-                                        <option value="2027">2027</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <button
-                                    type="button"
-                                    onClick={downloadFiscalXmls}
-                                    className="flex items-center justify-between p-6 bg-white border-2 border-slate-200 rounded-2xl hover:border-orange-400 hover:shadow-lg hover:shadow-orange-100 transition-all group"
-                                >
-                                    <div className="flex items-center gap-5">
-                                        <div className="bg-orange-100 p-4 rounded-xl text-orange-600 group-hover:scale-110 transition-transform">
-                                            <Archive size={28} />
-                                        </div>
-                                        <div>
-                                            <h4 className="font-bold text-slate-800 text-lg">Baixar Lote de XMLs</h4>
-                                            <p className="text-sm text-slate-500 mt-1">Todos os arquivos .xml autorizados</p>
-                                        </div>
-                                    </div>
-                                    <Download size={24} className="text-slate-300 group-hover:text-orange-500" />
-                                </button>
-
-                                <button 
-                                    onClick={downloadFiscalReport}
-                                    disabled={isDownloadingFiscal}
-                                    className="flex items-center justify-between p-6 bg-white border-2 border-slate-200 rounded-2xl hover:border-emerald-400 hover:shadow-lg hover:shadow-emerald-100 transition-all group text-left disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    <div className="flex items-center gap-5">
-                                        <div className="bg-emerald-100 p-4 rounded-xl text-emerald-600 group-hover:scale-110 transition-transform">
-                                            {isDownloadingFiscal ? <Loader2 size={28} className="animate-spin" /> : <FileText size={28} />}
-                                        </div>
-                                        <div>
-                                            <h4 className="font-bold text-slate-800 text-lg">Resumo Contábil</h4>
-                                            <p className="text-sm text-slate-500 mt-1">Vendas e Condições de Pagamento (PDF)</p>
-                                        </div>
-                                    </div>
-                                    <Download size={24} className="text-slate-300 group-hover:text-emerald-500" />
-                                </button>
-                            </div>
+                    <div className="max-w-4xl space-y-4">
+                        <h3 className="text-xl font-bold text-slate-800">Exportação Contábil e Fiscal</h3>
+                        <FiscalIntegrationNotice />
+                        <div className="flex flex-wrap gap-3">
+                            <button type="button" disabled className="min-h-11 rounded-xl border border-slate-200 p-4 text-slate-500 disabled:cursor-not-allowed">Baixar Lote de XMLs</button>
+                            <button type="button" disabled className="min-h-11 rounded-xl border border-slate-200 p-4 text-slate-500 disabled:cursor-not-allowed">Resumo Contábil</button>
                         </div>
+                        <p className="text-sm text-slate-500">Os relatórios de gestão continuam disponíveis nas demais abas.</p>
                     </div>
                 )}
 

@@ -77,7 +77,7 @@ feat(nfe): implementar endpoint de carta de correção
 fix(pdv): corrigir cálculo de troco no modo atacado
 docs: atualizar README com instruções de deploy
 perf(dashboard): otimizar queries do faturamento mensal
-test(nfe): adicionar testes para SefazService
+test(pdv): validar persistência de vendas
 chore(infra): configurar GitHub Actions para CI
 ```
 
@@ -203,7 +203,7 @@ git checkout -b feature/testes-automatizados
 
 # 3. Fazer as alterações e commitar
 git add .
-git commit -m "test: adicionar testes unitários para SefazService
+git commit -m "test: validar persistência de vendas
 
 Closes #5"
 
@@ -215,7 +215,7 @@ gh pr create \
   --base develop \
   --title "test: adicionar testes unitários (#5)" \
   --body "## O que foi feito
-Adicionados testes unitários para SefazService.
+Adicionados testes de persistência de vendas.
 
 Closes #5"
 ```

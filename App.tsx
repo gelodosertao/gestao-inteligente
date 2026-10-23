@@ -18,7 +18,7 @@ const Sales = React.lazy(() => import('./components/Sales'));
 const Financial = React.lazy(() => import('./components/Financial'));
 const AIAssistant = React.lazy(() => import('./components/AIAssistant'));
 const Settings = React.lazy(() => import('./components/Settings'));
-const FiscalConfigurationConsole = React.lazy(() => import('./components/FiscalConfigurationConsole'));
+const FiscalIntegrationPanel = React.lazy(() => import('./components/FiscalIntegrationPanel'));
 const Login = React.lazy(() => import('./components/Login'));
 const Customers = React.lazy(() => import('./components/Customers'));
 const Pricing = React.lazy(() => import('./components/Pricing'));
@@ -290,7 +290,7 @@ const App: React.FC = () => {
       console.error("Erro ao registrar venda:", error);
       await refreshSaleData().catch(refreshError => console.error("Erro ao recarregar vendas:", refreshError));
       alert(`A venda não foi confirmada. Tente novamente: ${error.message || JSON.stringify(error)}`);
-      return;
+      throw error;
     }
 
     // Logistics Integration for Wholesale POS Deliveries
@@ -520,7 +520,7 @@ const App: React.FC = () => {
     ORDER_CENTER: 'Pedidos', PRICING: 'Custos', SETTINGS: 'Ajustes do sistema',
     MENU_CONFIG: 'Site / Cardápio', AI_INSIGHTS: 'Assistente', CRM: 'CRM',
     FESTAS_RADAR: 'Caçador de Festas', LOGISTICS: 'Logística',
-    CONCILIACAO: 'Conciliação', EMISSOR: 'Emissor NF-e',
+    CONCILIACAO: 'Conciliação', EMISSOR: 'Integração fiscal',
     SALES: 'PDV Varejo', ATACADO: 'PDV Atacado', ONLINE_MENU: 'Cardápio',
   }[currentView];
 
@@ -696,7 +696,7 @@ const App: React.FC = () => {
       case 'SETTINGS':
         return <Settings currentUser={currentUser!} onResetData={handleResetData} />;
       case 'EMISSOR':
-        return <FiscalConfigurationConsole currentUser={currentUser!} onLogout={handleLogout} />;
+        return <FiscalIntegrationPanel currentUser={currentUser!} sales={sales} onLogout={handleLogout} />;
       case 'FESTAS_RADAR':
         return <FeatureUnavailable featureName="Caçador de Festas" />;
       case 'LOGISTICS':
@@ -716,7 +716,7 @@ const App: React.FC = () => {
     return <Suspense fallback={<div className="flex min-h-dvh items-center justify-center"><Loader2 className="animate-spin" /></div>}>
       {!currentUser ? <Login onLogin={handleLogin} /> : currentUser.mustChangePassword
         ? <PasswordChange user={currentUser} onChanged={handlePasswordChanged} onLogout={handleLogout} />
-        : <div className="operation-world min-h-dvh bg-slate-50 px-4 py-6 md:px-8"><FiscalConfigurationConsole currentUser={currentUser} onLogout={handleLogout} standalone /></div>}
+        : <div className="operation-world min-h-dvh bg-slate-50 px-4 py-6 md:px-8"><FiscalIntegrationPanel currentUser={currentUser} sales={sales} onLogout={handleLogout} standalone /></div>}
     </Suspense>;
   }
 
@@ -768,7 +768,6 @@ const App: React.FC = () => {
                     onLogout={handleLogout}
                     onUpdateSale={handleUpdateSale}
                     onDeleteSale={handleDeleteSale}
-                    onFiscalChange={refreshSaleData}
                     onBack={currentUser.role === 'ADMIN' || currentUser.role === 'WHOLESALE_REPRESENTATIVE' ? () => navigate('/gestao') : undefined}
                   />
                 </div>

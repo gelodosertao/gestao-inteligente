@@ -1,0 +1,111 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-08T18:32:46Z",
+  "title": "Design System: Gelo do Sertão",
+  "extensions": {
+    "colorMeta": {
+      "paper": { "role": "neutral", "displayName": "Papel quente", "canonical": "#faf9f6" },
+      "surface": { "role": "neutral", "displayName": "Superfície clara", "canonical": "#fffefa" },
+      "ink": { "role": "neutral", "displayName": "Tinta profunda", "canonical": "#17252b" },
+      "muted": { "role": "neutral", "displayName": "Cinza de leitura", "canonical": "#526167" },
+      "line": { "role": "neutral", "displayName": "Linha fria", "canonical": "#cbd2d0" },
+      "signal": { "role": "primary", "displayName": "Vermelho de sinal", "canonical": "#b74336" },
+      "signal-hover": { "role": "primary", "displayName": "Vermelho de interação", "canonical": "#91352c" },
+      "active-panel": { "role": "neutral", "displayName": "Painel ativo", "canonical": "#314249" },
+      "table-head": { "role": "neutral", "displayName": "Cabeçalho de tabela", "canonical": "#e9eeeb" }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Título de impacto", "purpose": "Abertura do site e títulos de alto contraste." },
+      "body": { "displayName": "Leitura e controles", "purpose": "Texto comum da interface web." },
+      "context-label": { "displayName": "Contexto operacional", "purpose": "Identificar módulo e posição no sistema." },
+      "table-label": { "displayName": "Coluna operacional", "purpose": "Identificar dados de tabelas compactas." }
+    },
+    "shadows": [],
+    "motion": [
+      { "name": "nav-underline", "value": "transform 0.24s ease", "purpose": "Revelar o sublinhado do link no cabeçalho público." },
+      { "name": "sidebar-state", "value": "background-color 0.18s ease, color 0.18s ease", "purpose": "Resposta discreta dos itens da barra lateral." },
+      { "name": "hero-photo", "value": "transform 0.8s cubic-bezier(.2,.7,.2,1)", "purpose": "Zoom sutil da fotografia no hover; desativado com redução de movimento." }
+    ],
+    "breakpoints": [
+      { "name": "mobile-world", "value": "767px" },
+      { "name": "tailwind-sm", "value": "640px" },
+      { "name": "tailwind-md", "value": "768px" },
+      { "name": "tailwind-lg", "value": "1024px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Botão principal",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Ação principal da marca em site, login e operação.",
+      "html": "<button class=\"ds-btn-primary\">Continuar</button>",
+      "css": ".ds-btn-primary{min-height:44px;padding:.75rem 1.5rem;border:1px solid var(--world-accent);border-radius:3px;background:var(--world-accent);color:#fff;font:700 1rem Inter,sans-serif;cursor:pointer;transition:background-color .18s ease}.ds-btn-primary:hover{background:var(--world-accent-dark)}.ds-btn-primary:focus-visible{outline:3px solid var(--world-accent);outline-offset:3px}.ds-btn-primary:disabled{opacity:.55;cursor:not-allowed}"
+    },
+    {
+      "name": "Botão secundário",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Ação de apoio com contorno de tinta.",
+      "html": "<button class=\"ds-btn-secondary\">Conhecer mais</button>",
+      "css": ".ds-btn-secondary{min-height:44px;padding:.75rem 1.5rem;border:1px solid var(--world-ink);border-radius:3px;background:transparent;color:var(--world-ink);font:700 1rem Inter,sans-serif;cursor:pointer;transition:background-color .18s ease}.ds-btn-secondary:hover{background:var(--world-surface)}.ds-btn-secondary:focus-visible{outline:3px solid var(--world-accent);outline-offset:3px}"
+    },
+    {
+      "name": "Campo de texto",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Campo claro com rótulo externo e contorno frio.",
+      "html": "<label class=\"ds-field\">E-mail corporativo<input class=\"ds-field-input\" type=\"email\" placeholder=\"seu@email.com\"></label>",
+      "css": ".ds-field{display:grid;gap:.5rem;color:var(--world-ink);font:700 .875rem Inter,sans-serif}.ds-field-input{min-height:44px;padding:.75rem 1rem;border:1px solid #bfc9c8;border-radius:4px;background:var(--world-surface);color:var(--world-ink);font:400 1rem Inter,sans-serif}.ds-field-input:hover{border-color:var(--world-muted)}.ds-field-input:focus-visible{outline:3px solid var(--world-accent);outline-offset:3px}"
+    },
+    {
+      "name": "Navegação operacional",
+      "kind": "nav",
+      "refersTo": "navigation-active",
+      "description": "Item selecionado com painel tonal e localizador vermelho.",
+      "html": "<nav class=\"ds-nav\" aria-label=\"Módulos\"><a class=\"ds-nav-link\" href=\"#\" aria-current=\"page\">Visão geral</a><a class=\"ds-nav-link\" href=\"#\">Estoque</a></nav>",
+      "css": ".ds-nav{display:grid;gap:4px;padding:12px;background:var(--world-ink)}.ds-nav-link{position:relative;display:flex;align-items:center;min-height:44px;padding:10px 12px;border-radius:3px;color:#d0d8d7;text-decoration:none;font:600 .875rem Inter,sans-serif;transition:background-color .18s ease,color .18s ease}.ds-nav-link:hover,.ds-nav-link[aria-current=page]{background:#314249;color:#fff}.ds-nav-link[aria-current=page]::before{content:'';position:absolute;left:0;top:8px;bottom:8px;width:4px;background:var(--world-accent)}.ds-nav-link:focus-visible{outline:3px solid var(--world-accent);outline-offset:3px}"
+    },
+    {
+      "name": "Módulo claro",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Superfície de informação dividida por linha, sem sombra.",
+      "html": "<article class=\"ds-card\"><h3>Qualidade</h3><p>Informação operacional em um módulo claro.</p></article>",
+      "css": ".ds-card{padding:2rem;border:1px solid var(--world-line);border-radius:0;background:var(--world-surface);color:var(--world-ink);font-family:Inter,sans-serif}.ds-card h3{margin:0 0 .75rem;font-size:1rem}.ds-card p{margin:0;color:var(--world-muted);font-size:.875rem;line-height:1.5}"
+    },
+    {
+      "name": "Tabela operacional",
+      "kind": "custom",
+      "description": "Registros com cabeçalho frio e números tabulares.",
+      "html": "<table class=\"ds-table\"><thead><tr><th>Item</th><th>Quantidade</th></tr></thead><tbody><tr><td>Gelo</td><td>24</td></tr></tbody></table>",
+      "css": ".ds-table{width:100%;border-collapse:collapse;color:var(--world-ink);font-family:Inter,sans-serif;font-variant-numeric:tabular-nums}.ds-table thead{background:#e9eeeb}.ds-table th{text-align:left;text-transform:uppercase;letter-spacing:.06em;font-size:.7rem}.ds-table th,.ds-table td{padding:.75rem;border-bottom:1px solid var(--world-line)}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Malha Operacional",
+    "overview": "Linhas finas organizam informações e conduzem à próxima ação. O papel quente, a tinta azul quase preta e o vermelho de sinal dão proximidade regional com acabamento premium e confiança profissional. O nome Gelo do Sertão e o logotipo existente são constantes da identidade.\n\nA linguagem liga o site público ao sistema de gestão, PDVs e emissor, e ao painel de logística standalone. O site comporta fotografia real do produto e áreas de leitura mais amplas; as telas de trabalho usam maior densidade, contexto explícito e números tabulares. O Android envolve a interface web via Capacitor; `PRODUCT.md` define a plataforma como web.",
+    "keyCharacteristics": [
+      "Papel claro e tinta escura com vermelho reservado a ação e localização.",
+      "Módulos retangulares divididos por linhas, com pouca elevação.",
+      "Tipografia Inter compacta, legível e com hierarquia clara.",
+      "Alvos de toque confortáveis mesmo em telas densas."
+    ],
+    "rules": [
+      { "name": "The Signal Rule", "body": "O vermelho identifica ação ou localização; não colore superfícies extensas sem motivo funcional.", "section": "colors" },
+      { "name": "The Readable Density Rule", "body": "Condensar rótulos e espaços de operação sem reduzir os textos de leitura a microtipografia.", "section": "typography" },
+      { "name": "The Line Rule", "body": "Prefira uma divisão visível e uma mudança tonal a sombras altas para estruturar módulos.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do preservar o nome e o logotipo Gelo do Sertão e a proximidade regional com acabamento profissional.",
+      "Do usar o acento como sinal de ação e localização, mantendo contraste e foco visível.",
+      "Do manter a densidade operacional legível, inclusive em celular e no wrapper Capacitor.",
+      "Do tratar informação comercial factual e autenticação como conteúdo e comportamento existentes, fora deste sistema visual."
+    ],
+    "donts": [
+      "Don't introduzir outra paleta ou família tipográfica como se já fosse parte da identidade.",
+      "Don't substituir divisores e hierarquia por grandes cartões decorativos ou gradientes como padrão.",
+      "Don't tomar as capturas do login e da logística como aprovação visual das telas autenticadas: não houve conta de teste autorizada para essa revisão."
+    ]
+  }
+}

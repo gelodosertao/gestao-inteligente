@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Product, Sale, Customer, User, Branch, SaleItem, FiscalContext, PaymentEntry } from '../types';
+import { Product, Sale, Customer, User, Branch, SaleItem, PaymentEntry } from '../types';
 import { ShoppingCart, LogOut, User as UserIcon, Plus, Minus, Search, CheckCircle, ArrowLeft, History, Store, Banknote, MapPin, Edit, Trash2, Save, X, Printer, Check, FileText, Clock, Download } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
@@ -8,8 +8,9 @@ import { CUSTOMER_SEGMENTS } from '../constants';
 import { hardwareBridge } from '../services/hardwareBridge';
 import { translatePaymentMethod } from '../services/utils';
 import { dbCustomers } from '../services/db';
-import InvoiceDraftModal, { FiscalContextFields } from './InvoiceDraftModal';
-import { generateDanfe } from '../services/danfeService';
+import FiscalIntegrationModal from './FiscalIntegrationModal';
+import FiscalIntegrationNotice from './FiscalIntegrationNotice';
+import { fiscalIntegration } from '../services/fiscalIntegration';
 
 interface WholesalePOSProps {
     products: Product[];
@@ -21,7 +22,6 @@ interface WholesalePOSProps {
     onLogout: () => void;
     onUpdateSale?: (sale: Sale) => Promise<void>;
     onDeleteSale?: (saleId: string) => Promise<void>;
-    onFiscalChange?: () => Promise<void>;
     onBack?: () => void;
 }
 
@@ -77,7 +77,6 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
     onLogout,
     onUpdateSale,
     onDeleteSale,
-    onFiscalChange,
     onBack
 }) => {
     const isAdmin = currentUser.role === 'ADMIN';
@@ -102,7 +101,6 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
     const [tempCity, setTempCity] = useState<string>('');
 
     const [nfeSale, setNfeSale] = useState<Sale | null>(null);
-    const [fiscalContext, setFiscalContext] = useState<FiscalContext>({ operation: 'internal_b2b_own_production', operationDate: new Date().toLocaleDateString('en-CA'), intermediary: 0 });
     const [savingPayment, setSavingPayment] = useState(false);
 
     // Debt Payment State
@@ -437,7 +435,6 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
             createdAt: new Date().toISOString(),
             customerName: selectedCustomer.name,
             customerId: selectedCustomer.id,
-            fiscalContext: { ...fiscalContext, operationDate: saleDate },
             customerDetails: {
                 cpfCnpj: selectedCustomer.cpfCnpj,
                 razaoSocial: selectedCustomer.razaoSocial || undefined,
@@ -478,7 +475,6 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
             setCustomerSearchQuery('');
             setIsCheckingOut(false);
             setAdminDiscount(0);
-            setFiscalContext({ operation: 'internal_b2b_own_production', operationDate: saleDate, intermediary: 0 });
             setShowSuccessModal(true);
         } catch (e) {
             console.error(e);
@@ -931,11 +927,7 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                             </div>
                         )}
 
-                        <details className="mb-4 rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
-                            <summary className="cursor-pointer font-bold text-slate-700">Preparar dados para a nota fiscal</summary>
-                            <p className="my-3 text-sm text-slate-500">Informe as condições combinadas ou complete depois, ao salvar a nota.</p>
-                            <FiscalContextFields value={{ ...fiscalContext, operationDate: saleDate }} onChange={value => { setFiscalContext(value); setSaleDate(value.operationDate); }} />
-                        </details>
+                        <FiscalIntegrationNotice />
 
                         {/* Payment Method */}
                         <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
@@ -1217,7 +1209,7 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                                                     </button>
                                                 )}
                                                 {isAdmin && sale.nfeStatus === 'autorizada' && (
-                                                    <button onClick={() => generateDanfe(sale)} className="flex-1 md:flex-none justify-center text-xs bg-green-50 hover:bg-green-100 text-green-700 rounded flex items-center gap-1 font-bold border border-green-200 px-3 py-2">
+                                                    <button disabled={!fiscalIntegration.getStatus().configured} title={fiscalIntegration.getStatus().message} className="flex-1 md:flex-none justify-center text-xs bg-green-50 hover:bg-green-100 text-green-700 rounded flex items-center gap-1 font-bold border border-green-200 px-3 py-2">
                                                         <Download size={14} /> DANFE
                                                     </button>
                                                 )}
@@ -1615,7 +1607,7 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
 
                         <div className="space-y-3">
                             <button onClick={() => { if (lastCompletedSale) { setNfeSale(lastCompletedSale); setShowSuccessModal(false); } }} className="w-full rounded-2xl border border-blue-600 py-3 font-bold text-blue-700">
-                                Preparar nota fiscal
+                                Ver situação fiscal
                             </button>
                             <button
                                 onClick={() => lastCompletedSale && handlePrint(lastCompletedSale)}
@@ -1634,12 +1626,9 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                 </div>
             )}
 
-            {nfeSale && <InvoiceDraftModal
+            {nfeSale && <FiscalIntegrationModal
                 sale={sales.find(sale => sale.id === nfeSale.id) || nfeSale}
-                customers={customers}
-                isAdmin={isAdmin}
                 onClose={() => setNfeSale(null)}
-                onChanged={onFiscalChange}
             />}
 
             {showDebtModal && selectedDebtSale && (

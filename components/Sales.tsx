@@ -13,7 +13,7 @@ interface SalesProps {
    sales: Sale[];
    products: Product[];
    customers: Customer[];
-   onAddSale: (sale: Sale) => void;
+   onAddSale: (sale: Sale) => Promise<void>;
    onAddCustomer: (customer: Customer) => void;
    currentUser: User;
    onUpdateSale: (sale: Sale) => void;
@@ -140,8 +140,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
          amountPaid: newPaid,
          paymentHistory: newHistory,
          status: isFullyPaid ? 'Completed' : 'Pending',
-         // If fully paid, we keep hasInvoice as is (usually false for Fiado), 
-         // user can emit later or we could auto-emit? Keeping manual for flexibility.
+         // Payment does not change the stored fiscal document status.
       };
 
       onUpdateSale(updatedSale);
@@ -447,7 +446,8 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
       c.cpfCnpj?.includes(customerSearch)
    );
 
-   const processPayment = () => {
+   const processPayment = async () => {
+      if (checkoutStep === 'PROCESSING') return;
       // Validation for Split
       if (selectedPaymentMethod === 'Split') {
          const v1 = parseFloat(splitValue1) || 0;
@@ -461,8 +461,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
 
       setCheckoutStep('PROCESSING');
 
-      // Simulate transaction time
-      setTimeout(() => {
+      try {
          // Generate a unique ID (check against existing sales to be 100% sure)
          let newId = crypto.randomUUID();
          let attempts = 0;
@@ -487,7 +486,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                { method: splitMethod1, amount: parseFloat(splitValue1) },
                { method: splitMethod2, amount: parseFloat(splitValue2) }
             ] : undefined,
-            hasInvoice: !isPendingSale, // Auto emit NFC-e only if completed
+            hasInvoice: false,
             items: cart.map(c => ({
                productId: c.product.id,
                productName: c.isPack ? `${c.product.name} (Fardo c / ${c.product.packSize})` : c.product.name,
@@ -501,11 +500,13 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
          };
 
          // Call Global Add Sale (updates Stock and Sales History)
-         onAddSale(newSale);
+         await onAddSale(newSale);
          setLastCompletedSale(newSale);
 
          setCheckoutStep('RECEIPT');
-      }, 1500);
+      } catch {
+         setCheckoutStep('METHOD');
+      }
    };
 
    const finishSale = () => {
@@ -604,7 +605,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                      </button>
                      <div>
                         <h1 className="text-2xl font-bold text-slate-900">Vendas & PDV</h1>
-                        <p className="text-slate-500 text-xs md:text-sm">Gerencie vendas e emita Notas.</p>
+                        <p className="text-slate-500 text-xs md:text-sm">Gerencie vendas e recebimentos.</p>
                      </div>
                   </div>
                   {onLogout && (
@@ -1302,7 +1303,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                               <div className="flex flex-col items-center justify-center py-12">
                                  <div className="w-16 h-16 border-4 border-blue-100 border-t-orange-500 rounded-full animate-spin mb-6"></div>
                                  <h4 className="text-xl font-bold text-slate-800">Processando...</h4>
-                                 <p className="text-slate-500">Autorizando NFC-e junto à SEFAZ</p>
+                                 <p className="text-slate-500">Registrando venda no sistema de gestão</p>
                               </div>
                            )}
 
@@ -1316,7 +1317,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                                     <p className="text-slate-500">Venda registrada com sucesso.</p>
                                  </div>
 
-                                 {/* Simulated Thermal Receipt */}
+                                 {/* Management receipt */}
                                  <div id="receipt-content" className="bg-yellow-50 border border-yellow-100 p-2 px-[2mm] rounded-none font-mono text-[10px] text-black mb-6 shadow-inner overflow-hidden mx-auto w-[40mm] shrink-0">
                                     <div className="text-center mb-4 border-b border-yellow-200 pb-4">
                                        <h2 className="font-bold text-[11px] uppercase leading-tight whitespace-pre-wrap">
@@ -1365,12 +1366,9 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                                        </div>
                                     )}
                                     <div className="text-center mt-4 pt-2 border-t border-yellow-200">
-                                       <p className="font-bold text-sm">CUPOM FISCAL</p>
+                                       <p className="font-bold text-sm">COMPROVANTE NÃO FISCAL</p>
                                        <p>Nº {lastCompletedSale?.id.padStart(6, '0')}</p>
                                        <p className="text-[10px] mt-1">{new Date().toLocaleString()}</p>
-                                       <div className="w-24 h-24 bg-white mx-auto mt-2 flex items-center justify-center text-[8px] text-center p-1 border border-slate-200">
-                                          [QR CODE]
-                                       </div>
                                     </div>
                                  </div>
 
@@ -1634,11 +1632,8 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                         <span>{formatCurrency((lastCompletedSale || saleToDownload || saleToDownload)?.total || 0)}</span>
                      </div>
                      <div className="text-center mt-4 pt-2 border-t border-black">
-                        <p className="font-bold">CUPOM FISCAL</p>
+                        <p className="font-bold">COMPROVANTE NÃO FISCAL</p>
                         <p>Nº {(lastCompletedSale || saleToDownload || saleToDownload)?.id.padStart(6, '0')}</p>
-                        <div className="w-20 h-20 bg-white border border-black mx-auto mt-2 flex items-center justify-center text-[8px]">
-                           [QR CODE]
-                        </div>
                      </div>
                      <div className="mt-4 text-center text-[10px]">
                         <p>Obrigado pela preferência!</p>

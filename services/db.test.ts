@@ -192,3 +192,36 @@ describe('casos auditados de conciliação', () => {
     expect(mocks.from).not.toHaveBeenCalled();
   });
 });
+
+describe('histórico fiscal independente do emissor', () => {
+  it('carrega vendas sem consultar rascunhos e preserva os dados fiscais persistidos', async () => {
+    const row = {
+      id: 'historical-sale', date: '2026-10-23', customer_name: 'Cliente',
+      customer_id: 'customer-1', fiscal_context: { operationDate: '2026-10-23' },
+      total: 12, items: [], has_invoice: true, nfe_status: 'autorizada',
+      nfe_number: '123', nfe_environment: 2, nfe_protocol: 'protocol-123',
+      nfe_series: '2', nfe_xml: '<nfe>stored</nfe>', nfe_issued_at: '2026-10-23',
+      invoice_key: 'stored-access-key', invoice_url: 'https://stored.invalid',
+      customer_details: { razaoSocial: 'Snapshot histórico' },
+    };
+    const range = vi.fn().mockResolvedValue({ data: [row], error: null });
+    const query = { select: vi.fn(), eq: vi.fn(), order: vi.fn(), range };
+    query.select.mockReturnValue(query); query.eq.mockReturnValue(query); query.order.mockReturnValue(query);
+    mocks.from.mockImplementation(table => {
+      if (table !== 'sales') throw new Error('Dependência fiscal indevida');
+      return query;
+    });
+
+    const [result] = await dbSales.getAll(TENANT_ID);
+    expect(mocks.from).toHaveBeenCalledTimes(1);
+    expect(mocks.from).toHaveBeenCalledWith('sales');
+    expect(query.eq).toHaveBeenCalledWith('tenant_id', TENANT_ID);
+    expect(result).toMatchObject({
+      hasInvoice: true, nfeStatus: 'autorizada', nfeNumber: '123', nfeEnvironment: 2,
+      nfeProtocol: 'protocol-123', nfeSeries: '2', nfeXml: '<nfe>stored</nfe>',
+      nfeIssuedAt: '2026-10-23', invoiceKey: 'stored-access-key', invoiceUrl: row.invoice_url,
+      fiscalContext: row.fiscal_context, customerDetails: row.customer_details,
+    });
+    expect(mocks.rpc).not.toHaveBeenCalled();
+  });
+});

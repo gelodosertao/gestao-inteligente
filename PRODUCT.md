@@ -16,7 +16,7 @@ O sistema Gelo do Sertão reúne tarefas de vendas, estoque, clientes, produçã
 
 ## Operating Context
 
-Há PDVs de varejo e atacado, módulos de gestão acessíveis conforme o perfil, um emissor fiscal e um painel de logística. A interface é uma aplicação React/Vite e também possui recursos de uso em dispositivo móvel.
+Há PDVs de varejo e atacado, módulos de gestão acessíveis conforme o perfil, uma área de integração fiscal externa (desativada nesta etapa) e um painel de logística. A interface é uma aplicação React/Vite e também possui recursos de uso em dispositivo móvel.
 
 ## Capabilities and Constraints
 

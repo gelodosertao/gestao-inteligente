@@ -1,5 +1,9 @@
 # Handoff Codex — fase 2: venda atômica e idempotente
 
+> Documento histórico da fase 2. O estado fiscal atual está em
+> [integração fiscal externa](integracao-fiscal.md). As instruções do servidor
+> interno não se aplicam mais ao projeto de gestão.
+
 ## Estado de partida
 
 - Branch atual: `chore/testes-ci-etapa1`; o worktree contém as mudanças ainda não commitadas da fase 1.
@@ -50,7 +54,7 @@ Arquivos principais:
 
 - Testes SQL/integração: rollback após falha em cada etapa; repetição idempotente; conflito de payload; duas vendas concorrentes pelo último item; isolamento entre tenants; usuário inativo/sem permissão; tentativa de forjar tenant.
 - Fluxos: criar pendente sem alterar estoque/financeiro; finalizar uma vez; editar concluída com deltas; cancelar com devolução e estorno únicos; combos; produto sem controle de estoque; saldo insuficiente.
-- Regressão: `npm test`, `npm run typecheck`, `npm run build`; repetir os três comandos em `nfe_service` sem modificar seu comportamento.
+- Regressão: `npm test`, `npm run typecheck`, `npm run build`. O servidor fiscal é validado no projeto independente.
 - Aceite: para cada operação, todas as tabelas mudam juntas ou nenhuma muda; retries não duplicam efeitos; concorrência não perde baixas; nenhum cliente escolhe o tenant.
 
 ## Rollback
