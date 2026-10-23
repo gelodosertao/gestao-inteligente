@@ -74,45 +74,37 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, setView, currentUs
     <>
       {/* MOBILE BACKDROP */}
       {isMobileMenuOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-40 md:hidden backdrop-blur-sm animate-in fade-in duration-200"
-          onClick={closeMobileMenu}
-        />
+        <button type="button" aria-label="Fechar menu de navegação" className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={closeMobileMenu} />
       )}
 
       {/* SIDEBAR (Desktop & Mobile Drawer) */}
-      <div className={`
+      <div id="app-navigation" className={`
         fixed left-0 top-0 z-50 h-dvh flex flex-col 
-        bg-gai-navy text-white shadow-2xl border-r border-white/5
+        operation-sidebar text-white border-r
         transition-all duration-300 ease-in-out pt-safe
         ${isMobileMenuOpen ? 'translate-x-0 w-72' : '-translate-x-full md:translate-x-0'}
         ${isCollapsed ? 'md:w-20' : 'md:w-64'}
       `}>
         <div className="flex flex-col items-center justify-center relative shrink-0 transition-all duration-300">
-          <div className={`w-full bg-white flex flex-col items-center border-b border-slate-200 transition-all duration-500 ${isCollapsed ? 'p-1.5 h-16' : 'p-4 h-32'}`}>
+          <div className={`sidebar-brand w-full flex flex-col items-center border-b transition-all duration-500 ${isCollapsed ? 'p-2 h-20 md:p-1.5 md:h-16' : 'p-2 h-20'}`}>
             {/* Logo Container - Persists on Collapse */}
             <div className={`relative z-10 w-full h-full flex items-center justify-center select-none duration-500`}>
               <img
                 src="/logo.png"
                 alt="Gelo do Sertão"
-                className={`object-contain transition-all duration-500 drop-shadow-sm ${isCollapsed ? 'max-h-[66px] max-w-[90%] w-auto' : 'max-h-32 w-auto'}`}
+                className={`object-contain transition-all duration-500 ${isCollapsed ? 'max-h-16 md:max-h-14 max-w-[90%] w-auto' : 'max-h-16 w-auto'}`}
               />
             </div>
           </div>
 
           {/* Company Name Section */}
-          {!isCollapsed && (
+          {(!isCollapsed || isMobileMenuOpen) && (
             <div className="w-full pt-4 pb-2 text-center animate-in slide-in-from-top-2 duration-700">
               <p className="text-[10px] font-black text-gai-tech tracking-[0.3em] uppercase opacity-90 leading-none">
                 GELO DO SERTÃO
               </p>
             </div>
           )}
-
-          {/* Sparkles Clipped Separately */}
-          <div className="absolute -right-6 -top-6 text-gai-tech opacity-5 rotate-12 pointer-events-none overflow-hidden h-40 w-40">
-            <Sparkles size={100} />
-          </div>
 
           {/* Toggle Button - NOW FULLY VISIBLE */}
           <button
@@ -128,7 +120,8 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, setView, currentUs
           </button>
         </div>
 
-        <nav className="flex-1 py-6 px-3 space-y-1.5 overflow-y-auto overflow-x-hidden scrollbar-hide">
+        <nav aria-label="Módulos do sistema" className="flex-1 py-4 px-3 space-y-1 overflow-y-auto overflow-x-hidden">
+          <p className={`px-3 pb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-300 ${isCollapsed ? 'md:sr-only' : ''}`}>Módulos</p>
           {visibleItems.map((item) => {
             const isActive = currentView === item.id;
             return (
@@ -138,20 +131,22 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, setView, currentUs
                 onClick={() => { closeMobileMenu?.(); }}
                 className={`w-full flex items-center justify-start gap-3 p-3 rounded-xl transition-all duration-300 group relative active-scale touch-target
                   ${isActive
-                    ? 'bg-gai-tech text-white shadow-lg shadow-gai-tech/20'
+                    ? 'operation-nav-active text-white'
                     : 'text-slate-400 hover:bg-white/5 hover:text-white'
                   }
                   ${isCollapsed ? 'md:justify-center' : ''}
                 `}
                 title={isCollapsed ? item.label : ''}
+                aria-label={item.label}
+                aria-current={isActive ? 'page' : undefined}
               >
                 <item.icon size={20} className={`shrink-0 transition-transform duration-300 ${isActive ? 'text-white scale-110' : 'group-hover:scale-110'}`} />
                 <span className={`font-semibold text-sm whitespace-nowrap transition-all duration-300 ${isCollapsed ? 'md:opacity-0 md:w-0' : 'opacity-100'}`}>{item.label}</span>
-                {isActive && <div className={`absolute right-3 w-1 h-4 rounded-full bg-white/30 ${isCollapsed ? 'md:hidden' : 'block'}`} />}
+                {isActive && <div className="operation-locator absolute left-0 top-2 bottom-2 w-1" />}
 
                 {/* Pending Badge */}
                 {item.id === 'SALES' && (pendingOrdersCount || 0) > 0 && (
-                  <div className={`absolute right-2 bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-lg border border-white/20 animate-pulse ${isCollapsed ? 'top-1 right-1' : ''}`}>
+                  <div className={`absolute right-2 bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full border border-white/20 ${isCollapsed ? 'top-1 right-1' : ''}`}>
                     {pendingOrdersCount}
                   </div>
                 )}
@@ -186,14 +181,14 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, setView, currentUs
                 {currentUser.role}
               </p>
             </div>
-            <button onClick={onLogout} className="text-slate-500 hover:text-rose-400 transition-colors p-2 active-scale touch-target" title="Sair">
+            <button onClick={onLogout} aria-label="Sair do sistema" className="text-slate-300 hover:text-rose-300 transition-colors p-2 active-scale touch-target" title="Sair">
               <LogOut size={18} />
             </button>
           </div>
 
           {/* Collapsed User Icon (Desktop Only) */}
           <div className={`hidden ${isCollapsed ? 'md:flex' : ''} justify-center pt-1`}>
-            <button onClick={onLogout} className="text-slate-500 hover:text-rose-400 p-2 active-scale touch-target" title="Sair">
+            <button onClick={onLogout} aria-label="Sair do sistema" className="text-slate-300 hover:text-rose-300 p-2 active-scale touch-target" title="Sair">
               <LogOut size={20} />
             </button>
           </div>

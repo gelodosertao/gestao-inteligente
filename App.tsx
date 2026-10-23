@@ -8,6 +8,7 @@ import { Loader2, Menu } from 'lucide-react';
 import { usePlatform } from './hooks/usePlatform';
 import { useAppLifecycle } from './hooks/useAppLifecycle';
 import ExpirationAlert from './components/ExpirationAlert';
+import { canLoadDataset, getInitialView, hasModuleAccess } from './security/accessControl';
 
 // Lazy Load Components to prevent circular dependencies and "Cannot access before initialization" errors
 const AppSidebar = React.lazy(() => import('./components/AppSidebar'));
@@ -20,8 +21,8 @@ const Settings = React.lazy(() => import('./components/Settings'));
 const Login = React.lazy(() => import('./components/Login'));
 const Customers = React.lazy(() => import('./components/Customers'));
 const Pricing = React.lazy(() => import('./components/Pricing'));
-const OnlineMenu = React.lazy(() => import('./components/OnlineMenu'));
-const MenuConfig = React.lazy(() => import('./components/MenuConfig'));
+const PasswordChange = React.lazy(() => import('./components/PasswordChange'));
+const FeatureUnavailable = React.lazy(() => import('./components/PublicMenuUnavailable'));
 const Production = React.lazy(() => import('./components/Production'));
 const OrderCenter = React.lazy(() => import('./components/OrderCenter'));
 const Reports = React.lazy(() => import('./components/Reports'));
@@ -29,8 +30,8 @@ const Conciliacao = React.lazy(() => import('./components/Conciliacao'));
 const WholesalePOS = React.lazy(() => import('./components/WholesalePOS'));
 const VisitorLanding = React.lazy(() => import('./components/VisitorLanding'));
 const B2BLanding = React.lazy(() => import('./components/B2BLanding'));
+const PublicContentPage = React.lazy(() => import('./components/PublicContentPage'));
 const WhatsAppRedirect = React.lazy(() => import('./components/WhatsAppRedirect'));
-const FestasRadar = React.lazy(() => import('./components/FestasRadar'));
 const TermsAndPrivacy = React.lazy(() => import('./components/TermsAndPrivacy'));
 // CRM Temporarily Disabled
 // const CRM = React.lazy(() => import('./components/CRM'));
@@ -39,6 +40,7 @@ const App: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [authResolved, setAuthResolved] = useState(false);
   const { isNative } = usePlatform();
   const { isActive } = useAppLifecycle();
 
@@ -107,27 +109,36 @@ const App: React.FC = () => {
   // --- AUTH & INITIAL DATA ---
   useEffect(() => {
     const isMenuMode = location.pathname === '/cardapio-adega';
+    let cancelled = false;
 
-    // Check for active session on load
-    dbUsers.getCurrentUser().then(user => {
-      if (user) {
+    const restoreSession = async () => {
+      try {
+        const securityVersion = 'security-p0-v1';
+        if (localStorage.getItem('security_session_version') !== securityVersion) {
+          await dbUsers.logout();
+          localStorage.setItem('security_session_version', securityVersion);
+          return;
+        }
+
+        const user = await dbUsers.getCurrentUser();
+        if (cancelled || !user) return;
         setCurrentUser(user);
 
-        // Only navigate if NOT in menu mode and currently at root or login
-        if (!isMenuMode && (location.pathname === '/' || location.pathname === '/login')) {
-          let initialView: ViewState = 'DASHBOARD';
-          if (user.role === 'WHOLESALE_REPRESENTATIVE' || (user.role as string) === 'WHOLESALE_SUPERVISOR') {
-            initialView = 'ATACADO';
-          } else if (user.allowedModules && user.allowedModules.length > 0) {
-            initialView = user.allowedModules[0] as ViewState;
-          } else {
-            if (user.role === 'FACTORY') initialView = 'PRODUCTION';
-            else if (user.role === 'OPERATOR') initialView = 'SALES';
-          }
-          setCurrentView(initialView);
+        if (user.mustChangePassword && !isMenuMode) {
+          navigate('/alterar-senha', { replace: true });
+        } else if (!isMenuMode && (location.pathname === '/' || location.pathname === '/login')) {
+          setCurrentView(getInitialView(user));
         }
+      } catch (error) {
+        console.error('Falha ao restaurar sessão:', error);
+        setCurrentUser(null);
+      } finally {
+        if (!cancelled) setAuthResolved(true);
       }
-    });
+    };
+
+    void restoreSession();
+    return () => { cancelled = true; };
   }, []);
 
   const tenantId = currentUser?.tenantId || '00000000-0000-0000-0000-000000000000';
@@ -135,16 +146,17 @@ const App: React.FC = () => {
   const { data: appData, isFetching: isQueryFetching, error: queryError, refetch } = useQuery({
     queryKey: ['app-data', tenantId],
     queryFn: async () => {
+      if (!currentUser) return { p: [], s: [], f: [], c: [], cc: [] };
       const [p, s, f, c, cc] = await Promise.all([
-        dbProducts.getAll(tenantId),
-        dbSales.getAll(tenantId),
-        dbFinancials.getAll(tenantId),
-        dbCustomers.getAll(tenantId),
-        dbCashClosings.getAll(tenantId)
+        canLoadDataset(currentUser, 'products') ? dbProducts.getAll(tenantId) : Promise.resolve([]),
+        canLoadDataset(currentUser, 'sales') ? dbSales.getAll(tenantId) : Promise.resolve([]),
+        canLoadDataset(currentUser, 'financials') ? dbFinancials.getAll(tenantId) : Promise.resolve([]),
+        canLoadDataset(currentUser, 'customers') ? dbCustomers.getAll(tenantId) : Promise.resolve([]),
+        canLoadDataset(currentUser, 'cashClosings') ? dbCashClosings.getAll(tenantId) : Promise.resolve([]),
       ]);
       return { p, s, f, c, cc };
     },
-    enabled: !!currentUser && isActive,
+    enabled: !!currentUser && currentUser.isActive && !currentUser.mustChangePassword && isActive,
     staleTime: 1000 * 60 * 5, // 5 min
     networkMode: 'offlineFirst',
   });
@@ -176,7 +188,7 @@ const App: React.FC = () => {
   }, [isQueryFetching, appData]);
 
   useEffect(() => {
-    if (currentUser && isActive) {
+    if (currentUser && currentUser.isActive && !currentUser.mustChangePassword && isActive) {
       // Initial Order Count
       checkPendingOrders();
       // Poll every 30s - only when app is active
@@ -209,6 +221,27 @@ const App: React.FC = () => {
 
   // --- GLOBAL ACTIONS (Connected to DB) ---
 
+  const pendingSaleOperations = React.useRef(new Map<string, string>());
+
+  const getSaleOperation = (action: 'create' | 'update' | 'cancel', sale: Sale) => {
+    const key = `${action}:${sale.id}:${JSON.stringify(action === 'cancel' ? {} : sale)}`;
+    const existing = pendingSaleOperations.current.get(key);
+    if (existing) return { key, operationId: existing };
+
+    const operationId = crypto.randomUUID();
+    pendingSaleOperations.current.set(key, operationId);
+    return { key, operationId };
+  };
+
+  const refreshSaleData = async () => {
+    const refreshed = await refetch();
+    if (!refreshed.data) return;
+
+    setProducts(refreshed.data.p);
+    setSales(refreshed.data.s);
+    setFinancials(refreshed.data.f);
+  };
+
   const handleUpdateProduct = async (updatedProduct: Product) => {
     setProducts(prev => prev.map(p => p.id === updatedProduct.id ? updatedProduct : p));
     try {
@@ -230,6 +263,10 @@ const App: React.FC = () => {
   };
 
   const handleDeleteProduct = async (productId: string) => {
+    if (currentUser?.role !== 'ADMIN') {
+      alert('Apenas administradores podem excluir registros.');
+      return;
+    }
     setProducts(prev => prev.filter(p => p.id !== productId));
     try {
       await dbProducts.delete(productId);
@@ -240,85 +277,17 @@ const App: React.FC = () => {
   };
 
   const handleAddSale = async (newSale: Sale) => {
-    setSales(prev => [newSale, ...prev]);
+    const operation = getSaleOperation('create', newSale);
 
-    // Calculate total quantity sold for each product (handling Combos)
-    const soldQuantities: Record<string, number> = {};
-
-    newSale.items.forEach(item => {
-      const product = products.find(p => p.id === item.productId);
-      if (product?.comboItems && product.comboItems.length > 0) {
-        // It's a Combo: deduct stock from components
-        product.comboItems.forEach(component => {
-          soldQuantities[component.productId] = (soldQuantities[component.productId] || 0) + (component.quantity * item.quantity);
-        });
-      } else {
-        // Simple Product: deduct directly
-        soldQuantities[item.productId] = (soldQuantities[item.productId] || 0) + item.quantity;
-      }
-    });
-
-    const updatedProductsList = products.map(prod => {
-      const qtySold = soldQuantities[prod.id];
-      if (qtySold) {
-        if (newSale.branch === Branch.FILIAL) {
-          return { ...prod, stockFilial: Math.max(0, prod.stockFilial - qtySold) };
-        } else {
-          // For Matriz, only deduct if deposit is explicitly chosen
-          if (newSale.matrizDeposit === 'Barreiras') {
-            return { ...prod, stockMatrizBarreiras: Math.max(0, prod.stockMatrizBarreiras - qtySold) };
-          } else if (newSale.matrizDeposit === 'Ibotirama') {
-            return { ...prod, stockMatrizIbotirama: Math.max(0, prod.stockMatrizIbotirama - qtySold) };
-          }
-          // If no deposit chosen (e.g. Pending from Wholesale POS), do not deduct yet
-          return prod;
-        }
-      }
-      return prod;
-    });
-    setProducts(updatedProductsList);
-
-    // Only add to financials if Completed
-    if (newSale.status === 'Completed') {
-      const newFinancial: FinancialRecord = {
-        id: crypto.randomUUID(),
-        date: newSale.date,
-        description: `Venda #${newSale.id} - ${newSale.customerName}`,
-        amount: newSale.total,
-        type: 'Income',
-        category: 'Vendas',
-        branch: newSale.branch,
-        paymentMethod: newSale.paymentMethod as any
-      };
-      setFinancials(prev => [newFinancial, ...prev]);
-
-      try {
-        await dbSales.add(newSale, currentUser!.tenantId);
-        await dbFinancials.addBatch([newFinancial], currentUser!.tenantId);
-
-        for (const prodId of Object.keys(soldQuantities)) {
-          const product = updatedProductsList.find(p => p.id === prodId);
-          if (product) {
-            await dbProducts.update(product);
-          }
-        }
-      } catch (error: any) {
-        console.error("Erro ao sincronizar venda com banco:", error);
-        alert(`A venda (ID: ${newSale.id}) foi registrada localmente mas houve erro ao salvar na nuvem: ${error.message || JSON.stringify(error)}`);
-      }
-    } else {
-      // If Pending, just save sale and update stock (stock is reserved even if pending? Usually yes)
-      try {
-        await dbSales.add(newSale, currentUser!.tenantId);
-        for (const prodId of Object.keys(soldQuantities)) {
-          const product = updatedProductsList.find(p => p.id === prodId);
-          if (product) {
-            await dbProducts.update(product);
-          }
-        }
-      } catch (error: any) {
-        console.error("Erro ao sincronizar venda pendente:", error);
-      }
+    try {
+      await dbSales.applyOperation('create', newSale, operation.operationId);
+      await refreshSaleData();
+      pendingSaleOperations.current.delete(operation.key);
+    } catch (error: any) {
+      console.error("Erro ao registrar venda:", error);
+      await refreshSaleData().catch(refreshError => console.error("Erro ao recarregar vendas:", refreshError));
+      alert(`A venda não foi confirmada. Tente novamente: ${error.message || JSON.stringify(error)}`);
+      return;
     }
 
     // Logistics Integration for Wholesale POS Deliveries
@@ -381,6 +350,10 @@ const App: React.FC = () => {
   };
 
   const handleDeleteFinancialRecord = async (recordId: string) => {
+    if (currentUser?.role !== 'ADMIN') {
+      alert('Apenas administradores podem excluir registros.');
+      return;
+    }
     if (!confirm("Tem certeza que deseja excluir este registro financeiro?")) return;
     setFinancials(prev => prev.filter(r => r.id !== recordId));
     try {
@@ -422,6 +395,10 @@ const App: React.FC = () => {
   };
 
   const handleDeleteCustomer = async (customerId: string) => {
+    if (currentUser?.role !== 'ADMIN') {
+      alert('Apenas administradores podem excluir registros.');
+      return;
+    }
     if (!confirm("Tem certeza que deseja excluir este cliente?")) return;
     setCustomers(prev => prev.filter(c => c.id !== customerId));
     try {
@@ -433,131 +410,39 @@ const App: React.FC = () => {
   };
 
   const handleUpdateSale = async (updatedSale: Sale) => {
-    const oldSale = sales.find(s => s.id === updatedSale.id);
-    setSales(prev => prev.map(s => s.id === updatedSale.id ? updatedSale : s));
+    const operation = getSaleOperation('update', updatedSale);
 
-    // If it was Pending/Cancelled and now it's Completed, we should deduct stock and record financial
-    const finalizeStatuses = ['Completed', 'Finalizado pela Fábrica'];
-    const isFinalizing = oldSale && !finalizeStatuses.includes(oldSale.status) && finalizeStatuses.includes(updatedSale.status);
-
-    if (isFinalizing) {
-      const soldQuantities: Record<string, number> = {};
-      updatedSale.items.forEach(item => {
-        const product = products.find(p => p.id === item.productId);
-        if (product?.comboItems && product.comboItems.length > 0) {
-          product.comboItems.forEach(component => {
-            soldQuantities[component.productId] = (soldQuantities[component.productId] || 0) + (component.quantity * item.quantity);
-          });
-        } else {
-          soldQuantities[item.productId] = (soldQuantities[item.productId] || 0) + item.quantity;
-        }
-      });
-
-      const updatedProductsList = products.map(prod => {
-        const qtySold = soldQuantities[prod.id];
-        if (qtySold) {
-          if (updatedSale.branch === Branch.FILIAL) {
-            return { ...prod, stockFilial: Math.max(0, prod.stockFilial - qtySold) };
-          } else {
-            if (updatedSale.matrizDeposit === 'Barreiras') {
-              return { ...prod, stockMatrizBarreiras: Math.max(0, prod.stockMatrizBarreiras - qtySold) };
-            } else if (updatedSale.matrizDeposit === 'Ibotirama') {
-              return { ...prod, stockMatrizIbotirama: Math.max(0, prod.stockMatrizIbotirama - qtySold) };
-            }
-          }
-        }
-        return prod;
-      });
-      setProducts(updatedProductsList);
-
-      const newFinancial: FinancialRecord = {
-        id: crypto.randomUUID(),
-        date: updatedSale.date,
-        description: `Finalização Venda #${updatedSale.id} - ${updatedSale.customerName}`,
-        amount: updatedSale.total,
-        type: 'Income',
-        category: 'Vendas',
-        branch: updatedSale.branch,
-        paymentMethod: updatedSale.paymentMethod as any
-      };
-      setFinancials(prev => [newFinancial, ...prev]);
-
-      try {
-        await dbSales.update(updatedSale);
-        await dbFinancials.addBatch([newFinancial], currentUser!.tenantId);
-        for (const prodId of Object.keys(soldQuantities)) {
-          const product = updatedProductsList.find(p => p.id === prodId);
-          if (product) await dbProducts.update(product);
-        }
-      } catch (e) {
-        console.error("Erro ao atualizar stock/financeiro na finalização:", e);
-      }
-    } else {
-      // Just update the sale info
-      try {
-        await dbSales.update(updatedSale);
-      } catch (e) {
-        console.error(e);
-        alert("Erro ao atualizar venda no banco.");
-      }
+    try {
+      await dbSales.applyOperation('update', updatedSale, operation.operationId);
+      await refreshSaleData();
+      pendingSaleOperations.current.delete(operation.key);
+    } catch (error: any) {
+      console.error("Erro ao atualizar venda:", error);
+      await refreshSaleData().catch(refreshError => console.error("Erro ao recarregar vendas:", refreshError));
+      alert(`A alteração não foi confirmada. Tente novamente: ${error.message || JSON.stringify(error)}`);
     }
   };
 
   const handleDeleteSale = async (saleId: string) => {
+    if (currentUser?.role !== 'ADMIN') {
+      alert('Apenas administradores podem excluir registros.');
+      return;
+    }
     const saleToDelete = sales.find(s => s.id === saleId);
     if (!saleToDelete) return;
 
     if (!confirm("Tem certeza que deseja excluir esta venda? O estoque será devolvido automaticamente.")) return;
 
-    // Calculate stock to return
-    const returnedQuantities: Record<string, number> = {};
-
-    saleToDelete.items.forEach(item => {
-      const product = products.find(p => p.id === item.productId);
-      if (product?.comboItems && product.comboItems.length > 0) {
-        // It's a Combo: return stock to components
-        product.comboItems.forEach(component => {
-          returnedQuantities[component.productId] = (returnedQuantities[component.productId] || 0) + (component.quantity * item.quantity);
-        });
-      } else {
-        // Simple Product: return directly
-        returnedQuantities[item.productId] = (returnedQuantities[item.productId] || 0) + item.quantity;
-      }
-    });
-
-    // Update local products state
-    const updatedProductsList = products.map(prod => {
-      const qtyReturned = returnedQuantities[prod.id];
-      if (qtyReturned) {
-        if (saleToDelete.branch === Branch.FILIAL) {
-          return { ...prod, stockFilial: prod.stockFilial + qtyReturned };
-        } else {
-          if (saleToDelete.matrizDeposit === 'Barreiras') {
-            return { ...prod, stockMatrizBarreiras: prod.stockMatrizBarreiras + qtyReturned };
-          }
-          return { ...prod, stockMatrizIbotirama: prod.stockMatrizIbotirama + qtyReturned };
-        }
-      }
-      return prod;
-    });
-    setProducts(updatedProductsList);
-
-    // Update local sales state
-    setSales(prev => prev.filter(s => s.id !== saleId));
+    const operation = getSaleOperation('cancel', saleToDelete);
 
     try {
-      await dbSales.delete(saleId);
-
-      // Update products in DB
-      for (const prodId of Object.keys(returnedQuantities)) {
-        const product = updatedProductsList.find(p => p.id === prodId);
-        if (product) {
-          await dbProducts.update(product);
-        }
-      }
-    } catch (e) {
-      console.error(e);
-      alert("Erro ao excluir venda no banco.");
+      await dbSales.applyOperation('cancel', saleToDelete, operation.operationId);
+      await refreshSaleData();
+      pendingSaleOperations.current.delete(operation.key);
+    } catch (error: any) {
+      console.error("Erro ao cancelar venda:", error);
+      await refreshSaleData().catch(refreshError => console.error("Erro ao recarregar vendas:", refreshError));
+      alert(`O cancelamento não foi confirmado. Tente novamente: ${error.message || JSON.stringify(error)}`);
     }
   };
 
@@ -572,6 +457,10 @@ const App: React.FC = () => {
   };
 
   const handleDeleteCashClosing = async (id: string) => {
+    if (currentUser?.role !== 'ADMIN') {
+      alert('Apenas administradores podem excluir registros.');
+      return;
+    }
     if (!confirm("Tem certeza que deseja excluir este fechamento?")) return;
     setCashClosings(prev => prev.filter(c => c.id !== id));
     try {
@@ -588,17 +477,16 @@ const App: React.FC = () => {
 
   const handleLogin = (user: User) => {
     setCurrentUser(user);
-    let initialView: ViewState = 'DASHBOARD';
-    // Compatibilidade: Aceitar tanto a nova role quanto a antiga para redirecionamento
-    if (user.role === 'WHOLESALE_REPRESENTATIVE' || (user.role as string) === 'WHOLESALE_SUPERVISOR') {
-      initialView = 'ATACADO';
-    } else if (user.allowedModules && user.allowedModules.length > 0) {
-      initialView = user.allowedModules[0] as ViewState;
-    } else {
-      if (user.role === 'FACTORY') initialView = 'PRODUCTION';
-      else if (user.role === 'OPERATOR') initialView = 'SALES';
+    if (user.mustChangePassword) {
+      navigate('/alterar-senha', { replace: true });
+      return;
     }
-    setCurrentView(initialView);
+    setCurrentView(getInitialView(user));
+  };
+
+  const handlePasswordChanged = (user: User) => {
+    setCurrentUser(user);
+    setCurrentView(getInitialView(user));
   };
 
   const handleLogout = async () => {
@@ -611,6 +499,27 @@ const App: React.FC = () => {
 
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [location.pathname]);
+  useEffect(() => {
+    if (!isMobileMenuOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsMobileMenuOpen(false);
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [isMobileMenuOpen]);
+
+  const currentViewLabel = {
+    DASHBOARD: 'Dashboard', INVENTORY: 'Estoque', FINANCIAL: 'Financeiro',
+    CUSTOMERS: 'Clientes', PRODUCTION: 'Produção', REPORTS: 'Relatórios',
+    ORDER_CENTER: 'Pedidos', PRICING: 'Custos', SETTINGS: 'Ajustes do sistema',
+    MENU_CONFIG: 'Site / Cardápio', AI_INSIGHTS: 'Assistente', CRM: 'CRM',
+    FESTAS_RADAR: 'Caçador de Festas', LOGISTICS: 'Logística',
+    CONCILIACAO: 'Conciliação',
+    SALES: 'PDV Varejo', ATACADO: 'PDV Atacado', ONLINE_MENU: 'Cardápio',
+  }[currentView];
 
   const renderContent = () => {
     if (isLoading) {
@@ -622,7 +531,7 @@ const App: React.FC = () => {
       );
     }
 
-    if (dbError) {
+    if (dbError && !appData) {
       return (
         <div className="min-h-screen bg-gradient-to-br from-slate-900 via-sky-950 to-slate-900 flex items-center justify-center p-6 relative overflow-hidden">
           {/* Background particles */}
@@ -737,6 +646,15 @@ const App: React.FC = () => {
   };
 
   const renderContentInternal = () => {
+    if (!currentUser || !hasModuleAccess(currentUser, currentView)) {
+      return (
+        <div className="flex flex-col items-center justify-center p-12 mt-10 bg-white rounded-2xl shadow-sm border border-slate-200">
+          <h2 className="text-2xl font-bold text-slate-800 mb-2">Acesso restrito</h2>
+          <p className="text-slate-500">Seu perfil não possui permissão para acessar este módulo.</p>
+        </div>
+      );
+    }
+
     switch (currentView) {
       case 'DASHBOARD':
         if (currentUser?.role !== 'ADMIN' && !(currentUser?.allowedModules || []).includes('DASHBOARD')) {
@@ -751,8 +669,10 @@ const App: React.FC = () => {
       case 'REPORTS':
         return <Reports sales={sales} products={products} customers={customers} onBack={() => setCurrentView('DASHBOARD')} />;
       case 'CONCILIACAO':
-        if (currentUser?.role !== 'ADMIN') return <Dashboard products={products} sales={sales} financials={financials} customers={customers} onNavigate={setCurrentView} />;
-        return <Conciliacao sales={sales} financials={financials} products={products} onBack={() => setCurrentView('DASHBOARD')} onAddFinancialRecord={handleAddFinancialRecord} />;
+        if (currentUser?.role !== 'ADMIN') {
+          return <div className="flex flex-col items-center justify-center p-12 mt-10 bg-white rounded-2xl shadow-sm border border-slate-200"><h2 className="text-2xl font-bold text-slate-800 mb-2">Acesso restrito</h2><p className="text-slate-500">A conciliação financeira é exclusiva para administradores.</p></div>;
+        }
+        return <Conciliacao sales={sales} financials={financials} products={products} onBack={() => setCurrentView('DASHBOARD')} onDataChanged={refreshSaleData} />;
       case 'INVENTORY':
         return <Inventory products={products} sales={sales} financials={financials} onUpdateProduct={handleUpdateProduct} onAddProduct={handleAddProduct} onDeleteProduct={handleDeleteProduct} onOpenPricing={(id) => { setPricingProductId(id); setCurrentView('PRICING'); }} onAddFinancialRecord={handleAddFinancialRecord} onBack={() => setCurrentView('DASHBOARD')} currentUser={currentUser!} />;
       case 'SALES':
@@ -767,24 +687,15 @@ const App: React.FC = () => {
       case 'AI_INSIGHTS':
         return <AIAssistant products={products} sales={sales} financials={financials} onBack={() => setCurrentView('DASHBOARD')} />;
       case 'MENU_CONFIG':
-        return <MenuConfig onBack={() => setCurrentView('DASHBOARD')} tenantId={currentUser!.tenantId} />;
+        return <FeatureUnavailable featureName="Site / Cardápio" />;
       case 'PRODUCTION':
         return <Production products={products} currentUser={currentUser!} onUpdateProduct={handleUpdateProduct} onAddProduct={handleAddProduct} onBack={() => setCurrentView('DASHBOARD')} />;
       case 'SETTINGS':
         return <Settings currentUser={currentUser!} onResetData={handleResetData} />;
       case 'FESTAS_RADAR':
-        return <FestasRadar />;
+        return <FeatureUnavailable featureName="Caçador de Festas" />;
       case 'LOGISTICS':
-        return (
-          <div className="w-full h-[calc(100vh-10rem)] md:h-[calc(100vh-7rem)] rounded-2xl overflow-hidden border border-slate-200 bg-white shadow-sm">
-            <iframe
-              src={import.meta.env.VITE_LOGISTICS_URL || (window.location.hostname === 'localhost' ? 'http://localhost:3000' : '/logistica')}
-              className="w-full h-full border-none"
-              title="Painel de Logística"
-              allow="geolocation"
-            />
-          </div>
-        );
+        return <FeatureUnavailable featureName="Painel de Logística" />;
       // CRM removido temporariamente
       default:
         return <Dashboard products={products} sales={sales} financials={financials} customers={customers} onNavigate={setCurrentView} />;
@@ -792,12 +703,22 @@ const App: React.FC = () => {
   };
 
   // Master Render Logic using Routes
+  if (!authResolved && location.pathname !== '/cardapio-adega') {
+    return <div className="h-dvh w-screen flex items-center justify-center bg-slate-50"><Loader2 size={48} className="animate-spin text-orange-500" /></div>;
+  }
+
   return (
     <Routes>
       {/* Public Route */}
       <Route path="/cardapio-adega" element={
         <Suspense fallback={<div className="h-dvh w-screen flex items-center justify-center bg-slate-50"><Loader2 size={48} className="animate-spin text-orange-500" /></div>}>
-          <OnlineMenu />
+          <FeatureUnavailable featureName="Cardápio" fullScreen />
+        </Suspense>
+      } />
+
+      <Route path="/logistica/*" element={
+        <Suspense fallback={<div className="h-dvh w-screen flex items-center justify-center bg-slate-50"><Loader2 size={48} className="animate-spin text-orange-500" /></div>}>
+          <FeatureUnavailable featureName="Painel de Logística" fullScreen />
         </Suspense>
       } />
 
@@ -805,17 +726,25 @@ const App: React.FC = () => {
       <Route path="/login" element={
         !currentUser ? (
           <Suspense fallback={<div className="h-dvh w-screen flex items-center justify-center bg-blue-900"><Loader2 size={48} className="animate-spin text-white" /></div>}>
-            <Login onLogin={handleLogin} onOpenMenu={() => navigate('/cardapio-adega')} />
+            <Login onLogin={handleLogin} />
           </Suspense>
-        ) : <Navigate to="/gestao" replace />
+        ) : <Navigate to={currentUser.mustChangePassword ? '/alterar-senha' : '/gestao'} replace />
+      } />
+
+      <Route path="/alterar-senha" element={
+        currentUser ? (
+          <Suspense fallback={<div className="h-dvh w-screen flex items-center justify-center bg-slate-50"><Loader2 size={48} className="animate-spin text-orange-500" /></div>}>
+            <PasswordChange user={currentUser} onChanged={handlePasswordChanged} onLogout={handleLogout} />
+          </Suspense>
+        ) : <Navigate to="/login" replace />
       } />
 
       <Route path="/*" element={
-        !currentUser ? <Navigate to="/login" replace /> : (
+        !currentUser ? <Navigate to="/login" replace /> : currentUser.mustChangePassword ? <Navigate to="/alterar-senha" replace /> : (
           <Routes>
             <Route path="/pdv-atacado" element={
-              <Suspense fallback={<div className="h-dvh w-screen flex items-center justify-center bg-slate-50"><Loader2 size={48} className="animate-spin text-orange-500" /></div>}>
-                <div className="flex w-full min-h-dvh bg-slate-50 text-slate-900 font-sans">
+              hasModuleAccess(currentUser, 'ATACADO') ? <Suspense fallback={<div className="h-dvh w-screen flex items-center justify-center bg-slate-50"><Loader2 size={48} className="animate-spin text-orange-500" /></div>}>
+                <div className="app-shell operation-world flex w-full min-h-dvh text-slate-900 font-sans">
                   <WholesalePOS
                     products={products}
                     sales={sales}
@@ -829,12 +758,12 @@ const App: React.FC = () => {
                     onBack={currentUser.role === 'ADMIN' || currentUser.role === 'WHOLESALE_REPRESENTATIVE' ? () => navigate('/gestao') : undefined}
                   />
                 </div>
-              </Suspense>
+              </Suspense> : <Navigate to="/gestao" replace />
             } />
 
             <Route path="/pdv-adega" element={
-              <Suspense fallback={<div className="h-dvh w-screen flex items-center justify-center bg-slate-50"><Loader2 size={48} className="animate-spin text-orange-500" /></div>}>
-                <div className="flex w-full min-h-dvh bg-slate-50 text-slate-900 font-sans">
+              hasModuleAccess(currentUser, 'SALES') ? <Suspense fallback={<div className="h-dvh w-screen flex items-center justify-center bg-slate-50"><Loader2 size={48} className="animate-spin text-orange-500" /></div>}>
+                <div className="app-shell operation-world flex w-full min-h-dvh text-slate-900 font-sans">
                   <Sales
                     sales={sales}
                     products={products}
@@ -849,22 +778,25 @@ const App: React.FC = () => {
                     pendingOrdersCount={pendingOrdersCount}
                   />
                 </div>
-              </Suspense>
+              </Suspense> : <Navigate to="/gestao" replace />
             } />
 
             <Route path="*" element={
               <Suspense fallback={<div className="h-dvh w-screen flex items-center justify-center bg-slate-50"><Loader2 size={48} className="animate-spin text-orange-500" /></div>}>
-                <div className="flex w-full min-h-dvh bg-slate-50 text-slate-900 font-sans">
-                  <div className="md:hidden fixed top-0 left-0 right-0 pt-safe glass z-40 shadow-xl">
+                <div className="app-shell operation-world flex w-full min-h-dvh text-slate-900 font-sans">
+                  <div className="md:hidden fixed top-0 left-0 right-0 pt-safe bg-white/95 z-40 border-b border-slate-200 shadow-sm">
                     <div className="h-16 flex items-center justify-between px-4">
                       <div className="flex items-center">
                         <button
                           onClick={() => setIsMobileMenuOpen(true)}
+                          aria-label="Abrir menu de navegação"
+                          aria-expanded={isMobileMenuOpen}
+                          aria-controls="app-navigation"
                           className="text-slate-800 p-2 hover:bg-slate-100 rounded-xl active-scale touch-target"
                         >
                           <Menu size={24} />
                         </button>
-                        <span className="ml-3 text-slate-900 font-black text-sm tracking-[0.2em] uppercase">GELO DO SERTÃO</span>
+                        <span className="ml-3 text-slate-900 font-bold text-sm truncate">{currentViewLabel}</span>
                         {isNative && (
                           <span className="ml-2 px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold rounded uppercase">App</span>
                         )}
@@ -890,11 +822,18 @@ const App: React.FC = () => {
                     pendingOrdersCount={pendingOrdersCount}
                   />
 
-                  <main className={`flex-1 transition-all duration-300 pb-safe ${currentView === 'SALES' ? 'pt-[calc(4rem+env(safe-area-inset-top))] p-0' : 'pt-[calc(5rem+env(safe-area-inset-top))] px-4 pb-4 md:p-4 lg:p-8'} ${isSidebarCollapsed ? 'md:ml-20' : 'md:ml-20 lg:ml-64'}`}>
+                  <main id="main-content" className={`min-w-0 flex-1 transition-all duration-300 pb-safe ${currentView === 'SALES' ? 'pt-[calc(4rem+env(safe-area-inset-top))] p-0' : 'pt-[calc(5rem+env(safe-area-inset-top))] px-4 pb-4 md:p-4 lg:p-8'} ${isSidebarCollapsed ? 'md:ml-20' : 'md:ml-64'}`}>
                     <div className="hidden md:block fixed top-4 right-4 z-50 md:top-6 md:right-8">
                       <ExpirationAlert products={products} />
                     </div>
                     <div className={`${currentView === 'SALES' ? 'w-full px-2' : 'max-w-7xl mx-auto'} h-full pb-8 md:pb-4`}>
+                      {currentView !== 'SALES' && <div className="operation-context"><span>Gelo do Sertão <span aria-hidden="true">/</span> Sistema</span><strong>{currentViewLabel}</strong></div>}
+                      {dbError && appData && (
+                        <div role="status" className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-950 ring-1 ring-amber-200">
+                          <span>{dbError}</span>
+                          <button type="button" onClick={() => void refetch()} className="min-h-11 rounded-lg px-3 font-semibold underline underline-offset-4 hover:bg-amber-100">Tentar sincronizar novamente</button>
+                        </div>
+                      )}
                       {renderContent()}
                     </div>
                   </main>
@@ -916,6 +855,10 @@ const App: React.FC = () => {
           <B2BLanding />
         </Suspense>
       } />
+
+      <Route path="/sobre" element={<Suspense fallback={null}><PublicContentPage page="about" /></Suspense>} />
+      <Route path="/produtos" element={<Suspense fallback={null}><PublicContentPage page="products" /></Suspense>} />
+      <Route path="/produtos/:slug" element={<Suspense fallback={null}><PublicContentPage page="detail" /></Suspense>} />
 
       <Route path="/wpp" element={
         <Suspense fallback={<div className="h-dvh w-screen flex items-center justify-center bg-slate-50"><Loader2 size={48} className="animate-spin text-green-500" /></div>}>

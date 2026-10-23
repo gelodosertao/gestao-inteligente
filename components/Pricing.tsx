@@ -90,11 +90,11 @@ const Pricing: React.FC<PricingProps> = ({ products, initialProductId, onUpdateP
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div className="flex items-center gap-3">
-                    <button onClick={onBack} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
+                    <button onClick={onBack} aria-label="Voltar à gestão" className="p-2 hover:bg-slate-200 rounded-full transition-colors touch-target">
                         <ArrowLeft size={24} className="text-slate-600" />
                     </button>
                     <div>
-                        <h2 className="text-2xl font-bold text-slate-800">Custo de Produção</h2>
+                        <h1 className="text-2xl font-bold text-slate-900">Custo de Produção</h1>
                         <p className="text-slate-500">Defina a receita e custos para produção na fábrica.</p>
                     </div>
                 </div>

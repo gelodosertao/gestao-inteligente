@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#f8ead3" />
+  <meta name="description" content="Encontrou uma placa premiada? Confira seu código na campanha Gelo Premiado." />
+  <title>Gelo Premiado | Gelo do Sertão</title>
+  <link rel="icon" href="/logo.png" />
+  <link rel="stylesheet" href="./styles.css" />
+  <script src="./config.js" defer></script>
+  <script type="module" src="./public.js"></script>
+</head>
+<body>
+  <main class="campaign-shell">
+    <header class="topbar"><a class="brand" href="/"><img src="/logo.png" alt="Gelo do Sertão" /><span>Gelo do Sertão</span></a><span class="edition">Campanha especial</span></header>
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="hero-copy"><span class="eyebrow">ACHOU UMA PLACA? A SORTE PODE SER SUA.</span><h1 id="hero-title">O seu gelo<br /><em>veio premiado?</em></h1><p>Olhe o código na placa encontrada dentro da embalagem. Digite abaixo e descubra seu prêmio.</p><a class="hero-link" href="#verificar">Verificar meu código <span aria-hidden="true">↓</span></a></div>
+      <div class="hero-art" aria-hidden="true"><span class="orb orb-one"></span><span class="orb orb-two"></span><span class="ice ice-one">✦</span><span class="ice ice-two">✦</span><strong>GELO<br />PREMIADO<span>★</span></strong><small>Refrescou. Ganhou.</small></div>
+    </section>
+    <section class="verify-wrap" id="verificar" aria-labelledby="verify-title"><div class="step-label">01 / CONFIRA SUA SORTE</div><div class="verify-card"><div><h2 id="verify-title">Seu código pode valer um prêmio.</h2><p>Digite o código da placa. Para códigos GS, você também pode informar só os quatro números.</p></div><form id="verify-form"><label for="code">Código da placa</label><div class="form-row"><input id="code" name="code" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="GS-2156" maxlength="32" required /><button type="submit">Verificar código <span aria-hidden="true">→</span></button></div></form><div id="result" class="result" role="status" aria-live="polite" hidden></div></div></section>
+    <section class="how-it-works" aria-labelledby="how-title"><div class="step-label">02 / COMO FUNCIONA</div><h2 id="how-title">Três passos para aproveitar.</h2><div class="steps"><article><span>01</span><h3>Encontre a placa</h3><p>Procure a placa premiada nos gelos de sabor participantes.</p></article><article><span>02</span><h3>Confira o código</h3><p>Leia o QR Code e digite o código impresso na placa.</p></article><article><span>03</span><h3>Apresente à equipe</h3><p>Se o código for válido, guarde a placa e combine a retirada do prêmio com nossa equipe.</p></article></div></section>
+    <footer><span>© <span id="year"></span> Gelo do Sertão</span><span>Guarde sua placa original para confirmar o prêmio.</span></footer>
+  </main>
+</body>
+</html>

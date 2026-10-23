@@ -304,18 +304,18 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div className="flex items-center gap-3">
-                    <button onClick={onBack} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
+                    <button onClick={onBack} aria-label="Voltar à gestão" className="p-2 hover:bg-slate-200 rounded-full transition-colors touch-target">
                         <ArrowLeft size={24} className="text-slate-600" />
                     </button>
                     <div>
-                        <h2 className="text-2xl font-bold text-slate-800">Clientes</h2>
+                        <h1 className="text-2xl font-bold text-slate-900">Clientes</h1>
                         <p className="text-slate-500">Gerencie sua base de clientes e importações.</p>
                     </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
                     <button
                         onClick={() => fileInputRef.current?.click()}
-                        className="bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 px-4 py-2 rounded-lg font-bold flex items-center gap-2 transition-colors"
+                        className="min-h-11 bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 px-4 py-2 rounded-lg font-bold flex items-center gap-2 transition-colors"
                     >
                         <Upload size={18} /> Importar (Excel/XML)
                     </button>
@@ -328,7 +328,7 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
                     />
                     <button
                         onClick={() => setShowAddModal(true)}
-                        className="bg-blue-800 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 shadow-lg shadow-blue-900/10 transition-colors"
+                        className="min-h-11 bg-blue-800 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 transition-colors"
                     >
                         <Plus size={18} /> Novo Cliente
                     </button>
@@ -336,11 +336,12 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
             </div>
 
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                <div className="p-4 border-b border-slate-100 bg-slate-50 flex gap-4 items-center">
+                <div className="p-4 border-b border-slate-100 bg-slate-50 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="relative flex-1 max-w-md">
                         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                         <input
                             type="text"
+                            aria-label="Buscar clientes por nome ou CPF/CNPJ"
                             placeholder="Buscar por nome ou CPF/CNPJ..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
@@ -356,11 +357,11 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
                     <table className="w-full text-left text-sm text-slate-600">
                         <thead className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200">
                             <tr>
-                                <th className="px-6 py-3 cursor-pointer hover:bg-slate-100" onClick={() => handleSort('name')}>
-                                    <div className="flex items-center gap-1">
+                                <th className="px-6 py-3" aria-sort={sortConfig?.key === 'name' ? (sortConfig.direction === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                                    <button type="button" onClick={() => handleSort('name')} className="flex items-center gap-1 rounded py-1 text-left hover:text-blue-700">
                                         Nome
                                         {sortConfig?.key === 'name' && (sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}
-                                    </div>
+                                    </button>
                                 </th>
                                 <th className="px-6 py-3 cursor-pointer hover:bg-slate-100" onClick={() => handleSort('cpfCnpj')}>
                                     <div className="flex items-center gap-1">
@@ -401,8 +402,8 @@ const Customers: React.FC<CustomersProps> = ({ customers, onAddCustomer, onImpor
                         <tbody className="divide-y divide-slate-100">
                             {sortedCustomers.length === 0 ? (
                                 <tr>
-                                    <td colSpan={7} className="px-6 py-8 text-center text-slate-400">
-                                        Nenhum cliente encontrado.
+                                    <td colSpan={currentUser.role === 'ADMIN' ? 8 : 7} className="px-6 py-10 text-center text-slate-600">
+                                        {searchTerm ? 'Nenhum cliente corresponde à busca. Tente outro nome ou documento.' : 'Nenhum cliente cadastrado. Use “Novo Cliente” para começar.'}
                                     </td>
                                 </tr>
                             ) : (

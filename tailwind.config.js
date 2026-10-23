@@ -3,14 +3,14 @@ export default {
     content: [
         "./index.html",
         "./*.{js,ts,jsx,tsx}",
-        "./components/**/*.{js,ts,jsx,tsx}",
+        "./components/*.{js,ts,jsx,tsx}",
         "./services/**/*.{js,ts,jsx,tsx}",
     ],
     theme: {
         extend: {
             colors: {
-                'gai-navy': '#0f172a',
-                'gai-tech': '#f59e0b', // Gold/Orange matching Gelo do Sertão
+                'gai-navy': '#1A4FB8',
+                'gai-tech': '#F57C1F',
             }
         },
     },

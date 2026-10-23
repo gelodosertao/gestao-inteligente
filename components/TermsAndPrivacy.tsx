@@ -10,7 +10,7 @@ const TermsAndPrivacy: React.FC = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 font-sans">
+    <div className="brand-legal min-h-screen bg-slate-50 text-slate-800 font-sans">
       <nav className="bg-slate-900 py-4 px-6 sticky top-0 z-50 shadow-md flex items-center justify-between">
         <div className="flex items-center gap-3 text-white">
           <img src="/logo.png" alt="Gelo do Sertão Logo" className="h-10 w-auto object-contain" />

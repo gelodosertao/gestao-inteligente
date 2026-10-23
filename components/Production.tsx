@@ -259,12 +259,12 @@ const Production: React.FC<ProductionProps> = ({ products, currentUser, onUpdate
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div className="flex items-center gap-3">
                     {currentUser.role !== 'FACTORY' && (
-                        <button onClick={onBack} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
+                        <button onClick={onBack} aria-label="Voltar à gestão" className="p-2 hover:bg-slate-200 rounded-full transition-colors touch-target">
                             <ArrowLeft size={24} className="text-slate-600" />
                         </button>
                     )}
                     <div>
-                        <h2 className="text-2xl font-bold text-slate-800">Controle de Produção</h2>
+                        <h1 className="text-2xl font-bold text-slate-900">Controle de Produção</h1>
                         <p className="text-slate-500">Registre a produção diária da fábrica.</p>
                     </div>
                 </div>
