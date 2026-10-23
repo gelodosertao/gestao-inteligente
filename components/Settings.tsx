@@ -102,7 +102,7 @@ const Settings: React.FC<SettingsProps> = ({ currentUser, onResetData }) => {
             });
             setSuccessMsg('Usuário atualizado com sucesso!');
          } else {
-            await dbUsers.register(newUser, currentUser.tenantId);
+            await dbUsers.register(newUser);
             setSuccessMsg('Usuário cadastrado com sucesso!');
          }
          setShowUserModal(false);

@@ -1,30 +1,33 @@
-import { supabase, TENANT_ID } from './supabase';
+import { supabase } from './supabase';
 import { Delivery, DepotSettings, RouteHistoryItem } from '../types';
 
 // ============================================================
 // Serviço de Persistência — Logística de Entregas (Supabase)
 // ============================================================
 
-/** Obtém o tenant_id ativo. Fallback para localStorage caso .env não esteja configurado. */
-function getTenantId(): string {
-  if (TENANT_ID) return TENANT_ID;
-  // Tenta ler do sistema principal (se o usuário estiver logado lá)
-  try {
-    const stored = localStorage.getItem('app_user');
-    if (stored) {
-      const user = JSON.parse(stored);
-      if (user?.tenantId) return user.tenantId;
-    }
-  } catch { /* ignore */ }
-  return '';
+/** Resolve o tenant exclusivamente pelo perfil autenticado e protegido por RLS. */
+async function getTenantId(): Promise<string> {
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) throw new Error('Sessão de logística inválida. Entre novamente no sistema.');
+
+  const { data: profile, error: profileError } = await supabase
+    .from('app_users')
+    .select('tenant_id, is_active, must_change_password')
+    .eq('id', user.id)
+    .single();
+
+  if (profileError || !profile?.tenant_id) throw new Error('Perfil de logística sem tenant válido.');
+  if (profile.is_active === false || profile.must_change_password === true) {
+    throw new Error('O perfil não está autorizado a acessar a logística.');
+  }
+  return profile.tenant_id;
 }
 
-/** Verifica se o Supabase está configurado e temos um tenant válido */
+/** Verifica se as credenciais públicas do Supabase estão configuradas. */
 export function isSupabaseConfigured(): boolean {
   const url = import.meta.env.VITE_SUPABASE_URL;
   const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
-  const tid = getTenantId();
-  return Boolean(url && key && tid);
+  return Boolean(url && key);
 }
 
 // -----------------------------------------------------------
@@ -108,8 +111,7 @@ export const dbLogistics = {
     depot: DepotSettings | null;
     deliveries: Delivery[];
   }> {
-    const tenantId = getTenantId();
-    if (!tenantId) return { route: null, depot: null, deliveries: [] };
+    const tenantId = await getTenantId();
 
     // Buscar a rota ativa mais recente
     const { data: routes, error: routeError } = await supabase
@@ -136,6 +138,7 @@ export const dbLogistics = {
       .from('delivery_stops')
       .select('*')
       .eq('route_id', route.id)
+      .eq('tenant_id', tenantId)
       .order('sequence', { ascending: true });
 
     if (stopsError) {
@@ -164,8 +167,7 @@ export const dbLogistics = {
     deliveries: Delivery[],
     existingRouteId?: string
   ): Promise<string> {
-    const tenantId = getTenantId();
-    if (!tenantId) throw new Error('Tenant ID não configurado');
+    const tenantId = await getTenantId();
 
     let routeId = existingRouteId;
 
@@ -180,7 +182,8 @@ export const dbLogistics = {
           depot_lng: depot.lng,
           stop_count: deliveries.length,
         })
-        .eq('id', routeId);
+        .eq('id', routeId)
+        .eq('tenant_id', tenantId);
 
       if (error) {
         console.error('[IceRoute DB] Erro ao atualizar rota:', error);
@@ -188,7 +191,7 @@ export const dbLogistics = {
       }
 
       // Deletar paradas antigas e reinserir
-      await supabase.from('delivery_stops').delete().eq('route_id', routeId);
+      await supabase.from('delivery_stops').delete().eq('route_id', routeId).eq('tenant_id', tenantId);
     } else {
       // Criar nova rota
       const { data, error } = await supabase
@@ -246,10 +249,12 @@ export const dbLogistics = {
   // Atualizar status de uma parada individual
   // -----------------------------------------------------------
   async updateStopStatus(stopId: string, status: 'pending' | 'in_transit' | 'delivered'): Promise<void> {
+    const tenantId = await getTenantId();
     const { error } = await supabase
       .from('delivery_stops')
       .update({ status })
-      .eq('id', stopId);
+      .eq('id', stopId)
+      .eq('tenant_id', tenantId);
 
     if (error) {
       console.error('[IceRoute DB] Erro ao atualizar status da parada:', error);
@@ -261,8 +266,7 @@ export const dbLogistics = {
   // Adicionar uma única parada a uma rota existente
   // -----------------------------------------------------------
   async addStop(routeId: string, delivery: Delivery): Promise<string> {
-    const tenantId = getTenantId();
-    if (!tenantId) throw new Error('Tenant ID não configurado');
+    const tenantId = await getTenantId();
 
     const { data, error } = await supabase
       .from('delivery_stops')
@@ -290,7 +294,8 @@ export const dbLogistics = {
     await supabase
       .from('delivery_routes')
       .update({ stop_count: delivery.sequence })
-      .eq('id', routeId);
+      .eq('id', routeId)
+      .eq('tenant_id', tenantId);
 
     return data.id;
   },
@@ -299,6 +304,7 @@ export const dbLogistics = {
   // Atualizar dados de uma parada (edição)
   // -----------------------------------------------------------
   async updateStop(stopId: string, data: Partial<Delivery>): Promise<void> {
+    const tenantId = await getTenantId();
     const updatePayload: Record<string, any> = {};
     if (data.clientName !== undefined) updatePayload.client_name = data.clientName;
     if (data.address !== undefined) updatePayload.address = data.address;
@@ -312,7 +318,8 @@ export const dbLogistics = {
     const { error } = await supabase
       .from('delivery_stops')
       .update(updatePayload)
-      .eq('id', stopId);
+      .eq('id', stopId)
+      .eq('tenant_id', tenantId);
 
     if (error) {
       console.error('[IceRoute DB] Erro ao atualizar parada:', error);
@@ -324,10 +331,12 @@ export const dbLogistics = {
   // Deletar uma parada
   // -----------------------------------------------------------
   async deleteStop(stopId: string, routeId: string): Promise<void> {
+    const tenantId = await getTenantId();
     const { error } = await supabase
       .from('delivery_stops')
       .delete()
-      .eq('id', stopId);
+      .eq('id', stopId)
+      .eq('tenant_id', tenantId);
 
     if (error) {
       console.error('[IceRoute DB] Erro ao deletar parada:', error);
@@ -338,24 +347,28 @@ export const dbLogistics = {
     const { data: remaining } = await supabase
       .from('delivery_stops')
       .select('id')
-      .eq('route_id', routeId);
+      .eq('route_id', routeId)
+      .eq('tenant_id', tenantId);
 
     await supabase
       .from('delivery_routes')
       .update({ stop_count: remaining?.length || 0 })
-      .eq('id', routeId);
+      .eq('id', routeId)
+      .eq('tenant_id', tenantId);
   },
 
   // -----------------------------------------------------------
   // Reordenar paradas (atualizar sequence de todas)
   // -----------------------------------------------------------
   async reorderStops(deliveries: Delivery[]): Promise<void> {
+    const tenantId = await getTenantId();
     // Atualizar cada parada com sua nova sequence
     const updates = deliveries.map((d) =>
       supabase
         .from('delivery_stops')
         .update({ sequence: d.sequence })
         .eq('id', d.id)
+        .eq('tenant_id', tenantId)
     );
 
     const results = await Promise.all(updates);
@@ -376,6 +389,7 @@ export const dbLogistics = {
     totalDuration: string,
     stopCount: number
   ): Promise<void> {
+    const tenantId = await getTenantId();
     const { error } = await supabase
       .from('delivery_routes')
       .update({
@@ -385,7 +399,8 @@ export const dbLogistics = {
         total_duration: totalDuration,
         stop_count: stopCount,
       })
-      .eq('id', routeId);
+      .eq('id', routeId)
+      .eq('tenant_id', tenantId);
 
     if (error) {
       console.error('[IceRoute DB] Erro ao arquivar rota:', error);
@@ -397,8 +412,7 @@ export const dbLogistics = {
   // Listar histórico de rotas arquivadas
   // -----------------------------------------------------------
   async getArchivedRoutes(): Promise<RouteHistoryItem[]> {
-    const tenantId = getTenantId();
-    if (!tenantId) return [];
+    const tenantId = await getTenantId();
 
     const { data: routes, error } = await supabase
       .from('delivery_routes')
@@ -421,6 +435,7 @@ export const dbLogistics = {
         .from('delivery_stops')
         .select('*')
         .eq('route_id', route.id)
+        .eq('tenant_id', tenantId)
         .order('sequence', { ascending: true });
 
       items.push(dbRouteToHistoryItem(route as DbRoute, (stops || []) as DbStop[]));
@@ -433,10 +448,12 @@ export const dbLogistics = {
   // Deletar uma rota do histórico (cascade deleta paradas)
   // -----------------------------------------------------------
   async deleteRoute(routeId: string): Promise<void> {
+    const tenantId = await getTenantId();
     const { error } = await supabase
       .from('delivery_routes')
       .delete()
-      .eq('id', routeId);
+      .eq('id', routeId)
+      .eq('tenant_id', tenantId);
 
     if (error) {
       console.error('[IceRoute DB] Erro ao deletar rota:', error);
@@ -448,8 +465,7 @@ export const dbLogistics = {
   // Limpar todo o histórico de um tenant
   // -----------------------------------------------------------
   async clearHistory(): Promise<void> {
-    const tenantId = getTenantId();
-    if (!tenantId) return;
+    const tenantId = await getTenantId();
 
     const { error } = await supabase
       .from('delivery_routes')
@@ -467,6 +483,7 @@ export const dbLogistics = {
   // Atualizar configuração do depósito na rota ativa
   // -----------------------------------------------------------
   async updateDepot(routeId: string, depot: DepotSettings): Promise<void> {
+    const tenantId = await getTenantId();
     const { error } = await supabase
       .from('delivery_routes')
       .update({
@@ -475,7 +492,8 @@ export const dbLogistics = {
         depot_lat: depot.lat,
         depot_lng: depot.lng,
       })
-      .eq('id', routeId);
+      .eq('id', routeId)
+      .eq('tenant_id', tenantId);
 
     if (error) {
       console.error('[IceRoute DB] Erro ao atualizar depósito:', error);
