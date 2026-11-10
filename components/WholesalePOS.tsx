@@ -1,12 +1,13 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import { registerSalePayment } from '../services/salePayments';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Product, Sale, Customer, User, Branch, SaleItem, PaymentEntry } from '../types';
+import { Product, Sale, Customer, User, Branch, SaleItem } from '../types';
 import { ShoppingCart, LogOut, User as UserIcon, Plus, Minus, Search, CheckCircle, ArrowLeft, History, Store, Banknote, MapPin, Edit, Trash2, Save, X, Printer, Check, FileText, Clock, Download } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { CUSTOMER_SEGMENTS } from '../constants';
 import { hardwareBridge } from '../services/hardwareBridge';
-import { translatePaymentMethod } from '../services/utils';
+import { getTodayDate, translatePaymentMethod } from '../services/utils';
 import { dbCustomers } from '../services/db';
 import FiscalIntegrationModal from './FiscalIntegrationModal';
 import FiscalIntegrationNotice from './FiscalIntegrationNotice';
@@ -102,6 +103,7 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
 
     const [nfeSale, setNfeSale] = useState<Sale | null>(null);
     const [savingPayment, setSavingPayment] = useState(false);
+    const paymentInFlight = useRef(false);
 
     // Debt Payment State
     const [showDebtModal, setShowDebtModal] = useState(false);
@@ -119,50 +121,29 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
         setSelectedDebtSale(sale);
         const remaining = sale.total - (sale.amountPaid || 0);
         setPaymentAmountInput(remaining.toFixed(2));
-        setPaymentDateInput(new Date().toISOString().split('T')[0]);
+        setPaymentDateInput(getTodayDate());
         setPaymentMethodInput('Pix');
         setPaymentNotesInput('');
         setShowDebtModal(true);
     };
 
     const handleRegisterPayment = async () => {
-        if (!selectedDebtSale || !onUpdateSale || savingPayment) return;
+        if (!selectedDebtSale || !onUpdateSale || paymentInFlight.current) return;
 
-        const amount = parseFloat(paymentAmountInput.replace(',', '.'));
-        if (isNaN(amount) || amount <= 0) {
-            alert('Valor inválido');
+        let updatedSale: Sale;
+        try {
+            const currentSale = sales.find(sale => sale.id === selectedDebtSale.id);
+            if (!currentSale) throw new Error('Venda não encontrada. Atualize o histórico.');
+            updatedSale = registerSalePayment(currentSale, {
+                amount: paymentAmountInput, date: paymentDateInput,
+                method: paymentMethodInput, notes: paymentNotesInput,
+            }, selectedDebtSale);
+        } catch (error) {
+            alert((error as Error).message);
             return;
         }
 
-        const currentPaid = selectedDebtSale.amountPaid || 0;
-        const remaining = selectedDebtSale.total - currentPaid;
-
-        if (amount > remaining + 0.1) {
-            alert(`O valor não pode ser maior que o restante (R$ ${remaining.toFixed(2)})`);
-            return;
-        }
-
-        const newEntry: PaymentEntry = {
-            id: crypto.randomUUID(),
-            date: paymentDateInput,
-            amount: amount,
-            method: paymentMethodInput,
-            notes: paymentNotesInput
-        };
-
-        const newPaid = currentPaid + amount;
-        const history = selectedDebtSale.paymentHistory || [];
-        const newHistory = [...history, newEntry];
-
-        const isFullyPaid = newPaid >= selectedDebtSale.total - 0.05;
-
-        const updatedSale: Sale = {
-            ...selectedDebtSale,
-            amountPaid: newPaid,
-            paymentHistory: newHistory,
-            status: isFullyPaid ? 'Completed' : 'Pending',
-        };
-
+        paymentInFlight.current = true;
         setSavingPayment(true);
         try {
             await onUpdateSale(updatedSale);
@@ -170,7 +151,7 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
             setSelectedDebtSale(null);
         } catch {
             alert('Falha ao registrar pagamento. Confira a venda antes de tentar novamente.');
-        } finally { setSavingPayment(false); }
+        } finally { paymentInFlight.current = false; setSavingPayment(false); }
     };
 
     useEffect(() => {
@@ -1187,18 +1168,6 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                                                 >
                                                     <Banknote size={14} /> Receber
                                                 </button>
-                                                {isAdmin && (
-                                                    <button
-                                                        onClick={() => {
-                                                            if (confirm("Confirmar recebimento deste pedido de atacado? Status mudará para 'Finalizado pela Fábrica'.")) {
-                                                                onUpdateSale?.({ ...sale, status: 'Finalizado pela Fábrica' });
-                                                            }
-                                                        }}
-                                                        className="flex-1 md:flex-none justify-center text-xs font-bold text-white flex items-center gap-1.5 cursor-pointer bg-emerald-600 px-3 py-2 rounded-lg hover:bg-emerald-700 transition-colors shadow-sm"
-                                                    >
-                                                        <CheckCircle size={14} /> Confirmar Recebimento
-                                                    </button>
-                                                )}
                                             </>
                                         )}
                                         {sale.status !== 'Cancelled' && (

@@ -1,3 +1,4 @@
+import { saleReceiptRecords } from '../services/salePayments';
 import React, { useState, useMemo, useCallback } from 'react';
 import { FinancialRecord, Branch, Sale, Product, CategoryItem, CashClosing, User } from '../types';
 import { dbCategories } from '../services/db';
@@ -197,47 +198,13 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
 
    const filteredRecords = useMemo(() => records.filter(r => (selectedBranch === 'ALL' || r.branch === selectedBranch) && filterByDate(r.date)), [records, selectedBranch, filterByDate]);
 
-   const filteredSales = useMemo(() => sales.filter(s => (selectedBranch === 'ALL' || s.branch === selectedBranch) && filterByDate(s.date) && s.status === 'Completed'), [sales, selectedBranch, filterByDate]);
+   const receiptRecords = useMemo(() => saleReceiptRecords(sales), [sales]);
 
    const unifiedRecords = useMemo(() => {
       const nonSaleRecords = filteredRecords.filter(r => !(r.category === 'Vendas' && r.type === 'Income'));
-      const salesAsRecords: FinancialRecord[] = [];
-
-      filteredSales.forEach(sale => {
-         if (sale.paymentMethod === 'Split' && sale.paymentSplits) {
-            sale.paymentSplits.forEach((split, index) => {
-               salesAsRecords.push({
-                  id: `sale-${sale.id}-split-${index}`,
-                  date: sale.date || getTodayDate(),
-                  description: `Venda #${(sale.id || '').slice(0, 8)} - ${sale.customerName || 'Cliente'} (${split.method})`,
-                  amount: split.amount,
-                  type: 'Income',
-                  category: 'Vendas',
-                  branch: sale.branch,
-                  paymentMethod: split.method
-               });
-            });
-         } else {
-            salesAsRecords.push({
-               id: `sale-${sale.id || Math.random()}`,
-               date: sale.date || getTodayDate(),
-               description: `Venda #${(sale.id || '').slice(0, 8)} - ${sale.customerName || 'Cliente'}`,
-               amount: sale.total || 0,
-               type: 'Income',
-               category: 'Vendas',
-               branch: sale.branch,
-               paymentMethod: sale.paymentMethod as any
-            });
-         }
-      });
-
-      return [...nonSaleRecords, ...salesAsRecords].sort((a, b) => {
-         const dateA = a.date || '';
-         const dateB = b.date || '';
-         if (dateA !== dateB) return dateB.localeCompare(dateA);
-         return (b.id || '').localeCompare(a.id || '');
-      });
-   }, [filteredRecords, filteredSales]);
+      const receipts = receiptRecords.filter(r => (selectedBranch === 'ALL' || r.branch === selectedBranch) && filterByDate(r.date));
+      return [...nonSaleRecords, ...receipts].sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
+   }, [filteredRecords, receiptRecords, selectedBranch, filterByDate]);
 
    const searchedRecords = useMemo(() => {
       if (!searchTerm.trim()) return unifiedRecords;
@@ -250,20 +217,14 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
    }, [unifiedRecords, searchTerm]);
 
    const closingData = useMemo(() => {
-      const daySales = sales.filter(s => s.date === closingDate && s.branch === closingBranch && s.status === 'Completed');
-      const totalSales = daySales.reduce((acc, s) => acc + s.total, 0);
-      const byMethod = daySales.reduce((acc, s) => {
-         if (normalizePaymentMethod(s.paymentMethod) === 'Split' && s.paymentSplits) {
-            s.paymentSplits.forEach(split => {
-               const key = normalizePaymentMethod(split.method) as keyof typeof acc;
-               acc[key] = (acc[key] || 0) + split.amount;
-            });
-         } else if (normalizePaymentMethod(s.paymentMethod) !== 'Split') {
-            const key = normalizePaymentMethod(s.paymentMethod) as keyof typeof acc;
-            acc[key] = (acc[key] || 0) + s.total;
-         }
+      const daySales = sales.filter(s => s.date === closingDate && s.branch === closingBranch && s.status === 'Completed' && !s.paymentHistory?.length);
+      const dayReceipts = receiptRecords.filter(r => r.date === closingDate && r.branch === closingBranch);
+      const totalSales = dayReceipts.reduce((acc, receipt) => acc + receipt.amount, 0);
+      const byMethod = dayReceipts.reduce((acc, receipt) => {
+         const key = normalizePaymentMethod(receipt.paymentMethod) as keyof typeof acc;
+         if (key in acc) acc[key] += receipt.amount;
          return acc;
-      }, { Pix: 0, Credit: 0, Debit: 0, Cash: 0 } as { Pix: number; Credit: number; Debit: number; Cash: number; });
+      }, { Pix: 0, Credit: 0, Debit: 0, Cash: 0 });
 
       const dayExpenses = records
          .filter(r => r.date === closingDate && r.branch === closingBranch && r.type === 'Expense')
@@ -291,7 +252,7 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
          expectedInDrawer,
          netResult: totalSales - dayExpenses
       };
-   }, [sales, records, cashClosings, closingDate, closingBranch]);
+   }, [sales, receiptRecords, records, cashClosings, closingDate, closingBranch]);
 
    const handleSaveClosing = () => {
       if (!currentUser) return;

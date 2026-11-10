@@ -423,6 +423,7 @@ const App: React.FC = () => {
       console.error("Erro ao atualizar venda:", error);
       await refreshSaleData().catch(refreshError => console.error("Erro ao recarregar vendas:", refreshError));
       alert(`A alteração não foi confirmada. Tente novamente: ${error.message || JSON.stringify(error)}`);
+      throw error;
     }
   };
 
