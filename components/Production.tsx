@@ -1,31 +1,56 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Product, ProductionRecord, Shift, Branch, User, Category, Sale } from '../types';
-import { dbProduction, dbProducts, dbStockMovements } from '../services/db';
+import { dbProduction, dbStockMovements } from '../services/db';
 import { getTodayDate } from '../services/utils';
+import { calculateProductionCosts } from '../services/productionCosts';
+import { getProductionAvailability } from '../services/productionAvailability';
 import { Plus, Save, Clock, User as UserIcon, Package, Calendar, ArrowLeft, Trash2, Layers, History, Boxes, AlertTriangle, ArrowRightLeft, Calculator, Edit2, Truck, CheckCircle } from 'lucide-react';
 
 interface ProductionProps {
     products: Product[];
     currentUser: User;
-    onUpdateProduct: (product: Product) => void;
-    onAddProduct?: (product: Product) => void;
+    onUpdateProduct: (product: Product) => Promise<void>;
+    onStockChanged: () => Promise<void>;
+    onAddProduct?: (product: Product) => Promise<void>;
     onBack: () => void;
 }
 
-const Production: React.FC<ProductionProps> = ({ products, currentUser, onUpdateProduct, onAddProduct, onBack }) => {
+const quantityFormat = new Intl.NumberFormat('pt-BR', { maximumSignificantDigits: 15 });
+
+const Production: React.FC<ProductionProps> = ({ products, currentUser, onUpdateProduct, onStockChanged, onAddProduct, onBack }) => {
     const [records, setRecords] = useState<ProductionRecord[]>([]);
     const [loading, setLoading] = useState(true);
-    const [showForm, setShowForm] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [savingLoss, setSavingLoss] = useState(false);
+    const pendingOperations = useRef(new Map<string, string>());
 
     // Form State
     const [selectedProductId, setSelectedProductId] = useState('');
     const [quantity, setQuantity] = useState('');
+    const [lossProductId, setLossProductId] = useState('');
+    const [lossQuantity, setLossQuantity] = useState('');
+    const [lossReason, setLossReason] = useState('');
+    const produced = Number(quantity);
+    const lost = Number(lossQuantity);
+    const lossProduct = products.find(product => product.id === lossProductId);
+    const lossStock = lossProduct?.stockMatrizIbotirama ?? 0;
+    const validLoss = !!lossProduct && Number.isFinite(lost) && lost > 0 && lost <= lossStock;
     const [activeTab, setActiveTab] = useState<'production' | 'history' | 'stock' | 'recipes'>('production');
     const [shift, setShift] = useState<Shift>('Manhã');
     const [notes, setNotes] = useState('');
 
-    // Ingredient Usage State
-    const [usedIngredients, setUsedIngredients] = useState<{ ingredientId: string; name: string; quantity: number; unit: string }[]>([]);
+    const [ingredientOverrides, setIngredientOverrides] = useState<Record<string, number>>({});
+    const selectedProduct = products.find(product => product.id === selectedProductId);
+    let usedIngredients: ReturnType<typeof getProductionAvailability> = [];
+    let productionError = '';
+    if (selectedProduct && Number.isFinite(produced) && produced > 0) {
+        try {
+            usedIngredients = getProductionAvailability(selectedProduct, products, produced, ingredientOverrides);
+            if (usedIngredients.some(item => item.shortage > 0)) productionError = 'Saldo insuficiente de insumos em Ibotirama. Revise as quantidades.';
+        } catch (error) {
+            productionError = (error as Error).message;
+        }
+    }
 
     // New Input State
     const [showInputForm, setShowInputForm] = useState(false);
@@ -36,6 +61,16 @@ const Production: React.FC<ProductionProps> = ({ products, currentUser, onUpdate
     const [recipeItems, setRecipeItems] = useState<{ ingredientId: string; quantity: string }[]>([]);
     const [recipeBatchSize, setRecipeBatchSize] = useState('1');
     const [operationalCost, setOperationalCost] = useState('0');
+    const [savingRecipe, setSavingRecipe] = useState(false);
+    const parsedRecipe = recipeItems.map(item => ({ ingredientId: item.ingredientId, quantity: Number(item.quantity) }));
+    let recipeCosts: ReturnType<typeof calculateProductionCosts> | undefined;
+    let recipeError = '';
+    try {
+        recipeCosts = calculateProductionCosts({ products, recipe: parsedRecipe,
+            batchSize: Number(recipeBatchSize), operationalCost: Number(operationalCost), productId: recipeProductId });
+    } catch (error) {
+        recipeError = (error as Error).message;
+    }
 
     useEffect(() => {
         loadRecords();
@@ -53,115 +88,81 @@ const Production: React.FC<ProductionProps> = ({ products, currentUser, onUpdate
         }
     };
 
-    // Update ingredients when product or quantity changes
-    useEffect(() => {
-        if (selectedProductId && quantity && Number(quantity) > 0) {
-            const product = products.find(p => p.id === selectedProductId);
-            if (product && product.recipe) {
-                const batchSize = product.recipeBatchSize || 1;
-                const calculatedIngredients = product.recipe.map(item => {
-                    const ingredient = products.find(p => p.id === item.ingredientId);
-                    if (!ingredient) return null;
-
-                    const totalRequired = (Number(quantity) / batchSize) * item.quantity;
-                    return {
-                        ingredientId: ingredient.id,
-                        name: ingredient.name,
-                        quantity: Number(totalRequired.toFixed(3)), // Round to 3 decimals
-                        unit: ingredient.unit
-                    };
-                }).filter(Boolean) as { ingredientId: string; name: string; quantity: number; unit: string }[];
-
-                setUsedIngredients(calculatedIngredients);
-            } else {
-                setUsedIngredients([]);
-            }
-        } else {
-            setUsedIngredients([]);
-        }
-    }, [selectedProductId, quantity, products]);
-
     const handleSave = async () => {
-        if (!selectedProductId || !quantity || Number(quantity) <= 0) {
-            alert("Selecione um produto e uma quantidade válida.");
+        if (saving) return;
+
+        if (!selectedProductId || !Number.isFinite(produced) || produced <= 0) {
+            alert("Selecione um produto e informe uma quantidade produzida maior que zero.");
+            return;
+        }
+        if (productionError) {
+            alert(productionError);
             return;
         }
 
-        const product = products.find(p => p.id === selectedProductId);
-        if (!product) return;
-
-        const newRecord: ProductionRecord = {
-            id: Date.now().toString(),
-            date: new Date().toISOString(),
-            productId: product.id,
-            productName: product.name,
-            quantity: Number(quantity),
-            shift: shift,
-            responsible: currentUser.name,
-            notes: notes
+        const batch = {
+            productId: selectedProductId,
+            quantity: produced,
+            shift,
+            notes
         };
+        const batchKey = JSON.stringify([batch, usedIngredients]);
+        const operationId = pendingOperations.current.get(batchKey) ?? crypto.randomUUID();
+        pendingOperations.current.set(batchKey, operationId);
+        setSaving(true);
 
         try {
-            // 1. Save Production Record
-            await dbProduction.add(newRecord, currentUser.tenantId);
-
-            // 2. Update Product Stock (Matriz) - Finished Good
-            const updatedProduct = {
-                ...product,
-                stockMatrizIbotirama: product.stockMatrizIbotirama + Number(quantity)
-            };
-            await dbProducts.update(updatedProduct);
-            onUpdateProduct(updatedProduct);
-
-            // 3. Register Stock Movement (Finished Good)
-            await dbStockMovements.add({
-                id: Date.now().toString() + '-mov-in',
-                date: new Date().toISOString(),
-                productId: product.id,
-                productName: product.name,
-                quantity: Number(quantity),
-                type: 'TRANSFER_IN', // Entrada por Produção
-                reason: `Produção - Turno ${shift}`,
-                branch: Branch.MATRIZ
-            }, currentUser.tenantId);
-
-            // 4. Deduct Raw Materials (Based on CONFIRMED usedIngredients)
-            if (usedIngredients.length > 0) {
-                for (const item of usedIngredients) {
-                    const ingredient = products.find(p => p.id === item.ingredientId);
-                    if (ingredient) {
-                        // Update Ingredient Stock
-                        const updatedIngredient = {
-                            ...ingredient,
-                            stockMatrizIbotirama: ingredient.stockMatrizIbotirama - item.quantity
-                        };
-                        await dbProducts.update(updatedIngredient);
-                        onUpdateProduct(updatedIngredient);
-
-                        // Register Ingredient Movement
-                        await dbStockMovements.add({
-                            id: Date.now().toString() + `-mov-out-${ingredient.id}`,
-                            date: new Date().toISOString(),
-                            productId: ingredient.id,
-                            productName: ingredient.name,
-                            quantity: item.quantity,
-                            type: 'TRANSFER_OUT', // Saída por Uso/Produção
-                            reason: `Insumo para Produção de ${product.name} (Lote: ${quantity})`,
-                            branch: Branch.MATRIZ
-                        }, currentUser.tenantId);
-                    }
-                }
-            }
-
-            alert("Produção registrada com sucesso! Estoque atualizado.");
-            setShowForm(false);
+            await dbProduction.register(operationId, batch, usedIngredients);
+            pendingOperations.current.delete(batchKey);
             setQuantity('');
             setNotes('');
-            setUsedIngredients([]);
-            loadRecords(); // Refresh list
+            setIngredientOverrides({});
+            try {
+                await onStockChanged();
+                alert("Produção registrada com sucesso! Estoque atualizado.");
+            } catch (error) {
+                console.error("Erro ao recarregar estoque:", error);
+                alert("Produção registrada. Recarregue a página para consultar o estoque atualizado.");
+            }
+            await loadRecords();
         } catch (error) {
             console.error("Erro ao salvar produção:", error);
-            alert("Erro ao salvar registro.");
+            const message = (error as { message?: string })?.message;
+            alert(message ? `Erro ao confirmar produção. ${message}` : "Erro ao confirmar produção.");
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleSaveLoss = async (event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        if (savingLoss || !validLoss) return;
+
+        const reason = lossReason.trim();
+        const key = JSON.stringify([lossProductId, lost, reason]);
+        const operationId = pendingOperations.current.get(key) ?? crypto.randomUUID();
+        pendingOperations.current.set(key, operationId);
+        setSavingLoss(true);
+
+        try {
+            await dbStockMovements.mutate({ operationId, action: 'loss', productId: lossProductId,
+                quantity: lost, deposit: 'Ibotirama', reason: reason || 'Perda de estoque na produção' });
+            pendingOperations.current.delete(key);
+            setLossQuantity('');
+            setLossReason('');
+            try {
+                await onStockChanged();
+                alert("Perda registrada. Estoque atualizado.");
+            } catch (error) {
+                console.error("Erro ao recarregar estoque:", error);
+                alert("Perda registrada. Recarregue a página para consultar o saldo atualizado.");
+            }
+        } catch (error) {
+            console.error("Erro ao registrar perda:", error);
+            const message = (error as { message?: string })?.message;
+            alert(message ? `Erro ao registrar perda. ${message}` : "Erro ao registrar perda.");
+        } finally {
+            setSavingLoss(false);
         }
     };
 
@@ -171,7 +172,11 @@ const Production: React.FC<ProductionProps> = ({ products, currentUser, onUpdate
             return;
         }
         const parsedCost = parseFloat(newInput.cost);
-        const parsedStock = parseFloat(newInput.stock) || 0;
+        const parsedStock = newInput.stock.trim() === '' ? 0 : Number(newInput.stock);
+        if (!Number.isFinite(parsedCost) || parsedCost < 0 || !Number.isFinite(parsedStock) || parsedStock < 0) {
+            alert('Informe custo e saldo inicial válidos e não negativos.');
+            return;
+        }
 
         const newProduct: Product = {
             id: Date.now().toString(),
@@ -190,19 +195,6 @@ const Production: React.FC<ProductionProps> = ({ products, currentUser, onUpdate
         try {
             await onAddProduct(newProduct);
 
-            if (parsedStock > 0) {
-                await dbStockMovements.add({
-                    id: Date.now().toString() + '-mov',
-                    date: new Date().toISOString(),
-                    productId: newProduct.id,
-                    productName: newProduct.name,
-                    quantity: parsedStock,
-                    type: 'ADJUSTMENT',
-                    reason: 'Cadastro Inicial',
-                    branch: Branch.MATRIZ
-                }, currentUser.tenantId);
-            }
-
             alert("Insumo cadastrado com sucesso!");
             setNewInput({ name: '', unit: '', cost: '', stock: '' });
             setShowInputForm(false);
@@ -213,27 +205,28 @@ const Production: React.FC<ProductionProps> = ({ products, currentUser, onUpdate
 
     const handleSaveRecipe = async () => {
         const product = products.find(p => p.id === recipeProductId);
-        if (!product) return;
+        if (!product || savingRecipe) return;
+        if (!recipeCosts) {
+            alert(recipeError);
+            return;
+        }
 
         const updatedProduct: Product = {
             ...product,
-            recipeBatchSize: parseFloat(recipeBatchSize) || 1,
-            operationalCost: parseFloat(operationalCost) || 0,
-            recipe: recipeItems.map(item => ({
-                ingredientId: item.ingredientId,
-                quantity: parseFloat(item.quantity) || 0
-            })),
-            cost: (recipeItems.reduce((acc, item) => {
-                const ing = products.find(p => p.id === item.ingredientId);
-                return acc + (ing ? ing.cost * (parseFloat(item.quantity) || 0) : 0);
-            }, 0) / (parseFloat(recipeBatchSize) || 1)) + (parseFloat(operationalCost) || 0)
+            recipeBatchSize: Number(recipeBatchSize),
+            operationalCost: Number(operationalCost),
+            recipe: parsedRecipe,
+            cost: recipeCosts.unitCost
         };
 
+        setSavingRecipe(true);
         try {
             await onUpdateProduct(updatedProduct);
             alert("Receita calculada e salva com sucesso! O custo unitário do produto principal foi atualizado.");
         } catch (e) {
             alert("Erro ao salvar receita.");
+        } finally {
+            setSavingRecipe(false);
         }
     };
 
@@ -304,13 +297,17 @@ const Production: React.FC<ProductionProps> = ({ products, currentUser, onUpdate
                         <Package className="text-blue-600" /> Registrar Nova Produção
                     </h3>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <fieldset disabled={saving} className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 min-w-0">
                         <div className="space-y-4">
                             <div>
-                                <label className="block text-sm font-bold text-slate-700 mb-1">Produto Fabricado</label>
+                                <label htmlFor="production-product" className="block text-sm font-bold text-slate-700 mb-1">Produto Fabricado</label>
                                 <select
+                                    id="production-product"
                                     value={selectedProductId}
-                                    onChange={(e) => setSelectedProductId(e.target.value)}
+                                    onChange={(e) => {
+                                        setSelectedProductId(e.target.value);
+                                        setIngredientOverrides({});
+                                    }}
                                     className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-slate-50 font-medium"
                                 >
                                     <option value="">Selecione o produto...</option>
@@ -321,11 +318,17 @@ const Production: React.FC<ProductionProps> = ({ products, currentUser, onUpdate
                             </div>
 
                             <div>
-                                <label className="block text-sm font-bold text-slate-700 mb-1">Quantidade Produzida</label>
+                                <label htmlFor="production-quantity" className="block text-sm font-bold text-slate-700 mb-1">Quantidade Produzida</label>
                                 <input
                                     type="number"
+                                    id="production-quantity"
+                                    min="0"
+                                    step="any"
                                     value={quantity}
-                                    onChange={(e) => setQuantity(e.target.value)}
+                                    onChange={(e) => {
+                                        setQuantity(e.target.value);
+                                        setIngredientOverrides({});
+                                    }}
                                     className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-lg"
                                     placeholder="0"
                                 />
@@ -355,10 +358,11 @@ const Production: React.FC<ProductionProps> = ({ products, currentUser, onUpdate
                         </div>
 
                         <div className="space-y-4">
-                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 h-full">
+                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
                                 <h4 className="font-bold text-slate-700 mb-3 flex items-center gap-2">
                                     <Boxes size={18} className="text-orange-500" /> Insumos Utilizados (Baixa no Estoque)
                                 </h4>
+                                 {productionError && <p role="alert" className="mb-3 text-sm font-bold text-red-700">{productionError}</p>}
 
                                 {usedIngredients.length === 0 ? (
                                     <div className="flex flex-col items-center justify-center h-40 text-slate-400 text-sm italic">
@@ -368,8 +372,8 @@ const Production: React.FC<ProductionProps> = ({ products, currentUser, onUpdate
                                     </div>
                                 ) : (
                                     <div className="space-y-3 overflow-y-auto max-h-[300px] pr-2">
-                                        {usedIngredients.map((item, index) => (
-                                            <div key={item.ingredientId} className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
+                                        {usedIngredients.map(item => (
+                                            <div key={item.key} className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
                                                 <div className="flex justify-between items-center mb-1">
                                                     <span className="font-bold text-slate-700 text-sm">{item.name}</span>
                                                     <span className="text-xs text-slate-400">{item.unit}</span>
@@ -377,16 +381,21 @@ const Production: React.FC<ProductionProps> = ({ products, currentUser, onUpdate
                                                 <div className="flex items-center gap-2">
                                                     <input
                                                         type="number"
+                                                        aria-label={`Quantidade utilizada de ${item.name}`}
+                                                        min="0.000001"
+                                                        step="any"
                                                         className="flex-1 px-3 py-1 border border-slate-200 rounded-md font-bold text-slate-800 text-right focus:ring-2 focus:ring-orange-500 outline-none"
                                                         value={item.quantity}
                                                         onChange={(e) => {
-                                                            const newIngredients = [...usedIngredients];
-                                                            newIngredients[index].quantity = Number(e.target.value);
-                                                            setUsedIngredients(newIngredients);
+                                                            const amount = Number(e.target.value);
+                                                            setIngredientOverrides(previous => ({ ...previous, [item.key]: amount }));
                                                         }}
                                                     />
                                                     <span className="text-sm font-medium text-slate-500 w-8">{item.unit}</span>
                                                 </div>
+                                                <p className={`mt-2 text-xs ${item.shortage > 0 ? 'text-red-700 font-bold' : 'text-slate-500'}`}>
+                                                    Necessário: {quantityFormat.format(item.quantity)} · Disponível em Ibotirama: {quantityFormat.format(item.available)} · Falta: {quantityFormat.format(item.shortage)} {item.unit}
+                                                </p>
                                             </div>
                                         ))}
                                         <p className="text-xs text-slate-400 text-center mt-2">
@@ -396,13 +405,14 @@ const Production: React.FC<ProductionProps> = ({ products, currentUser, onUpdate
                                 )}
                             </div>
                         </div>
-                    </div>
+                    </fieldset>
 
                     <div className="mb-6">
                         <label className="block text-sm font-bold text-slate-700 mb-1">Observações (Opcional)</label>
                         <input
                             type="text"
                             value={notes}
+                            disabled={saving}
                             onChange={(e) => setNotes(e.target.value)}
                             className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
                             placeholder="Ex: Máquina 2 parada, quebra de insumo extra..."
@@ -412,12 +422,89 @@ const Production: React.FC<ProductionProps> = ({ products, currentUser, onUpdate
                     <div className="flex justify-end pt-4 border-t border-slate-100">
                         <button
                             onClick={handleSave}
-                            className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-blue-900/20 transition-all flex items-center gap-2"
+                            disabled={saving || !!productionError}
+                            className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-blue-900/20 transition-all flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                            <Save size={20} /> Confirmar Produção
+                            <Save size={20} /> {saving ? 'Registrando…' : 'Confirmar Produção'}
                         </button>
                     </div>
                 </div>
+            )}
+
+            {activeTab === 'production' && (
+                <section aria-labelledby="production-loss-heading" className="rounded-2xl border border-amber-200 bg-white p-6 shadow-sm">
+                    <div className="mb-4">
+                        <h3 id="production-loss-heading" className="flex items-center gap-2 text-lg font-bold text-slate-800">
+                            <AlertTriangle size={20} className="text-amber-600" /> Registro de Perdas
+                        </h3>
+                        <p className="mt-1 text-sm text-slate-600">A perda é baixada do estoque da Matriz (Ibotirama).</p>
+                    </div>
+                    <form onSubmit={handleSaveLoss}>
+                        <fieldset disabled={savingLoss} className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-3">
+                            <label className="min-w-0 text-sm font-bold text-slate-700">
+                                Produto da Perda
+                                <select
+                                    value={lossProductId}
+                                    onChange={(e) => {
+                                        setLossProductId(e.target.value);
+                                        setLossQuantity('');
+                                        setLossReason('');
+                                    }}
+                                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 font-medium outline-none focus:ring-2 focus:ring-blue-500"
+                                >
+                                    <option value="">Selecione o produto...</option>
+                                    {manufacturedProducts.map(product => (
+                                        <option key={product.id} value={product.id}>{product.name}</option>
+                                    ))}
+                                </select>
+                            </label>
+                            <label className="min-w-0 text-sm font-bold text-slate-700">
+                                Quantidade Perdida
+                                <input
+                                    type="number"
+                                    min="0"
+                                    max={Math.max(lossStock, 0)}
+                                    step="any"
+                                    placeholder="0"
+                                    value={lossQuantity}
+                                    disabled={!lossProduct}
+                                    onChange={(e) => setLossQuantity(e.target.value)}
+                                    aria-invalid={!!lossQuantity && !validLoss}
+                                    aria-describedby={lossProduct ? 'production-loss-stock' : undefined}
+                                    className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-3 font-medium outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100"
+                                />
+                            </label>
+                            <label className="min-w-0 text-sm font-bold text-slate-700">
+                                Motivo (Opcional)
+                                <input
+                                    type="text"
+                                    value={lossReason}
+                                    onChange={(e) => setLossReason(e.target.value)}
+                                    placeholder="Ex.: descarte por qualidade"
+                                    className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-3 font-medium outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                            </label>
+                        </fieldset>
+                        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <p id="production-loss-stock" className="text-sm text-slate-600" aria-live="polite">
+                                {lossProduct && (
+                                    <>
+                                        Saldo atual <strong>{quantityFormat.format(lossStock)} {lossProduct.unit}</strong>
+                                        {validLoss && <> · Após a baixa <strong>{quantityFormat.format(lossStock - lost)} {lossProduct.unit}</strong></>}
+                                        {lost > lossStock && !!lossQuantity && <span className="block text-red-700">A perda excede o saldo disponível.</span>}
+                                    </>
+                                )}
+                            </p>
+                            <button
+                                type="submit"
+                                disabled={savingLoss || !validLoss}
+                                className="flex items-center justify-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-5 py-3 font-bold text-amber-900 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                <Save size={18} /> {savingLoss ? 'Registrando…' : 'Confirmar Perda'}
+                            </button>
+                        </div>
+                    </form>
+                </section>
             )}
 
             {activeTab === 'history' && (
@@ -447,7 +534,7 @@ const Production: React.FC<ProductionProps> = ({ products, currentUser, onUpdate
                                                 {new Date(record.date).toLocaleString('pt-BR')}
                                             </td>
                                             <td className="px-6 py-4 font-medium text-slate-800">{record.productName}</td>
-                                            <td className="px-6 py-4 font-bold text-blue-600">+{record.quantity}</td>
+                                            <td className="px-6 py-4 font-bold text-blue-600">+{quantityFormat.format(record.quantity)}</td>
                                             <td className="px-6 py-4">
                                                 <span className={`px-2 py-1 rounded-full text-xs font-bold ${record.shift === 'Manhã' ? 'bg-yellow-100 text-yellow-700' :
                                                     record.shift === 'Tarde' ? 'bg-orange-100 text-orange-700' :
@@ -657,30 +744,22 @@ const Production: React.FC<ProductionProps> = ({ products, currentUser, onUpdate
                                     <div className="flex justify-between items-center mb-4">
                                         <span className="font-bold text-slate-700">Custo Total do Lote:</span>
                                         <span className="font-bold text-lg text-slate-800">
-                                            R$ {
-                                                (recipeItems.reduce((acc, item) => {
-                                                    const ing = products.find(p => p.id === item.ingredientId);
-                                                    return acc + (ing ? ing.cost * (parseFloat(item.quantity) || 0) : 0);
-                                                }, 0) + (parseFloat(operationalCost) || 0)).toFixed(2)
-                                            }
+                                            {recipeCosts ? `R$ ${recipeCosts.batchCost.toFixed(2)}` : '—'}
                                         </span>
                                     </div>
                                     <div className="flex justify-between items-center bg-blue-50 p-4 rounded-xl border border-blue-100">
                                         <span className="font-bold text-blue-900">Custo Unitário Calculado:</span>
                                         <span className="font-black text-2xl text-blue-700">
-                                            R$ {
-                                                ((recipeItems.reduce((acc, item) => {
-                                                    const ing = products.find(p => p.id === item.ingredientId);
-                                                    return acc + (ing ? ing.cost * (parseFloat(item.quantity) || 0) : 0);
-                                                }, 0) + (parseFloat(operationalCost) || 0)) / (parseFloat(recipeBatchSize) || 1)).toFixed(4)
-                                            }
+                                            {recipeCosts ? `R$ ${recipeCosts.unitCost.toFixed(4)}` : '—'}
                                         </span>
                                     </div>
+                                    {recipeError && <p role="alert" className="mt-3 text-sm text-red-700">{recipeError}</p>}
                                     <button
                                         onClick={handleSaveRecipe}
-                                        className="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-all shadow-md"
+                                        disabled={savingRecipe || !recipeCosts}
+                                        className="w-full mt-4 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-all shadow-md"
                                     >
-                                        <Save size={18} /> Salvar e Atualizar Custo
+                                        <Save size={18} /> {savingRecipe ? 'Salvando...' : 'Salvar e Atualizar Custo'}
                                     </button>
                                 </div>
                             </div>

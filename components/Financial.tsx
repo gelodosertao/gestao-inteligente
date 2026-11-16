@@ -1,4 +1,5 @@
 import { saleReceiptRecords } from '../services/salePayments';
+import { getSaleDispatchDate } from '../services/dispatchedSalesReport';
 import React, { useState, useMemo, useCallback } from 'react';
 import { FinancialRecord, Branch, Sale, Product, CategoryItem, CashClosing, User } from '../types';
 import { dbCategories } from '../services/db';
@@ -11,10 +12,10 @@ interface FinancialProps {
    sales: Sale[];
    products: Product[];
    cashClosings: CashClosing[];
-   onAddRecord: (records: FinancialRecord[]) => void;
-   onUpdateRecord: (record: FinancialRecord) => void;
+   onAddRecord: (records: FinancialRecord[]) => Promise<void>;
+   onUpdateRecord: (record: FinancialRecord) => Promise<void>;
    onDeleteRecord: (id: string) => void;
-   onAddCashClosing: (closing: CashClosing) => void;
+   onAddCashClosing: (closing: CashClosing) => Promise<void>;
    onDeleteCashClosing: (id: string) => void;
    currentUser: User | null;
    onBack: () => void;
@@ -55,6 +56,7 @@ const AccordionSection: React.FC<{ title: string; icon: React.ReactNode; section
 const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClosings, onAddRecord, onUpdateRecord, onDeleteRecord, onAddCashClosing, onDeleteCashClosing, currentUser, onBack }) => {
 
    const [showAddModal, setShowAddModal] = useState(false);
+   const [savingRecord, setSavingRecord] = useState(false);
    const [viewMode, setViewMode] = useState<'MOVEMENTS' | 'DRE' | 'CASH_CLOSING'>('DRE');
    const [selectedBranch, setSelectedBranch] = useState<'ALL' | Branch>('ALL');
    const [dateRange, setDateRange] = useState<'TODAY' | 'THIS_WEEK' | 'THIS_MONTH' | 'LAST_30_DAYS' | 'LAST_60_DAYS' | 'LAST_90_DAYS' | 'ALL_TIME' | 'CUSTOM'>('ALL_TIME');
@@ -221,10 +223,11 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
       const dayReceipts = receiptRecords.filter(r => r.date === closingDate && r.branch === closingBranch);
       const totalSales = dayReceipts.reduce((acc, receipt) => acc + receipt.amount, 0);
       const byMethod = dayReceipts.reduce((acc, receipt) => {
-         const key = normalizePaymentMethod(receipt.paymentMethod) as keyof typeof acc;
-         if (key in acc) acc[key] += receipt.amount;
+         const method = receipt.paymentMethod ? normalizePaymentMethod(receipt.paymentMethod) : 'Unknown';
+         const key = (method in acc ? method : 'Unknown') as keyof typeof acc;
+         acc[key] += receipt.amount;
          return acc;
-      }, { Pix: 0, Credit: 0, Debit: 0, Cash: 0 });
+      }, { Pix: 0, Credit: 0, Debit: 0, Cash: 0, Unknown: 0 });
 
       const dayExpenses = records
          .filter(r => r.date === closingDate && r.branch === closingBranch && r.type === 'Expense')
@@ -254,8 +257,8 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
       };
    }, [sales, receiptRecords, records, cashClosings, closingDate, closingBranch]);
 
-   const handleSaveClosing = () => {
-      if (!currentUser) return;
+   const handleSaveClosing = async () => {
+      if (!currentUser || savingRecord) return;
       const newClosing: CashClosing = {
          id: crypto.randomUUID(),
          date: closingDate,
@@ -270,14 +273,28 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
          closedBy: currentUser.name
       };
 
-      onAddCashClosing(newClosing);
-      alert("Caixa fechado com sucesso!");
+      setSavingRecord(true);
+      try {
+         await onAddCashClosing(newClosing);
+         alert("Caixa fechado com sucesso!");
+      } catch (error) {
+         alert(`Não foi possível confirmar o fechamento. ${(error as Error)?.message || ''}`);
+      } finally {
+         setSavingRecord(false);
+      }
    };
 
    const calculateDRE = useCallback(() => {
-      const allSalesInPeriod = sales.filter(s => (selectedBranch === 'ALL' || s.branch === selectedBranch) && filterByDate(s.date));
-      const completedSales = allSalesInPeriod.filter(s => s.status === 'Completed');
-      const cancelledSales = allSalesInPeriod.filter(s => s.status === 'Cancelled');
+      const allSalesInPeriod = sales.filter(s => {
+         const competenceDate = s.source === 'ATACADO' && s.fulfillmentStatus !== undefined
+            ? (getSaleDispatchDate(s) || s.date) : s.date;
+         return (selectedBranch === 'ALL' || s.branch === selectedBranch) && filterByDate(competenceDate);
+      });
+      const completedSales = allSalesInPeriod.filter(s => s.source === 'ATACADO' && s.fulfillmentStatus !== undefined
+         ? s.fulfillmentStatus === 'dispatched' && s.status !== 'Cancelled'
+         : s.status === 'Completed');
+      const cancelledSales = allSalesInPeriod.filter(s => s.status === 'Cancelled'
+         && (s.source !== 'ATACADO' || s.fulfillmentStatus === undefined || s.fulfillmentStatus === 'dispatched'));
 
       const totalCompletedSales = completedSales.reduce((acc, s) => acc + s.total, 0);
       const totalCancelledSales = cancelledSales.reduce((acc, s) => acc + s.total, 0);
@@ -425,8 +442,8 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
       setShowEditModal(true);
    };
 
-   const handleUpdateRecordSave = () => {
-      if (!editingRecord) return;
+   const handleUpdateRecordSave = async () => {
+      if (!editingRecord || savingRecord) return;
       if (!Number.isFinite(editingRecord.amount) || editingRecord.amount <= 0) {
          alert('Informe um valor maior que zero.');
          return;
@@ -435,7 +452,15 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
          alert('Informe a justificativa da entrada.');
          return;
       }
-      onUpdateRecord(editingRecord);
+      setSavingRecord(true);
+      try {
+         await onUpdateRecord(editingRecord);
+      } catch (error) {
+         alert(`Não foi possível atualizar o lançamento. ${(error as Error)?.message || ''}`);
+         return;
+      } finally {
+         setSavingRecord(false);
+      }
       setShowEditModal(false);
       setEditingRecord(null);
    };
@@ -447,7 +472,8 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
       setShowAddModal(true);
    };
 
-   const handleSaveRecord = () => {
+   const handleSaveRecord = async () => {
+      if (savingRecord) return;
       const amount = Number(newRecord.amount);
       const description = newRecord.description?.trim() || (newRecord.type === 'Income' ? '' : 'Sem descrição');
       if (!Number.isFinite(amount) || amount <= 0) {
@@ -491,7 +517,15 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
          });
       }
 
-      onAddRecord(recordsToAdd);
+      setSavingRecord(true);
+      try {
+         await onAddRecord(recordsToAdd);
+      } catch (error) {
+         alert(`Não foi possível salvar o lançamento. ${(error as Error)?.message || ''}`);
+         return;
+      } finally {
+         setSavingRecord(false);
+      }
       setShowAddModal(false);
       setNewRecord({ type: 'Expense', date: getTodayDate(), category: '', description: '', amount: 0, branch: Branch.MATRIZ, paymentMethod: 'Pix' });
       setIsRecurring(false);
@@ -886,6 +920,7 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
                    </div>
 
                    <div className="mt-6 space-y-4">
+                      {closingData.byMethod.Unknown !== 0 && <p role="status" className="text-sm text-amber-800">Há {formatCurrency(closingData.byMethod.Unknown)} em recebimentos ou estornos sem forma de pagamento informada. Confira antes de fechar o caixa.</p>}
                       <div>
                          <label className="block text-sm font-bold text-slate-700 mb-1">Dinheiro em Caixa (R$)</label>
                          <input type="number" value={cashInDrawer} onChange={(e) => setCashInDrawer(Number(e.target.value))} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
@@ -894,7 +929,7 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
                          <label className="block text-sm font-bold text-slate-700 mb-1">Observações</label>
                          <textarea value={closingNotes} onChange={(e) => setClosingNotes(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" rows={3} />
                       </div>
-                      <button onClick={handleSaveClosing} className="w-full bg-blue-800 hover:bg-blue-700 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg">
+                      <button onClick={handleSaveClosing} disabled={savingRecord} className="w-full bg-blue-800 hover:bg-blue-700 disabled:opacity-50 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg">
                          <Lock size={18} /> Fechar Caixa
                       </button>
                    </div>
@@ -959,7 +994,7 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
                             {isRecurring && <input type="number" aria-label="Número de parcelas" min="2" max="60" value={installments} onChange={(event) => setInstallments(Number(event.target.value))} className="w-20 px-2 py-1 border border-slate-300 rounded-lg" />}
                          </div>
                       )}
-                      <button type="submit" className="w-full bg-blue-800 hover:bg-blue-700 text-white py-3 rounded-xl font-bold shadow-lg shadow-blue-900/10">Salvar {newRecord.type === 'Income' ? 'Receita' : 'Despesa'}</button>
+                      <button type="submit" disabled={savingRecord} className="w-full bg-blue-800 hover:bg-blue-700 disabled:opacity-50 text-white py-3 rounded-xl font-bold shadow-lg shadow-blue-900/10">{savingRecord ? 'Salvando...' : `Salvar ${newRecord.type === 'Income' ? 'Receita' : 'Despesa'}`}</button>
                    </form>
                 </div>
              </div>
@@ -1071,6 +1106,7 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
 
                      <button
                         onClick={handleUpdateRecordSave}
+                        disabled={savingRecord}
                         className="w-full bg-blue-800 hover:bg-blue-700 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue-900/10"
                      >
                         Salvar Alterações

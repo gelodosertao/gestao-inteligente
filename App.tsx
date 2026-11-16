@@ -237,8 +237,8 @@ const App: React.FC = () => {
   };
 
   const refreshSaleData = async () => {
-    const refreshed = await refetch();
-    if (!refreshed.data) return;
+    const refreshed = await refetch({ throwOnError: true });
+    if (!refreshed.data) throw new Error('Não foi possível carregar os dados confirmados.');
 
     setProducts(refreshed.data.p);
     setSales(refreshed.data.s);
@@ -246,23 +246,18 @@ const App: React.FC = () => {
   };
 
   const handleUpdateProduct = async (updatedProduct: Product) => {
-    setProducts(prev => prev.map(p => p.id === updatedProduct.id ? updatedProduct : p));
-    try {
-      await dbProducts.update(updatedProduct);
-    } catch (e: any) {
-      console.error("Failed to update product in DB", e);
-      alert(`Erro ao salvar alteração no banco de dados: ${e.message || e}`);
-    }
+    await dbProducts.update(updatedProduct);
+    setProducts(prev => prev.map(p => p.id === updatedProduct.id ? {
+      ...updatedProduct,
+      stockMatrizIbotirama: p.stockMatrizIbotirama,
+      stockMatrizBarreiras: p.stockMatrizBarreiras,
+      stockFilial: p.stockFilial,
+    } : p));
   };
 
   const handleAddProduct = async (newProduct: Product) => {
-    setProducts(prev => [...prev, newProduct]);
-    try {
-      await dbProducts.add(newProduct, currentUser!.tenantId);
-    } catch (e: any) {
-      console.error(e);
-      alert(`Erro ao criar produto no banco: ${e.message || e}`);
-    }
+    await dbProducts.add(newProduct, currentUser!.tenantId);
+    setProducts(prev => prev.some(p => p.id === newProduct.id) ? prev : [...prev, newProduct]);
   };
 
   const handleDeleteProduct = async (productId: string) => {
@@ -270,9 +265,9 @@ const App: React.FC = () => {
       alert('Apenas administradores podem excluir registros.');
       return;
     }
-    setProducts(prev => prev.filter(p => p.id !== productId));
     try {
       await dbProducts.delete(productId);
+      setProducts(prev => prev.filter(p => p.id !== productId));
     } catch (e) {
       console.error(e);
       alert("Erro ao excluir produto no banco.");
@@ -284,14 +279,17 @@ const App: React.FC = () => {
 
     try {
       await dbSales.applyOperation('create', newSale, operation.operationId);
-      await refreshSaleData();
-      pendingSaleOperations.current.delete(operation.key);
     } catch (error: any) {
       console.error("Erro ao registrar venda:", error);
       await refreshSaleData().catch(refreshError => console.error("Erro ao recarregar vendas:", refreshError));
       alert(`A venda não foi confirmada. Tente novamente: ${error.message || JSON.stringify(error)}`);
       throw error;
     }
+    pendingSaleOperations.current.delete(operation.key);
+    await refreshSaleData().catch(error => {
+      console.error('Venda gravada; falha ao atualizar a consulta:', error);
+      alert('Venda registrada. Recarregue a página para consultar os dados atualizados.');
+    });
 
     // Logistics Integration for Wholesale POS Deliveries
     if (newSale.source === 'ATACADO' && newSale.deliveryMethod === 'Delivery') {
@@ -333,23 +331,13 @@ const App: React.FC = () => {
   };
 
   const handleAddFinancialRecord = async (newRecords: FinancialRecord[]) => {
+    await dbFinancials.addBatch(newRecords, currentUser!.tenantId);
     setFinancials(prev => [...newRecords, ...prev]);
-    try {
-      await dbFinancials.addBatch(newRecords, currentUser!.tenantId);
-    } catch (e: any) {
-      console.error("ERRO COMPLETO:", e);
-      alert(`Erro ao salvar despesas no banco: ${e.message || JSON.stringify(e)}`);
-    }
   };
 
   const handleUpdateFinancialRecord = async (updatedRecord: FinancialRecord) => {
+    await dbFinancials.update(updatedRecord);
     setFinancials(prev => prev.map(r => r.id === updatedRecord.id ? updatedRecord : r));
-    try {
-      await dbFinancials.update(updatedRecord);
-    } catch (e) {
-      console.error(e);
-      alert("Erro ao atualizar registro financeiro no banco.");
-    }
   };
 
   const handleDeleteFinancialRecord = async (recordId: string) => {
@@ -417,14 +405,17 @@ const App: React.FC = () => {
 
     try {
       await dbSales.applyOperation('update', updatedSale, operation.operationId);
-      await refreshSaleData();
-      pendingSaleOperations.current.delete(operation.key);
     } catch (error: any) {
       console.error("Erro ao atualizar venda:", error);
       await refreshSaleData().catch(refreshError => console.error("Erro ao recarregar vendas:", refreshError));
       alert(`A alteração não foi confirmada. Tente novamente: ${error.message || JSON.stringify(error)}`);
       throw error;
     }
+    pendingSaleOperations.current.delete(operation.key);
+    await refreshSaleData().catch(error => {
+      console.error('Alteração gravada; falha ao atualizar a consulta:', error);
+      alert('Alteração registrada. Recarregue a página para consultar os dados atualizados.');
+    });
   };
 
   const handleDeleteSale = async (saleId: string) => {
@@ -441,23 +432,22 @@ const App: React.FC = () => {
 
     try {
       await dbSales.applyOperation('cancel', saleToDelete, operation.operationId);
-      await refreshSaleData();
-      pendingSaleOperations.current.delete(operation.key);
     } catch (error: any) {
       console.error("Erro ao cancelar venda:", error);
       await refreshSaleData().catch(refreshError => console.error("Erro ao recarregar vendas:", refreshError));
       alert(`O cancelamento não foi confirmado. Tente novamente: ${error.message || JSON.stringify(error)}`);
+      return;
     }
+    pendingSaleOperations.current.delete(operation.key);
+    await refreshSaleData().catch(error => {
+      console.error('Cancelamento gravado; falha ao atualizar a consulta:', error);
+      alert('Cancelamento registrado. Recarregue a página para consultar os dados atualizados.');
+    });
   };
 
   const handleAddCashClosing = async (newClosing: CashClosing) => {
+    await dbCashClosings.add(newClosing, currentUser!.tenantId);
     setCashClosings(prev => [newClosing, ...prev]);
-    try {
-      await dbCashClosings.add(newClosing, currentUser!.tenantId);
-    } catch (e) {
-      console.error(e);
-      alert("Erro ao salvar fechamento de caixa.");
-    }
   };
 
   const handleDeleteCashClosing = async (id: string) => {
@@ -678,7 +668,7 @@ const App: React.FC = () => {
         }
         return <Conciliacao sales={sales} financials={financials} products={products} onBack={() => setCurrentView('DASHBOARD')} onDataChanged={refreshSaleData} />;
       case 'INVENTORY':
-        return <Inventory products={products} sales={sales} financials={financials} onUpdateProduct={handleUpdateProduct} onAddProduct={handleAddProduct} onDeleteProduct={handleDeleteProduct} onOpenPricing={(id) => { setPricingProductId(id); setCurrentView('PRICING'); }} onAddFinancialRecord={handleAddFinancialRecord} onBack={() => setCurrentView('DASHBOARD')} currentUser={currentUser!} />;
+        return <Inventory products={products} sales={sales} financials={financials} onUpdateProduct={handleUpdateProduct} onAddProduct={handleAddProduct} onDeleteProduct={handleDeleteProduct} onOpenPricing={(id) => { setPricingProductId(id); setCurrentView('PRICING'); }} onAddFinancialRecord={handleAddFinancialRecord} onStockChanged={refreshSaleData} onBack={() => setCurrentView('DASHBOARD')} currentUser={currentUser!} />;
       case 'SALES':
         return <Sales sales={sales} products={products} customers={customers} onAddSale={handleAddSale} onAddCustomer={handleAddCustomer} currentUser={currentUser!} onUpdateSale={handleUpdateSale} onDeleteSale={handleDeleteSale} onBack={() => setCurrentView('DASHBOARD')} />;
       case 'CUSTOMERS':
@@ -693,7 +683,16 @@ const App: React.FC = () => {
       case 'MENU_CONFIG':
         return <FeatureUnavailable featureName="Site / Cardápio" />;
       case 'PRODUCTION':
-        return <Production products={products} currentUser={currentUser!} onUpdateProduct={handleUpdateProduct} onAddProduct={handleAddProduct} onBack={() => setCurrentView('DASHBOARD')} />;
+        return <Production
+          products={products}
+          currentUser={currentUser!}
+          onUpdateProduct={handleUpdateProduct}
+          onStockChanged={async () => {
+            await refetch({ throwOnError: true });
+          }}
+          onAddProduct={handleAddProduct}
+          onBack={() => setCurrentView('DASHBOARD')}
+        />;
       case 'SETTINGS':
         return <Settings currentUser={currentUser!} onResetData={handleResetData} />;
       case 'EMISSOR':

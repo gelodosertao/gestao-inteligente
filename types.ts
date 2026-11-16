@@ -134,6 +134,10 @@ export interface Sale {
   branch: Branch;
   matrizDeposit?: 'Ibotirama' | 'Barreiras';
   status: 'Completed' | 'Pending' | 'Cancelled' | 'Finalizado pela Fábrica';
+  fulfillmentStatus?: 'pending' | 'dispatched';
+  revision?: number;
+  cancelledAt?: string;
+  dispatchedAt?: string;
   deliveryMethod?: 'Delivery' | 'Pickup';
   deliveryAddress?: string;
   deliveryCity?: string;
@@ -311,6 +315,13 @@ export interface StockMovement {
   reason: string;
   branch: Branch;
   matrizDeposit?: 'Ibotirama' | 'Barreiras';
+  operationId?: string;
+  eventType?: string;
+  saleId?: string;
+  actorId?: string;
+  responsible?: string;
+  stockBefore?: number;
+  stockAfter?: number;
 }
 
 export type Shift = 'Manhã' | 'Tarde' | 'Noite' | 'Madrugada';
@@ -338,6 +349,7 @@ export interface CashClosing {
     Credit: number;
     Debit: number;
     Cash: number;
+    Unknown?: number;
   };
   cashInDrawer: number; // Valor contado
   difference: number; // Sobra ou Falta

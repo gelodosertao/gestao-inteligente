@@ -1,0 +1,71 @@
+- generic [ref=f2e3]:
+  - navigation [ref=f2e4]:
+    - button "inventory" [ref=f2e5] [cursor=pointer]
+    - button "wholesale" [ref=f2e6] [cursor=pointer]
+    - button "production" [active] [ref=f2e7] [cursor=pointer]
+    - button "financial" [ref=f2e8] [cursor=pointer]
+  - generic [ref=f2e135]:
+    - generic [ref=f2e136]:
+      - generic [ref=f2e137]:
+        - button "Voltar à gestão" [ref=f2e138] [cursor=pointer]
+        - generic [ref=f2e141]:
+          - heading "Controle de Produção" [level=1] [ref=f2e142]
+          - paragraph [ref=f2e143]: Registre a produção diária da fábrica.
+      - generic [ref=f2e144]:
+        - button "Registrar Produção" [ref=f2e145] [cursor=pointer]
+        - button "Histórico" [ref=f2e150] [cursor=pointer]
+        - button "Estoque de Insumos" [ref=f2e155] [cursor=pointer]
+        - button "Custo de Produção" [ref=f2e166] [cursor=pointer]
+    - generic [ref=f2e169]:
+      - heading "Registrar Nova Produção" [level=3] [ref=f2e170]
+      - group [ref=f2e175]:
+        - generic [ref=f2e176]:
+          - generic [ref=f2e177]:
+            - generic [ref=f2e178]: Produto Fabricado
+            - combobox "Produto Fabricado" [ref=f2e179]:
+              - option "Selecione o produto..." [selected]
+              - option "Gelo Cubo 5kg"
+          - generic [ref=f2e180]:
+            - generic [ref=f2e181]: Quantidade Produzida
+            - spinbutton "Quantidade Produzida" [ref=f2e182]
+          - generic [ref=f2e183]:
+            - generic [ref=f2e184]:
+              - generic [ref=f2e185]: Turno
+              - combobox [ref=f2e186]:
+                - option "Manhã" [selected]
+                - option "Tarde"
+                - option "Noite"
+                - option "Madrugada"
+            - generic [ref=f2e187]:
+              - generic [ref=f2e188]: Responsável
+              - generic [ref=f2e189]: Operador de teste
+        - generic [ref=f2e194]:
+          - heading "Insumos Utilizados (Baixa no Estoque)" [level=4] [ref=f2e195]
+          - generic [ref=f2e206]:
+            - paragraph [ref=f2e209]: Selecione um produto e quantidade
+            - paragraph [ref=f2e210]: para calcular os insumos.
+      - generic [ref=f2e211]:
+        - generic [ref=f2e212]: Observações (Opcional)
+        - 'textbox "Ex: Máquina 2 parada, quebra de insumo extra..." [ref=f2e213]'
+      - button "Confirmar Produção" [ref=f2e215] [cursor=pointer]
+    - region "Registro de Perdas" [ref=f2e220]:
+      - generic [ref=f2e221]:
+        - heading "Registro de Perdas" [level=3] [ref=f2e222]
+        - paragraph [ref=f2e225]: A perda é baixada do estoque da Matriz (Ibotirama).
+      - generic [ref=f2e226]:
+        - group [ref=f2e227]:
+          - generic [ref=f2e228]:
+            - text: Produto da Perda
+            - combobox "Produto da Perda" [ref=f2e229]:
+              - option "Selecione o produto..." [selected]
+              - option "Gelo Cubo 5kg"
+          - generic [ref=f2e230]:
+            - text: Quantidade Perdida
+            - spinbutton "Quantidade Perdida" [disabled] [ref=f2e231]
+          - generic [ref=f2e232]:
+            - text: Motivo (Opcional)
+            - textbox "Motivo (Opcional)" [ref=f2e233]:
+              - /placeholder: "Ex.: descarte por qualidade"
+        - generic [ref=f2e234]:
+          - paragraph
+          - button "Confirmar Perda" [disabled] [ref=f2e235]

@@ -1,0 +1,110 @@
+- generic [ref=f11e3]:
+  - navigation [ref=f11e4]:
+    - button "inventory" [ref=f11e5] [cursor=pointer]
+    - button "wholesale" [ref=f11e6] [cursor=pointer]
+    - button "production" [ref=f11e7] [cursor=pointer]
+    - button "financial" [ref=f11e8] [cursor=pointer]
+  - generic [ref=f11e9]:
+    - generic [ref=f11e10]:
+      - generic [ref=f11e11]:
+        - button "Voltar à gestão" [ref=f11e12] [cursor=pointer]
+        - generic [ref=f11e15]:
+          - heading "Controle de Estoque" [level=1] [ref=f11e16]
+          - paragraph [ref=f11e17]: Gerenciamento dinâmico de níveis e movimentações
+      - generic [ref=f11e18]:
+        - button "Geral" [ref=f11e19] [cursor=pointer]
+        - button "Matriz" [ref=f11e20] [cursor=pointer]
+        - button "Filial" [ref=f11e21] [cursor=pointer]
+      - generic [ref=f11e22]:
+        - button "Movimentações e relatório" [ref=f11e23] [cursor=pointer]
+        - button "Transferir" [active] [ref=f11e28] [cursor=pointer]
+        - button "Novo" [ref=f11e33] [cursor=pointer]
+        - generic [ref=f11e36] [cursor=pointer]:
+          - generic [ref=f11e40]: Receber XML
+          - button "Receber compra por XML" [ref=f11e41]
+    - generic [ref=f11e42]:
+      - generic [ref=f11e43]:
+        - textbox "Buscar produto por nome ou categoria" [ref=f11e48]:
+          - /placeholder: Buscar produto por nome ou categoria...
+        - button "Filtrar produtos por categoria" [ref=f11e49] [cursor=pointer]
+      - table [ref=f11e53]:
+        - rowgroup [ref=f11e54]:
+          - row [ref=f11e55]:
+            - columnheader "Produto" [ref=f11e56]
+            - columnheader "Categoria" [ref=f11e57]
+            - columnheader "Preço Varejo (Filial)" [ref=f11e58]
+            - columnheader "Preço Atacado" [ref=f11e59]
+            - columnheader "Matriz (Ibotirama)" [ref=f11e60]
+            - columnheader "Matriz (Barreiras)" [ref=f11e61]
+            - columnheader "Estoque Filial" [ref=f11e62]
+            - columnheader "Status" [ref=f11e63]
+            - columnheader "Ações" [ref=f11e64]
+        - rowgroup [ref=f11e65]:
+          - row [ref=f11e66]:
+            - 'cell "Gelo Cubo 5kg ID: ice" [ref=f11e67]':
+              - paragraph [ref=f11e68]: Gelo Cubo 5kg
+              - generic [ref=f11e69]: "ID: ice"
+            - cell "Gelo Cubo" [ref=f11e70]
+            - cell "R$ 10,00" [ref=f11e71]
+            - cell "R$ 8,00" [ref=f11e72]
+            - cell "100 un" [ref=f11e73]
+            - cell "35 un" [ref=f11e75]
+            - cell "2 un" [ref=f11e77]
+            - cell "OK" [ref=f11e79]
+            - cell [ref=f11e82]:
+              - button "Ajustar" [ref=f11e83] [cursor=pointer]
+              - button "Receita" [ref=f11e85] [cursor=pointer]
+              - button "Registrar Perda" [ref=f11e89] [cursor=pointer]
+              - button "Editar" [ref=f11e92] [cursor=pointer]
+              - button "Excluir Produto" [ref=f11e96] [cursor=pointer]
+          - row [ref=f11e100]:
+            - 'cell "Embalagem 5kg ID: bag" [ref=f11e101]':
+              - paragraph [ref=f11e102]: Embalagem 5kg
+              - generic [ref=f11e103]: "ID: bag"
+            - cell "Insumo (Matéria-prima)" [ref=f11e104]
+            - cell "R$ 1,00" [ref=f11e105]
+            - cell "R$ 1,00" [ref=f11e106]
+            - cell "20 un" [ref=f11e107]
+            - cell "0 un" [ref=f11e109]
+            - cell "0 un" [ref=f11e111]
+            - cell "OK" [ref=f11e113]
+            - cell [ref=f11e116]:
+              - button "Ajustar" [ref=f11e117] [cursor=pointer]
+              - button "Receita" [ref=f11e119] [cursor=pointer]
+              - button "Registrar Perda" [ref=f11e123] [cursor=pointer]
+              - button "Editar" [ref=f11e126] [cursor=pointer]
+              - button "Excluir Produto" [ref=f11e130] [cursor=pointer]
+      - generic [ref=f11e134]: Mostrando 2 produtos
+  - generic [ref=f11e136]:
+    - generic [ref=f11e137]:
+      - heading "Transferência Interna" [level=3] [ref=f11e138]
+      - button "Fechar transferência" [ref=f11e144] [cursor=pointer]
+    - generic [ref=f11e148]:
+      - generic [ref=f11e149]:
+        - generic [ref=f11e150]: Produto
+        - combobox "Produto" [ref=f11e151]:
+          - option "Gelo Cubo 5kg" [selected]
+          - option "Embalagem 5kg"
+      - generic [ref=f11e152]:
+        - generic [ref=f11e153]:
+          - generic [ref=f11e154]: Origem
+          - combobox "Origem" [ref=f11e155]:
+            - option "Ibotirama" [selected]
+            - option "Barreiras"
+            - option "Filial"
+          - paragraph [ref=f11e156]: 100 un
+        - generic [ref=f11e160]:
+          - generic [ref=f11e161]: Destino
+          - combobox "Destino" [ref=f11e162]:
+            - option "Ibotirama"
+            - option "Barreiras"
+            - option "Filial" [selected]
+          - paragraph [ref=f11e163]: 2 un
+      - generic [ref=f11e164]:
+        - generic [ref=f11e165]: Quantidade a Transferir (un)
+        - spinbutton "Quantidade a Transferir (un)" [ref=f11e166]: "0"
+        - paragraph [ref=f11e167]: "Máximo disponível: 100 un"
+      - generic [ref=f11e168]:
+        - generic [ref=f11e169]: Motivo
+        - textbox "Motivo" [ref=f11e170]: Transferência interna
+      - button "Confirmar Transferência" [ref=f11e171] [cursor=pointer]

@@ -1,0 +1,104 @@
+- generic [ref=f1e3]:
+  - navigation [ref=f1e4]:
+    - button "inventory" [ref=f1e5] [cursor=pointer]
+    - button "wholesale" [ref=f1e6] [cursor=pointer]
+    - button "production" [ref=f1e7] [cursor=pointer]
+    - button "financial" [ref=f1e8] [cursor=pointer]
+  - generic [ref=f1e320]:
+    - banner [ref=f1e321]:
+      - generic [ref=f1e322]:
+        - generic [ref=f1e323]:
+          - button "Voltar à gestão" [ref=f1e324] [cursor=pointer]
+          - img "Logo" [ref=f1e328]
+          - generic [ref=f1e329]:
+            - heading "PDV Atacado" [level=1] [ref=f1e330]
+            - paragraph [ref=f1e331]: Gelo do Sertão
+        - navigation "Navegação do PDV" [ref=f1e332]:
+          - button "Novo pedido" [ref=f1e333] [cursor=pointer]
+          - button "Vendas" [ref=f1e338] [cursor=pointer]
+        - generic [ref=f1e343]:
+          - generic [ref=f1e344]:
+            - paragraph [ref=f1e345]: Operador
+            - paragraph [ref=f1e346]: Administrador
+          - button "Sair" [ref=f1e347] [cursor=pointer]
+    - main [ref=f1e351]:
+      - region "Vendas" [ref=f1e394]:
+        - generic [ref=f1e395]:
+          - heading "Histórico de vendas" [level=2] [ref=f1e396]
+          - generic [ref=f1e397]:
+            - textbox "Pesquisar venda por cliente, ID ou valor..." [ref=f1e402]
+            - combobox [ref=f1e403]:
+              - option "Todos os Status" [selected]
+              - option "Pagamento pendente"
+              - option "Quitados"
+              - option "Cancelados"
+            - textbox [ref=f1e404]: 2026-11
+          - generic [ref=f1e405]:
+            - paragraph [ref=f1e407]: Comissão por Vendedor
+            - generic [ref=f1e408]:
+              - generic [ref=f1e409]:
+                - paragraph [ref=f1e410]: Desconhecido
+                - paragraph [ref=f1e411]: ADM · 1 pedidos · R$ 80,00
+              - generic [ref=f1e412]: R$ 0,00
+          - generic [ref=f1e414]:
+            - generic [ref=f1e421]:
+              - heading "Cliente de teste" [level=4] [ref=f1e422]
+              - paragraph [ref=f1e423]:
+                - generic [ref=f1e424]: 2026-11-16
+                - generic [ref=f1e425]: •
+                - generic [ref=f1e426]: Atacado
+              - generic [ref=f1e427]: "Estoque: Barreiras"
+              - generic [ref=f1e429]: 10x Gelo Cubo 5kg
+            - generic [ref=f1e430]:
+              - generic [ref=f1e432]:
+                - generic [ref=f1e433]: R$ 80,00
+                - generic [ref=f1e435]: "Deve: R$ 80,00"
+              - generic [ref=f1e436]:
+                - generic [ref=f1e437]: Pagamento pendente
+                - generic [ref=f1e438]: PIX
+                - generic [ref=f1e439]: Sem NF-e
+              - generic [ref=f1e440]:
+                - generic [ref=f1e441]: Aguardando expedição
+                - button "Confirmar saída" [ref=f1e442] [cursor=pointer]
+                - button "Receber" [ref=f1e443] [cursor=pointer]
+                - generic [ref=f1e447]:
+                  - button "Nota fiscal" [ref=f1e448] [cursor=pointer]
+                  - button [ref=f1e452] [cursor=pointer]
+                  - button "Editar" [ref=f1e457] [cursor=pointer]
+                  - button "Excluir" [ref=f1e461] [cursor=pointer]
+    - generic [ref=f1e466]:
+      - generic [ref=f1e467]:
+        - heading "Registrar Pagamento de Fiado" [level=3] [ref=f1e468]
+        - button [ref=f1e472] [cursor=pointer]
+      - generic [ref=f1e476]:
+        - generic [ref=f1e477]:
+          - paragraph [ref=f1e478]: Cliente
+          - paragraph [ref=f1e479]: Cliente de teste
+        - generic [ref=f1e480]:
+          - generic [ref=f1e481]:
+            - paragraph [ref=f1e482]: Total Venda
+            - paragraph [ref=f1e483]: R$ 80,00
+          - generic [ref=f1e484]:
+            - paragraph [ref=f1e485]: Já Pago
+            - paragraph [ref=f1e486]: R$ 0,00
+          - generic [ref=f1e487]:
+            - paragraph [ref=f1e488]: Restante
+            - paragraph [ref=f1e489]: R$ 80,00
+        - generic [ref=f1e490]:
+          - generic [ref=f1e491]:
+            - generic [ref=f1e492]: Data Pagamento
+            - textbox [ref=f1e493]: 2026-11-16
+          - generic [ref=f1e494]:
+            - generic [ref=f1e495]: Valor (R$)
+            - spinbutton "0.00" [active] [ref=f1e496]: "80.00"
+        - generic [ref=f1e497]:
+          - generic [ref=f1e498]: Forma de Pagamento
+          - generic [ref=f1e499]:
+            - button "PIX" [ref=f1e500] [cursor=pointer]
+            - button "Dinheiro" [ref=f1e501] [cursor=pointer]
+            - button "Crédito" [ref=f1e502] [cursor=pointer]
+            - button "Débito" [ref=f1e503] [cursor=pointer]
+        - generic [ref=f1e504]:
+          - generic [ref=f1e505]: Observações (Opcional)
+          - 'textbox "Ex: Pagamento parcial referente..." [ref=f1e506]'
+        - button "Confirmar Pagamento" [ref=f1e507] [cursor=pointer]

@@ -198,6 +198,39 @@ export const dbCategories = {
 };
 
 // --- PRODUCTS ---
+export type InventoryDeposit = 'Ibotirama' | 'Barreiras' | 'Filial';
+export interface InventoryMutation {
+  operationId: string;
+  action: 'transfer' | 'loss' | 'adjust';
+  productId: string;
+  quantity: number;
+  fromDeposit?: InventoryDeposit;
+  toDeposit?: InventoryDeposit;
+  deposit?: InventoryDeposit;
+  expectedStock?: number;
+  reason: string;
+}
+export interface InventoryReceiptItem {
+  productId: string;
+  quantity: number;
+  supplierCode?: string;
+  product?: Product;
+}
+export interface InventoryReceipt {
+  operationId: string;
+  invoiceKey: string;
+  deposit: InventoryDeposit;
+  items: InventoryReceiptItem[];
+}
+
+async function productCreationOperationId(tenantId: string, productId: string) {
+  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(['inventory-product', tenantId, productId]))));
+  digest[6] = (digest[6] & 15) | 80;
+  digest[8] = (digest[8] & 63) | 128;
+  const hex = Array.from(digest.slice(0, 16), byte => byte.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
 export const dbProducts = {
   async getAll(tenantId: string): Promise<Product[]> {
     const data = await fetchAllRecords((from, to) => supabase.from('products').select('*').eq('tenant_id', tenantId).range(from, to));
@@ -231,33 +264,12 @@ export const dbProducts = {
     }));
   },
 
-  async add(product: Product, tenantId: string) {
-    const { error } = await supabase.from('products').insert([{
-      id: product.id,
-      name: product.name,
-      category: product.category,
-      price_matriz: product.priceMatriz,
-      price_filial: product.priceFilial,
-      cost: product.cost,
-      stock_matriz_ibotirama: product.stockMatrizIbotirama,
-      stock_matriz_barreiras: product.stockMatrizBarreiras,
-      stock_filial: product.stockFilial,
-      unit: product.unit,
-      min_stock: product.minStock,
-      pack_size: product.packSize,
-      price_pack: product.pricePack,
-      is_stock_controlled: product.isStockControlled,
-      combo_items: product.comboItems,
-      image: product.image,
-      recipe: product.recipe,
-      recipe_batch_size: product.recipeBatchSize,
-      operational_cost: product.operationalCost,
-
-      options: product.options,
-      barcode: product.barcode,
-      expiration_date: product.expirationDate,
-      tenant_id: tenantId
-    }]);
+  async add(product: Product, tenantId: string, operationId?: string) {
+    const { error } = await supabase.rpc('create_inventory_product', {
+      p_operation_id: operationId ?? await productCreationOperationId(tenantId, product.id),
+      p_product: product,
+      p_tenant_id: tenantId
+    });
     if (error) throw error;
   },
 
@@ -268,9 +280,6 @@ export const dbProducts = {
       price_matriz: product.priceMatriz,
       price_filial: product.priceFilial,
       cost: product.cost,
-      stock_matriz_ibotirama: product.stockMatrizIbotirama,
-      stock_matriz_barreiras: product.stockMatrizBarreiras,
-      stock_filial: product.stockFilial,
       unit: product.unit,
       min_stock: product.minStock,
       pack_size: product.packSize,
@@ -365,6 +374,10 @@ export const dbSales = {
       branch: row.branch as Branch,
       matrizDeposit: row.matriz_deposit,
       status: row.status as any,
+      fulfillmentStatus: row.fulfillment_status ?? undefined,
+      revision: row.revision ?? 0,
+      cancelledAt: row.cancelled_at,
+      dispatchedAt: row.dispatched_at,
       paymentMethod: row.payment_method as any,
       paymentSplits: row.payment_splits,
       hasInvoice: row.has_invoice,
@@ -403,7 +416,7 @@ export const dbSales = {
       p_operation_id: operationId,
       p_sale_id: sale.id,
       p_action: action,
-      p_payload: action === 'cancel' ? {} : sale
+      p_payload: action === 'cancel' ? { revision: sale.revision ?? 0 } : sale
     });
 
     if (error) throw error;
@@ -693,6 +706,21 @@ export const dbCustomers = {
 
 // --- STOCK MOVEMENTS ---
 export const dbStockMovements = {
+  async mutate(operation: InventoryMutation) {
+    const { error } = await supabase.rpc('mutate_inventory_stock', { p_operation: operation });
+    if (error) throw error;
+  },
+
+  async receiveXml(receipt: InventoryReceipt) {
+    const { error } = await supabase.rpc('receive_inventory_xml', {
+      p_operation_id: receipt.operationId,
+      p_invoice_key: receipt.invoiceKey,
+      p_deposit: receipt.deposit,
+      p_items: receipt.items
+    });
+    if (error) throw error;
+  },
+
   async getAll(tenantId: string): Promise<StockMovement[]> {
     const data = await fetchAllRecords((from, to) => supabase.from('stock_movements').select('*').eq('tenant_id', tenantId).order('date', { ascending: false }).range(from, to));
 
@@ -705,7 +733,14 @@ export const dbStockMovements = {
       type: row.type,
       reason: row.reason,
       branch: row.branch as Branch,
-      matrizDeposit: row.matriz_deposit
+      matrizDeposit: row.matriz_deposit,
+      eventType: row.event_type,
+      saleId: row.sale_id,
+      responsible: row.responsible,
+      actorId: row.actor_id,
+      stockBefore: row.stock_before,
+      stockAfter: row.stock_after,
+      operationId: row.operation_id
     }));
   },
 
@@ -722,6 +757,16 @@ export const dbStockMovements = {
       matriz_deposit: movement.matrizDeposit,
       tenant_id: tenantId
     }]);
+    if (error) throw error;
+  },
+
+  async registerProductionLoss(operationId: string, productId: string, quantity: number, reason: string) {
+    const { error } = await supabase.rpc('register_production_loss', {
+      p_operation_id: operationId,
+      p_product_id: productId,
+      p_quantity: quantity,
+      p_reason: reason
+    });
     if (error) throw error;
   }
 };
@@ -743,18 +788,16 @@ export const dbProduction = {
     }));
   },
 
-  async add(record: ProductionRecord, tenantId: string) {
-    const { error } = await supabase.from('production_logs').insert([{
-      id: record.id,
-      date: record.date,
-      product_id: record.productId,
-      product_name: record.productName,
-      quantity: record.quantity,
-      shift: record.shift,
-      responsible: record.responsible,
-      notes: record.notes,
-      tenant_id: tenantId
-    }]);
+  async register(
+    operationId: string,
+    record: Pick<ProductionRecord, 'productId' | 'quantity' | 'shift' | 'notes'>,
+    ingredients: { ingredientId: string; quantity: number }[]
+  ) {
+    const { error } = await supabase.rpc('register_production_batch', {
+      p_operation_id: operationId,
+      p_record: record,
+      p_ingredients: ingredients.map(({ ingredientId, quantity }) => ({ ingredientId, quantity }))
+    });
     if (error) throw error;
   }
 };

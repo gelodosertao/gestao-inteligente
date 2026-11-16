@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Product, Category } from '../types';
 import { ArrowLeft, Save, Package, Plus, Trash2, DollarSign, Factory } from 'lucide-react';
+import { calculateProductionCosts } from '../services/productionCosts';
 
 interface PricingProps {
     products: Product[];
     initialProductId?: string | null;
-    onUpdateProduct: (product: Product) => void;
+    onUpdateProduct: (product: Product) => Promise<void>;
     onBack: () => void;
 }
 
@@ -16,6 +17,14 @@ const Pricing: React.FC<PricingProps> = ({ products, initialProductId, onUpdateP
     const [recipeItems, setRecipeItems] = useState<{ ingredientId: string; quantity: number }[]>([]);
     const [operationalCost, setOperationalCost] = useState<number>(0);
     const [batchSize, setBatchSize] = useState<number>(1); // Default to 1 unit
+    const [saving, setSaving] = useState(false);
+    let costs: ReturnType<typeof calculateProductionCosts> | undefined;
+    let costError = '';
+    try {
+        costs = calculateProductionCosts({ products, recipe: recipeItems, batchSize, operationalCost, productId: selectedProductId });
+    } catch (error) {
+        costError = (error as Error).message;
+    }
 
     // Helper to get product details
     const getProduct = (id: string) => products.find(p => p.id === id);
@@ -55,36 +64,41 @@ const Pricing: React.FC<PricingProps> = ({ products, initialProductId, onUpdateP
     };
 
     const calculateTotalBatchCost = () => {
-        return recipeItems.reduce((acc, item) => {
-            const ingredient = getProduct(item.ingredientId);
-            return acc + (ingredient ? (ingredient.cost * item.quantity) : 0);
-        }, 0);
+        return costs ? costs.batchCost - operationalCost : NaN;
     };
 
     const calculateUnitCost = () => {
-        const batchCost = calculateTotalBatchCost();
-        return (batchCost / (batchSize || 1)) + operationalCost;
+        return costs?.unitCost ?? NaN;
     };
 
-    const handleSave = () => {
-        if (!selectedProduct) return;
-
-        // Validate recipe
-        const validRecipe = recipeItems.filter(item => item.ingredientId && item.quantity > 0);
+    const handleSave = async () => {
+        if (!selectedProduct || saving) return;
+        if (!costs) {
+            alert(costError);
+            return;
+        }
 
         const updatedProduct: Product = {
             ...selectedProduct,
-            recipe: validRecipe,
+            recipe: recipeItems,
             recipeBatchSize: batchSize,
             operationalCost: operationalCost,
             cost: calculateUnitCost() // Update the main cost field with the calculated unit cost
         };
 
-        onUpdateProduct(updatedProduct);
-        alert(`Custo de produção atualizado para ${selectedProduct.name}!`);
+        setSaving(true);
+        try {
+            await onUpdateProduct(updatedProduct);
+            alert(`Custo de produção atualizado para ${selectedProduct.name}!`);
+        } catch {
+            alert('Erro ao salvar o custo de produção. Revise a conexão e tente novamente.');
+        } finally {
+            setSaving(false);
+        }
     };
 
-    const formatCurrency = (val: number) => val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    const formatCurrency = (val: number) => Number.isFinite(val)
+        ? val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '—';
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -210,11 +224,11 @@ const Pricing: React.FC<PricingProps> = ({ products, initialProductId, onUpdateP
                     {/* 3. Operational Costs */}
                     <div className={`bg-white p-6 rounded-2xl shadow-sm border border-slate-200 transition-opacity ${!selectedProduct ? 'opacity-50 pointer-events-none' : ''}`}>
                         <h3 className="font-bold text-slate-700 mb-4 flex items-center gap-2">
-                            <DollarSign size={20} className="text-purple-600" /> 3. Custos Operacionais (Por Unidade)
+                            <DollarSign size={20} className="text-purple-600" /> 3. Custos Operacionais (Por Lote)
                         </h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-sm font-bold text-slate-700 mb-1">Custo Extra Unitário</label>
+                                <label className="block text-sm font-bold text-slate-700 mb-1">Custo Extra do Lote</label>
                                 <div className="relative">
                                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">R$</span>
                                     <input
@@ -224,7 +238,7 @@ const Pricing: React.FC<PricingProps> = ({ products, initialProductId, onUpdateP
                                         onChange={(e) => setOperationalCost(Number(e.target.value))}
                                     />
                                 </div>
-                                <p className="text-xs text-slate-400 mt-1">Energia, Mão de obra, etc (por unidade produzida).</p>
+                                <p className="text-xs text-slate-400 mt-1">Energia, mão de obra e outros custos do lote completo; o total será dividido pelas unidades produzidas.</p>
                             </div>
                         </div>
                     </div>
@@ -258,7 +272,7 @@ const Pricing: React.FC<PricingProps> = ({ products, initialProductId, onUpdateP
                                 <span>{formatCurrency(calculateTotalBatchCost() / (batchSize || 1))}</span>
                             </div>
                             <div className="flex justify-between items-center text-purple-400">
-                                <span>Operacional (Unit.)</span>
+                                <span>Operacional (Lote)</span>
                                 <span>{formatCurrency(operationalCost)}</span>
                             </div>
 
@@ -284,11 +298,13 @@ const Pricing: React.FC<PricingProps> = ({ products, initialProductId, onUpdateP
                             </div>
                         </div>
 
+                        {costError && selectedProduct && <p role="alert" className="mb-3 text-sm text-red-300">{costError}</p>}
                         <button
                             onClick={handleSave}
-                            className="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-4 rounded-xl font-bold text-lg shadow-lg shadow-emerald-900/20 transition-all flex items-center justify-center gap-2"
+                            disabled={saving || !costs || !selectedProduct}
+                            className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white py-4 rounded-xl font-bold text-lg shadow-lg shadow-emerald-900/20 transition-all flex items-center justify-center gap-2"
                         >
-                            <Save size={20} /> Salvar Configuração
+                            <Save size={20} /> {saving ? 'Salvando...' : 'Salvar Configuração'}
                         </button>
                     </div>
                 </div>

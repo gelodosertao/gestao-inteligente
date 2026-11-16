@@ -47,6 +47,15 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
 
    const handleSaveEditedSale = async () => {
       if (!editingSale) return;
+      const originalSale = sales.find(sale => sale.id === editingSale.id);
+      const isWholesale = editingSale.source === 'ATACADO';
+      const legacyPaid = originalSale?.fulfillmentStatus === undefined
+         && (originalSale?.status === 'Completed' || originalSale?.status === 'Finalizado pela Fábrica');
+      const paid = legacyPaid ? (originalSale?.total || 0) : (editingSale.amountPaid || 0);
+      if (isWholesale && originalSale && editingSale.status !== originalSale.status) {
+         alert('Use Confirmar pedido para registrar pagamentos e a ação de cancelamento para cancelar o pedido.');
+         return;
+      }
 
       // Validation for wholesale orders being completed
       if (editingSale.branch === Branch.MATRIZ && editingSale.status === 'Completed' && !editingSale.matrizDeposit) {
@@ -62,7 +71,12 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
       // However, if we want to allow "Discount" editing, we should probably add a discount field to Sale type or just manipulate total.
       // Let's assume we update total directly from items sum.
 
-      const updatedSale = { ...editingSale, total: newTotal };
+      const updatedSale = { ...editingSale, total: newTotal + (editingSale.deliveryFee || 0) - (editingSale.discount || 0) };
+      if (!Number.isFinite(updatedSale.total) || updatedSale.total < paid
+         || !editingSale.items.length || editingSale.items.some(item => !Number.isFinite(item.quantity) || item.quantity <= 0 || !Number.isFinite(item.priceAtSale) || item.priceAtSale < 0)) {
+         alert('Confira os itens e o total. O pedido não pode ficar abaixo do valor já recebido.');
+         return;
+      }
 
       try {
          await onUpdateSale(updatedSale);
@@ -727,6 +741,11 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                                  </div>
                               </div>
                               <div className="flex gap-1.5 flex-wrap justify-start md:justify-end">
+                                 {sale.source === 'ATACADO' && sale.fulfillmentStatus !== undefined && (
+                                    <span className="px-2 py-1 rounded-md text-[10px] md:text-xs font-bold border bg-blue-50 text-blue-700 border-blue-200">
+                                       {sale.fulfillmentStatus === 'dispatched' ? 'Gelo expedido' : 'Aguardando saída'} · {sale.matrizDeposit || 'Origem pendente'}
+                                    </span>
+                                 )}
                                  <span className={`px-2 py-1 rounded-md text-[10px] md:text-xs font-bold border flex items-center gap-1 ${sale.status === 'Completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : sale.status === 'Finalizado pela Fábrica' ? 'bg-blue-50 text-blue-700 border-blue-200' : sale.status === 'Pending' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-red-50 text-red-700 border-red-200'} `}>
                                     {sale.status === 'Completed' ? 'Concluído' : sale.status === 'Finalizado pela Fábrica' ? 'Finalizado Fábrica' : sale.status === 'Pending' ? 'Pendente' : 'Cancelado'}
                                  </span>
@@ -1409,6 +1428,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                                  <select
                                     className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
                                     value={editingSale.status}
+                                    disabled={editingSale.source === 'ATACADO'}
                                     onChange={(e) => setEditingSale({ ...editingSale, status: e.target.value as any })}
                                  >
                                     <option value="Completed">Concluído</option>
@@ -1416,12 +1436,14 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                                     <option value="Finalizado pela Fábrica">Finalizado pela Fábrica</option>
                                     <option value="Cancelled">Cancelado</option>
                                  </select>
+                                 {editingSale.source === 'ATACADO' && <p className="mt-1 text-xs text-slate-500">Confirmar pedido registra o pagamento e baixa o estoque uma única vez, no depósito escolhido.</p>}
                               </div>
                               <div>
                                  <label className="block text-sm font-bold text-slate-700 mb-1">Método de Pagamento</label>
                                  <select
                                     className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
                                     value={editingSale.paymentMethod}
+                                    disabled={editingSale.source === 'ATACADO' && ((editingSale.amountPaid || 0) > 0 || !!editingSale.paymentHistory?.length || (editingSale.fulfillmentStatus === undefined && (editingSale.status === 'Completed' || editingSale.status === 'Finalizado pela Fábrica')))}
                                     onChange={(e) => setEditingSale({ ...editingSale, paymentMethod: e.target.value as PaymentMethod })}
                                  >
                                     <option value="Cash">Dinheiro</option>

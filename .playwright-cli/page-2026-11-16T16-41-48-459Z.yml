@@ -1,0 +1,218 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - link "Gelo do Sertão - Página inicial" [ref=e6] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e8]: Gelo do Sertão
+      - navigation "Navegação principal" [ref=e9]:
+        - link "Diferenciais" [ref=e10] [cursor=pointer]:
+          - /url: "#diferenciais"
+        - link "Nossos gelos" [ref=e11] [cursor=pointer]:
+          - /url: /produtos
+        - link "FAQ" [ref=e12] [cursor=pointer]:
+          - /url: "#faq"
+        - link "Sobre nós" [ref=e13] [cursor=pointer]:
+          - /url: /sobre
+        - link "Quero revender" [ref=e14] [cursor=pointer]:
+          - /url: /parceiro
+        - link "Contato" [ref=e15] [cursor=pointer]:
+          - /url: "#contato"
+      - link "Falar com Vendas" [ref=e16] [cursor=pointer]:
+        - /url: https://wa.me/5577998129383?text=Olá!%20Quero%20ser%20revendedor%20do%20Gelo%20do%20Sertão
+  - main [ref=e19]:
+    - region "Apresentação" [ref=e20]:
+      - generic [ref=e21]:
+        - generic [ref=e22]:
+          - generic [ref=e23]:
+            - heading "O Gelo que refresca o Sertão" [level=1] [ref=e24]: O Gelo querefresca o Sertão
+            - paragraph [ref=e25]: Produção com tecnologia de ponta. Distribuindo pureza e frescor direto de Ibotirama para todo o Oeste Baiano.
+          - generic [ref=e26]:
+            - link "Quero revender" [ref=e27] [cursor=pointer]:
+              - /url: https://wa.me/5577998129383?text=Olá!%20Quero%20ser%20revendedor%20do%20Gelo%20do%20Sertão
+            - button "Conhecer mais" [ref=e30] [cursor=pointer]
+        - text: IBOTIRAMA · OESTE BAIANO
+      - generic "Nossos números" [ref=e31]:
+        - generic [ref=e32]:
+          - strong [ref=e33]: 20+
+          - generic [ref=e34]: Anos de experiência
+        - generic [ref=e35]:
+          - strong [ref=e36]: 15+
+          - generic [ref=e37]: Cidades atendidas
+        - generic [ref=e38]:
+          - strong [ref=e39]: 500+
+          - generic [ref=e40]: Clientes ativos
+      - button "Rolar para baixo" [ref=e41] [cursor=pointer]
+    - region "Diferenciais" [ref=e44]:
+      - generic [ref=e46]:
+        - generic [ref=e47]:
+          - heading "Por que escolher o Gelo do Sertão?" [level=2] [ref=e48]
+          - paragraph [ref=e49]: Qualidade, logística e segurança alimentar — tudo que você precisa em um só lugar.
+        - generic [ref=e50]:
+          - generic [ref=e52]:
+            - heading "Qualidade Diamante" [level=3] [ref=e57]
+            - paragraph [ref=e58]: Água 100% filtrada e purificada. Nosso gelo é cristalino e não altera o sabor da sua bebida.
+          - generic [ref=e60]:
+            - heading "Logística Ágil e Ampla" [level=3] [ref=e67]
+            - paragraph [ref=e68]: A partir da nossa matriz em Ibotirama, contamos com frota própria para garantir entregas rápidas em todo o Oeste Baiano.
+          - generic [ref=e70]:
+            - heading "Segurança Alimentar" [level=3] [ref=e75]
+            - paragraph [ref=e76]: Processos rigorosos de higienização seguindo todas as normas da vigilância sanitária. Sua saúde em primeiro lugar.
+    - region "Nossos produtos" [ref=e77]:
+      - generic [ref=e79]:
+        - generic [ref=e80]:
+          - heading "Nossos Produtos" [level=2] [ref=e81]
+          - paragraph [ref=e82]: Do drink à conservação de alimentos, o gelo ideal para cada necessidade.
+        - generic [ref=e83]:
+          - link "⭐ Carro-Chefe Gelo de Sabor Carro-chefe! Gelos saborizados com frutas selecionadas. Dura 3x mais e transforma sua bebida." [ref=e85] [cursor=pointer]:
+            - /url: /produtos/gelo-de-sabor
+            - generic [ref=e86]: ⭐ Carro-Chefe
+            - generic [ref=e93]:
+              - heading "Gelo de Sabor" [level=3] [ref=e94]
+              - paragraph [ref=e95]: Carro-chefe! Gelos saborizados com frutas selecionadas. Dura 3x mais e transforma sua bebida.
+          - link [ref=e97] [cursor=pointer]:
+            - /url: /produtos/gelo-em-cubos
+            - generic [ref=e112]:
+              - heading "Gelo em Cubos" [level=3] [ref=e113]
+              - paragraph [ref=e114]: Ideal para drinks e copos. Cristalino e de rápido resfriamento.
+          - link [ref=e116] [cursor=pointer]:
+            - /url: /produtos/gelo-em-escama
+            - generic [ref=e121]:
+              - heading "Gelo em Escama" [level=3] [ref=e122]
+              - paragraph [ref=e123]: Perfeito para conservação de alimentos. Alta superfície de contato.
+          - link [ref=e125] [cursor=pointer]:
+            - /url: /produtos/gelo-em-barra
+            - generic [ref=e130]:
+              - heading "Gelo em Barra" [level=3] [ref=e131]
+              - paragraph [ref=e132]: Alta durabilidade para transporte e eventos. Resistência superior.
+    - region "Gelo de sabor" [ref=e133]:
+      - generic [ref=e134]:
+        - generic [ref=e135]:
+          - heading "Mais sabor para o seu momento." [level=2] [ref=e136]
+          - paragraph [ref=e137]: Gelos saborizados com frutas selecionadas. Dura 3x mais e transforma sua bebida.
+          - link "Conhecer o gelo de sabor" [ref=e138] [cursor=pointer]:
+            - /url: /produtos/gelo-de-sabor
+        - img "Copo de bebida gelada com a marca Gelo do Sertão" [ref=e141]
+    - region "Sobre a Gelo do Sertão" [ref=e142]:
+      - generic [ref=e145]:
+        - generic [ref=e146]:
+          - generic [ref=e147]: Nossa História
+          - heading "Mais que gelo, um compromisso com o Sertão" [level=2] [ref=e148]
+          - generic [ref=e149]:
+            - paragraph [ref=e150]: Nascemos no sertão baiano com a missão de levar qualidade e frescor para toda a Região Oeste da Bahia. O que começou como uma pequena produção hoje é referência regional em gelo cristalino.
+            - paragraph [ref=e151]: Investimos constantemente em tecnologia de purificação de água, processos rigorosos de higienização e logística refrigerada própria para garantir que cada bloco de gelo chegue até você com a mesma pureza de quando saiu da fábrica.
+            - paragraph [ref=e152]: Não vendemos apenas gelo. Entregamos confiança.
+          - generic [ref=e153]:
+            - generic [ref=e154]: Água purificada
+            - generic [ref=e159]: Vigilância sanitária
+            - generic [ref=e164]: Frota refrigerada
+            - generic [ref=e171]: Processo sustentável
+            - generic [ref=e176]: Compromisso local
+            - generic [ref=e180]: Qualidade premium
+        - generic [ref=e184]:
+          - img "Produção de gelo cristalino Gelo do Sertão - pureza e qualidade" [ref=e187]
+          - generic [ref=e188]:
+            - paragraph [ref=e189]: 20+
+            - paragraph [ref=e190]: Anos de excelência
+    - region "Segmentos atendidos" [ref=e191]:
+      - generic [ref=e193]:
+        - generic [ref=e194]:
+          - generic [ref=e195]: Segmentos
+          - heading "Quem Confia no Nosso Gelo" [level=2] [ref=e196]
+          - paragraph [ref=e197]: Atendemos negócios de todos os portes com soluções personalizadas de gelo.
+        - generic [ref=e198]:
+          - generic [ref=e201]:
+            - img "Atendimento Gelo do Sertão para Supermercados - confiança e qualidade" [ref=e203]
+            - generic:
+              - heading "Supermercados" [level=3]
+          - generic [ref=e206]:
+            - img "Atendimento Gelo do Sertão para Distribuidoras - confiança e qualidade" [ref=e208]
+            - generic:
+              - heading "Distribuidoras" [level=3]
+          - generic [ref=e211]:
+            - img "Atendimento Gelo do Sertão para Bares - confiança e qualidade" [ref=e213]
+            - generic:
+              - heading "Bares" [level=3]
+          - generic [ref=e216]:
+            - img "Atendimento Gelo do Sertão para Ambulantes - confiança e qualidade" [ref=e218]
+            - generic:
+              - heading "Ambulantes" [level=3]
+          - generic [ref=e221]:
+            - img "Atendimento Gelo do Sertão para Adegas - confiança e qualidade" [ref=e223]
+            - generic:
+              - heading "Adegas" [level=3]
+    - region "Perguntas frequentes" [ref=e224]:
+      - generic [ref=e226]:
+        - generic [ref=e227]:
+          - generic [ref=e228]: FAQ
+          - heading "Dúvidas Frequentes" [level=2] [ref=e229]
+          - paragraph [ref=e230]: Tudo que você precisa saber sobre a Gelo do Sertão.
+        - generic [ref=e231]:
+          - generic [ref=e232]:
+            - button "O gelo é feito com água filtrada?" [ref=e233] [cursor=pointer]
+            - paragraph [ref=e240]: Sim. Utilizamos água 100% filtrada e purificada em todo o processo, garantindo um gelo cristalino que não altera o sabor da sua bebida.
+          - generic [ref=e241]:
+            - button "Quais regiões vocês atendem?" [ref=e242] [cursor=pointer]
+            - paragraph [ref=e249]: Atendemos toda a Região Oeste da Bahia com frota própria refrigerada, a partir da nossa matriz em Ibotirama.
+          - generic [ref=e250]:
+            - button "Atendem supermercados e distribuidoras?" [ref=e251] [cursor=pointer]
+            - paragraph [ref=e258]: Sim. Atendemos supermercados, distribuidoras, bares, adegas, ambulantes e todos os segmentos que precisam de gelo de qualidade para revenda ou uso próprio.
+          - generic [ref=e259]:
+            - button "Vocês seguem as normas da vigilância sanitária?" [ref=e260] [cursor=pointer]
+            - paragraph [ref=e267]: Seguimos rigorosamente todas as normas, com processos de higienização certificados e controle de qualidade em todas as etapas da produção.
+          - generic [ref=e268]:
+            - button "Como faço para me tornar revendedor?" [ref=e269] [cursor=pointer]
+            - paragraph [ref=e276]: Entre em contato pelo WhatsApp (77) 99812-9383 ou acesse nossa página de parceiro. Analisaremos sua região e proporemos as melhores condições.
+    - region "Chamada para ação" [ref=e277]:
+      - generic [ref=e280]:
+        - heading "Pronto para ser um revendedor?" [level=2] [ref=e281]
+        - paragraph [ref=e282]: Entre em contato agora e descubra as condições especiais para revendedores em toda a região do Oeste Baiano.
+        - link "Falar com Vendas" [ref=e284] [cursor=pointer]:
+          - /url: https://wa.me/5577998129383?text=Olá!%20Quero%20ser%20revendedor%20do%20Gelo%20do%20Sertão
+  - button "Voltar ao topo"
+  - contentinfo "Contato e informações" [ref=e287]:
+    - generic [ref=e288]:
+      - generic [ref=e289]:
+        - img "Gelo do Sertão - logomarca" [ref=e290]
+        - paragraph [ref=e291]: Referência em produção e distribuição de gelo cristalino no Oeste Baiano. Qualidade que vem da tradição.
+        - generic [ref=e292]:
+          - link "Instagram da Gelo do Sertão" [ref=e293] [cursor=pointer]:
+            - /url: "#"
+          - link "WhatsApp da Gelo do Sertão" [ref=e297] [cursor=pointer]:
+            - /url: https://wa.me/5577998129383
+      - generic [ref=e300]:
+        - heading "Navegação" [level=3] [ref=e301]
+        - navigation [ref=e302]:
+          - link "Diferenciais" [ref=e303] [cursor=pointer]:
+            - /url: "#diferenciais"
+          - link "Nossos gelos" [ref=e304] [cursor=pointer]:
+            - /url: /produtos
+          - link "FAQ" [ref=e305] [cursor=pointer]:
+            - /url: "#faq"
+          - link "Sobre nós" [ref=e306] [cursor=pointer]:
+            - /url: /sobre
+          - link "Quero revender" [ref=e307] [cursor=pointer]:
+            - /url: /parceiro
+          - link "Contato" [ref=e308] [cursor=pointer]:
+            - /url: "#contato"
+      - generic [ref=e309]:
+        - heading "Informações" [level=3] [ref=e310]
+        - generic [ref=e311]:
+          - generic [ref=e316]:
+            - paragraph [ref=e317]:
+              - strong [ref=e318]: "Matriz:"
+              - text: Ibotirama - BA
+            - paragraph [ref=e319]: Atendemos todo o Oeste Baiano
+          - generic [ref=e324]:
+            - paragraph [ref=e325]:
+              - strong [ref=e326]: "Atendimento:"
+            - paragraph [ref=e327]: "Seg a Sáb: 08h às 22h | Dom: 08h às 14h"
+      - generic [ref=e328]:
+        - heading "Fale Conosco" [level=3] [ref=e329]
+        - link "(77) 99812-9383 Clique para falar diretamente no WhatsApp" [ref=e330] [cursor=pointer]:
+          - /url: https://wa.me/5577998129383
+          - generic [ref=e331]: (77) 99812-9383
+          - paragraph [ref=e335]: Clique para falar diretamente no WhatsApp
+    - generic [ref=e336]:
+      - link "Privacidade e termos" [ref=e337] [cursor=pointer]:
+        - /url: /termos
+      - paragraph [ref=e338]: © 2026 Gelo do Sertão. Todos os direitos reservados.

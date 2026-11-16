@@ -75,7 +75,7 @@ describe('operação atômica de venda', () => {
     ]);
   });
 
-  it('não envia payload de venda no cancelamento', async () => {
+  it('envia apenas a revisão esperada no cancelamento', async () => {
     const operationId = '0cc360bf-b065-4f24-aa3b-e350ff02acff';
     mocks.rpc.mockResolvedValue({
       data: { operationId, saleId: sale().id, action: 'cancel', status: 'Cancelled' },
@@ -86,7 +86,7 @@ describe('operação atômica de venda', () => {
 
     expect(mocks.rpc).toHaveBeenCalledWith('apply_sale_operation', expect.objectContaining({
       p_action: 'cancel',
-      p_payload: {}
+      p_payload: { revision: 0 }
     }));
   });
 });

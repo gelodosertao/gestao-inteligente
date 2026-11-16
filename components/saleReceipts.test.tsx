@@ -34,11 +34,32 @@ describe('telas de recebimento', () => {
         expect(html).toMatch(/<button[^>]*>[\s\S]*?Receber\s*<\/button>/);
         expect(html).not.toContain('Confirmar Recebimento');
     });
-    it('mantém somente Receber no histórico do atacado', () => {
+    it('oferece Confirmar pedido verde no atacado sem etapa separada de saída', () => {
         const html = renderToStaticMarkup(<WholesalePOS {...common} sales={[{ ...pending, branch: Branch.MATRIZ, date: new Date().toISOString().slice(0, 10) }]} />);
         expect(html).toContain('Cliente teste');
-        expect(html).toMatch(/<button[^>]*>[\s\S]*?Receber\s*<\/button>/);
+        expect(html).toMatch(/<button[^>]*bg-emerald-600[^>]*>[\s\S]*?Confirmar pedido\s*<\/button>/);
+        expect(html).not.toContain('Confirmar saída');
         expect(html).not.toContain('Confirmar Recebimento');
+    });
+    it('oferece confirmação para pedido pendente e pagamento já registrado sem baixa', () => {
+        const today = new Date().toISOString().slice(0, 10);
+        const wholesale: Sale = { ...pending, branch: Branch.MATRIZ, date: today, fulfillmentStatus: 'pending', matrizDeposit: 'Barreiras', revision: 0 };
+        const html = renderToStaticMarkup(<WholesalePOS {...common} sales={[
+            wholesale,
+            { ...wholesale, id: 'paid-order', status: 'Completed', amountPaid: 100 },
+        ]} />);
+        expect(html.match(/Confirmar pedido<\/button>/g)).toHaveLength(2);
+        expect(html.match(/Aguardando confirmação do pedido/g)).toHaveLength(2);
+        expect(html).toContain('Quitado');
+        expect(html).toContain('Barreiras');
+    });
+    it('não oferece nova saída quando a expedição já foi confirmada', () => {
+        const html = renderToStaticMarkup(<WholesalePOS {...common} sales={[
+            { ...pending, branch: Branch.MATRIZ, date: new Date().toISOString().slice(0, 10), fulfillmentStatus: 'dispatched' },
+        ]} />);
+        expect(html).toContain('Estoque já baixado');
+        expect(html).not.toMatch(/>Confirmar saída<\/button>/);
+        expect(html).toContain('Confirmar pedido');
     });
     it('mostra o parcial em movimentos sem duplicar a receita persistida da venda', () => {
         const html = renderToStaticMarkup(<Financial

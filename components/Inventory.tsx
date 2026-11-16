@@ -1,17 +1,25 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Product, Branch, Category, Sale, FinancialRecord, StockMovement, CategoryItem, User } from '../types';
 import { Search, Plus, ArrowRightLeft, Filter, Save, X, Truck, AlertTriangle, Upload, FileText, ArrowLeft, AlertOctagon, Edit, Calculator, DollarSign, TrendingUp, Trash2, PieChart, BarChart3, ListPlus, ScrollText, Camera } from 'lucide-react';
 import { BrowserMultiFormatReader } from '@zxing/library';
 import { dbStockMovements, dbCategories } from '../services/db';
-import { getTodayDate, getCurrentDateTime } from '../services/utils';
+import type { InventoryDeposit } from '../services/db';
+import { DEPOSITS, getDepositStock, getStockCost, getSalePotential, shouldRestock, getInventoryGroup, getInventoryGroupProducts, type InventoryGroup } from '../services/inventory';
+import { parseStockInvoice, type StockInvoice } from '../services/inventoryXml';
+import InventoryXmlReceiptModal from './InventoryXmlReceiptModal';
 import { supabase } from '../services/supabase';
+import InventoryAdjustmentModal from './InventoryAdjustmentModal';
+import StockMovementReport from './StockMovementReport';
+import { getMovementLocalDate } from '../services/stockLedger';
+import { getDispatchedProductRanking, getSaleDispatchDate } from '../services/dispatchedSalesReport';
 
 interface InventoryProps {
   products: Product[];
   sales: Sale[];
   financials: FinancialRecord[];
-  onUpdateProduct: (product: Product) => void;
-  onAddProduct: (product: Product) => void;
+  onUpdateProduct: (product: Product) => Promise<void>;
+  onAddProduct: (product: Product) => Promise<void>;
+  onStockChanged: () => Promise<void>;
   onDeleteProduct: (productId: string) => void;
   onOpenPricing: (productId: string) => void;
   onAddFinancialRecord: (records: FinancialRecord[]) => void;
@@ -19,18 +27,17 @@ interface InventoryProps {
   currentUser: User;
 }
 
-const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUpdateProduct, onAddProduct, onDeleteProduct, onOpenPricing, onAddFinancialRecord, onBack, currentUser }) => {
+const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUpdateProduct, onAddProduct, onStockChanged, onDeleteProduct, onOpenPricing, onBack, currentUser }) => {
   const [filter, setFilter] = useState('');
-  const [branchFilter, setBranchFilter] = useState<'GERAL' | Branch.MATRIZ | Branch.FILIAL>('GERAL');
+  const [inventoryGroup, setInventoryGroup] = useState<InventoryGroup>('ice');
 
   // Modal States
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [showAdjustModal, setShowAdjustModal] = useState(false);
   const [showNewProductModal, setShowNewProductModal] = useState(false);
-  const [showImportModal, setShowImportModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
-  const [importedProducts, setImportedProducts] = useState<Partial<Product>[]>([]);
+  const [stockInvoice, setStockInvoice] = useState<StockInvoice | null>(null);
   const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [newCategoryName, setNewCategoryName] = useState('');
 
@@ -38,13 +45,25 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
 
   // Form States
   const [transferQty, setTransferQty] = useState(0);
+  const [transferFrom, setTransferFrom] = useState<InventoryDeposit>('Ibotirama');
+  const [transferTo, setTransferTo] = useState<InventoryDeposit>('Barreiras');
+  const [transferReason, setTransferReason] = useState('Transferência interna');
+  const [savingTransfer, setSavingTransfer] = useState(false);
+  const transferInFlight = useRef(false);
+  const pendingTransferOperations = useRef(new Map<string, string>());
 
   const [isEditing, setIsEditing] = useState(false);
+  const [savingLoss, setSavingLoss] = useState(false);
+  const [savingProduct, setSavingProduct] = useState(false);
+  const lossInFlight = useRef(false);
+  const productInFlight = useRef(false);
+  const newProductId = useRef<string | null>(null);
+  const pendingLossOperations = useRef(new Map<string, string>());
 
   // Loss Registration State
   const [showLossModal, setShowLossModal] = useState(false);
   const [lossData, setLossData] = useState({
-    branch: Branch.FILIAL,
+    deposit: 'Ibotirama' as InventoryDeposit,
     quantity: 1,
     reason: 'Quebra/Dano'
   });
@@ -61,6 +80,7 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
   // Report State
   const [stockMovements, setStockMovements] = useState<StockMovement[]>([]);
   const [loadingMovements, setLoadingMovements] = useState(false);
+  const [movementsError, setMovementsError] = useState('');
 
   // --- CAMERA SCANNER STATE ---
   const [showCameraModal, setShowCameraModal] = useState(false);
@@ -99,38 +119,22 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
   const [reportMonth, setReportMonth] = useState((new Date().getMonth() + 1).toString().padStart(2, '0'));
   const [reportYear, setReportYear] = useState(new Date().getFullYear().toString());
 
-  const filterByReportDate = (dateString: string) => {
-    if (!dateString) return false;
-    if (reportYear === 'ALL' && reportMonth === 'ALL') return true;
-
-    // Attempt parsing ISO string or simple YYYY-MM-DD
-    const d = new Date(dateString);
-    if (!isNaN(d.getTime())) {
-      const m = (d.getMonth() + 1).toString().padStart(2, '0');
-      const y = d.getFullYear().toString();
-      if (reportYear !== 'ALL' && reportYear !== y) return false;
-      if (reportMonth !== 'ALL' && reportMonth !== m) return false;
-      return true;
-    }
-    // Fallback comparison for YYYY-MM-DD strings directly
-    const parts = dateString.split('T')[0].split('-');
-    if (parts.length >= 3) {
-      if (reportYear !== 'ALL' && reportYear !== parts[0]) return false;
-      if (reportMonth !== 'ALL' && reportMonth !== parts[1]) return false;
-    }
-    return true;
-  };
-
-
   useEffect(() => {
+    let active = true;
     if (showReportModal) {
       setLoadingMovements(true);
+      setMovementsError('');
+      setStockMovements([]);
       dbStockMovements.getAll(currentUser.tenantId)
-        .then(data => setStockMovements(data))
-        .catch(err => console.error("Erro ao carregar movimentos", err))
-        .finally(() => setLoadingMovements(false));
+        .then(data => { if (active) setStockMovements(data); })
+        .catch(err => {
+          console.error('Erro ao carregar movimentos', err);
+          if (active) setMovementsError('Não foi possível carregar as movimentações. Feche e abra o relatório para tentar novamente.');
+        })
+        .finally(() => { if (active) setLoadingMovements(false); });
     }
-  }, [showReportModal]);
+    return () => { active = false; };
+  }, [showReportModal, currentUser.tenantId]);
 
   useEffect(() => {
     loadCategories();
@@ -208,7 +212,21 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
     return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   };
 
-  const filteredProducts = products.filter(p =>
+  const groupProducts = getInventoryGroupProducts(products, inventoryGroup);
+  const groupProductIds = new Set(groupProducts.map(product => product.id));
+  const groupMovements = stockMovements.filter(movement => groupProductIds.has(movement.productId));
+  const groupSales = sales.map(sale => ({ ...sale, items: sale.items.filter(item => groupProductIds.has(item.productId)) }));
+  const groupLabel = inventoryGroup === 'ice' ? 'Gelo' : inventoryGroup === 'inputs' ? 'Insumos' : 'Outros produtos';
+  const newProductLabel = inventoryGroup === 'ice' ? 'Novo gelo' : inventoryGroup === 'inputs' ? 'Novo insumo' : 'Novo produto';
+  const defaultCategory = inventoryGroup === 'inputs' ? Category.RAW_MATERIAL : inventoryGroup === 'ice' ? Category.ICE_CUBE : Category.OTHER;
+  const modalGroup = isEditing && selectedProduct ? getInventoryGroup(selectedProduct) : inventoryGroup;
+  const editingInput = modalGroup === 'inputs';
+  const modalCategories = [...new Set([
+    ...[...Object.values(Category), 'Embalagens', ...categories.map(category => category.name)]
+      .filter(category => modalGroup === 'other' || getInventoryGroup({ category } as Product) === modalGroup),
+    ...(newProductData.category ? [newProductData.category] : []),
+  ])];
+  const filteredProducts = groupProducts.filter(p =>
     p.name.toLowerCase().includes(filter.toLowerCase()) ||
     p.category.toLowerCase().includes(filter.toLowerCase())
   );
@@ -216,11 +234,17 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
   // --- ACTIONS ---
 
   const handleOpenTransfer = () => {
-    if (products.length > 0) {
-      setSelectedProduct(products[0]);
-      setTransferQty(10);
-      setShowTransferModal(true);
+    const product = groupProducts.find(item => item.isStockControlled !== false && !item.comboItems?.length);
+    if (!product) {
+      alert('Não há produtos com estoque próprio para transferir.');
+      return;
     }
+    setSelectedProduct(product);
+    setTransferQty(0);
+    setTransferFrom('Ibotirama');
+    setTransferTo('Barreiras');
+    setTransferReason('Transferência interna');
+    setShowTransferModal(true);
   };
 
   const handleOpenEdit = (product: Product) => {
@@ -235,109 +259,139 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
   const handleOpenLoss = (product: Product) => {
     setSelectedProduct(product);
     setLossData({
-      branch: Branch.FILIAL,
+      deposit: 'Ibotirama',
       quantity: 1,
       reason: 'Quebra/Dano'
     });
     setShowLossModal(true);
   };
 
-  const executeTransfer = () => {
-    if (!selectedProduct) return;
-
-    // Simple validation
-    const safeQty = Math.min(selectedProduct.stockMatrizIbotirama, transferQty);
-
-    const updatedProduct = {
-      ...selectedProduct,
-      stockMatrizIbotirama: selectedProduct.stockMatrizIbotirama - safeQty,
-      stockFilial: selectedProduct.stockFilial + safeQty
+  const executeTransfer = async () => {
+    if (!selectedProduct || transferInFlight.current) return;
+    const product = products.find(item => item.id === selectedProduct.id);
+    if (!product || product.isStockControlled === false || product.comboItems?.length) {
+      alert('Selecione um produto com estoque próprio.');
+      return;
+    }
+    if (!DEPOSITS.some(deposit => deposit === transferFrom) || !DEPOSITS.some(deposit => deposit === transferTo) || transferFrom === transferTo) {
+      alert('Selecione depósitos diferentes para origem e destino.');
+      return;
+    }
+    if (!Number.isFinite(transferQty) || transferQty <= 0) {
+      alert('Informe uma quantidade maior que zero.');
+      return;
+    }
+    if (transferQty > getDepositStock(product, transferFrom)) {
+      alert(`Saldo insuficiente em ${transferFrom}. Informe uma quantidade dentro do saldo disponível.`);
+      return;
+    }
+    const reason = transferReason.trim();
+    if (!reason) {
+      alert('Informe o motivo da transferência.');
+      return;
+    }
+    const payload = {
+      action: 'transfer' as const,
+      productId: product.id,
+      quantity: transferQty,
+      fromDeposit: transferFrom,
+      toDeposit: transferTo,
+      reason
     };
-
-    onUpdateProduct(updatedProduct);
-    setShowTransferModal(false);
+    const key = JSON.stringify(payload);
+    const operationId = pendingTransferOperations.current.get(key) ?? crypto.randomUUID();
+    pendingTransferOperations.current.set(key, operationId);
+    transferInFlight.current = true;
+    setSavingTransfer(true);
+    try {
+      await dbStockMovements.mutate({ ...payload, operationId });
+      pendingTransferOperations.current.delete(key);
+      setShowTransferModal(false);
+      try {
+        await onStockChanged();
+        alert('Transferência registrada com sucesso. Estoque atualizado.');
+      } catch (error) {
+        console.error('Erro ao recarregar estoque', error);
+        alert('Transferência registrada. Recarregue a página para consultar o saldo atualizado.');
+      }
+    } catch (error: any) {
+      console.error('Erro ao confirmar transferência', error);
+      alert('Não foi possível confirmar a transferência: ' + (error.message || error));
+    } finally {
+      transferInFlight.current = false;
+      setSavingTransfer(false);
+    }
   };
 
 
 
-  const executeLoss = () => {
-    if (!selectedProduct) return;
+  const executeLoss = async () => {
+    if (!selectedProduct || lossInFlight.current) return;
 
-    if (lossData.quantity <= 0) {
+    if (!Number.isFinite(lossData.quantity) || lossData.quantity <= 0) {
       alert("A quantidade deve ser maior que zero.");
       return;
     }
 
-    const currentStock = lossData.branch === Branch.MATRIZ ? selectedProduct.stockMatrizIbotirama : selectedProduct.stockFilial;
+    const currentStock = getDepositStock(selectedProduct, lossData.deposit);
 
     if (lossData.quantity > currentStock) {
-      alert(`Quantidade de perda maior que o estoque atual na ${lossData.branch}.`);
+      alert(`Quantidade de perda maior que o estoque atual em ${lossData.deposit}.`);
       return;
     }
 
-    const updatedProduct = {
-      ...selectedProduct,
-      stockMatrizIbotirama: lossData.branch === Branch.MATRIZ ? selectedProduct.stockMatrizIbotirama - lossData.quantity : selectedProduct.stockMatrizIbotirama,
-      stockFilial: lossData.branch === Branch.FILIAL ? selectedProduct.stockFilial - lossData.quantity : selectedProduct.stockFilial
+    const payload = {
+      action: 'loss' as const,
+      productId: selectedProduct.id,
+      quantity: lossData.quantity,
+      deposit: lossData.deposit,
+      reason: lossData.reason
     };
-
-    onUpdateProduct(updatedProduct);
-
-    // Record Loss in DB
+    const key = JSON.stringify(payload);
+    const operationId = pendingLossOperations.current.get(key) ?? crypto.randomUUID();
+    pendingLossOperations.current.set(key, operationId);
+    lossInFlight.current = true;
+    setSavingLoss(true);
     try {
-      dbStockMovements.add({
-        id: `sm-${Date.now()}`,
-        date: getTodayDate(),
-        productId: selectedProduct.id,
-        productName: selectedProduct.name,
-        quantity: lossData.quantity,
-        type: 'LOSS',
-        reason: lossData.reason,
-        branch: lossData.branch
-      }, currentUser.tenantId);
-
-      // Create Financial Record for the Loss
-      const lossValue = selectedProduct.cost * lossData.quantity;
-      if (lossValue > 0) {
-        const lossRecord: FinancialRecord = {
-          id: `f-${Date.now()}`,
-          date: getTodayDate(),
-          description: `Perda de Estoque: ${selectedProduct.name} (${lossData.reason})`,
-          amount: lossValue,
-          type: 'Expense',
-          category: 'Perdas e Quebras',
-          branch: lossData.branch
-        };
-        onAddFinancialRecord([lossRecord]);
+      await dbStockMovements.mutate({ ...payload, operationId });
+      pendingLossOperations.current.delete(key);
+      setShowLossModal(false);
+      try {
+        await onStockChanged();
+        alert(`Perda de ${lossData.quantity} itens registrada com sucesso.`);
+      } catch (error) {
+        console.error('Erro ao recarregar estoque', error);
+        alert('Perda registrada. Recarregue a página para consultar o saldo atualizado.');
       }
-
     } catch (err: any) {
-      console.error("Erro ao salvar perda no histórico", err);
-      alert("Erro ao salvar histórico de perda: " + (err.message || err));
+      console.error('Erro ao confirmar perda', err);
+      alert('Não foi possível confirmar a perda: ' + (err.message || err));
+    } finally {
+      lossInFlight.current = false;
+      setSavingLoss(false);
     }
-
-    setShowLossModal(false);
-    alert(`Perda de ${lossData.quantity} itens registrada com sucesso.`);
   };
 
-  const executeNewProduct = () => {
-    if (!newProductData.name || newProductData.priceFilial === undefined) {
-      alert("Nome e Preço de Venda (Filial) são obrigatórios. Se for insumo, coloque 0.");
+  const executeNewProduct = async () => {
+    if (productInFlight.current) return;
+    if (!newProductData.name?.trim()) {
+      alert('Informe o nome do produto.');
       return;
     }
 
     const productToSave: Product = {
-      id: isEditing && selectedProduct ? selectedProduct.id : Date.now().toString(),
+      ...(isEditing && selectedProduct ? selectedProduct : {}),
+      id: isEditing && selectedProduct ? selectedProduct.id : (newProductId.current ??= crypto.randomUUID()),
       name: newProductData.name,
       category: newProductData.category || 'Outros',
       priceMatriz: Number(newProductData.priceMatriz || 0),
-      priceFilial: Number(newProductData.priceFilial),
+      priceFilial: isEditing && selectedProduct ? selectedProduct.priceFilial : 0,
       cost: Number(newProductData.cost || 0),
       stockMatrizIbotirama: Number(newProductData.stockMatrizIbotirama || 0),
       stockMatrizBarreiras: Number(newProductData.stockMatrizBarreiras || 0),
-      stockFilial: Number(newProductData.stockFilial || 0),
+      stockFilial: isEditing && selectedProduct ? selectedProduct.stockFilial : 0,
       unit: newProductData.unit || 'un',
-      minStock: Number(newProductData.minStock || 10),
+      minStock: Number(newProductData.minStock ?? 10),
       packSize: newProductData.packSize ? Number(newProductData.packSize) : undefined,
       pricePack: newProductData.pricePack ? Number(newProductData.pricePack) : undefined,
       expirationDate: newProductData.expirationDate || undefined,
@@ -349,35 +403,35 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
       barcode: newProductData.barcode || undefined
     };
 
-    if (isEditing) {
-      // Check for stock additions before updating
-      if (selectedProduct) {
-        const diffIbotirama = productToSave.stockMatrizIbotirama - selectedProduct.stockMatrizIbotirama;
-        if (diffIbotirama > 0) {
-          dbStockMovements.add({ id: `sm-${Date.now()}-ibo`, date: getCurrentDateTime(), productId: productToSave.id, productName: productToSave.name, quantity: diffIbotirama, type: 'ENTRY', reason: 'Edição Manual', branch: Branch.MATRIZ, matrizDeposit: 'Ibotirama' }, currentUser.tenantId);
-        }
-        const diffBarreiras = productToSave.stockMatrizBarreiras - selectedProduct.stockMatrizBarreiras;
-        if (diffBarreiras > 0) {
-          dbStockMovements.add({ id: `sm-${Date.now()}-bar`, date: getCurrentDateTime(), productId: productToSave.id, productName: productToSave.name, quantity: diffBarreiras, type: 'ENTRY', reason: 'Edição Manual', branch: Branch.MATRIZ, matrizDeposit: 'Barreiras' }, currentUser.tenantId);
-        }
-        const diffFilial = productToSave.stockFilial - selectedProduct.stockFilial;
-        if (diffFilial > 0) {
-          dbStockMovements.add({ id: `sm-${Date.now()}-fil`, date: getCurrentDateTime(), productId: productToSave.id, productName: productToSave.name, quantity: diffFilial, type: 'ENTRY', reason: 'Edição Manual', branch: Branch.FILIAL }, currentUser.tenantId);
-        }
-      }
-      onUpdateProduct(productToSave);
-    } else {
-      onAddProduct(productToSave);
-      // Log initial stock creation as ENTRY
-      if (productToSave.stockMatrizIbotirama > 0) dbStockMovements.add({ id: `entry-${Date.now()}-ibo`, date: getCurrentDateTime(), productId: productToSave.id, productName: productToSave.name, quantity: productToSave.stockMatrizIbotirama, type: 'ENTRY', reason: 'Cadastro Inicial', branch: Branch.MATRIZ, matrizDeposit: 'Ibotirama' }, currentUser.tenantId);
-      if (productToSave.stockMatrizBarreiras > 0) dbStockMovements.add({ id: `entry-${Date.now()}-bar`, date: getCurrentDateTime(), productId: productToSave.id, productName: productToSave.name, quantity: productToSave.stockMatrizBarreiras, type: 'ENTRY', reason: 'Cadastro Inicial', branch: Branch.MATRIZ, matrizDeposit: 'Barreiras' }, currentUser.tenantId);
-      if (productToSave.stockFilial > 0) dbStockMovements.add({ id: `entry-${Date.now()}-fil`, date: getCurrentDateTime(), productId: productToSave.id, productName: productToSave.name, quantity: productToSave.stockFilial, type: 'ENTRY', reason: 'Cadastro Inicial', branch: Branch.FILIAL }, currentUser.tenantId);
+    const nonNegativeFields = [productToSave.priceMatriz, productToSave.cost,
+      productToSave.minStock, productToSave.stockMatrizIbotirama, productToSave.stockMatrizBarreiras];
+    if (nonNegativeFields.some(value => !Number.isFinite(value) || value < 0)) {
+      alert('Preços, custos e quantidades devem ser números válidos maiores ou iguais a zero.');
+      return;
+    }
+    if (isEditing && selectedProduct) {
+      productToSave.stockMatrizIbotirama = selectedProduct.stockMatrizIbotirama;
+      productToSave.stockMatrizBarreiras = selectedProduct.stockMatrizBarreiras;
+      productToSave.stockFilial = selectedProduct.stockFilial;
     }
 
-    setShowNewProductModal(false);
-    setNewProductData({ category: 'Gelo Cubo', unit: 'un' });
-    setIsEditing(false);
-    setSelectedProduct(null);
+    productInFlight.current = true;
+    setSavingProduct(true);
+    try {
+      if (isEditing) await onUpdateProduct(productToSave);
+      else await onAddProduct(productToSave);
+      setShowNewProductModal(false);
+      newProductId.current = null;
+      setNewProductData({ category: defaultCategory, unit: 'un' });
+      setIsEditing(false);
+      setSelectedProduct(null);
+    } catch (error: any) {
+      console.error('Erro ao salvar produto', error);
+      alert('Não foi possível salvar o produto: ' + (error.message || error));
+    } finally {
+      productInFlight.current = false;
+      setSavingProduct(false);
+    }
   };
 
   const handleProductImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -407,96 +461,15 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
     }
   };
 
-  // --- XML IMPORT FUNCTIONS ---
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
+    event.target.value = '';
     if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const text = e.target?.result as string;
-      parseNFeXML(text);
-    };
-    reader.readAsText(file);
-  };
-
-  const parseNFeXML = (xmlText: string) => {
     try {
-      const parser = new DOMParser();
-      const xmlDoc = parser.parseFromString(xmlText, "text/xml");
-      const detNodes = xmlDoc.getElementsByTagName("det");
-
-      const newItems: Partial<Product>[] = [];
-
-      for (let i = 0; i < detNodes.length; i++) {
-        const prod = detNodes[i].getElementsByTagName("prod")[0];
-        if (prod) {
-          const name = prod.getElementsByTagName("xProd")[0]?.textContent || "Produto Sem Nome";
-          const code = prod.getElementsByTagName("cProd")[0]?.textContent || Date.now().toString();
-          const unit = prod.getElementsByTagName("uCom")[0]?.textContent || "un";
-          const qty = parseFloat(prod.getElementsByTagName("qCom")[0]?.textContent || "0");
-          const cost = parseFloat(prod.getElementsByTagName("vUnCom")[0]?.textContent || "0");
-
-          newItems.push({
-            id: code, // Use NFe code as ID initially
-            name: name,
-            category: 'Outros', // Default category
-            priceMatriz: cost * 1.5, // Suggested Markup
-            priceFilial: cost * 2.0, // Suggested Markup
-            cost: cost,
-            stockMatrizIbotirama: 0,
-            stockFilial: qty, // Entry goes to Filial (Resale point)
-            unit: unit.toLowerCase(),
-            minStock: 10
-          });
-        }
-      }
-
-      if (newItems.length > 0) {
-        setImportedProducts(newItems);
-        setShowImportModal(true);
-      } else {
-        alert("Nenhum produto encontrado neste XML.");
-      }
-    } catch (error) {
-      console.error("Erro ao ler XML", error);
-      alert("Erro ao processar o arquivo XML. Verifique se é uma NFe válida.");
+      setStockInvoice(parseStockInvoice(await file.text()));
+    } catch (failure) {
+      alert((failure as { message?: string })?.message || 'Não foi possível ler a nota XML.');
     }
-  };
-
-  const confirmImport = () => {
-    importedProducts.forEach(p => {
-      // Check if product already exists (by name or ID) to update stock instead?
-      // For now, we assume simple bulk creation.
-      const newProduct: Product = {
-        id: p.id || Date.now().toString(),
-        name: p.name || 'Novo Produto',
-        category: p.category || 'Outros',
-        priceMatriz: p.priceMatriz || 0,
-        priceFilial: p.priceFilial || 0,
-        cost: p.cost || 0,
-        stockMatrizIbotirama: p.stockMatrizIbotirama || 0,
-        stockMatrizBarreiras: p.stockMatrizBarreiras || 0,
-        stockFilial: p.stockFilial || 0,
-        unit: p.unit || 'un',
-        minStock: p.minStock || 10
-      };
-
-      onAddProduct(newProduct);
-
-      // Log entries for imported products
-      if (newProduct.stockFilial > 0) dbStockMovements.add({ id: `import-${Date.now()}-fil-${newProduct.id}`, date: getCurrentDateTime(), productId: newProduct.id, productName: newProduct.name, quantity: newProduct.stockFilial, type: 'ENTRY', reason: 'Importação XML NFe', branch: Branch.FILIAL }, currentUser.tenantId);
-      if (newProduct.stockMatrizIbotirama > 0) dbStockMovements.add({ id: `import-${Date.now()}-ibo-${newProduct.id}`, date: getCurrentDateTime(), productId: newProduct.id, productName: newProduct.name, quantity: newProduct.stockMatrizIbotirama, type: 'ENTRY', reason: 'Importação XML NFe', branch: Branch.MATRIZ, matrizDeposit: 'Ibotirama' }, currentUser.tenantId);
-    });
-    setShowImportModal(false);
-    setImportedProducts([]);
-    alert(`${importedProducts.length} produtos importados com sucesso!`);
-  };
-
-  const updateImportedItem = (index: number, field: keyof Product, value: any) => {
-    const updated = [...importedProducts];
-    updated[index] = { ...updated[index], [field]: value };
-    setImportedProducts(updated);
   };
 
   return (
@@ -509,30 +482,26 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
             </button>
             <div>
               <h1 className="text-2xl font-bold text-slate-900 tracking-tight sm:text-3xl">Controle de Estoque</h1>
-              <p className="text-slate-500 font-medium mt-1">Gerenciamento dinâmico de níveis e movimentações</p>
+              <p className="text-slate-500 font-medium mt-1">{inventoryGroup === 'inputs' ? 'Embalagens e matérias-primas para a produção' : inventoryGroup === 'ice' ? 'Gelo pronto por produto e depósito' : 'Cadastros fora do estoque de gelo e insumos'}</p>
             </div>
           </div>
-          <div className="flex gap-2 bg-slate-100 p-1 rounded-xl w-fit flex-wrap">
-            <button
-              onClick={() => setBranchFilter('GERAL')}
-              className={`px-4 py-2 rounded-lg font-bold text-sm flex items-center transition-all ${branchFilter === 'GERAL' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-            >
-              Geral
-            </button>
-            <button
-              onClick={() => setBranchFilter(Branch.MATRIZ)}
-              className={`px-4 py-2 rounded-lg font-bold text-sm flex items-center transition-all ${branchFilter === Branch.MATRIZ ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-            >
-              Matriz
-            </button>
-            <button
-              onClick={() => setBranchFilter(Branch.FILIAL)}
-              className={`px-4 py-2 rounded-lg font-bold text-sm flex items-center transition-all ${branchFilter === Branch.FILIAL ? 'bg-white text-orange-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-            >
-              Filial
-            </button>
+          <div role="tablist" aria-label="Tipo de estoque" className="flex gap-1 bg-slate-100 p-1 rounded-xl w-fit flex-wrap">
+            {(['ice', 'inputs', ...(products.some(product => getInventoryGroup(product) === 'other') ? ['other'] : [])] as InventoryGroup[]).map(group => (
+              <button key={group} type="button" role="tab" aria-selected={inventoryGroup === group}
+                onClick={() => { setInventoryGroup(group); setFilter(''); }}
+                className={`px-4 py-2 rounded-lg font-bold text-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600 ${inventoryGroup === group ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-600 hover:bg-white/70'}`}>
+                {group === 'ice' ? 'Estoque de gelo' : group === 'inputs' ? 'Estoque de insumos' : 'Outros produtos'}
+              </button>
+            ))}
           </div>
           <div className="flex flex-wrap gap-2 items-center w-full sm:w-auto">
+            <button
+              type="button"
+              onClick={() => setShowReportModal(true)}
+              className="flex-1 sm:flex-none bg-purple-700 active-scale text-white px-4 py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-md touch-target"
+            >
+              <ScrollText size={18} /> <span className="text-xs">Movimentações e relatório</span>
+            </button>
             <button
               onClick={handleOpenTransfer}
               className="flex-1 sm:flex-none bg-gradient-to-r from-blue-700 to-blue-600 active-scale text-white px-4 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-md touch-target"
@@ -542,16 +511,17 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
             <button
               onClick={() => {
                 setIsEditing(false);
-                setNewProductData({ category: 'Gelo Cubo', unit: 'un' });
+                newProductId.current = crypto.randomUUID();
+                setNewProductData({ category: defaultCategory, unit: 'un' });
                 setShowNewProductModal(true);
               }}
               className="flex-1 sm:flex-none bg-gradient-to-r from-orange-500 to-orange-400 active-scale text-white px-4 py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-md touch-target"
             >
-              <Plus size={18} /> <span className="text-xs">Novo</span>
+              <Plus size={18} /> <span className="text-xs">{newProductLabel}</span>
             </button>
             <label className="flex-1 sm:flex-none bg-slate-800 active-scale text-white px-4 py-3 rounded-xl font-bold flex items-center justify-center gap-2 cursor-pointer shadow-md touch-target focus-within:outline focus-within:outline-2 focus-within:outline-orange-500">
-              <Upload size={18} /> <span className="text-xs">XML</span>
-              <input type="file" accept=".xml" aria-label="Importar produtos de arquivo XML" className="sr-only" onChange={handleFileUpload} />
+              <Upload size={18} /> <span className="text-xs">Receber XML</span>
+              <input type="file" accept=".xml" aria-label="Receber compra por XML" className="sr-only" onChange={handleFileUpload} />
             </label>
           </div>
         </div>
@@ -587,26 +557,15 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
                 <tr className="bg-slate-50/80 text-slate-500 text-xs uppercase tracking-wider">
                   <th className="p-5 font-bold">Produto</th>
                   <th className="p-5 font-bold">Categoria</th>
-                  <th className="p-5 font-bold">Preço Varejo (Filial)</th>
-                  <th className="p-5 font-bold">Preço Atacado</th>
-                  {(branchFilter === 'GERAL' || branchFilter === Branch.MATRIZ) && (
-                    <>
-                      <th className="p-5 font-bold text-center bg-blue-50/30 border-l border-slate-200">Matriz (Ibotirama)</th>
-                      <th className="p-5 font-bold text-center bg-blue-50/30 border-l border-slate-200">Matriz (Barreiras)</th>
-                    </>
-                  )}
-                  {(branchFilter === 'GERAL' || branchFilter === Branch.FILIAL) && (
-                    <th className="p-5 font-bold text-center bg-orange-50/30 border-l border-slate-200">Estoque Filial</th>
-                  )}
+                  <th className="p-5 font-bold">{inventoryGroup === 'inputs' ? 'Custo unitário' : 'Preço de venda'}</th>
+                  {DEPOSITS.map(deposit => <th key={deposit} className="p-5 font-bold text-center bg-blue-50/30 border-l border-slate-200">{deposit}</th>)}
                   <th className="p-5 font-bold text-center">Status</th>
                   <th className="p-5 font-bold text-right">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredProducts.map((product) => {
-                  const isLowMatriz = product.stockMatrizIbotirama < product.minStock || product.stockMatrizBarreiras < product.minStock;
-                  const isLowFilial = product.stockFilial < product.minStock;
-                  const isLow = branchFilter === 'GERAL' ? (isLowMatriz || isLowFilial) : (branchFilter === Branch.MATRIZ ? isLowMatriz : isLowFilial);
+                  const isLow = shouldRestock(product);
 
                   const daysToExpiry = product.expirationDate ? (new Date(product.expirationDate).getTime() - new Date().getTime()) / (1000 * 3600 * 24) : null;
                   const isExpired = daysToExpiry !== null && daysToExpiry < 0;
@@ -623,23 +582,12 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
                           {product.category}
                         </span>
                       </td>
-                      <td className="p-5 font-medium text-orange-700">{formatCurrency(product.priceFilial)}</td>
-                      <td className="p-5 font-medium text-blue-700">{formatCurrency(product.priceMatriz)}</td>
-                      {(branchFilter === 'GERAL' || branchFilter === Branch.MATRIZ) && (
-                        <>
-                          <td className="p-5 text-center bg-blue-50/20 border-l border-slate-200 font-medium text-slate-700">
-                            {product.comboItems ? <span className="text-xs font-bold text-purple-600">COMBO</span> : product.isStockControlled === false ? <span className="text-xl">∞</span> : <span>{product.stockMatrizIbotirama} <span className="text-xs text-slate-400">{product.unit}</span></span>}
-                          </td>
-                          <td className="p-5 text-center bg-blue-50/20 border-l border-slate-200 font-medium text-slate-700">
-                            {product.comboItems ? <span className="text-xs font-bold text-purple-600">COMBO</span> : product.isStockControlled === false ? <span className="text-xl">∞</span> : <span>{product.stockMatrizBarreiras} <span className="text-xs text-slate-400">{product.unit}</span></span>}
-                          </td>
-                        </>
-                      )}
-                      {(branchFilter === 'GERAL' || branchFilter === Branch.FILIAL) && (
-                        <td className="p-5 text-center bg-orange-50/20 border-l border-slate-200 font-medium text-slate-700">
-                          {product.comboItems ? <span className="text-xs font-bold text-purple-600">COMBO</span> : product.isStockControlled === false ? <span className="text-xl">∞</span> : <span>{product.stockFilial} <span className="text-xs text-slate-400">{product.unit}</span></span>}
+                      <td className="p-5 font-medium text-blue-700">{formatCurrency(inventoryGroup === 'inputs' ? product.cost : product.priceMatriz)}</td>
+                      {DEPOSITS.map(deposit => (
+                        <td key={deposit} className="p-5 text-center bg-blue-50/20 border-l border-slate-200 font-medium text-slate-700">
+                          {product.comboItems?.length ? <span className="text-xs font-bold text-purple-600">COMBO</span> : product.isStockControlled === false ? <span aria-label="Sem controle de estoque">∞</span> : <span>{getDepositStock(product, deposit)} <span className="text-xs text-slate-500">{product.unit}</span></span>}
                         </td>
-                      )}
+                      ))}
                       <td className="p-5 text-center">
                         <div className="flex flex-col gap-1 items-center max-w-[80px] mx-auto">
                           {isLow ? (
@@ -659,6 +607,15 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
                         </div>
                       </td>
                       <td className="p-5 text-right flex justify-end gap-2 items-center">
+                        {product.isStockControlled !== false && !product.comboItems?.length && (
+                          <button
+                            onClick={() => { setSelectedProduct(product); setShowAdjustModal(true); }}
+                            className="bg-slate-100 text-slate-700 hover:bg-slate-200 px-3 py-1.5 rounded-lg text-sm font-bold transition-colors flex items-center gap-1"
+                            title="Ajustar inventário físico"
+                          >
+                            <ListPlus size={16} /> Ajustar
+                          </button>
+                        )}
                         <button
                           onClick={() => onOpenPricing(product.id)}
                           className="bg-emerald-50 text-emerald-600 hover:bg-emerald-100 px-3 py-1.5 rounded-lg text-sm font-bold transition-colors flex items-center gap-1 shadow-sm"
@@ -694,16 +651,28 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
                     </tr>
                   );
                 })}
+                {filteredProducts.length === 0 && <tr><td colSpan={7} className="p-8 text-center text-slate-600">
+                  {filter ? 'Nenhum item encontrado neste estoque. Limpe a busca para ver os demais.' : inventoryGroup === 'inputs' ? 'Cadastre embalagens e matérias-primas em Novo insumo.' : inventoryGroup === 'ice' ? 'Cadastre o gelo fabricado em Novo gelo.' : 'Nenhum produto neste grupo.'}
+                </td></tr>}
               </tbody>
             </table>
           </div>
 
           <div className="p-4 border-t border-slate-100 bg-slate-50 text-xs text-slate-500 text-center">
-            Mostrando {filteredProducts.length} produtos
+            Mostrando {filteredProducts.length} {inventoryGroup === 'inputs' ? 'insumos' : inventoryGroup === 'ice' ? 'produtos de gelo' : 'produtos'}
           </div>
         </div>
 
       </div>
+
+      {showAdjustModal && (
+        <InventoryAdjustmentModal
+          products={products}
+          initialProduct={selectedProduct}
+          onClose={() => setShowAdjustModal(false)}
+          onStockChanged={onStockChanged}
+        />
+      )}
 
       {/* --- MODAL DE TRANSFERÊNCIA --- */}
       {showTransferModal && selectedProduct && (
@@ -713,18 +682,20 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
               <h3 className="font-bold flex items-center gap-2">
                 <Truck size={20} className="text-orange-400" /> Transferência Interna
               </h3>
-              <button onClick={() => setShowTransferModal(false)}><X size={20} /></button>
+              <button disabled={savingTransfer} onClick={() => setShowTransferModal(false)} aria-label="Fechar transferência"><X size={20} /></button>
             </div>
 
             <div className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Produto</label>
+                <label htmlFor="transfer-product" className="block text-sm font-medium text-slate-700 mb-1">Produto</label>
                 <select
+                  id="transfer-product"
+                  disabled={savingTransfer}
                   className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-white text-slate-900"
                   value={selectedProduct?.id}
                   onChange={(e) => setSelectedProduct(products.find(p => p.id === e.target.value) || null)}
                 >
-                  {products.map(p => (
+                  {groupProducts.filter(p => p.isStockControlled !== false && !p.comboItems?.length).map(p => (
                     <option key={p.id} value={p.id}>{p.name}</option>
                   ))}
                 </select>
@@ -732,34 +703,49 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
 
               <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl border border-slate-200">
                 <div className="flex-1 text-center">
-                  <p className="text-xs text-slate-500 uppercase font-bold">Origem: Matriz</p>
-                  <p className="text-2xl font-bold text-blue-600">{selectedProduct.stockMatrizIbotirama}</p>
+                  <label htmlFor="transfer-from" className="block text-xs text-slate-500 uppercase font-bold mb-2">Origem</label>
+                  <select id="transfer-from" value={transferFrom} disabled={savingTransfer} onChange={e => setTransferFrom(e.target.value as InventoryDeposit)} className="w-full border border-slate-200 rounded-lg px-2 py-2 bg-white text-slate-900">
+                    {DEPOSITS.map(deposit => <option key={deposit} value={deposit}>{deposit}</option>)}
+                  </select>
+                  <p className="text-2xl font-bold text-blue-600">{getDepositStock(products.find(p => p.id === selectedProduct.id) ?? selectedProduct, transferFrom)} <span className="text-xs">{selectedProduct.unit}</span></p>
                 </div>
                 <ArrowRightLeft className="text-slate-300" />
                 <div className="flex-1 text-center">
-                  <p className="text-xs text-slate-500 uppercase font-bold">Destino: Filial</p>
-                  <p className="text-2xl font-bold text-orange-600">{selectedProduct.stockFilial}</p>
+                  <label htmlFor="transfer-to" className="block text-xs text-slate-500 uppercase font-bold mb-2">Destino</label>
+                  <select id="transfer-to" value={transferTo} disabled={savingTransfer} onChange={e => setTransferTo(e.target.value as InventoryDeposit)} className="w-full border border-slate-200 rounded-lg px-2 py-2 bg-white text-slate-900">
+                    {DEPOSITS.map(deposit => <option key={deposit} value={deposit}>{deposit}</option>)}
+                  </select>
+                  <p className="text-2xl font-bold text-orange-600">{getDepositStock(products.find(p => p.id === selectedProduct.id) ?? selectedProduct, transferTo)} <span className="text-xs">{selectedProduct.unit}</span></p>
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Quantidade a Transferir</label>
+                <label htmlFor="transfer-quantity" className="block text-sm font-medium text-slate-700 mb-1">Quantidade a Transferir ({selectedProduct.unit})</label>
                 <input
+                  id="transfer-quantity"
+                  disabled={savingTransfer}
                   type="number"
                   className="w-full px-4 py-3 text-lg font-bold border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none text-slate-900"
                   value={transferQty}
                   onChange={(e) => setTransferQty(Number(e.target.value))}
-                  min={1}
-                  max={selectedProduct.stockMatrizIbotirama}
+                  min={0}
+                  step="any"
+                  max={getDepositStock(products.find(p => p.id === selectedProduct.id) ?? selectedProduct, transferFrom)}
                 />
-                <p className="text-xs text-slate-500 mt-1">Máximo disponível: {selectedProduct.stockMatrizIbotirama}</p>
+                <p className="text-xs text-slate-500 mt-1">Máximo disponível: {getDepositStock(products.find(p => p.id === selectedProduct.id) ?? selectedProduct, transferFrom)} {selectedProduct.unit}</p>
+              </div>
+
+              <div>
+                <label htmlFor="transfer-reason" className="block text-sm font-medium text-slate-700 mb-1">Motivo</label>
+                <input id="transfer-reason" type="text" value={transferReason} disabled={savingTransfer} onChange={e => setTransferReason(e.target.value)} className="w-full px-4 py-2 border border-slate-200 rounded-lg text-slate-900" />
               </div>
 
               <button
                 onClick={executeTransfer}
-                className="w-full bg-blue-600 hover:bg-blue-500 text-white py-3 rounded-xl font-bold shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2"
+                disabled={savingTransfer}
+                className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-60 disabled:cursor-not-allowed text-white py-3 rounded-xl font-bold shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2"
               >
-                Confirmar Transferência
+                {savingTransfer ? 'Transferindo...' : 'Confirmar Transferência'}
               </button>
             </div>
           </div>
@@ -774,7 +760,7 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
               <h3 className="font-bold flex items-center gap-2">
                 <AlertOctagon size={20} /> Registrar Perda de Estoque
               </h3>
-              <button onClick={() => setShowLossModal(false)}><X size={20} /></button>
+              <button disabled={savingLoss} onClick={() => setShowLossModal(false)}><X size={20} /></button>
             </div>
             <div className="p-6 space-y-4">
               <div className="mb-2">
@@ -783,21 +769,16 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
               </div>
 
               <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1">Local da Perda</label>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setLossData({ ...lossData, branch: Branch.MATRIZ })}
-                    className={`flex-1 py-2 rounded-lg border font-medium transition-all ${lossData.branch === Branch.MATRIZ ? 'bg-blue-50 border-blue-500 text-blue-700' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}
-                  >
-                    Matriz
-                  </button>
-                  <button
-                    onClick={() => setLossData({ ...lossData, branch: Branch.FILIAL })}
-                    className={`flex-1 py-2 rounded-lg border font-medium transition-all ${lossData.branch === Branch.FILIAL ? 'bg-orange-50 border-orange-500 text-orange-700' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}
-                  >
-                    Filial
-                  </button>
-                </div>
+                <label htmlFor="loss-deposit" className="block text-sm font-bold text-slate-700 mb-1">Depósito da Perda</label>
+                <select
+                  id="loss-deposit"
+                  value={lossData.deposit}
+                  disabled={savingLoss}
+                  onChange={e => setLossData({ ...lossData, deposit: e.target.value as InventoryDeposit })}
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-lg bg-white text-slate-900"
+                >
+                  {DEPOSITS.map(deposit => <option key={deposit} value={deposit}>{deposit}</option>)}
+                </select>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -819,6 +800,7 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
                     className="w-full px-4 py-2.5 border border-slate-200 rounded-lg bg-white text-slate-900 focus:ring-2 focus:ring-red-500 outline-none"
                   >
                     <option>Quebra/Dano</option>
+                    <option>Derretimento</option>
                     <option>Validade/Vencido</option>
                     <option>Roubo/Furto</option>
                     <option>Consumo Interno</option>
@@ -831,18 +813,19 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
               <div className="bg-red-50 p-3 rounded-lg border border-red-100 text-xs text-red-800">
                 <strong>Atenção:</strong> Esta ação reduzirá o estoque atual de
                 <strong className="ml-1">
-                  {lossData.branch === Branch.MATRIZ ? selectedProduct.stockMatrizIbotirama : selectedProduct.stockFilial}
+                  {getDepositStock(selectedProduct, lossData.deposit)}
                 </strong> para
                 <strong className="ml-1">
-                  {(lossData.branch === Branch.MATRIZ ? selectedProduct.stockMatrizIbotirama : selectedProduct.stockFilial) - lossData.quantity}
+                  {getDepositStock(selectedProduct, lossData.deposit) - lossData.quantity}
                 </strong>.
               </div>
 
               <button
                 onClick={executeLoss}
+                disabled={savingLoss}
                 className="w-full bg-red-600 hover:bg-red-700 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-red-900/20"
               >
-                Confirmar Perda
+                {savingLoss ? 'Registrando...' : 'Confirmar Perda'}
               </button>
             </div>
           </div>
@@ -858,9 +841,9 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
             <div className="p-4 bg-orange-500 text-white flex justify-between items-center">
               <h3 className="font-bold flex items-center gap-2">
                 {isEditing ? <Edit size={20} /> : <Plus size={20} />}
-                {isEditing ? 'Editar Produto' : 'Cadastrar Novo Produto'}
+                {isEditing ? 'Editar Produto' : newProductLabel}
               </h3>
-              <button onClick={() => setShowNewProductModal(false)}><X size={20} /></button>
+              <button disabled={savingProduct} onClick={() => setShowNewProductModal(false)}><X size={20} /></button>
             </div>
 
             <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
@@ -876,7 +859,7 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
                 <label htmlFor="stockControl" className="text-sm font-bold text-purple-800 cursor-pointer">
                   Produto feito na hora (Não controlar estoque)
                 </label>
-                <p className="text-xs text-purple-600 ml-2">(Ex: Drinks, Coquetéis)</p>
+                <p className="text-xs text-purple-600 ml-2">Item sem controle de quantidade</p>
               </div>
 
               {/* Product Type Selector (Simple vs Combo) */}
@@ -932,10 +915,7 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
                   <select className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-white text-slate-900"
                     value={newProductData.category} onChange={e => setNewProductData({ ...newProductData, category: e.target.value })}
                   >
-                    {categories.length > 0
-                      ? categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)
-                      : Object.values(Category).map(c => <option key={c} value={c}>{c}</option>)
-                    }
+                    {modalCategories.map(category => <option key={category} value={category}>{category}</option>)}
                   </select>
                 </div>
                 <div>
@@ -1048,11 +1028,11 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
                   {/* --- COMBO PRICING CALCULATOR --- */}
                   <div className="bg-white p-3 rounded-lg border border-purple-200 mt-2">
                     <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm font-bold text-slate-600">Soma dos Produtos (Varejo):</span>
+                      <span className="text-sm font-bold text-slate-600">Soma dos preços de venda:</span>
                       <span className="text-lg font-bold text-slate-800">
                         {formatCurrency(newProductData.comboItems.reduce((acc, item) => {
                           const p = products.find(prod => prod.id === item.productId);
-                          return acc + ((p?.priceFilial || 0) * item.quantity);
+                          return acc + ((p?.priceMatriz || 0) * item.quantity);
                         }, 0))}
                       </span>
                     </div>
@@ -1078,7 +1058,7 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
                             const discount = Number(e.target.value);
                             const basePrice = newProductData.comboItems?.reduce((acc, item) => {
                               const p = products.find(prod => prod.id === item.productId);
-                              return acc + ((p?.priceFilial || 0) * item.quantity);
+                              return acc + ((p?.priceMatriz || 0) * item.quantity);
                             }, 0) || 0;
 
                             const totalCost = newProductData.comboItems?.reduce((acc, item) => {
@@ -1088,7 +1068,7 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
 
                             setNewProductData(prev => ({
                               ...prev,
-                              priceFilial: Math.max(0, basePrice - discount),
+                              priceMatriz: Math.max(0, basePrice - discount),
                               cost: totalCost // Auto-update cost based on components
                             }));
                           }}
@@ -1099,25 +1079,20 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
 
                 </div>
               ) : (
-                <div className="grid grid-cols-3 gap-4 bg-slate-50 p-4 rounded-lg">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-lg">
                   <div>
                     <label className="block text-xs font-bold text-slate-500 mb-1">{isEditing ? 'MAT. IBOTIRAMA' : 'INICIAL IBOTIRAMA'}</label>
                     <input type="number" className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-white text-slate-900 font-bold text-blue-700"
-                      value={newProductData.stockMatrizIbotirama || 0} onChange={e => setNewProductData({ ...newProductData, stockMatrizIbotirama: Number(e.target.value) })}
+                      readOnly={isEditing} min={0} value={newProductData.stockMatrizIbotirama || 0} onChange={e => setNewProductData({ ...newProductData, stockMatrizIbotirama: Number(e.target.value) })}
                     />
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-slate-500 mb-1">{isEditing ? 'MAT. BARREIRAS' : 'INICIAL BARREIRAS'}</label>
                     <input type="number" className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-white text-slate-900 font-bold text-blue-700"
-                      value={newProductData.stockMatrizBarreiras || 0} onChange={e => setNewProductData({ ...newProductData, stockMatrizBarreiras: Number(e.target.value) })}
+                      readOnly={isEditing} min={0} value={newProductData.stockMatrizBarreiras || 0} onChange={e => setNewProductData({ ...newProductData, stockMatrizBarreiras: Number(e.target.value) })}
                     />
                   </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-500 mb-1">{isEditing ? 'ESTOQUE FILIAL' : 'INICIAL FILIAL'}</label>
-                    <input type="number" className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-white text-slate-900 font-bold text-orange-700"
-                      value={newProductData.stockFilial || 0} onChange={e => setNewProductData({ ...newProductData, stockFilial: Number(e.target.value) })}
-                    />
-                  </div>
+
                 </div>
               )}
 
@@ -1125,10 +1100,10 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
               <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-4">
                 <div className="flex justify-between items-center">
                   <h4 className="text-sm font-bold text-slate-700 uppercase flex items-center gap-2">
-                    <Calculator size={16} className="text-blue-600" /> Precificação Inteligente
+                    <Calculator size={16} className="text-blue-600" /> {editingInput ? 'Custo do insumo' : 'Precificação'}
                   </h4>
                   <button
-                    onClick={calculateFinancialMetrics}
+                    hidden={editingInput} onClick={calculateFinancialMetrics}
                     className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200 transition-colors font-medium"
                     title="Basear em despesas lançadas (últimos 30 dias)"
                   >
@@ -1138,7 +1113,7 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
 
                 {/* Custo Base */}
                 <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-1">Custo do Produto (CMV)</label>
+                  <label className="block text-sm font-bold text-slate-700 mb-1">{editingInput ? 'Custo por unidade do insumo' : 'Custo do Produto (CMV)'}</label>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-sm">R$</span>
                     <input type="number" className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg bg-white text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none"
@@ -1148,6 +1123,7 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
                   </div>
                 </div>
 
+                {!editingInput && <>
                 {/* Calculadora de Taxas */}
                 <div className="grid grid-cols-2 gap-3 text-xs">
                   <div>
@@ -1174,7 +1150,7 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
                 {(newProductData.cost || 0) > 0 && (
                   <div className="bg-blue-50 p-3 rounded-lg border border-blue-100">
                     <div className="flex justify-between items-center mb-2">
-                      <span className="text-xs text-blue-800 font-medium">Preço Sugerido (Varejo):</span>
+                      <span className="text-xs text-blue-800 font-medium">Preço de venda sugerido:</span>
                       <span className="text-lg font-bold text-blue-900">
                         {formatCurrency((newProductData.cost || 0) / (1 - ((taxRate + cardFee + fixedCostRate + desiredMargin) / 100)))}
                       </span>
@@ -1195,18 +1171,9 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
                 )}
 
                 {/* Preços Finais */}
-                <div className="grid grid-cols-2 gap-4 pt-2 border-t border-slate-200">
+                <div className="grid grid-cols-1 gap-4 pt-2 border-t border-slate-200">
                   <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-1">Preço Varejo (Filial)</label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-sm">R$</span>
-                      <input type="number" className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg bg-white text-slate-900 font-bold text-lg"
-                        value={newProductData.priceFilial || ''} onChange={e => setNewProductData({ ...newProductData, priceFilial: Number(e.target.value) })}
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-1">Preço Atacado (Matriz)</label>
+                    <label className="block text-sm font-bold text-slate-700 mb-1">Preço de venda</label>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-sm">R$</span>
                       <input type="number" className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg bg-white text-slate-900 font-bold"
@@ -1239,6 +1206,7 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
                     </div>
                   </div>
                 </div>
+                </>}
               </div>
 
               {/* --- CUSTOMIZATION OPTIONS (OPCIONAL) --- */}
@@ -1381,6 +1349,7 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
 
               <button
                 onClick={executeNewProduct}
+                disabled={savingProduct}
                 className="w-full bg-blue-800 hover:bg-blue-700 text-white py-3 rounded-xl font-bold shadow-lg shadow-blue-900/20"
               >
                 {isEditing ? 'Salvar Alterações' : 'Salvar Produto'}
@@ -1390,88 +1359,14 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
         </div >
       )
       }
-      {/* --- MODAL DE IMPORTAÇÃO XML --- */}
-      {
-        showImportModal && (
-          <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-start sm:items-center justify-center p-4 pt-safe-offset-4 sm:p-4 animate-in fade-in duration-200">
-            <div className="bg-white w-full max-w-5xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-              <div className="p-4 bg-slate-800 text-white flex justify-between items-center">
-                <h3 className="font-bold flex items-center gap-2">
-                  <FileText size={20} className="text-green-400" /> Confirmar Importação de NFe
-                </h3>
-                <button onClick={() => setShowImportModal(false)}><X size={20} /></button>
-              </div>
-
-              <div className="p-4 bg-blue-50 border-b border-blue-100 text-sm text-blue-800">
-                Confira os dados abaixo. Os produtos serão adicionados ao estoque da <strong>Filial</strong>.
-              </div>
-
-              <div className="flex-1 overflow-auto p-4">
-                <table className="w-full text-left border-collapse text-sm">
-                  <thead>
-                    <tr className="bg-slate-100 text-slate-600">
-                      <th className="p-2 border">Nome do Produto</th>
-                      <th className="p-2 border w-32">Categoria</th>
-                      <th className="p-2 border w-20">Qtd</th>
-                      <th className="p-2 border w-20">Custo</th>
-                      <th className="p-2 border w-24">Venda (Matriz)</th>
-                      <th className="p-2 border w-24">Venda (Filial)</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {importedProducts.map((item, idx) => (
-                      <tr key={idx} className="hover:bg-slate-50">
-                        <td className="p-2 border">
-                          <input
-                            type="text"
-                            value={item.name}
-                            onChange={(e) => updateImportedItem(idx, 'name', e.target.value)}
-                            className="w-full bg-transparent outline-none font-medium"
-                          />
-                        </td>
-                        <td className="p-2 border">
-                          <select
-                            value={item.category}
-                            onChange={(e) => updateImportedItem(idx, 'category', e.target.value)}
-                            className="w-full bg-transparent outline-none"
-                          >
-                            {Object.values(Category).map(c => <option key={c} value={c}>{c}</option>)}
-                          </select>
-                        </td>
-                        <td className="p-2 border text-center font-bold">{item.stockFilial}</td>
-                        <td className="p-2 border text-slate-500">{formatCurrency(item.cost || 0)}</td>
-                        <td className="p-2 border">
-                          <input
-                            type="number"
-                            value={item.priceMatriz}
-                            onChange={(e) => updateImportedItem(idx, 'priceMatriz', parseFloat(e.target.value))}
-                            className="w-full bg-white border border-slate-200 rounded px-1 text-blue-700 font-bold"
-                          />
-                        </td>
-                        <td className="p-2 border">
-                          <input
-                            type="number"
-                            value={item.priceFilial}
-                            onChange={(e) => updateImportedItem(idx, 'priceFilial', parseFloat(e.target.value))}
-                            className="w-full bg-white border border-slate-200 rounded px-1 text-orange-700 font-bold"
-                          />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              <div className="p-4 border-t border-slate-200 bg-slate-50 flex justify-end gap-3">
-                <button onClick={() => setShowImportModal(false)} className="px-4 py-2 text-slate-600 font-bold hover:bg-slate-200 rounded-lg">Cancelar</button>
-                <button onClick={confirmImport} className="px-6 py-2 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 shadow-lg shadow-green-900/20">
-                  Confirmar Importação
-                </button>
-              </div>
-            </div>
-          </div>
-        )
-      }
+      {stockInvoice && (
+        <InventoryXmlReceiptModal
+          invoice={stockInvoice}
+          products={products}
+          onStockChanged={onStockChanged}
+          onClose={() => setStockInvoice(null)}
+        />
+      )}
 
       {/* --- MODAL DE RELATÓRIOS --- */}
       {
@@ -1480,10 +1375,11 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
             <div className="bg-white w-full max-w-6xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
               <div className="p-4 bg-purple-800 text-white flex justify-between items-center">
                 <h3 className="font-bold flex items-center gap-2">
-                  <BarChart3 size={20} className="text-purple-300" /> Relatório de Estoque e Vendas
+                  <BarChart3 size={20} className="text-purple-300" /> Relatório de estoque · {groupLabel}
                 </h3>
                 <div className="flex items-center gap-2">
                   <select
+                    aria-label="Mês do relatório"
                     value={reportMonth}
                     onChange={e => setReportMonth(e.target.value)}
                     className="bg-purple-700 text-white rounded-lg px-3 py-1.5 text-sm font-bold border border-purple-600 outline-none hover:bg-purple-600 focus:ring-2 focus:ring-purple-400 focus:border-transparent transition-all"
@@ -1503,16 +1399,15 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
                     <option value="ALL">Todos os Meses</option>
                   </select>
                   <select
+                    aria-label="Ano do relatório"
                     value={reportYear}
                     onChange={e => setReportYear(e.target.value)}
                     className="bg-purple-700 text-white rounded-lg px-3 py-1.5 text-sm font-bold border border-purple-600 outline-none hover:bg-purple-600 focus:ring-2 focus:ring-purple-400 focus:border-transparent transition-all"
                   >
-                    <option value="2026">2026</option>
-                    <option value="2025">2025</option>
-                    <option value="2024">2024</option>
+                    {[...new Set([new Date().getFullYear().toString(), ...stockMovements.map(movement => getMovementLocalDate(movement.date)?.slice(0, 4)).filter((year): year is string => !!year), ...sales.map(sale => getSaleDispatchDate(sale)?.slice(0, 4)).filter((year): year is string => !!year)])].sort().reverse().map(year => <option key={year} value={year}>{year}</option>)}
                     <option value="ALL">Todos os Anos</option>
                   </select>
-                  <button onClick={() => setShowReportModal(false)} className="ml-2 p-1 hover:bg-purple-700 rounded-lg transition-colors"><X size={20} /></button>
+                  <button aria-label="Fechar relatório" onClick={() => setShowReportModal(false)} className="ml-2 p-1 hover:bg-purple-700 rounded-lg transition-colors"><X size={20} /></button>
                 </div>
               </div>
 
@@ -1522,80 +1417,72 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
                   <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                     <h4 className="text-sm font-bold text-slate-500 uppercase mb-2">Valor Total em Estoque (Custo)</h4>
                     <div className="text-3xl font-bold text-slate-800">
-                      {formatCurrency(products.reduce((acc, p) => acc + (p.cost * (p.stockMatrizIbotirama + p.stockFilial)), 0))}
+                      {formatCurrency(groupProducts.reduce((acc, p) => acc + getStockCost(p), 0))}
                     </div>
-                    <div className="mt-2 text-xs text-slate-400 flex justify-between">
-                      <span>Matriz: {formatCurrency(products.reduce((acc, p) => acc + (p.cost * p.stockMatrizIbotirama), 0))}</span>
-                      <span>Filial: {formatCurrency(products.reduce((acc, p) => acc + (p.cost * p.stockFilial), 0))}</span>
+                    <div className="mt-2 text-xs text-slate-400 space-y-1">
+                      {DEPOSITS.map(deposit => (
+                        <div key={deposit} className="flex justify-between gap-2">
+                          <span>{deposit}</span>
+                          <span>{formatCurrency(groupProducts.reduce((acc, p) => acc + getStockCost(p, deposit), 0))}</span>
+                        </div>
+                      ))}
                     </div>
                   </div>
 
+                  {inventoryGroup !== 'inputs' && <>
                   {/* Card 2: Valor de Venda Potencial */}
                   <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                     <h4 className="text-sm font-bold text-slate-500 uppercase mb-2">Potencial de Venda (Estimado)</h4>
                     <div className="text-3xl font-bold text-emerald-600">
-                      {formatCurrency(products.reduce((acc, p) => acc + (p.priceFilial * p.stockFilial) + (p.priceMatriz * p.stockMatrizIbotirama), 0))}
+                      {formatCurrency(groupProducts.reduce((acc, p) => acc + getSalePotential(p), 0))}
                     </div>
-                    <p className="text-xs text-slate-400 mt-2">Baseado nos preços atuais de varejo e atacado.</p>
+                    <p className="text-xs text-slate-400 mt-2">Baseado no preço de venda e nos depósitos da fábrica.</p>
                   </div>
 
+                  </>}
                   {/* Card 3: Itens Abaixo do Mínimo */}
                   <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                     <h4 className="text-sm font-bold text-slate-500 uppercase mb-2">Alertas de Estoque</h4>
                     <div className="text-3xl font-bold text-red-600">
-                      {products.filter(p => p.stockMatrizIbotirama < p.minStock || p.stockFilial < p.minStock).length}
+                      {groupProducts.filter(p => shouldRestock(p)).length}
                     </div>
                     <p className="text-xs text-slate-400 mt-2">Produtos precisando de reposição.</p>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {inventoryGroup !== 'inputs' && <>
                   {/* Tabela: Mais Vendidos (ABC) */}
                   <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                     <div className="p-4 border-b border-slate-100 bg-slate-50">
                       <h4 className="font-bold text-slate-700 flex items-center gap-2">
-                        <TrendingUp size={18} className="text-blue-500" /> Produtos Mais Vendidos (Top 10)
+                        <TrendingUp size={18} className="text-blue-500" /> Produtos Expedidos (Top 10)
                       </h4>
+                      <p className="mt-1 text-xs text-slate-500">Valor comercial dos itens expedidos, antes de frete e descontos; os recebimentos são consultados no financeiro.</p>
                     </div>
                     <div className="overflow-x-auto">
                       <table className="w-full text-left text-sm">
                         <thead className="bg-slate-50 text-slate-500">
                           <tr>
                             <th className="p-3 font-semibold">Produto</th>
-                            <th className="p-3 font-semibold text-right">Qtd. Vendida</th>
-                            <th className="p-3 font-semibold text-right">Receita Gerada</th>
+                            <th className="p-3 font-semibold text-right">Qtd. Expedida</th>
+                            <th className="p-3 font-semibold text-right">Valor dos itens expedidos</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                          {(() => {
-                            // Calculate sales per product
-                            const productSales: Record<string, { name: string, qty: number, revenue: number }> = {};
-                            sales.filter(s => filterByReportDate(s.date)).forEach(sale => {
-                              sale.items.forEach(item => {
-                                if (!productSales[item.productId]) {
-                                  productSales[item.productId] = { name: item.productName, qty: 0, revenue: 0 };
-                                }
-                                productSales[item.productId].qty += item.quantity;
-                                productSales[item.productId].revenue += (item.quantity * item.priceAtSale);
-                              });
-                            });
-
-                            return Object.values(productSales)
-                              .sort((a, b) => b.qty - a.qty)
-                              .slice(0, 10)
-                              .map((item, idx) => (
-                                <tr key={idx} className="hover:bg-slate-50">
+                          {getDispatchedProductRanking(groupSales, reportMonth, reportYear).map(item => (
+                                <tr key={item.productId} className="hover:bg-slate-50">
                                   <td className="p-3 font-medium text-slate-700">{item.name}</td>
                                   <td className="p-3 text-right font-bold text-blue-600">{item.qty}</td>
-                                  <td className="p-3 text-right text-emerald-600">{formatCurrency(item.revenue)}</td>
+                                  <td className="p-3 text-right text-emerald-600">{formatCurrency(item.value)}</td>
                                 </tr>
-                              ));
-                          })()}
+                              ))}
                         </tbody>
                       </table>
                     </div>
                   </div>
 
+                  </>}
                   {/* Tabela: Sugestão de Reposição */}
                   <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                     <div className="p-4 border-b border-slate-100 bg-slate-50">
@@ -1608,27 +1495,25 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
                         <thead className="bg-slate-50 text-slate-500">
                           <tr>
                             <th className="p-3 font-semibold">Produto</th>
-                            <th className="p-3 font-semibold text-center">Matriz</th>
-                            <th className="p-3 font-semibold text-center">Filial</th>
+                            {DEPOSITS.map(deposit => <th key={deposit} className="p-3 font-semibold text-center">{deposit}</th>)}
                             <th className="p-3 font-semibold text-center">Mínimo</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                          {products
-                            .filter(p => p.stockMatrizIbotirama < p.minStock || p.stockFilial < p.minStock)
+                          {groupProducts
+                            .filter(p => shouldRestock(p))
                             .map((p) => (
                               <tr key={p.id} className="hover:bg-slate-50">
                                 <td className="p-3 font-medium text-slate-700">{p.name}</td>
-                                <td className={`p-3 text-center font-bold ${p.stockMatrizIbotirama < p.minStock ? 'text-red-600' : 'text-slate-600'}`}>
-                                  {p.stockMatrizIbotirama}
-                                </td>
-                                <td className={`p-3 text-center font-bold ${p.stockFilial < p.minStock ? 'text-red-600' : 'text-slate-600'}`}>
-                                  {p.stockFilial}
-                                </td>
+                                {DEPOSITS.map(deposit => (
+                                  <td key={deposit} className={`p-3 text-center font-bold ${shouldRestock(p, deposit) ? 'text-red-600' : 'text-slate-600'}`}>
+                                    {getDepositStock(p, deposit)}
+                                  </td>
+                                ))}
                                 <td className="p-3 text-center text-slate-400">{p.minStock}</td>
                               </tr>
                             ))}
-                          {products.filter(p => p.stockMatrizIbotirama < p.minStock || p.stockFilial < p.minStock).length === 0 && (
+                          {groupProducts.filter(p => shouldRestock(p)).length === 0 && (
                             <tr>
                               <td colSpan={4} className="p-6 text-center text-slate-400">
                                 Nenhum produto com estoque baixo.
@@ -1641,86 +1526,7 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
                   </div>
                 </div>
 
-                <div className="mt-6 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                  <div className="p-4 border-b border-slate-100 bg-red-50">
-                    <h4 className="font-bold text-red-800 flex items-center gap-2">
-                      <AlertOctagon size={18} /> Relatório de Perdas e Danos
-                    </h4>
-                  </div>
-                  <div className="overflow-x-auto max-h-60">
-                    <table className="w-full text-left text-sm relative">
-                      <thead className="bg-slate-50 text-slate-500 sticky top-0 shadow-sm">
-                        <tr>
-                          <th className="p-3 font-semibold bg-slate-50">Data</th>
-                          <th className="p-3 font-semibold bg-slate-50">Produto</th>
-                          <th className="p-3 font-semibold text-center bg-slate-50">Qtd.</th>
-                          <th className="p-3 font-semibold bg-slate-50">Motivo</th>
-                          <th className="p-3 font-semibold bg-slate-50">Local</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {loadingMovements ? (
-                          <tr><td colSpan={5} className="p-4 text-center">Carregando...</td></tr>
-                        ) : stockMovements.filter(m => m.type === 'LOSS' && filterByReportDate(m.date)).length === 0 ? (
-                          <tr><td colSpan={5} className="p-4 text-center text-slate-400">Nenhuma perda no período selecionado.</td></tr>
-                        ) : (
-                          stockMovements.filter(m => m.type === 'LOSS' && filterByReportDate(m.date))
-                            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                            .map(m => (
-                              <tr key={m.id} className="hover:bg-slate-50">
-                                <td className="p-3 text-slate-600">{new Date(m.date).toLocaleString()}</td>
-                                <td className="p-3 font-medium text-slate-800">{m.productName}</td>
-                                <td className="p-3 text-center font-bold text-red-600">-{m.quantity}</td>
-                                <td className="p-3 text-slate-600">{m.reason}</td>
-                                <td className="p-3 text-slate-500 text-xs">{m.branch}</td>
-                              </tr>
-                            ))
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                {/* Histórico de Entradas */}
-                <div className="mt-6 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                  <div className="p-4 border-b border-slate-100 bg-emerald-50">
-                    <h4 className="font-bold text-emerald-800 flex items-center gap-2">
-                      <ListPlus size={18} /> Histórico de Entradas (Estoque)
-                    </h4>
-                  </div>
-                  <div className="overflow-x-auto max-h-60">
-                    <table className="w-full text-left text-sm relative">
-                      <thead className="bg-slate-50 text-slate-500 sticky top-0 shadow-sm">
-                        <tr>
-                          <th className="p-3 font-semibold bg-slate-50">Data e Hora</th>
-                          <th className="p-3 font-semibold bg-slate-50">Produto</th>
-                          <th className="p-3 font-semibold text-center bg-slate-50">Qtd. Adicionada</th>
-                          <th className="p-3 font-semibold bg-slate-50">Motivo / Operação</th>
-                          <th className="p-3 font-semibold bg-slate-50">Local</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {loadingMovements ? (
-                          <tr><td colSpan={5} className="p-4 text-center">Carregando...</td></tr>
-                        ) : stockMovements.filter(m => m.type === 'ENTRY' && filterByReportDate(m.date)).length === 0 ? (
-                          <tr><td colSpan={5} className="p-4 text-center text-slate-400">Nenhuma entrada no período selecionado.</td></tr>
-                        ) : (
-                          stockMovements.filter(m => m.type === 'ENTRY' && filterByReportDate(m.date))
-                            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                            .map(m => (
-                              <tr key={m.id} className="hover:bg-slate-50">
-                                <td className="p-3 text-slate-600 font-medium whitespace-nowrap">{new Date(m.date).toLocaleString()}</td>
-                                <td className="p-3 font-medium text-slate-800">{m.productName}</td>
-                                <td className="p-3 text-center font-bold text-emerald-600">+{m.quantity}</td>
-                                <td className="p-3 text-slate-600">{m.reason}</td>
-                                <td className="p-3 text-slate-500 text-xs">{m.branch} {m.matrizDeposit ? `(${m.matrizDeposit})` : ''}</td>
-                              </tr>
-                            ))
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
+                <StockMovementReport movements={groupMovements} loading={loadingMovements} error={movementsError} month={reportMonth} year={reportYear} />
               </div>
             </div>
           </div>
@@ -1763,7 +1569,7 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
                       <td className="p-3 text-slate-700 font-bold">Mostrar Todos</td>
                       <td className="p-3 text-right"></td>
                     </tr>
-                    {categories.map((cat) => (
+                    {categories.filter(category => getInventoryGroup({ category: category.name } as Product) === inventoryGroup).map((cat) => (
                       <tr key={cat.id} className="hover:bg-slate-50 group cursor-pointer" onClick={() => { setFilter(cat.name); setShowCategoryModal(false); }}>
                         <td className="p-3 text-slate-700 font-medium">{cat.name}</td>
                         <td className="p-3 text-right">

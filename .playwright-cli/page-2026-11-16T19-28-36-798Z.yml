@@ -1,0 +1,173 @@
+- generic [ref=f1e3]:
+  - navigation [ref=f1e4]:
+    - button "inventory" [ref=f1e5] [cursor=pointer]
+    - button "wholesale" [ref=f1e6] [cursor=pointer]
+    - button "production" [ref=f1e7] [cursor=pointer]
+    - button "financial" [ref=f1e8] [cursor=pointer]
+  - generic [ref=f1e9]:
+    - generic [ref=f1e10]:
+      - generic [ref=f1e11]:
+        - button "Voltar à gestão" [ref=f1e12] [cursor=pointer]
+        - generic [ref=f1e15]:
+          - heading "Controle de Estoque" [level=1] [ref=f1e16]
+          - paragraph [ref=f1e17]: Gelo pronto por produto e depósito
+      - tablist "Tipo de estoque" [ref=f1e18]:
+        - tab "Estoque de gelo" [selected] [ref=f1e19] [cursor=pointer]
+        - tab "Estoque de insumos" [ref=f1e20] [cursor=pointer]
+      - generic [ref=f1e21]:
+        - button "Movimentações e relatório" [ref=f1e22] [cursor=pointer]
+        - button "Transferir" [ref=f1e27] [cursor=pointer]
+        - button "Novo gelo" [ref=f1e32] [cursor=pointer]
+        - generic [ref=f1e35] [cursor=pointer]:
+          - generic [ref=f1e39]: Receber XML
+          - button "Receber compra por XML" [ref=f1e40]
+    - generic [ref=f1e41]:
+      - generic [ref=f1e42]:
+        - textbox "Buscar produto por nome ou categoria" [ref=f1e47]:
+          - /placeholder: Buscar produto por nome ou categoria...
+        - button "Filtrar produtos por categoria" [ref=f1e48] [cursor=pointer]
+      - table [ref=f1e52]:
+        - rowgroup [ref=f1e53]:
+          - row [ref=f1e54]:
+            - columnheader "Produto" [ref=f1e55]
+            - columnheader "Categoria" [ref=f1e56]
+            - columnheader "Preço de venda" [ref=f1e57]
+            - columnheader "Ibotirama" [ref=f1e58]
+            - columnheader "Barreiras" [ref=f1e59]
+            - columnheader "Status" [ref=f1e60]
+            - columnheader "Ações" [ref=f1e61]
+        - rowgroup [ref=f1e62]:
+          - row [ref=f1e63]:
+            - 'cell "Gelo Cubo 5kg ID: ice" [ref=f1e64]':
+              - paragraph [ref=f1e65]: Gelo Cubo 5kg
+              - generic [ref=f1e66]: "ID: ice"
+            - cell "Gelo Cubo" [ref=f1e67]
+            - cell "R$ 8,00" [ref=f1e68]
+            - cell "100 un" [ref=f1e69]
+            - cell "40 un" [ref=f1e71]
+            - cell "OK" [ref=f1e73]
+            - cell [ref=f1e76]:
+              - button "Ajustar" [ref=f1e77] [cursor=pointer]
+              - button "Receita" [ref=f1e79] [cursor=pointer]
+              - button "Registrar Perda" [ref=f1e83] [cursor=pointer]
+              - button "Editar" [active] [ref=f1e86] [cursor=pointer]
+              - button "Excluir Produto" [ref=f1e90] [cursor=pointer]
+      - generic [ref=f1e94]: Mostrando 1 produtos de gelo
+  - generic [ref=f1e96]:
+    - generic [ref=f1e97]:
+      - heading "Editar Produto" [level=3] [ref=f1e98]
+      - button [ref=f1e102] [cursor=pointer]
+    - generic [ref=f1e106]:
+      - generic [ref=f1e107]:
+        - checkbox "Produto feito na hora (Não controlar estoque)" [ref=f1e108]
+        - generic [ref=f1e109] [cursor=pointer]: Produto feito na hora (Não controlar estoque)
+        - paragraph [ref=f1e110]: "(Ex: Drinks, Coquetéis)"
+      - generic [ref=f1e111]:
+        - button "Produto Simples" [ref=f1e112] [cursor=pointer]
+        - button "Combo Promocional" [ref=f1e113] [cursor=pointer]
+      - generic [ref=f1e114]:
+        - generic [ref=f1e115]:
+          - generic [ref=f1e116]: Nome do Produto
+          - textbox [ref=f1e117]: Gelo Cubo 5kg
+        - generic [ref=f1e118]:
+          - generic [ref=f1e119]: Cód. Barras (Opcional)
+          - generic [ref=f1e120]:
+            - textbox "Leitor ou número..." [ref=f1e121]
+            - button "Escanear com a câmera" [ref=f1e122] [cursor=pointer]
+      - generic [ref=f1e126]:
+        - generic [ref=f1e127]:
+          - generic [ref=f1e128]: Vencimento (Opc.)
+          - textbox [ref=f1e129]
+        - generic [ref=f1e130]:
+          - generic [ref=f1e131]: Categoria
+          - combobox [ref=f1e132]:
+            - option "Água"
+            - option "Cerveja"
+            - option "Energético"
+            - option "Gelo Barra"
+            - option "Gelo Cubo" [selected]
+            - option "Gelo Escama"
+            - option "Gelo Sabor"
+            - option "Gin"
+            - option "Licor"
+            - option "Outros"
+            - option "Refrigerante"
+            - option "Vodka"
+            - option "Whisky"
+            - option "Drinks/Coquetéis"
+            - option "Insumo (Matéria-prima)"
+        - generic [ref=f1e133]:
+          - generic [ref=f1e134]: Unidade
+          - combobox [ref=f1e135]:
+            - option "Unidade" [selected]
+            - option "Quilo (kg)"
+            - option "Saco (sc)"
+            - option "Litro (l)"
+            - option "Garrafa (gf)"
+            - option "Lata (lt)"
+      - generic [ref=f1e136]:
+        - generic [ref=f1e137]: Imagem do Produto (Opcional)
+        - generic [ref=f1e138]:
+          - textbox "https://exemplo.com/imagem.jpg" [ref=f1e139]
+          - generic "Upload de Imagem" [ref=f1e140] [cursor=pointer]
+      - generic [ref=f1e144]:
+        - generic [ref=f1e145]:
+          - generic [ref=f1e146]: MAT. IBOTIRAMA
+          - spinbutton [ref=f1e147]: "100"
+        - generic [ref=f1e148]:
+          - generic [ref=f1e149]: MAT. BARREIRAS
+          - spinbutton [ref=f1e150]: "40"
+      - generic [ref=f1e151]:
+        - generic [ref=f1e152]:
+          - heading "Precificação" [level=4] [ref=f1e153]
+          - button "Carregar Dados Financeiros" [ref=f1e156] [cursor=pointer]
+        - generic [ref=f1e157]:
+          - generic [ref=f1e158]: Custo do Produto (CMV)
+          - generic [ref=f1e159]:
+            - generic [ref=f1e160]: R$
+            - spinbutton "0.00" [ref=f1e161]: "3"
+        - generic [ref=f1e162]:
+          - generic [ref=f1e163]:
+            - generic [ref=f1e164]: Impostos + Taxas (%)
+            - generic [ref=f1e165]:
+              - spinbutton "Impostos" [ref=f1e166]: "4"
+              - spinbutton "Taxas Cartão" [ref=f1e167]: "2"
+          - generic [ref=f1e168]:
+            - generic [ref=f1e169]: Custos Fixos + Margem (%)
+            - generic [ref=f1e170]:
+              - spinbutton "Custos Fixos (Rateio)" [ref=f1e171]: "10"
+              - spinbutton "Margem de Lucro" [ref=f1e172]: "20"
+        - generic [ref=f1e173]:
+          - generic [ref=f1e174]:
+            - generic [ref=f1e175]: "Preço de venda sugerido:"
+            - generic [ref=f1e176]: R$ 4,69
+          - generic [ref=f1e177]:
+            - generic "Custo" [ref=f1e178]
+            - generic "Impostos/Taxas" [ref=f1e179]
+            - generic "Custos Fixos" [ref=f1e180]
+            - generic "Lucro" [ref=f1e181]
+          - generic [ref=f1e182]:
+            - generic [ref=f1e183]: Custo
+            - generic [ref=f1e184]: Var.
+            - generic [ref=f1e185]: Fixo
+            - generic [ref=f1e186]: Lucro
+        - generic [ref=f1e188]:
+          - generic [ref=f1e189]: Preço de venda
+          - generic [ref=f1e190]:
+            - generic [ref=f1e191]: R$
+            - spinbutton [ref=f1e192]: "8"
+        - generic [ref=f1e193]:
+          - heading "Venda em Fardo (Opcional)" [level=4] [ref=f1e194]
+          - generic [ref=f1e195]:
+            - generic [ref=f1e196]:
+              - generic [ref=f1e197]: Qtd. no Fardo
+              - 'spinbutton "Ex: 12" [ref=f1e198]'
+            - generic [ref=f1e199]:
+              - generic [ref=f1e200]: Preço do Fardo
+              - generic [ref=f1e201]:
+                - generic [ref=f1e202]: R$
+                - spinbutton "0.00" [ref=f1e203]
+      - generic [ref=f1e204]:
+        - heading "Personalização (Adicionais)" [level=4] [ref=f1e205]
+        - button "Adicionar Grupo de Opções" [ref=f1e208] [cursor=pointer]
+      - button "Salvar Alterações" [ref=f1e210] [cursor=pointer]

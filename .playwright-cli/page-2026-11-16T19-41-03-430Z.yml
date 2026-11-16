@@ -1,0 +1,55 @@
+- generic [ref=e3]:
+  - navigation [ref=e4]:
+    - button "inventory" [ref=e5] [cursor=pointer]
+    - button "wholesale" [ref=e6] [cursor=pointer]
+    - button "production" [ref=e7] [cursor=pointer]
+    - button "financial" [ref=e8] [cursor=pointer]
+  - generic [ref=e9]:
+    - generic [ref=e10]:
+      - generic [ref=e11]:
+        - button "Voltar à gestão" [ref=e12] [cursor=pointer]
+        - generic [ref=e15]:
+          - heading "Controle de Estoque" [level=1] [ref=e16]
+          - paragraph [ref=e17]: Gelo pronto por produto e depósito
+      - tablist "Tipo de estoque" [ref=e18]:
+        - tab "Estoque de gelo" [selected] [ref=e19] [cursor=pointer]
+        - tab "Estoque de insumos" [ref=e20] [cursor=pointer]
+      - generic [ref=e21]:
+        - button "Movimentações e relatório" [ref=e22] [cursor=pointer]
+        - button "Transferir" [ref=e27] [cursor=pointer]
+        - button "Novo gelo" [ref=e32] [cursor=pointer]
+        - generic [ref=e35] [cursor=pointer]:
+          - generic [ref=e39]: Receber XML
+          - button "Receber compra por XML" [ref=e40]
+    - generic [ref=e41]:
+      - generic [ref=e42]:
+        - textbox "Buscar produto por nome ou categoria" [ref=e47]:
+          - /placeholder: Buscar produto por nome ou categoria...
+        - button "Filtrar produtos por categoria" [ref=e48] [cursor=pointer]
+      - table [ref=e52]:
+        - rowgroup [ref=e53]:
+          - row [ref=e54]:
+            - columnheader "Produto" [ref=e55]
+            - columnheader "Categoria" [ref=e56]
+            - columnheader "Preço de venda" [ref=e57]
+            - columnheader "Ibotirama" [ref=e58]
+            - columnheader "Barreiras" [ref=e59]
+            - columnheader "Status" [ref=e60]
+            - columnheader "Ações" [ref=e61]
+        - rowgroup [ref=e62]:
+          - row [ref=e63]:
+            - 'cell "Gelo Cubo 5kg ID: ice" [ref=e64]':
+              - paragraph [ref=e65]: Gelo Cubo 5kg
+              - generic [ref=e66]: "ID: ice"
+            - cell "Gelo Cubo" [ref=e67]
+            - cell "R$ 8,00" [ref=e68]
+            - cell "100 un" [ref=e69]
+            - cell "40 un" [ref=e71]
+            - cell "OK" [ref=e73]
+            - cell [ref=e76]:
+              - button "Ajustar" [ref=e77] [cursor=pointer]
+              - button "Receita" [ref=e79] [cursor=pointer]
+              - button "Registrar Perda" [ref=e83] [cursor=pointer]
+              - button "Editar" [ref=e86] [cursor=pointer]
+              - button "Excluir Produto" [ref=e90] [cursor=pointer]
+      - generic [ref=e94]: Mostrando 1 produtos de gelo
