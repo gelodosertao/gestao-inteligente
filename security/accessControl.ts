@@ -49,6 +49,14 @@ export function canLoadDataset(user: User, dataset: AppDataset): boolean {
   return DATASET_MODULES[dataset].some((module) => hasModuleAccess(user, module));
 }
 
+/**
+ * Histórico, estoque de insumos e custo de produção são telas administrativas.
+ * O perfil Fábrica registra produção e perdas, sem consultar nem alterar esses dados.
+ */
+export function canAccessProductionManagement(user: User): boolean {
+  return user.role !== 'FACTORY';
+}
+
 export function getInitialView(user: User): ViewState {
   switch (user.role) {
     case 'ADMIN':

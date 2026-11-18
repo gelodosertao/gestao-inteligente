@@ -1,3 +1,6 @@
+# Local Git worktree
+/.release-ux-ui/
+
 # Dependencies
 node_modules/
 .pnp

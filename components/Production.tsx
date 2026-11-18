@@ -4,6 +4,7 @@ import { dbProduction, dbStockMovements } from '../services/db';
 import { getTodayDate } from '../services/utils';
 import { calculateProductionCosts } from '../services/productionCosts';
 import { getProductionAvailability } from '../services/productionAvailability';
+import { canAccessProductionManagement } from '../security/accessControl';
 import { Plus, Save, Clock, User as UserIcon, Package, Calendar, ArrowLeft, Trash2, Layers, History, Boxes, AlertTriangle, ArrowRightLeft, Calculator, Edit2, Truck, CheckCircle } from 'lucide-react';
 
 interface ProductionProps {
@@ -36,6 +37,7 @@ const Production: React.FC<ProductionProps> = ({ products, currentUser, onUpdate
     const lossStock = lossProduct?.stockMatrizIbotirama ?? 0;
     const validLoss = !!lossProduct && Number.isFinite(lost) && lost > 0 && lost <= lossStock;
     const [activeTab, setActiveTab] = useState<'production' | 'history' | 'stock' | 'recipes'>('production');
+    const canManageProduction = canAccessProductionManagement(currentUser);
     const [shift, setShift] = useState<Shift>('Manhã');
     const [notes, setNotes] = useState('');
 
@@ -78,7 +80,15 @@ const Production: React.FC<ProductionProps> = ({ products, currentUser, onUpdate
         loadRecords();
     }, []);
 
+    useEffect(() => {
+        if (!canManageProduction && activeTab !== 'production') setActiveTab('production');
+    }, [canManageProduction, activeTab]);
+
     const loadRecords = async () => {
+        if (!canManageProduction) {
+            setLoading(false);
+            return;
+        }
         try {
             const data = await dbProduction.getAll(currentUser.tenantId);
             setRecords(data);
@@ -270,24 +280,28 @@ const Production: React.FC<ProductionProps> = ({ products, currentUser, onUpdate
                     >
                         <Layers size={16} /> Produção e Perdas
                     </button>
-                    <button
-                        onClick={() => setActiveTab('history')}
-                        className={`px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 transition-all ${activeTab === 'history' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                    >
-                        <History size={16} /> Histórico
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('stock')}
-                        className={`px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 transition-all ${activeTab === 'stock' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                    >
-                        <Boxes size={16} /> Estoque de Insumos
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('recipes')}
-                        className={`px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 transition-all ${activeTab === 'recipes' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                    >
-                        <Calculator size={16} /> Custo de Produção
-                    </button>
+                    {canManageProduction && (
+                        <>
+                            <button
+                                onClick={() => setActiveTab('history')}
+                                className={`px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 transition-all ${activeTab === 'history' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                            >
+                                <History size={16} /> Histórico
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('stock')}
+                                className={`px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 transition-all ${activeTab === 'stock' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                            >
+                                <Boxes size={16} /> Estoque de Insumos
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('recipes')}
+                                className={`px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 transition-all ${activeTab === 'recipes' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                            >
+                                <Calculator size={16} /> Custo de Produção
+                            </button>
+                        </>
+                    )}
 
                 </div>
             </div>
@@ -455,7 +469,7 @@ const Production: React.FC<ProductionProps> = ({ products, currentUser, onUpdate
                 </div>
             )}
 
-            {activeTab === 'history' && (
+            {canManageProduction && activeTab === 'history' && (
                 <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden animate-in fade-in duration-300">
                     <div className="overflow-x-auto">
                         <table className="w-full text-left text-sm">
@@ -504,7 +518,7 @@ const Production: React.FC<ProductionProps> = ({ products, currentUser, onUpdate
                 </div>
             )}
 
-            {activeTab === 'stock' && (
+            {canManageProduction && activeTab === 'stock' && (
                 <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden animate-in fade-in duration-300">
                     <div className="p-6 border-b border-slate-100 flex justify-between items-center">
                         <div>
@@ -578,7 +592,7 @@ const Production: React.FC<ProductionProps> = ({ products, currentUser, onUpdate
                 </div>
             )}
 
-            {activeTab === 'recipes' && (
+            {canManageProduction && activeTab === 'recipes' && (
                 <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden animate-in fade-in duration-300 p-6">
                     <h3 className="font-bold text-lg text-slate-800 mb-2 flex items-center gap-2">
                         <Calculator className="text-blue-600" /> Custos de Produção por Unidade

@@ -6,6 +6,9 @@ import { MOCK_PRODUCTS, MOCK_SALES, MOCK_FINANCIALS } from '../constants';
 import { getTodayDate } from '../services/utils';
 import { ALL_MENU_ITEMS } from './AppSidebar';
 import FiscalIntegrationNotice from './FiscalIntegrationNotice';
+import { validateTemporaryPassword } from '../supabase/functions/_shared/userValidation';
+
+const PASSWORD_RULE = 'A senha deve ter 12 caracteres e incluir maiúscula, minúscula, número e símbolo.';
 
 interface SettingsProps {
    currentUser: User;
@@ -56,8 +59,8 @@ const Settings: React.FC<SettingsProps> = ({ currentUser, onResetData }) => {
    };
 
    const handleUpdatePassword = async () => {
-      if (passwordData.newPassword.length < 6) {
-         alert("A senha deve ter no mínimo 6 caracteres.");
+      if (!validateTemporaryPassword(passwordData.newPassword)) {
+         alert(PASSWORD_RULE);
          return;
       }
 
@@ -85,6 +88,10 @@ const Settings: React.FC<SettingsProps> = ({ currentUser, onResetData }) => {
    const handleAddUser = async () => {
       if (!newUser.name || !newUser.email || (!editingUserId && !newUser.password)) {
          alert("Preencha todos os campos obrigatórios.");
+         return;
+      }
+      if (!editingUserId && !validateTemporaryPassword(newUser.password)) {
+         alert(PASSWORD_RULE);
          return;
       }
       setLoading(true);
@@ -558,11 +565,13 @@ const Settings: React.FC<SettingsProps> = ({ currentUser, onResetData }) => {
                      {!editingUserId && (
                         <div>
                            <label className="block text-sm font-medium text-slate-700 mb-1">Senha Inicial</label>
+                           <p className="text-xs text-slate-500 mt-1">{PASSWORD_RULE}</p>
                            <input
                               type="password"
                               className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-white text-slate-900"
                               value={newUser.password}
                               onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                              minLength={12}
                            />
                         </div>
                      )}

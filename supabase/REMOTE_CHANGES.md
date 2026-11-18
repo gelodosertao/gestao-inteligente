@@ -1,5 +1,16 @@
 # Registro de alterações remotas
 
+## 2026-11-18 — Criação de conta bloqueada por origem não autorizada
+
+- Projeto: `licetziylggxtnoutjkn`.
+- Sintoma: `Failed to send a request to the Edge Function` ao usar **Criar Conta** em Configurações.
+- Causa: o preflight `OPTIONS` de `admin-users` respondia `403 Origem não autorizada` porque `ALLOWED_ORIGINS` não incluía a URL de deploy usada pelo frontend. O erro acontecia antes da verificação do perfil Admin.
+- Correção: `_shared/http.ts` passou a aceitar `ALLOWED_ORIGIN_PATTERNS` com curinga por segmento. Secrets `ADMIN_WEB_ORIGIN` e `ALLOWED_ORIGIN_PATTERNS` aplicados; `admin-users` e `change-password` reimplantados.
+- Causa confirmada em 18/11 pelo painel Network do navegador: o sistema roda em `https://www.gelodosertao.com.br`, e não na URL de preview da Vercel. O preflight de `admin-users` retornava `403` e o navegador exibia erro de CORS.
+- Origens aplicadas: `https://www.gelodosertao.com.br`, `https://gelodosertao.com.br` e `https://gestao-inteligente-*-gelodosertaos-projects.vercel.app`.
+- Verificação: `204` no preflight e CORS válido no POST para as três origens; origem externa segue `403`; POST sem sessão segue `401`.
+- Limitação: a URL de preview muda a cada deploy. Um domínio fixo para o sistema deve ser cadastrado para não depender do hash.
+
 ## 2026-09-17 — Edge Functions administrativas P0
 
 - Projeto: `licetziylggxtnoutjkn`.

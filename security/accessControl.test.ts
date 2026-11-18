@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Role, User, ViewState } from '../types';
 import {
+  canAccessProductionManagement,
   canLoadDataset,
   getInitialView,
   hasModuleAccess,
@@ -65,5 +66,18 @@ describe('canLoadDataset', () => {
     expect(canLoadDataset(representative, 'customers')).toBe(true);
     expect(canLoadDataset(representative, 'financials')).toBe(false);
     expect(canLoadDataset(representative, 'cashClosings')).toBe(false);
+  });
+});
+
+describe('canAccessProductionManagement', () => {
+  it('bloqueia histórico, insumos e custo para o perfil Fábrica, mesmo com módulos extras', () => {
+    expect(canAccessProductionManagement(user('FACTORY'))).toBe(false);
+    expect(canAccessProductionManagement(user('FACTORY', ['REPORTS', 'INVENTORY']))).toBe(false);
+  });
+
+  it('libera as abas administrativas para os demais perfis', () => {
+    expect(canAccessProductionManagement(user('ADMIN'))).toBe(true);
+    expect(canAccessProductionManagement(user('OPERATOR'))).toBe(true);
+    expect(canAccessProductionManagement(user('WHOLESALE_REPRESENTATIVE'))).toBe(true);
   });
 });

@@ -12,26 +12,31 @@ export class HttpError extends Error {
   }
 }
 
-function configuredOrigins(): Set<string> {
-  return new Set(
-    (Deno.env.get('ALLOWED_ORIGINS') ?? '')
-      .split(',')
-      .map((origin) => origin.trim())
-      .filter(Boolean),
-  );
+import { isOriginAllowed as originAllowed, normalizeOriginEntries } from './origin.ts';
+
+function configuredOrigins(): string[] {
+  return normalizeOriginEntries([
+    Deno.env.get('ALLOWED_ORIGINS'),
+    Deno.env.get('ADMIN_WEB_ORIGIN'),
+    Deno.env.get('ALLOWED_ORIGIN_PATTERNS'),
+  ]);
+}
+
+export function isOriginAllowed(origin: string): boolean {
+  return originAllowed(origin, configuredOrigins());
 }
 
 export function responseHeaders(req: Request): HeadersInit {
   const origin = req.headers.get('Origin');
   const headers: Record<string, string> = { ...BASE_HEADERS };
-  if (origin && configuredOrigins().has(origin)) headers['Access-Control-Allow-Origin'] = origin;
+  if (origin && isOriginAllowed(origin)) headers['Access-Control-Allow-Origin'] = origin;
   return headers;
 }
 
 export function handlePreflight(req: Request): Response | null {
   if (req.method !== 'OPTIONS') return null;
   const origin = req.headers.get('Origin');
-  if (!origin || !configuredOrigins().has(origin)) {
+  if (!origin || !isOriginAllowed(origin)) {
     return json(req, 403, { success: false, error: 'Origem não autorizada.' });
   }
   return new Response(null, { status: 204, headers: responseHeaders(req) });
@@ -40,7 +45,7 @@ export function handlePreflight(req: Request): Response | null {
 export function assertPost(req: Request): void {
   if (req.method !== 'POST') throw new HttpError(405, 'Método não permitido.');
   const origin = req.headers.get('Origin');
-  if (origin && !configuredOrigins().has(origin)) throw new HttpError(403, 'Origem não autorizada.');
+  if (origin && !isOriginAllowed(origin)) throw new HttpError(403, 'Origem não autorizada.');
 }
 
 export function bearerToken(req: Request): string {

@@ -58,7 +58,17 @@ async function loadUserProfile(userId: string): Promise<User> {
 
 async function invokeAdminUsers<T>(body: Record<string, unknown>): Promise<T> {
   const { data, error } = await supabase.functions.invoke('admin-users', { body });
-  if (error) throw new Error(error.message || 'Falha ao executar operação administrativa.');
+  if (error) {
+    const context = (error as { context?: unknown }).context;
+    if (context instanceof Response) {
+      const payload = await context.clone().json().catch(() => null) as { error?: string } | null;
+      if (payload?.error) throw new Error(payload.error);
+    }
+    if ((error as { name?: string }).name === 'FunctionsFetchError') {
+      throw new Error('Não foi possível conectar ao servidor. Verifique a internet e tente novamente.');
+    }
+    throw new Error(error.message || 'Falha ao executar operação administrativa.');
+  }
   if (!data?.success) throw new Error(data?.error || 'Operação administrativa recusada.');
   return data as T;
 }
