@@ -1,5 +1,17 @@
 # Estoque da fábrica e PDV Atacado — implementação local
 
+## Correção de data da produção — 18/11/2026
+
+O erro `column "date" is of type timestamp with time zone but expression is of type text` foi reproduzido no PostgreSQL descartável. A função de produção declarava a data como texto; o verificador antigo também criava a coluna como texto, ocultando a incompatibilidade.
+
+A migration `202611180002_production_timestamp_compatibility.sql` usa o tipo da própria coluna (`%TYPE`) para a data do lote e das movimentações. Substitui somente as duas funções envolvidas, preserva permissões e transações e não converte colunas nem altera registros existentes. Aplicada ao banco conectado em 18/11/2026, após autorização, junto com `202611180001_wholesale_order_stock_commitment.sql`.
+
+`node scripts/verify-production-sql.mjs` agora reproduz o erro antes da correção e verifica rollback, datas, consumo, entrada de produção, perda e repetição após a migration. Passou nas quatro combinações de `text`/`timestamptz` nas colunas de produção e movimentos, inclusive com sessão em `America/Sao_Paulo`. Os tipos podem ser selecionados por `PRODUCTION_TEST_DATE_TYPE` e `PRODUCTION_TEST_MOVEMENT_DATE_TYPE`; ambos usam `timestamptz` por padrão. TypeScript e `git diff --check` também passaram.
+
+No banco remoto, a coluna de produção era `timestamptz` e a de movimentos era `text`. As duas migrations foram aplicadas pela CLI e constam no histórico; o dry run posterior não indicou pendências. Os corpos das três funções substituídas correspondem ao SQL testado, normalizando somente quebras de linha; proprietários e permissões anteriores foram preservados. Definições anteriores e posteriores estão em `output/production-wholesale-before.json` e `output/production-wholesale-after.json`.
+
+`output/verify-production-wholesale-remote.sql` executou produção e criação de pedido nas funções reais, sob o papel `authenticated`, dentro de transação terminada em `ROLLBACK`. Verificou data válida, repetição sem duplicidade, aumento de produção, compromisso de estoque na criação do Atacado, ausência de recebimento e de entrega inventados. A transação foi revertida; nenhum pedido ou lote de teste permaneceu gravado. Esta aplicação não publicou uma nova versão do frontend.
+
 ## Regra atual aprovada em 18/11/2026 — compromisso na criação
 
 Esta revisão substitui a regra de primeira parcela descrita no registro anterior abaixo. O pedido Atacado compromete o estoque do depósito selecionado ao ser criado, mesmo sem pagamento. O saldo disponível diminui imediatamente. `fulfillmentStatus: committed` identifica esse compromisso sem comprovar entrega e sem preencher `dispatchedAt`. O botão verde passa a ser **Confirmar pagamento**; parcelas não repetem movimentos. Edição de quantidades movimenta somente diferenças, edição de preço não movimenta estoque, origem comprometida fica imutável e cancelamento devolve uma vez. Pedido recusado por insuficiência não deixa venda nem baixa parcial.

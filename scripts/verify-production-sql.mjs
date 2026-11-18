@@ -6,6 +6,9 @@ import { pathToFileURL } from 'node:url';
 const modulePath = process.env.PGLITE_MODULE_PATH ?? resolve(process.env.TEMP ?? '/tmp', 'gelo-production-sql-test/node_modules/@electric-sql/pglite/dist/index.js');
 const { PGlite } = await import(pathToFileURL(modulePath).href);
 const db = new PGlite();
+const dateType = process.env.PRODUCTION_TEST_DATE_TYPE ?? 'timestamptz';
+const movementDateType = process.env.PRODUCTION_TEST_MOVEMENT_DATE_TYPE ?? dateType;
+for (const type of [dateType, movementDateType]) assert.ok(['text', 'timestamptz'].includes(type));
 const tenant = '11111111-1111-4111-8111-111111111111';
 const user = '22222222-2222-4222-8222-222222222222';
 let sequence = 0;
@@ -17,9 +20,10 @@ try {
   // Same isolated schema as the inventory verifier, extracted before its test body.
   const fixture = await readFile(new URL('./verify-inventory-sql.mjs', import.meta.url), 'utf8');
   const schema = fixture.match(/const schema = `([\s\S]*?)`;/)[1]
-    .replaceAll('${tenant}', tenant).replaceAll('${user}', user);
+    .replaceAll('${tenant}', tenant).replaceAll('${user}', user)
+    .replace('stock_movements(id text primary key,date text,', `stock_movements(id text primary key,date ${movementDateType},`);
   await db.exec(schema);
-  await db.exec(`create table production_logs(id text primary key, date text, product_id text, product_name text,
+  await db.exec(`create table production_logs(id text primary key, date ${dateType}, product_id text, product_name text,
     quantity numeric, shift text, responsible text, notes text, tenant_id uuid);`);
   for (const migration of ['202611120001_production_stock_operations.sql', '202611160001_inventory_operations.sql', '202611160003_production_integrity.sql']) {
     await db.exec(await readFile(new URL(`../supabase/migrations/${migration}`, import.meta.url), 'utf8'));
@@ -27,6 +31,16 @@ try {
   await db.exec(`insert into products(id,name,category,unit,tenant_id,stock_matriz_ibotirama,recipe,recipe_batch_size,cost)
     values ('ice','Gelo 5kg','Gelo Cubo','un','${tenant}',0,'[{"ingredientId":"bag","quantity":100}]',100,3),
       ('bag','Saco','Insumo','un','${tenant}',10,null,null,1);`);
+  if (dateType === 'timestamptz' || movementDateType === 'timestamptz') {
+    await assert.rejects(batch(id(), [{ ingredientId: 'bag', quantity: 1 }]), error =>
+      error.code === '42804' && /column "date"/.test(error.message));
+    assert.equal(await value('select count(*)::int as value from production_logs'), 0);
+    assert.equal(await value('select count(*)::int as value from stock_movements'), 0);
+    assert.equal(await value("select stock_matriz_ibotirama::float8 as value from products where id='ice'"), 0);
+    assert.equal(await value("select stock_matriz_ibotirama::float8 as value from products where id='bag'"), 10);
+  }
+  await db.exec(await readFile(new URL('../supabase/migrations/202611180002_production_timestamp_compatibility.sql', import.meta.url), 'utf8'));
+  await db.exec("set timezone = 'America/Sao_Paulo'");
   await assert.rejects(batch(id(), [{ ingredientId: 'bag', quantity: 12 }]), /insuficiente/);
   assert.equal(await value('select count(*)::int as value from production_logs'), 0);
   assert.equal(await value('select count(*)::int as value from stock_movements'), 0);
@@ -41,6 +55,8 @@ try {
   assert.equal(await value("select stock_matriz_ibotirama::float8 as value from products where id='bag'"), 5);
   assert.equal(await value("select stock_matriz_ibotirama::float8 as value from products where id='ice'"), 10);
   assert.equal(await value('select count(*)::int as value from stock_movements'), 2);
+  assert.equal(await value("select bool_and(abs(extract(epoch from (date::timestamptz - now()))) < 60) as value from production_logs"), true);
+  assert.equal(await value('select bool_and(m.date::timestamptz = p.date::timestamptz) as value from stock_movements m cross join production_logs p'), true);
   await assert.rejects(batch(first, [{ ingredientId: 'bag', quantity: 1 }]), /identificador/);
   const concurrent = await Promise.allSettled([batch(id(), [{ ingredientId: 'bag', quantity: 4 }]), batch(id(), [{ ingredientId: 'bag', quantity: 4 }])]);
   assert.equal(concurrent.filter(result => result.status === 'fulfilled').length, 1);
@@ -55,5 +71,5 @@ try {
   await assert.rejects(batch(id(), []), /sem acesso/);
   await db.exec(`update app_users set role='FACTORY',tenant_id='99999999-9999-4999-8999-999999999999' where id='${user}';`);
   await assert.rejects(batch(id(), []), /indisponível/);
-  console.log('Production SQL verified: shortage rollback, complete recipe, positive consumption, authenticated definer path, consolidated demand, retry, serialized exits, loss finance, missing ingredients, authorization and tenant isolation.');
+  console.log(`Production SQL verified (production date: ${dateType}, movement date: ${movementDateType}): timestamp compatibility, shortage rollback, complete recipe, positive consumption, authenticated definer path, consolidated demand, retry, serialized exits, loss finance, missing ingredients, authorization and tenant isolation.`);
 } finally { await db.close(); }

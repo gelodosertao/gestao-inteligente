@@ -39,14 +39,16 @@ const Production: React.FC<ProductionProps> = ({ products, currentUser, onUpdate
     const [shift, setShift] = useState<Shift>('Manhã');
     const [notes, setNotes] = useState('');
 
-    const [ingredientOverrides, setIngredientOverrides] = useState<Record<string, number>>({});
     const selectedProduct = products.find(product => product.id === selectedProductId);
     let usedIngredients: ReturnType<typeof getProductionAvailability> = [];
     let productionError = '';
     if (selectedProduct && Number.isFinite(produced) && produced > 0) {
         try {
-            usedIngredients = getProductionAvailability(selectedProduct, products, produced, ingredientOverrides);
-            if (usedIngredients.some(item => item.shortage > 0)) productionError = 'Saldo insuficiente de insumos em Ibotirama. Revise as quantidades.';
+            usedIngredients = getProductionAvailability(selectedProduct, products, produced, {});
+            const shortages = usedIngredients.filter(item => item.shortage > 0);
+            if (shortages.length) {
+                productionError = `Saldo insuficiente de insumos em Ibotirama. Falta: ${shortages.map(item => `${quantityFormat.format(item.shortage)} ${item.unit} de ${item.name}`).join('; ')}. Reponha o estoque ou reduza a quantidade produzida.`;
+            }
         } catch (error) {
             productionError = (error as Error).message;
         }
@@ -116,7 +118,6 @@ const Production: React.FC<ProductionProps> = ({ products, currentUser, onUpdate
             pendingOperations.current.delete(batchKey);
             setQuantity('');
             setNotes('');
-            setIngredientOverrides({});
             try {
                 await onStockChanged();
                 alert("Produção registrada com sucesso! Estoque atualizado.");
@@ -258,7 +259,7 @@ const Production: React.FC<ProductionProps> = ({ products, currentUser, onUpdate
                     )}
                     <div>
                         <h1 className="text-2xl font-bold text-slate-900">Controle de Produção</h1>
-                        <p className="text-slate-500">Registre a produção diária da fábrica.</p>
+                        <p className="text-slate-500">Registre a produção diária e as perdas da fábrica.</p>
                     </div>
                 </div>
                 {/* --- TABS --- */}
@@ -267,7 +268,7 @@ const Production: React.FC<ProductionProps> = ({ products, currentUser, onUpdate
                         onClick={() => setActiveTab('production')}
                         className={`px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 transition-all ${activeTab === 'production' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                     >
-                        <Layers size={16} /> Registrar Produção
+                        <Layers size={16} /> Produção e Perdas
                     </button>
                     <button
                         onClick={() => setActiveTab('history')}
@@ -292,219 +293,166 @@ const Production: React.FC<ProductionProps> = ({ products, currentUser, onUpdate
             </div>
 
             {activeTab === 'production' && (
-                <div className="bg-white p-6 rounded-2xl shadow-lg border border-blue-100 animate-in fade-in duration-300">
-                    <h3 className="font-bold text-lg text-slate-800 mb-6 flex items-center gap-2">
-                        <Package className="text-blue-600" /> Registrar Nova Produção
-                    </h3>
+                <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-2">
+                    <div className="min-w-0 bg-white p-6 rounded-2xl border border-blue-100 animate-in fade-in duration-300">
+                        <h3 className="font-bold text-lg text-slate-800 mb-6 flex items-center gap-2">
+                            <Package className="text-blue-600" /> Registrar Nova Produção
+                        </h3>
 
-                    <fieldset disabled={saving} className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 min-w-0">
-                        <div className="space-y-4">
-                            <div>
-                                <label htmlFor="production-product" className="block text-sm font-bold text-slate-700 mb-1">Produto Fabricado</label>
-                                <select
-                                    id="production-product"
-                                    value={selectedProductId}
-                                    onChange={(e) => {
-                                        setSelectedProductId(e.target.value);
-                                        setIngredientOverrides({});
-                                    }}
-                                    className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-slate-50 font-medium"
-                                >
-                                    <option value="">Selecione o produto...</option>
-                                    {manufacturedProducts.map(p => (
-                                        <option key={p.id} value={p.id}>{p.name}</option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            <div>
-                                <label htmlFor="production-quantity" className="block text-sm font-bold text-slate-700 mb-1">Quantidade Produzida</label>
-                                <input
-                                    type="number"
-                                    id="production-quantity"
-                                    min="0"
-                                    step="any"
-                                    value={quantity}
-                                    onChange={(e) => {
-                                        setQuantity(e.target.value);
-                                        setIngredientOverrides({});
-                                    }}
-                                    className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-lg"
-                                    placeholder="0"
-                                />
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
+                        <fieldset disabled={saving} className="mb-6 min-w-0">
+                            <div className="space-y-4">
                                 <div>
-                                    <label className="block text-sm font-bold text-slate-700 mb-1">Turno</label>
+                                    <label htmlFor="production-product" className="block text-sm font-bold text-slate-700 mb-1">Produto Fabricado</label>
                                     <select
-                                        value={shift}
-                                        onChange={(e) => setShift(e.target.value as Shift)}
-                                        className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                                        id="production-product"
+                                        value={selectedProductId}
+                                        onChange={(e) => setSelectedProductId(e.target.value)}
+                                        className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-slate-50 font-medium"
                                     >
-                                        <option value="Manhã">Manhã</option>
-                                        <option value="Tarde">Tarde</option>
-                                        <option value="Noite">Noite</option>
-                                        <option value="Madrugada">Madrugada</option>
+                                        <option value="">Selecione o produto...</option>
+                                        {manufacturedProducts.map(p => (
+                                            <option key={p.id} value={p.id}>{p.name}</option>
+                                        ))}
                                     </select>
                                 </div>
+
                                 <div>
-                                    <label className="block text-sm font-bold text-slate-700 mb-1">Responsável</label>
-                                    <div className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 text-slate-500 flex items-center gap-2">
-                                        <UserIcon size={16} /> {currentUser.name}
+                                    <label htmlFor="production-quantity" className="block text-sm font-bold text-slate-700 mb-1">Quantidade Produzida</label>
+                                    <input
+                                        type="number"
+                                        id="production-quantity"
+                                        min="0"
+                                        step="any"
+                                        value={quantity}
+                                        onChange={(e) => setQuantity(e.target.value)}
+                                        className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-lg"
+                                        placeholder="0"
+                                    />
+                                </div>
+
+                                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                    <div>
+                                        <label className="block text-sm font-bold text-slate-700 mb-1">Turno</label>
+                                        <select
+                                            value={shift}
+                                            onChange={(e) => setShift(e.target.value as Shift)}
+                                            className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                                        >
+                                            <option value="Manhã">Manhã</option>
+                                            <option value="Tarde">Tarde</option>
+                                            <option value="Noite">Noite</option>
+                                            <option value="Madrugada">Madrugada</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-bold text-slate-700 mb-1">Responsável</label>
+                                        <div className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 text-slate-500 flex items-center gap-2">
+                                            <UserIcon size={16} /> {currentUser.name}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <div className="space-y-4">
-                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                                <h4 className="font-bold text-slate-700 mb-3 flex items-center gap-2">
-                                    <Boxes size={18} className="text-orange-500" /> Insumos Utilizados (Baixa no Estoque)
-                                </h4>
-                                 {productionError && <p role="alert" className="mb-3 text-sm font-bold text-red-700">{productionError}</p>}
-
-                                {usedIngredients.length === 0 ? (
-                                    <div className="flex flex-col items-center justify-center h-40 text-slate-400 text-sm italic">
-                                        <AlertTriangle size={24} className="mb-2 opacity-50" />
-                                        <p>Selecione um produto e quantidade</p>
-                                        <p>para calcular os insumos.</p>
-                                    </div>
-                                ) : (
-                                    <div className="space-y-3 overflow-y-auto max-h-[300px] pr-2">
-                                        {usedIngredients.map(item => (
-                                            <div key={item.key} className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
-                                                <div className="flex justify-between items-center mb-1">
-                                                    <span className="font-bold text-slate-700 text-sm">{item.name}</span>
-                                                    <span className="text-xs text-slate-400">{item.unit}</span>
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    <input
-                                                        type="number"
-                                                        aria-label={`Quantidade utilizada de ${item.name}`}
-                                                        min="0.000001"
-                                                        step="any"
-                                                        className="flex-1 px-3 py-1 border border-slate-200 rounded-md font-bold text-slate-800 text-right focus:ring-2 focus:ring-orange-500 outline-none"
-                                                        value={item.quantity}
-                                                        onChange={(e) => {
-                                                            const amount = Number(e.target.value);
-                                                            setIngredientOverrides(previous => ({ ...previous, [item.key]: amount }));
-                                                        }}
-                                                    />
-                                                    <span className="text-sm font-medium text-slate-500 w-8">{item.unit}</span>
-                                                </div>
-                                                <p className={`mt-2 text-xs ${item.shortage > 0 ? 'text-red-700 font-bold' : 'text-slate-500'}`}>
-                                                    Necessário: {quantityFormat.format(item.quantity)} · Disponível em Ibotirama: {quantityFormat.format(item.available)} · Falta: {quantityFormat.format(item.shortage)} {item.unit}
-                                                </p>
-                                            </div>
-                                        ))}
-                                        <p className="text-xs text-slate-400 text-center mt-2">
-                                            * Verifique e ajuste as quantidades reais utilizadas.
-                                        </p>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </fieldset>
-
-                    <div className="mb-6">
-                        <label className="block text-sm font-bold text-slate-700 mb-1">Observações (Opcional)</label>
-                        <input
-                            type="text"
-                            value={notes}
-                            disabled={saving}
-                            onChange={(e) => setNotes(e.target.value)}
-                            className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
-                            placeholder="Ex: Máquina 2 parada, quebra de insumo extra..."
-                        />
-                    </div>
-
-                    <div className="flex justify-end pt-4 border-t border-slate-100">
-                        <button
-                            onClick={handleSave}
-                            disabled={saving || !!productionError}
-                            className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-blue-900/20 transition-all flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                            <Save size={20} /> {saving ? 'Registrando…' : 'Confirmar Produção'}
-                        </button>
-                    </div>
-                </div>
-            )}
-
-            {activeTab === 'production' && (
-                <section aria-labelledby="production-loss-heading" className="rounded-2xl border border-amber-200 bg-white p-6 shadow-sm">
-                    <div className="mb-4">
-                        <h3 id="production-loss-heading" className="flex items-center gap-2 text-lg font-bold text-slate-800">
-                            <AlertTriangle size={20} className="text-amber-600" /> Registro de Perdas
-                        </h3>
-                        <p className="mt-1 text-sm text-slate-600">A perda é baixada do estoque da Matriz (Ibotirama).</p>
-                    </div>
-                    <form onSubmit={handleSaveLoss}>
-                        <fieldset disabled={savingLoss} className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-3">
-                            <label className="min-w-0 text-sm font-bold text-slate-700">
-                                Produto da Perda
-                                <select
-                                    value={lossProductId}
-                                    onChange={(e) => {
-                                        setLossProductId(e.target.value);
-                                        setLossQuantity('');
-                                        setLossReason('');
-                                    }}
-                                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 font-medium outline-none focus:ring-2 focus:ring-blue-500"
-                                >
-                                    <option value="">Selecione o produto...</option>
-                                    {manufacturedProducts.map(product => (
-                                        <option key={product.id} value={product.id}>{product.name}</option>
-                                    ))}
-                                </select>
-                            </label>
-                            <label className="min-w-0 text-sm font-bold text-slate-700">
-                                Quantidade Perdida
-                                <input
-                                    type="number"
-                                    min="0"
-                                    max={Math.max(lossStock, 0)}
-                                    step="any"
-                                    placeholder="0"
-                                    value={lossQuantity}
-                                    disabled={!lossProduct}
-                                    onChange={(e) => setLossQuantity(e.target.value)}
-                                    aria-invalid={!!lossQuantity && !validLoss}
-                                    aria-describedby={lossProduct ? 'production-loss-stock' : undefined}
-                                    className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-3 font-medium outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100"
-                                />
-                            </label>
-                            <label className="min-w-0 text-sm font-bold text-slate-700">
-                                Motivo (Opcional)
-                                <input
-                                    type="text"
-                                    value={lossReason}
-                                    onChange={(e) => setLossReason(e.target.value)}
-                                    placeholder="Ex.: descarte por qualidade"
-                                    className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-3 font-medium outline-none focus:ring-2 focus:ring-blue-500"
-                                />
-                            </label>
                         </fieldset>
-                        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <p id="production-loss-stock" className="text-sm text-slate-600" aria-live="polite">
-                                {lossProduct && (
-                                    <>
-                                        Saldo atual <strong>{quantityFormat.format(lossStock)} {lossProduct.unit}</strong>
-                                        {validLoss && <> · Após a baixa <strong>{quantityFormat.format(lossStock - lost)} {lossProduct.unit}</strong></>}
-                                        {lost > lossStock && !!lossQuantity && <span className="block text-red-700">A perda excede o saldo disponível.</span>}
-                                    </>
-                                )}
-                            </p>
+
+                        <div className="mb-6">
+                            <label className="block text-sm font-bold text-slate-700 mb-1">Observações (Opcional)</label>
+                            <input
+                                type="text"
+                                value={notes}
+                                disabled={saving}
+                                onChange={(e) => setNotes(e.target.value)}
+                                className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
+                                placeholder="Ex: Máquina 2 parada, quebra de insumo extra..."
+                            />
+                        </div>
+
+                        {productionError && <p role="alert" className="mb-4 text-sm font-bold text-red-700">{productionError}</p>}
+                        <div className="flex justify-end pt-4 border-t border-slate-100">
                             <button
-                                type="submit"
-                                disabled={savingLoss || !validLoss}
-                                className="flex items-center justify-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-5 py-3 font-bold text-amber-900 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
+                                onClick={handleSave}
+                                disabled={saving || !!productionError}
+                                className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-blue-900/20 transition-all flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-60"
                             >
-                                <Save size={18} /> {savingLoss ? 'Registrando…' : 'Confirmar Perda'}
+                                <Save size={20} /> {saving ? 'Registrando…' : 'Confirmar Produção'}
                             </button>
                         </div>
-                    </form>
-                </section>
+                    </div>
+
+                    <section aria-labelledby="production-loss-heading" className="min-w-0 rounded-2xl border border-amber-200 bg-white p-6">
+                        <div className="mb-4">
+                            <h3 id="production-loss-heading" className="flex items-center gap-2 text-lg font-bold text-slate-800">
+                                <AlertTriangle size={20} className="text-amber-600" /> Registro de Perdas
+                            </h3>
+                            <p className="mt-1 text-sm text-slate-600">A perda é baixada do estoque da Matriz (Ibotirama).</p>
+                        </div>
+                        <form onSubmit={handleSaveLoss}>
+                            <fieldset disabled={savingLoss} className="grid min-w-0 grid-cols-1 gap-4">
+                                <label className="min-w-0 text-sm font-bold text-slate-700">
+                                    Produto da Perda
+                                    <select
+                                        value={lossProductId}
+                                        onChange={(e) => {
+                                            setLossProductId(e.target.value);
+                                            setLossQuantity('');
+                                            setLossReason('');
+                                        }}
+                                        className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 font-medium outline-none focus:ring-2 focus:ring-blue-500"
+                                    >
+                                        <option value="">Selecione o produto...</option>
+                                        {manufacturedProducts.map(product => (
+                                            <option key={product.id} value={product.id}>{product.name}</option>
+                                        ))}
+                                    </select>
+                                </label>
+                                <label className="min-w-0 text-sm font-bold text-slate-700">
+                                    Quantidade Perdida
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        max={Math.max(lossStock, 0)}
+                                        step="any"
+                                        placeholder="0"
+                                        value={lossQuantity}
+                                        disabled={!lossProduct}
+                                        onChange={(e) => setLossQuantity(e.target.value)}
+                                        aria-invalid={!!lossQuantity && !validLoss}
+                                        aria-describedby={lossProduct ? 'production-loss-stock' : undefined}
+                                        className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-3 font-medium outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100"
+                                    />
+                                </label>
+                                <label className="min-w-0 text-sm font-bold text-slate-700">
+                                    Motivo (Opcional)
+                                    <input
+                                        type="text"
+                                        value={lossReason}
+                                        onChange={(e) => setLossReason(e.target.value)}
+                                        placeholder="Ex.: descarte por qualidade"
+                                        className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-3 font-medium outline-none focus:ring-2 focus:ring-blue-500"
+                                    />
+                                </label>
+                            </fieldset>
+                            <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                <p id="production-loss-stock" className="text-sm text-slate-600" aria-live="polite">
+                                    {lossProduct && (
+                                        <>
+                                            Saldo atual <strong>{quantityFormat.format(lossStock)} {lossProduct.unit}</strong>
+                                            {validLoss && <> · Após a baixa <strong>{quantityFormat.format(lossStock - lost)} {lossProduct.unit}</strong></>}
+                                            {lost > lossStock && !!lossQuantity && <span className="block text-red-700">A perda excede o saldo disponível.</span>}
+                                        </>
+                                    )}
+                                </p>
+                                <button
+                                    type="submit"
+                                    disabled={savingLoss || !validLoss}
+                                    className="flex items-center justify-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-5 py-3 font-bold text-amber-900 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                    <Save size={18} /> {savingLoss ? 'Registrando…' : 'Confirmar Perda'}
+                                </button>
+                            </div>
+                        </form>
+                    </section>
+                </div>
             )}
 
             {activeTab === 'history' && (

@@ -1,0 +1,67 @@
+- generic [ref=f1e3]:
+  - navigation [ref=f1e4]:
+    - button "inventory" [ref=f1e5] [cursor=pointer]
+    - button "wholesale" [ref=f1e6] [cursor=pointer]
+    - button "production" [ref=f1e7] [cursor=pointer]
+    - button "financial" [ref=f1e8] [cursor=pointer]
+  - generic [ref=f1e9]:
+    - banner [ref=f1e10]:
+      - generic [ref=f1e11]:
+        - generic [ref=f1e12]:
+          - button "Voltar à gestão" [ref=f1e13] [cursor=pointer]
+          - img "Logo" [ref=f1e17]
+          - generic [ref=f1e18]:
+            - heading "PDV Atacado" [level=1] [ref=f1e19]
+            - paragraph [ref=f1e20]: Gelo do Sertão
+        - navigation "Navegação do PDV" [ref=f1e21]:
+          - button "Novo pedido" [ref=f1e22] [cursor=pointer]
+          - button "Vendas" [active] [ref=f1e27] [cursor=pointer]
+        - generic [ref=f1e32]:
+          - generic [ref=f1e33]:
+            - paragraph [ref=f1e34]: Operador
+            - paragraph [ref=f1e35]: Administrador
+          - button "Sair" [ref=f1e36] [cursor=pointer]
+    - main [ref=f1e40]:
+      - region "Vendas" [ref=f1e83]:
+        - generic [ref=f1e84]:
+          - heading "Histórico de vendas" [level=2] [ref=f1e85]
+          - generic [ref=f1e86]:
+            - textbox "Pesquisar venda por cliente, ID ou valor..." [ref=f1e91]
+            - combobox [ref=f1e92]:
+              - option "Todos os Status" [selected]
+              - option "Pagamento pendente"
+              - option "Quitados"
+              - option "Cancelados"
+            - textbox [ref=f1e93]: 2026-11
+          - generic [ref=f1e94]:
+            - paragraph [ref=f1e96]: Comissão por Vendedor
+            - generic [ref=f1e97]:
+              - generic [ref=f1e98]:
+                - paragraph [ref=f1e99]: Desconhecido
+                - paragraph [ref=f1e100]: ADM · 1 pedidos · R$ 80,00
+              - generic [ref=f1e101]: R$ 0,00
+          - generic [ref=f1e103]:
+            - generic [ref=f1e110]:
+              - heading "Cliente de teste" [level=4] [ref=f1e111]
+              - paragraph [ref=f1e112]:
+                - generic [ref=f1e113]: 2026-11-18
+                - generic [ref=f1e114]: •
+                - generic [ref=f1e115]: Atacado
+              - generic [ref=f1e116]: "Estoque: Barreiras"
+              - generic [ref=f1e118]: 10x Gelo Cubo 5kg
+            - generic [ref=f1e119]:
+              - generic [ref=f1e121]:
+                - generic [ref=f1e122]: R$ 80,00
+                - generic [ref=f1e124]: "Deve: R$ 80,00"
+              - generic [ref=f1e125]:
+                - generic [ref=f1e126]: Pagamento pendente
+                - generic [ref=f1e127]: PIX
+                - generic [ref=f1e128]: Sem NF-e
+              - generic [ref=f1e129]:
+                - generic [ref=f1e130]: Conferir baixa anterior
+                - button "Confirmar pagamento" [ref=f1e131] [cursor=pointer]
+                - generic [ref=f1e135]:
+                  - button "Nota fiscal" [ref=f1e136] [cursor=pointer]
+                  - button [ref=f1e140] [cursor=pointer]
+                  - button "Editar" [ref=f1e145] [cursor=pointer]
+                  - button "Excluir" [ref=f1e149] [cursor=pointer]

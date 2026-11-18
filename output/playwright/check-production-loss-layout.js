@@ -1,0 +1,37 @@
+﻿async page => {
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await page.getByRole('button', { name: 'production', exact: true }).click();
+  await page.locator('#production-product').selectOption('ice');
+  await page.locator('#production-quantity').fill('21');
+  const confirmProduction = page.getByRole('button', { name: /Confirmar Produ/ });
+  if (!await confirmProduction.isDisabled()) throw new Error('Shortage must block production');
+  if (!(await page.getByRole('alert').innerText()).includes('1 un de Embalagem')) throw new Error('Missing shortage explanation');
+  if ((await page.locator('body').innerText()).includes('Insumos Utilizados')) throw new Error('Ingredients panel still visible');
+  await page.locator('#production-quantity').fill('10');
+  if (!await confirmProduction.isEnabled()) throw new Error('Valid production blocked');
+  await page.getByLabel('Produto da Perda').selectOption('ice');
+  await page.getByLabel('Quantidade Perdida').fill('101');
+  if (!await page.getByRole('button', { name: 'Confirmar Perda', exact: true }).isDisabled()) throw new Error('Excess loss allowed');
+  await page.getByLabel('Quantidade Perdida').fill('5');
+  await page.getByLabel('Motivo (Opcional)').fill('Teste local');
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.screenshot({ path: 'output/playwright/production-loss-layout-desktop.png', fullPage: true });
+  const productionBox = await page.locator('#production-product').boundingBox();
+  const lossBox = await page.getByLabel('Produto da Perda').boundingBox();
+  if (lossBox.x <= productionBox.x) throw new Error('Desktop should have side-by-side forms');
+  await page.setViewportSize({ width: 390, height: 844 });
+  if (!await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)) throw new Error('Mobile overflow');
+  await page.screenshot({ path: 'output/playwright/production-loss-layout-mobile.png', fullPage: true });
+  await page.getByRole('button', { name: 'Confirmar Perda', exact: true }).click();
+  await page.waitForFunction(() => window.__stockAlerts.some(message => message.includes('Perda registrada')));
+  if (!(await page.locator('#production-loss-stock').innerText()).includes('95 un')) throw new Error('Loss did not update balance');
+  if (await page.locator('#production-quantity').inputValue() !== '10') throw new Error('Loss cleared production form');
+  await confirmProduction.click();
+  await page.waitForFunction(() => window.__stockAlerts.some(message => message.includes('registrada com sucesso')));
+  const requests = await page.evaluate(() => window.__stockRequests);
+  const production = requests.find(request => request.path.includes('production'));
+  if (!production) throw new Error('Missing production RPC');
+  if (errors.length) throw new Error(errors.join('; '));
+  return { layout: 'desktop and mobile passed', loss: '100 to 95', independentForms: true, productionRequest: production, pageErrors: errors };
+}
