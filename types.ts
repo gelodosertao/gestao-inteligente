@@ -134,7 +134,9 @@ export interface Sale {
   branch: Branch;
   matrizDeposit?: 'Ibotirama' | 'Barreiras';
   status: 'Completed' | 'Pending' | 'Cancelled' | 'Finalizado pela Fábrica';
-  fulfillmentStatus?: 'pending' | 'dispatched';
+  fulfillmentStatus?: 'pending' | 'committed' | 'dispatched';
+  // Explicit command for reconciling a legacy delivery; never inferred from its date.
+  historicalStockAlreadyDebited?: boolean;
   revision?: number;
   cancelledAt?: string;
   dispatchedAt?: string;

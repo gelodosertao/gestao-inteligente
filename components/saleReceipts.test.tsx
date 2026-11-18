@@ -34,10 +34,10 @@ describe('telas de recebimento', () => {
         expect(html).toMatch(/<button[^>]*>[\s\S]*?Receber\s*<\/button>/);
         expect(html).not.toContain('Confirmar Recebimento');
     });
-    it('oferece Confirmar pedido verde no atacado sem etapa separada de saída', () => {
+    it('oferece Confirmar pagamento verde no atacado sem etapa separada de saída', () => {
         const html = renderToStaticMarkup(<WholesalePOS {...common} sales={[{ ...pending, branch: Branch.MATRIZ, date: new Date().toISOString().slice(0, 10) }]} />);
         expect(html).toContain('Cliente teste');
-        expect(html).toMatch(/<button[^>]*bg-emerald-600[^>]*>[\s\S]*?Confirmar pedido\s*<\/button>/);
+        expect(html).toMatch(/<button[^>]*bg-emerald-600[^>]*>[\s\S]*?Confirmar pagamento\s*<\/button>/);
         expect(html).not.toContain('Confirmar saída');
         expect(html).not.toContain('Confirmar Recebimento');
     });
@@ -48,8 +48,8 @@ describe('telas de recebimento', () => {
             wholesale,
             { ...wholesale, id: 'paid-order', status: 'Completed', amountPaid: 100 },
         ]} />);
-        expect(html.match(/Confirmar pedido<\/button>/g)).toHaveLength(2);
-        expect(html.match(/Aguardando confirmação do pedido/g)).toHaveLength(2);
+        expect(html.match(/Confirmar pagamento<\/button>/g)).toHaveLength(2);
+        expect(html.match(/Conferir baixa anterior/g)).toHaveLength(2);
         expect(html).toContain('Quitado');
         expect(html).toContain('Barreiras');
     });
@@ -57,9 +57,9 @@ describe('telas de recebimento', () => {
         const html = renderToStaticMarkup(<WholesalePOS {...common} sales={[
             { ...pending, branch: Branch.MATRIZ, date: new Date().toISOString().slice(0, 10), fulfillmentStatus: 'dispatched' },
         ]} />);
-        expect(html).toContain('Estoque já baixado');
+        expect(html).toContain('Estoque comprometido');
         expect(html).not.toMatch(/>Confirmar saída<\/button>/);
-        expect(html).toContain('Confirmar pedido');
+        expect(html).toContain('Confirmar pagamento');
     });
     it('mostra o parcial em movimentos sem duplicar a receita persistida da venda', () => {
         const html = renderToStaticMarkup(<Financial

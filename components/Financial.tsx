@@ -1,4 +1,4 @@
-import { saleReceiptRecords } from '../services/salePayments';
+import { isSaleRevenueRecognized, saleReceiptRecords } from '../services/salePayments';
 import { getSaleDispatchDate } from '../services/dispatchedSalesReport';
 import React, { useState, useMemo, useCallback } from 'react';
 import { FinancialRecord, Branch, Sale, Product, CategoryItem, CashClosing, User } from '../types';
@@ -290,9 +290,7 @@ const Financial: React.FC<FinancialProps> = ({ records, sales, products, cashClo
             ? (getSaleDispatchDate(s) || s.date) : s.date;
          return (selectedBranch === 'ALL' || s.branch === selectedBranch) && filterByDate(competenceDate);
       });
-      const completedSales = allSalesInPeriod.filter(s => s.source === 'ATACADO' && s.fulfillmentStatus !== undefined
-         ? s.fulfillmentStatus === 'dispatched' && s.status !== 'Cancelled'
-         : s.status === 'Completed');
+      const completedSales = allSalesInPeriod.filter(isSaleRevenueRecognized);
       const cancelledSales = allSalesInPeriod.filter(s => s.status === 'Cancelled'
          && (s.source !== 'ATACADO' || s.fulfillmentStatus === undefined || s.fulfillmentStatus === 'dispatched'));
 

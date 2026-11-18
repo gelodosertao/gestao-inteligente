@@ -1,5 +1,19 @@
 # Estoque da fábrica e PDV Atacado — implementação local
 
+## Regra atual aprovada em 18/11/2026 — compromisso na criação
+
+Esta revisão substitui a regra de primeira parcela descrita no registro anterior abaixo. O pedido Atacado compromete o estoque do depósito selecionado ao ser criado, mesmo sem pagamento. O saldo disponível diminui imediatamente. `fulfillmentStatus: committed` identifica esse compromisso sem comprovar entrega e sem preencher `dispatchedAt`. O botão verde passa a ser **Confirmar pagamento**; parcelas não repetem movimentos. Edição de quantidades movimenta somente diferenças, edição de preço não movimenta estoque, origem comprometida fica imutável e cancelamento devolve uma vez. Pedido recusado por insuficiência não deixa venda nem baixa parcial.
+
+Pedidos antigos sem compromisso reconhecido exigem uma declaração administrativa explícita no recebimento: **Pedido já entregue e estoque descontado anteriormente**. O sistema reconhece os efeitos históricos sem descontar o saldo atual, preserva as parcelas e audita a declaração. Isso também permite utilizar pagamento já registrado, sem parcela fictícia. Nenhum pedido antigo é convertido em lote ou apenas por sua data.
+
+A revisão depende da migration `202611180001_wholesale_order_stock_commitment.sql`, após as seis anteriores. As seis migrations anteriores foram aplicadas em produção em 17/11. Frontend e nova migration devem ser publicados coordenadamente; confirmar a ativação pelo histórico remoto e pela versão pública. A criação de um compromisso não gera entrada de caixa; a DRE também não reconhece reserva não paga como receita. O ranking de expedições continua excluindo simples compromissos sem entrega reconhecida.
+
+Verificador da revisão: `node scripts/verify-wholesale-stock-commitment.mjs`, com `PGLITE_MODULE` configurado. Os verificadores anteriores preservam suas regras históricas e não representam a regra atual. O PostgreSQL descartável valida a transação; as disputas de revisão e repetições sequenciais não comprovam concorrência real entre conexões em produção.
+
+Validação desta revisão: 108 verificações SQL, 185 testes de serviços/componentes e suíte completa com 221 testes em 23 arquivos aprovados (a suíte local também inclui 28 testes do checkout `.release-ux-ui`), TypeScript, build e `git diff --check` aprovados. Navegador local com chamadas externas bloqueadas e backend simulado: quitação histórica R$ 80 preservou Barreiras em 40; criação de pedido R$ 8 sem pagamento reduziu 40 para 39; quitação posterior preservou 39 e não marcou entrega. Formulário móvel teve sobreposição da navegação corrigida, com botão de pagamento acessível por rolagem. Evidências locais: `output/playwright/check-legacy-payment-no-stock.js`, `check-stock-commitment-create.js`, `check-stock-commitment-payment.js` e `stock-commitment-payment-mobile.png` no mesmo diretório.
+
+## Registro da implementação anterior (16/11/2026)
+
 As dez features do levantamento foram implementadas pelos respectivos especialistas. Não houve commit, push, deploy, aplicação de migrations remotas ou correção de dados históricos.
 
 ## Comportamento

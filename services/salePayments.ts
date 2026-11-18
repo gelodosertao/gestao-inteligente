@@ -39,6 +39,23 @@ export function isSaleDispatched(sale: Sale): boolean {
     return sale.fulfillmentStatus === 'dispatched' || (sale.fulfillmentStatus === undefined && (sale.status === 'Completed' || sale.status === 'Finalizado pela Fábrica'));
 }
 
+export function hasSaleStockCommitted(sale: Sale): boolean {
+    return sale.fulfillmentStatus === 'committed' || isSaleDispatched(sale);
+}
+
+export function isSaleRevenueRecognized(sale: Sale): boolean {
+    if (sale.status === 'Cancelled') return false;
+    if (sale.source === 'ATACADO' && sale.fulfillmentStatus !== undefined) {
+        return sale.fulfillmentStatus === 'dispatched' || (sale.fulfillmentStatus === 'committed' && sale.status === 'Completed');
+    }
+    return sale.status === 'Completed';
+}
+
+export function canReconcileHistoricalDelivery(sale: Sale): boolean {
+    return sale.source === 'ATACADO' && (sale.fulfillmentStatus === undefined || sale.fulfillmentStatus === 'pending')
+        && (sale.status === 'Pending' || (sale.fulfillmentStatus === 'pending' && sale.status === 'Completed' && (sale.amountPaid || 0) > 0));
+}
+
 export function wholesaleEditTotal(sale: Sale): number {
     const total = sale.items.reduce((sum, item) => sum + item.quantity * item.priceAtSale, 0) + (sale.deliveryFee || 0) - (sale.discount || 0);
     if (!Number.isFinite(total) || total < 0 || (sale.deliveryFee || 0) < 0 || (sale.discount || 0) < 0 || sale.items.some(item => !Number.isFinite(item.quantity) || item.quantity <= 0 || !Number.isFinite(item.priceAtSale) || item.priceAtSale < 0)) {
@@ -48,8 +65,7 @@ export function wholesaleEditTotal(sale: Sale): number {
 }
 
 export function prepareWholesaleDispatch(sale: Sale, products: Product[], deposit: Sale['matrizDeposit']): Sale {
-    if (sale.source !== 'ATACADO' || sale.status === 'Cancelled' || isSaleDispatched(sale) || !sale.items.length) throw new Error('Este pedido não está disponível para expedição.');
-    if (!Number.isFinite(sale.amountPaid) || (sale.amountPaid || 0) <= 0) throw new Error('Registre um pagamento positivo para confirmar o pedido.');
+    if (sale.source !== 'ATACADO' || sale.status === 'Cancelled' || hasSaleStockCommitted(sale) || !sale.items.length) throw new Error('Este pedido não está disponível para comprometer estoque.');
     if (deposit !== 'Ibotirama' && deposit !== 'Barreiras') throw new Error('Selecione o depósito de origem.');
     const needed = new Map<string, number>();
     for (const item of sale.items) {
@@ -67,19 +83,25 @@ export function prepareWholesaleDispatch(sale: Sale, products: Product[], deposi
         const product = products.find(product => product.id === id)!;
         if (quantity > wholesaleStock(product, deposit)) throw new Error(`Saldo insuficiente de ${product.name} em ${deposit}.`);
     }
-    return { ...sale, matrizDeposit: deposit, fulfillmentStatus: 'dispatched' };
+    return { ...sale, matrizDeposit: deposit, fulfillmentStatus: 'committed' };
 }
 
-export function confirmWholesalePayment(sale: Sale, input: Omit<PaymentEntry, 'id' | 'amount'> & { amount: string }, products: Product[], deposit: Sale['matrizDeposit'], openedSale: Sale = sale, paymentId: string = crypto.randomUUID()): Sale {
+export function confirmWholesalePayment(sale: Sale, input: Omit<PaymentEntry, 'id' | 'amount'> & { amount: string }, products: Product[], deposit: Sale['matrizDeposit'], openedSale: Sale = sale, paymentId: string = crypto.randomUUID(), historicalStockAlreadyDebited = false): Sale {
     assertSaleSnapshot(sale, openedSale);
     if (sale.source !== 'ATACADO' || sale.status === 'Cancelled') throw new Error('Este pedido não está disponível para confirmação.');
     if (deposit !== 'Ibotirama' && deposit !== 'Barreiras') throw new Error('Selecione o depósito de origem.');
-    const dispatched = isSaleDispatched(sale);
+    if (historicalStockAlreadyDebited && !canReconcileHistoricalDelivery(sale)) throw new Error('Esta opção é exclusiva de pedidos antigos sem confirmação de entrega.');
+    const dispatched = hasSaleStockCommitted(sale);
+    if (!dispatched && !historicalStockAlreadyDebited) throw new Error('Confira a baixa anterior do estoque deste pedido antigo antes de registrar o pagamento.');
     if (dispatched && sale.matrizDeposit !== deposit) throw new Error('A origem da baixa já realizada não pode ser alterada no recebimento.');
     const value = input.amount.trim().replace(',', '.');
     const useExistingPayment = !dispatched && (sale.amountPaid || 0) > 0 && (value === '' || /^0+(\.0{1,2})?$/.test(value));
-    const updated = useExistingPayment ? { ...sale } : registerSalePayment(sale, input, openedSale, paymentId);
-    return dispatched ? updated : prepareWholesaleDispatch(updated, products, deposit);
+    const updated: Sale = useExistingPayment ? { ...sale, status: cents(sale.amountPaid || 0) === cents(sale.total) ? 'Completed' : 'Pending' } : registerSalePayment(sale, input, openedSale, paymentId);
+    if (historicalStockAlreadyDebited) {
+        if ((updated.amountPaid || 0) <= 0) throw new Error('Registre um pagamento positivo para confirmar o pedido.');
+        return { ...updated, matrizDeposit: deposit, fulfillmentStatus: 'dispatched', historicalStockAlreadyDebited: true };
+    }
+    return updated;
 }
 
 // O fluxo de caixa usa os recebimentos; a receita persistida da venda não é somada novamente.

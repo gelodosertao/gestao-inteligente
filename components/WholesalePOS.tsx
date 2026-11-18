@@ -1,4 +1,4 @@
-import { confirmWholesalePayment, isSaleDispatched, wholesaleEditTotal, wholesaleStock } from '../services/salePayments';
+import { canReconcileHistoricalDelivery, confirmWholesalePayment, hasSaleStockCommitted, prepareWholesaleDispatch, wholesaleEditTotal, wholesaleStock } from '../services/salePayments';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Product, Sale, Customer, User, Branch, SaleItem } from '../types';
@@ -118,6 +118,7 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
     const [paymentMethodInput, setPaymentMethodInput] = useState<'Pix' | 'Credit' | 'Debit' | 'Cash'>('Pix');
     const [paymentNotesInput, setPaymentNotesInput] = useState('');
     const [paymentOrigin, setPaymentOrigin] = useState<'' | 'Ibotirama' | 'Barreiras'>('');
+    const [historicalStockAlreadyDebited, setHistoricalStockAlreadyDebited] = useState(false);
 
     const formatCurrency = (value: number) => {
         return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -125,6 +126,7 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
 
     const openDebtPaymentModal = (sale: Sale) => {
         setSelectedDebtSale(sale);
+        setHistoricalStockAlreadyDebited(false);
         const remaining = sale.total - (sale.amountPaid || 0);
         setPaymentAmountInput(remaining > 0 ? remaining.toFixed(2) : '');
         setPaymentOrigin(sale.matrizDeposit || '');
@@ -145,16 +147,16 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                 amount: paymentAmountInput, date: paymentDateInput,
                 method: paymentMethodInput, notes: paymentNotesInput,
             };
-            const key = JSON.stringify([selectedDebtSale.id, selectedDebtSale.revision, input, paymentOrigin]);
+            const key = JSON.stringify([selectedDebtSale.id, selectedDebtSale.revision, input, paymentOrigin, historicalStockAlreadyDebited]);
             const attempted = pendingPayment.current?.key === key ? pendingPayment.current.sale : undefined;
             const attemptedId = attempted?.paymentHistory?.at(-1)?.id;
-            if (attempted && isSaleDispatched(currentSale) && ((attemptedId && currentSale.paymentHistory?.some(entry => entry.id === attemptedId)) || (!attemptedId && currentSale.revision !== attempted.revision))) {
+            if (attempted && hasSaleStockCommitted(currentSale) && ((attemptedId && currentSale.paymentHistory?.some(entry => entry.id === attemptedId)) || (!attemptedId && currentSale.revision !== attempted.revision))) {
                 pendingPayment.current = null;
                 setShowDebtModal(false);
                 setSelectedDebtSale(null);
                 return;
             }
-            updatedSale = attempted || confirmWholesalePayment(currentSale, input, products, paymentOrigin || undefined, selectedDebtSale);
+            updatedSale = attempted || confirmWholesalePayment(currentSale, input, products, paymentOrigin || undefined, selectedDebtSale, crypto.randomUUID(), historicalStockAlreadyDebited);
             pendingPayment.current = { key, sale: updatedSale };
         } catch (error) {
             alert((error as Error).message);
@@ -169,7 +171,7 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
             setShowDebtModal(false);
             setSelectedDebtSale(null);
         } catch {
-            alert('Falha ao confirmar pedido. Confira o pagamento e o estoque antes de tentar novamente.');
+            alert('Falha ao registrar pagamento. Confira o hist?rico antes de tentar novamente.');
         } finally { paymentInFlight.current = false; setSavingPayment(false); }
     };
 
@@ -459,7 +461,7 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
             items: saleItems,
             branch: Branch.MATRIZ,
             matrizDeposit: stockOrigin,
-            fulfillmentStatus: 'pending',
+            fulfillmentStatus: 'committed',
             revision: 0,
             status: 'Pending',
             paymentMethod,
@@ -478,6 +480,12 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
             deliveryCity: deliveryMethod === 'Delivery' ? tempCity : undefined,
         };
 
+        try {
+            prepareWholesaleDispatch({ ...newSale, fulfillmentStatus: 'pending' }, products, stockOrigin);
+        } catch (error) {
+            alert((error as Error).message);
+            return;
+        }
         const checkoutKey = JSON.stringify({ ...newSale, id: undefined, createdAt: undefined });
         const saleToSave = pendingCheckout.current?.key === checkoutKey ? pendingCheckout.current.sale : newSale;
         pendingCheckout.current = { key: checkoutKey, sale: saleToSave };
@@ -622,7 +630,7 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                 <option value="Ibotirama">Ibotirama</option>
                 <option value="Barreiras">Barreiras</option>
             </select>
-            <p className="mt-2 text-xs text-slate-600">O primeiro pagamento confirmado, inclusive parcial, baixa o pedido neste depósito.</p>
+            <p className="mt-2 text-xs text-slate-600">Ao criar o pedido, as quantidades saem do saldo disponível deste depósito.</p>
         </div>
     );
 
@@ -1014,7 +1022,7 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                                 <span className="text-slate-300 text-sm">Total do Pedido:</span>
                                 <span className="text-2xl font-black text-orange-400">R$ {Math.max(cartTotal - (adminDiscount || 0) + (deliveryMethod === 'Delivery' ? (deliveryFee || 0) : 0), 0).toFixed(2)}</span>
                             </div>
-                            <p className="text-xs text-slate-400 mt-2">Origem: {stockOrigin || 'Selecione o depósito'}. O estoque será baixado ao confirmar o primeiro pagamento, mesmo parcial.</p>
+                            <p className="text-xs text-slate-400 mt-2">Origem: {stockOrigin || 'Selecione o depósito'}. O estoque será comprometido ao criar o pedido. O pagamento será registrado separadamente.</p>
                         </div>
 
                         <button onClick={handleFinishSale} disabled={savingOrder || !stockOrigin} className="w-full bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white py-4 rounded-xl font-black text-lg shadow-xl shadow-green-900/20 transition-all flex items-center justify-center gap-2">
@@ -1223,14 +1231,14 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                                         </span>
                                     </div>
                                     <div className="flex flex-wrap gap-2 mt-3 md:justify-end w-full">
-                                        {sale.status !== 'Cancelled' && <span className="w-full text-xs font-semibold text-slate-500">{isSaleDispatched(sale) ? 'Estoque já baixado' : 'Aguardando confirmação do pedido'}</span>}
-                                        {(sale.status === 'Pending' || (sale.status === 'Completed' && !isSaleDispatched(sale) && (sale.amountPaid || 0) > 0)) && (
+                                        {sale.status !== 'Cancelled' && <span className="w-full text-xs font-semibold text-slate-500">{hasSaleStockCommitted(sale) ? 'Estoque comprometido' : 'Conferir baixa anterior'}</span>}
+                                        {(sale.status === 'Pending' || (sale.status === 'Completed' && !hasSaleStockCommitted(sale) && (sale.amountPaid || 0) > 0)) && (
                                             <>
                                                 <button
                                                     onClick={() => openDebtPaymentModal(sale)}
                                                     className="flex-1 md:flex-none justify-center text-xs font-bold text-white flex items-center gap-1.5 cursor-pointer bg-emerald-600 px-3 py-2 rounded-lg hover:bg-emerald-700 transition-colors border border-emerald-700 shadow-sm"
                                                 >
-                                                    <CheckCircle size={14} /> Confirmar pedido
+                                                    <CheckCircle size={14} /> Confirmar pagamento
                                                 </button>
                                             </>
                                         )}
@@ -1371,9 +1379,9 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                         <div className="p-4 space-y-4">
                             <div>
                                 <p className="text-sm font-bold text-slate-700">Pagamento: {editingSale.status === 'Completed' || editingSale.status === 'Finalizado pela Fábrica' ? 'Quitado' : editingSale.status === 'Cancelled' ? 'Cancelado' : 'Pendente'}</p>
-                                <p className="mt-1 text-xs text-slate-500">Use Confirmar pedido para registrar parcelas. A primeira confirmação baixa o estoque; as seguintes abatem apenas a dívida.</p>
+                                <p className="mt-1 text-xs text-slate-500">Use Confirmar pagamento para registrar parcelas. O estoque é comprometido na criação; alterações de quantidade movimentam apenas a diferença.</p>
                                 <label htmlFor="edit-stock-origin" className="mt-3 block text-sm font-bold text-slate-700">Origem do estoque</label>
-                                <select id="edit-stock-origin" value={editingSale.matrizDeposit || ''} onChange={event => setEditingSale({ ...editingSale, matrizDeposit: event.target.value as Sale['matrizDeposit'] })} className="mt-2 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3"><option value="">Selecione o depósito</option><option value="Ibotirama">Ibotirama</option><option value="Barreiras">Barreiras</option></select>
+                                <select id="edit-stock-origin" disabled={hasSaleStockCommitted(editingSale)} value={editingSale.matrizDeposit || ''} onChange={event => setEditingSale({ ...editingSale, matrizDeposit: event.target.value as Sale['matrizDeposit'] })} className="mt-2 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3"><option value="">Selecione o depósito</option><option value="Ibotirama">Ibotirama</option><option value="Barreiras">Barreiras</option></select>
                             </div>
 
                             {isAdmin && (
@@ -1659,17 +1667,17 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                 onClose={() => setNfeSale(null)}
             />}
 
-            {showDebtModal && selectedDebtSale && (
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-start sm:items-center justify-center p-4 pt-safe-offset-4 sm:p-4 overflow-y-auto animate-in fade-in duration-200">
-                    <div role="dialog" aria-modal="true" aria-labelledby="confirm-order-title" className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col ">
-                        <div className="p-4 bg-emerald-600 text-white flex justify-between items-center">
+            {showDebtModal && selectedDebtSale && createPortal(
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[120] flex items-start sm:items-center justify-center p-4 pt-safe-offset-4 sm:p-4 overflow-y-auto animate-in fade-in duration-200">
+                    <div role="dialog" aria-modal="true" aria-labelledby="confirm-order-title" className="bg-white w-full max-w-md max-h-[calc(100dvh-2rem)] rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+                        <div className="shrink-0 p-4 bg-emerald-600 text-white flex justify-between items-center">
                             <h3 id="confirm-order-title" className="font-bold flex items-center gap-2">
-                                <CheckCircle size={20} /> Confirmar pedido
+                                <CheckCircle size={20} /> Confirmar pagamento
                             </h3>
                             <button disabled={savingPayment} aria-label="Fechar confirmação do pedido" onClick={() => setShowDebtModal(false)}><X size={20} /></button>
                         </div>
 
-                        <div className="p-6 space-y-4">
+                        <div className="p-6 space-y-4 overflow-y-auto">
                             <div>
                                 <p className="text-sm text-slate-500 mb-1">Cliente</p>
                                 <p className="font-bold text-lg text-slate-800">{selectedDebtSale.customerName}</p>
@@ -1691,16 +1699,20 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                             </div>
 
                             <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+                                {isAdmin && canReconcileHistoricalDelivery(selectedDebtSale) && <label className="mb-3 flex items-start gap-2 text-sm text-slate-800">
+                                    <input type="checkbox" className="mt-1" checked={historicalStockAlreadyDebited} disabled={savingPayment} onChange={event => setHistoricalStockAlreadyDebited(event.target.checked)} />
+                                    <span>Pedido já entregue e estoque descontado anteriormente. Registrar somente o pagamento, sem nova baixa.</span>
+                                </label>}
                                 <label htmlFor="payment-stock-origin" className="mb-2 block text-sm font-bold text-slate-700">Origem do estoque</label>
-                                <select id="payment-stock-origin" required disabled={savingPayment || isSaleDispatched(selectedDebtSale)} value={paymentOrigin} onChange={event => setPaymentOrigin(event.target.value as typeof paymentOrigin)} className="min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-slate-900">
+                                <select id="payment-stock-origin" required disabled={savingPayment || hasSaleStockCommitted(selectedDebtSale)} value={paymentOrigin} onChange={event => setPaymentOrigin(event.target.value as typeof paymentOrigin)} className="min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-slate-900">
                                     <option value="">Selecione o depósito</option><option value="Ibotirama">Ibotirama</option><option value="Barreiras">Barreiras</option>
                                 </select>
-                                <p className="mt-2 text-sm text-slate-700">{isSaleDispatched(selectedDebtSale) ? `Estoque já baixado em ${selectedDebtSale.matrizDeposit || 'depósito registrado'}. Este pagamento abate somente a dívida.` : 'Ao confirmar o primeiro pagamento, mesmo parcial, todas as quantidades do pedido serão baixadas uma única vez.'}</p>
+                                <p className="mt-2 text-sm text-slate-700">{historicalStockAlreadyDebited ? 'A entrega anterior será reconhecida. Este recebimento não altera o estoque.' : hasSaleStockCommitted(selectedDebtSale) ? `Estoque comprometido em ${selectedDebtSale.matrizDeposit || 'depósito registrado'}. Este pagamento abate somente a dívida.` : 'Pedido anterior à nova regra: confira se o estoque já foi descontado. O recebimento não deve gerar outra baixa.'}</p>
                                 <ul className="mt-2 space-y-1 text-xs text-slate-600">{selectedDebtSale.items.map((item, index) => {
                                     const product = products.find(product => product.id === item.productId);
-                                    return <li key={`${item.productId}-${index}`}>{item.quantity} × {item.productName}{!isSaleDispatched(selectedDebtSale) && product && paymentOrigin && ` · Saldo: ${wholesaleStock(product, paymentOrigin)} ${product.unit}`}</li>;
+                                    return <li key={`${item.productId}-${index}`}>{item.quantity} × {item.productName}{!historicalStockAlreadyDebited && !hasSaleStockCommitted(selectedDebtSale) && product && paymentOrigin && ` · Saldo: ${wholesaleStock(product, paymentOrigin)} ${product.unit}`}</li>;
                                 })}</ul>
-                                {!isSaleDispatched(selectedDebtSale) && (selectedDebtSale.amountPaid || 0) > 0 && <p className="mt-2 text-xs text-slate-600">Já existe um pagamento registrado. <button disabled={savingPayment} onClick={() => setPaymentAmountInput('')} className="font-bold underline">Usar pagamento já registrado</button> confirma a baixa sem criar outra parcela.</p>}
+                                {!hasSaleStockCommitted(selectedDebtSale) && (selectedDebtSale.amountPaid || 0) > 0 && <p className="mt-2 text-xs text-slate-600">Já existe um pagamento registrado. <button disabled={savingPayment} onClick={() => setPaymentAmountInput('')} className="font-bold underline">Usar pagamento já registrado</button> confirma o pedido sem criar outra parcela.</p>}
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
@@ -1758,12 +1770,12 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                                 onClick={handleRegisterPayment}
                                 className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white py-3 rounded-xl font-bold text-lg shadow-lg flex items-center justify-center gap-2 mt-2"
                             >
-                                <CheckCircle size={20} /> {savingPayment ? 'Confirmando pedido...' : 'Confirmar pedido'}
+                                <CheckCircle size={20} /> {savingPayment ? 'Confirmando pagamento...' : 'Confirmar pagamento'}
                             </button>
                         </div>
                     </div>
                 </div>
-            )}
+            , document.body)}
         </div>
     );
 };

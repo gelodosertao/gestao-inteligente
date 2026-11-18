@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Branch, Product, Sale } from '../types';
-import { confirmWholesalePayment, isSaleDispatched, prepareWholesaleDispatch, registerSalePayment, saleReceiptRecords, wholesaleEditTotal, wholesaleStock } from './salePayments';
+import { confirmWholesalePayment, hasSaleStockCommitted, isSaleRevenueRecognized, isSaleDispatched, prepareWholesaleDispatch, registerSalePayment, saleReceiptRecords, wholesaleEditTotal, wholesaleStock } from './salePayments';
 
 const sale = (changes: Partial<Sale> = {}): Sale => ({
     id: 'sale-1', date: '2026-10-01', customerName: 'Cliente', total: 100,
@@ -10,23 +10,47 @@ const sale = (changes: Partial<Sale> = {}): Sale => ({
 
 describe('confirmação integrada e recebimentos no atacado', () => {
     const product = { id: 'ice', name: 'Gelo 5kg', stockMatrizIbotirama: 100, stockMatrizBarreiras: 3, unit: 'un' } as Product;
-    const order = (changes: Partial<Sale> = {}) => sale({ source: 'ATACADO', fulfillmentStatus: 'pending', revision: 0, matrizDeposit: 'Ibotirama', amountPaid: 0,
+    const order = (changes: Partial<Sale> = {}) => sale({ source: 'ATACADO', fulfillmentStatus: 'committed', revision: 0, matrizDeposit: 'Ibotirama', amountPaid: 0,
         items: [{ productId: 'ice', productName: 'Gelo 5kg', quantity: 10, priceAtSale: 10 }], ...changes });
 
-    it('primeiro pagamento parcial confirma a baixa e parcelas seguintes só quitam a dívida', () => {
+    it('pagamentos apenas abatem a dívida do estoque comprometido na criação', () => {
         const partial = confirmWholesalePayment(order(), input, [product], 'Ibotirama');
-        expect(partial).toMatchObject({ status: 'Pending', fulfillmentStatus: 'dispatched', amountPaid: 40 });
-        expect(isSaleDispatched(partial)).toBe(true);
+        expect(partial).toMatchObject({ status: 'Pending', fulfillmentStatus: 'committed', amountPaid: 40 });
+        expect(hasSaleStockCommitted(partial)).toBe(true);
+        expect(isSaleDispatched(partial)).toBe(false);
         const paid = confirmWholesalePayment(partial, { ...input, amount: '60' }, [{ ...product, stockMatrizIbotirama: 0 }], 'Ibotirama');
-        expect(paid).toMatchObject({ status: 'Completed', fulfillmentStatus: 'dispatched', amountPaid: 100 });
+        expect(paid).toMatchObject({ status: 'Completed', fulfillmentStatus: 'committed', amountPaid: 100 });
         expect(paid.paymentHistory).toHaveLength(2);
     });
 
-    it('não confirma pedido sem pagamento e respeita o saldo do depósito', () => {
-        expect(() => prepareWholesaleDispatch(order(), [product], 'Ibotirama')).toThrow('pagamento positivo');
-        const pending = order({ amountPaid: 40 });
+    it('não reconhece automaticamente entrega nem baixa novamente pedido antigo', () => {
+        const original = order({ fulfillmentStatus: undefined });
+        expect(() => confirmWholesalePayment(original, { ...input, amount: '100' }, [product], 'Ibotirama')).toThrow('baixa anterior');
+        expect(original).toMatchObject({ status: 'Pending', amountPaid: 0 });
+    });
+
+    it('reconhece entrega antiga declarada sem exigir estoque atual nem criar outra baixa', () => {
+        const original = order({ fulfillmentStatus: undefined });
+        const partial = confirmWholesalePayment(original, input, [], 'Ibotirama', original, 'historical-payment', true);
+        expect(partial).toMatchObject({ status: 'Pending', fulfillmentStatus: 'dispatched', amountPaid: 40, historicalStockAlreadyDebited: true });
+        const reloaded = { ...partial, historicalStockAlreadyDebited: undefined };
+        const paid = confirmWholesalePayment(reloaded, { ...input, amount: '60' }, [], 'Ibotirama');
+        expect(paid).toMatchObject({ status: 'Completed', amountPaid: 100 });
+        expect(paid.paymentHistory).toHaveLength(2);
+        expect(() => confirmWholesalePayment(order(), input, [], 'Ibotirama', order(), 'new-payment', true)).toThrow('exclusiva');
+    });
+
+    it('reconhece entrega antiga com recebimento existente sem inventar nova parcela', () => {
+        const original = order({ fulfillmentStatus: undefined, amountPaid: 40, paymentHistory: [{ id: 'old', amount: 40, date: input.date, method: 'Cash' }] });
+        const result = confirmWholesalePayment(original, { ...input, amount: '' }, [], 'Ibotirama', original, 'unused', true);
+        expect(result.paymentHistory).toEqual(original.paymentHistory);
+        expect(result).toMatchObject({ amountPaid: 40, fulfillmentStatus: 'dispatched', historicalStockAlreadyDebited: true });
+    });
+
+    it('compromete estoque sem pagamento ao criar pedido e respeita o saldo do depósito', () => {
+        const pending = order({ amountPaid: 0, fulfillmentStatus: 'pending' });
         const dispatched = prepareWholesaleDispatch(pending, [product], 'Ibotirama');
-        expect(dispatched).toMatchObject({ status: 'Pending', amountPaid: 40, fulfillmentStatus: 'dispatched', matrizDeposit: 'Ibotirama' });
+        expect(dispatched).toMatchObject({ status: 'Pending', amountPaid: 0, fulfillmentStatus: 'committed', matrizDeposit: 'Ibotirama' });
         expect(pending.fulfillmentStatus).toBe('pending');
         expect(() => prepareWholesaleDispatch(pending, [product], 'Barreiras')).toThrow('Saldo insuficiente');
         expect(() => prepareWholesaleDispatch(pending, [product], undefined)).toThrow('depósito');
@@ -35,38 +59,46 @@ describe('confirmação integrada e recebimentos no atacado', () => {
 
     it('soma componentes compartilhados antes de validar disponibilidade', () => {
         const combo = { ...product, id: 'combo', comboItems: [{ productId: 'ice', quantity: 2 }] };
-        const pending = order({ amountPaid: 1, items: [{ productId: 'combo', productName: 'Fardo', quantity: 30, priceAtSale: 1 }, { productId: 'ice', productName: 'Gelo', quantity: 50, priceAtSale: 1 }] });
+        const pending = order({ fulfillmentStatus: 'pending', amountPaid: 0, items: [{ productId: 'combo', productName: 'Fardo', quantity: 30, priceAtSale: 1 }, { productId: 'ice', productName: 'Gelo', quantity: 50, priceAtSale: 1 }] });
         expect(() => prepareWholesaleDispatch(pending, [product, combo], 'Ibotirama')).toThrow('Saldo insuficiente');
     });
 
     it('não permite expedir novamente, pedido cancelado ou insumo ausente', () => {
         expect(() => prepareWholesaleDispatch(order({ fulfillmentStatus: 'dispatched' }), [product], 'Ibotirama')).toThrow('disponível');
         expect(() => prepareWholesaleDispatch(order({ status: 'Cancelled' }), [product], 'Ibotirama')).toThrow('disponível');
-        expect(() => prepareWholesaleDispatch(order({ amountPaid: 1 }), [], 'Ibotirama')).toThrow('produtos');
+        expect(() => prepareWholesaleDispatch(order({ fulfillmentStatus: 'pending', amountPaid: 0 }), [], 'Ibotirama')).toThrow('produtos');
     });
 
     it('confirma pagamento já registrado sem criar parcela zero', () => {
-        const paid = order({ status: 'Completed', amountPaid: 100, paymentHistory: [{ id: 'old-payment', date: input.date, method: 'Cash', amount: 100 }] });
-        const confirmed = confirmWholesalePayment(paid, { ...input, amount: '' }, [product], 'Ibotirama');
+        const paid = order({ fulfillmentStatus: undefined, status: 'Pending', amountPaid: 100, paymentHistory: [{ id: 'old-payment', date: input.date, method: 'Cash', amount: 100 }] });
+        const confirmed = confirmWholesalePayment(paid, { ...input, amount: '' }, [product], 'Ibotirama', paid, 'unused', true);
         expect(confirmed).toMatchObject({ amountPaid: 100, fulfillmentStatus: 'dispatched' });
+        expect(confirmed.status).toBe('Completed');
         expect(confirmed.paymentHistory).toEqual(paid.paymentHistory);
         expect(() => confirmWholesalePayment(order(), { ...input, amount: '0' }, [product], 'Ibotirama')).toThrow('valor válido');
     });
 
+    it('reconhece baixa anterior com pagamento completo já registrado no pedido pendente de estoque', () => {
+        const paid = order({ fulfillmentStatus: 'pending', status: 'Completed', amountPaid: 100, paymentHistory: [{ id: 'paid', date: input.date, method: 'Cash', amount: 100 }] });
+        const result = confirmWholesalePayment(paid, { ...input, amount: '' }, [], 'Ibotirama', paid, 'unused', true);
+        expect(result).toMatchObject({ status: 'Completed', fulfillmentStatus: 'dispatched', amountPaid: 100 });
+        expect(result.paymentHistory).toEqual(paid.paymentHistory);
+    });
+
     it('exige origem no pedido antigo e preserva a baixa anterior nas próximas parcelas', () => {
-        const original = order({ matrizDeposit: undefined });
+        const original = order({ matrizDeposit: undefined, fulfillmentStatus: undefined });
         expect(() => confirmWholesalePayment(original, input, [product], undefined)).toThrow('depósito');
-        const confirmed = confirmWholesalePayment(original, input, [product], 'Ibotirama', original, 'same-payment');
+        const confirmed = confirmWholesalePayment(original, input, [product], 'Ibotirama', original, 'same-payment', true);
         expect(confirmed.paymentHistory?.[0].id).toBe('same-payment');
         expect(confirmed.matrizDeposit).toBe('Ibotirama');
         expect(() => confirmWholesalePayment(confirmed, input, [product], 'Barreiras')).toThrow('origem');
-        expect(confirmWholesalePayment(original, input, [product], 'Ibotirama', original, 'same-payment')).toEqual(confirmed);
+        expect(confirmWholesalePayment(original, input, [product], 'Ibotirama', original, 'same-payment', true)).toEqual(confirmed);
     });
 
     it('bloqueia recebimento com versão ou expedição alterada e preserva identificador de retry', () => {
         const original = order();
         expect(() => registerSalePayment({ ...original, revision: 1 }, input, original)).toThrow('atualizado');
-        expect(() => registerSalePayment({ ...original, fulfillmentStatus: 'dispatched' }, input, original)).toThrow('atualizado');
+        expect(() => registerSalePayment({ ...original, fulfillmentStatus: 'pending' }, input, original)).toThrow('atualizado');
         expect(registerSalePayment(original, input, original, 'stable-receipt').paymentHistory?.[0].id).toBe('stable-receipt');
     });
 
@@ -78,6 +110,17 @@ describe('confirmação integrada e recebimentos no atacado', () => {
 
     it('não projeta receita fictícia por status manual em pedido gerenciado', () => {
         expect(saleReceiptRecords([order({ status: 'Completed' })])).toEqual([]);
+    });
+
+    it('estoque comprometido sem pagamento não gera receita nem comprova entrega', () => {
+        const unpaid = order();
+        expect(hasSaleStockCommitted(unpaid)).toBe(true);
+        expect(isSaleDispatched(unpaid)).toBe(false);
+        expect(saleReceiptRecords([unpaid])).toEqual([]);
+        expect(isSaleRevenueRecognized(unpaid)).toBe(false);
+        expect(isSaleRevenueRecognized(order({ amountPaid: 40 }))).toBe(false);
+        expect(isSaleRevenueRecognized(order({ status: 'Completed', amountPaid: 100 }))).toBe(true);
+        expect(isSaleRevenueRecognized(order({ fulfillmentStatus: 'dispatched', amountPaid: 40 }))).toBe(true);
     });
 
     it('preserva parcelas na data original e estorna na data do cancelamento', () => {
