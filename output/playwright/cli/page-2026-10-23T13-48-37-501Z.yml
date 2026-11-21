@@ -1,0 +1,61 @@
+- generic [ref=f12e4]:
+  - generic [ref=f12e5]:
+    - generic [ref=f12e6]:
+      - generic [ref=f12e7]:
+        - generic [ref=f12e8]:
+          - heading "Terminal de Vendas" [level=2] [ref=f12e9]
+          - paragraph [ref=f12e10]: PDV Varejo • Frente de Caixa
+        - generic [ref=f12e11]:
+          - button "Ver Histórico" [ref=f12e12] [cursor=pointer]
+          - button "Sair do Sistema" [ref=f12e16] [cursor=pointer]
+          - button "Voltar" [ref=f12e20] [cursor=pointer]
+      - generic [ref=f12e23]:
+        - heading "Caixa Livre" [level=3] [ref=f12e25]
+        - button "Ao Consumidor" [ref=f12e26] [cursor=pointer]
+        - paragraph [ref=f12e31]: "Operador: ADMIN TESTE LOCAL"
+      - generic [ref=f12e33]:
+        - paragraph [ref=f12e38]: Carrinho vazio
+        - paragraph [ref=f12e39]: Busque ou escaneie produtos para iniciar a venda.
+      - generic [ref=f12e40]:
+        - generic [ref=f12e41]:
+          - generic [ref=f12e42]: Desconto (R$)
+          - generic [ref=f12e43]:
+            - generic [ref=f12e44]: R$
+            - spinbutton "0,00" [ref=f12e45]
+        - generic [ref=f12e46]:
+          - generic [ref=f12e47]: Total a Pagar
+          - generic [ref=f12e48]: R$ 0,00
+        - generic [ref=f12e49]:
+          - button "Limpar" [disabled] [ref=f12e50]
+          - button "Pagar Agora" [disabled] [ref=f12e55]
+    - generic [ref=f12e59]:
+      - generic [ref=f12e61]:
+        - textbox "Buscar produto por NOME ou CÓDIGO DE BARRAS (F2)..." [ref=f12e66]
+        - button "Abrir Câmera" [ref=f12e67] [cursor=pointer]
+        - button "Conectar Scanner Bluetooth" [ref=f12e71] [cursor=pointer]
+      - button "GELO TESTE LOCAL R$ 8,00" [ref=f12e76] [cursor=pointer]:
+        - generic [ref=f12e77]:
+          - paragraph [ref=f12e78]: GELO TESTE LOCAL
+          - generic [ref=f12e79]: R$ 8,00
+  - generic [ref=f12e81]:
+    - generic [ref=f12e82]:
+      - heading "Negociar Atacado" [level=3] [ref=f12e83]
+      - button [ref=f12e86] [cursor=pointer]
+    - generic [ref=f12e90]:
+      - generic [ref=f12e91]:
+        - paragraph [ref=f12e92]: "Adicionando ao carrinho:"
+        - heading "GELO TESTE LOCAL" [level=4] [ref=f12e93]
+        - paragraph [ref=f12e94]: "Preço Base Sugerido: R$ 6,00"
+      - generic [ref=f12e95]:
+        - generic [ref=f12e96]:
+          - generic [ref=f12e97]: Quantidade
+          - spinbutton [active] [ref=f12e98]: "1"
+        - generic [ref=f12e99]:
+          - generic [ref=f12e100]: Valor Unitário
+          - generic [ref=f12e101]:
+            - generic [ref=f12e102]: R$
+            - spinbutton "0,00" [ref=f12e103]: "8"
+      - generic [ref=f12e104]:
+        - generic [ref=f12e105]: "Total do Item:"
+        - generic [ref=f12e106]: R$ 8,00
+      - button "Confirmar Valor" [ref=f12e107] [cursor=pointer]

@@ -99,6 +99,7 @@ export interface PaymentEntry {
 }
 
 export interface InvoiceCustomerDetails {
+  cpfCnpj?: string;
   razaoSocial?: string;
   inscricaoEstadual?: string;
   logradouro?: string;
@@ -110,16 +111,35 @@ export interface InvoiceCustomerDetails {
   state?: string;
 }
 
+export interface FiscalContext {
+  operation: 'internal_b2b_own_production' | 'interstate_b2b_own_production';
+  operationDate: string;
+  buyerPresence?: 1 | 2 | 3 | 5 | 9;
+  intermediary?: 0 | 1;
+  freightMode?: 0 | 1 | 2 | 3 | 4 | 9;
+  finalConsumer?: boolean;
+  paymentTiming?: 'cash' | 'term';
+  dueDate?: string;
+}
+
 export interface Sale {
   id: string;
   date: string;
   customerName: string;
+  customerId?: string;
+  fiscalContext?: FiscalContext;
   customerDetails?: InvoiceCustomerDetails; // Snapshot for DANFE
   total: number;
   items: SaleItem[];
   branch: Branch;
   matrizDeposit?: 'Ibotirama' | 'Barreiras';
   status: 'Completed' | 'Pending' | 'Cancelled' | 'Finalizado pela Fábrica';
+  fulfillmentStatus?: 'pending' | 'committed' | 'dispatched';
+  // Explicit command for reconciling a legacy delivery; never inferred from its date.
+  historicalStockAlreadyDebited?: boolean;
+  revision?: number;
+  cancelledAt?: string;
+  dispatchedAt?: string;
   deliveryMethod?: 'Delivery' | 'Pickup';
   deliveryAddress?: string;
   deliveryCity?: string;
@@ -142,8 +162,10 @@ export interface Sale {
   sellerRole?: string; // Role of the user who made the sale
   commissionAmount?: number; // Calculated commission at the time of sale
   // NF-e fields
-  nfeStatus?: 'nao_emitir' | 'pendente' | 'autorizada' | 'cancelada' | 'rejeitada';
+  nfeStatus?: 'nao_emitir' | 'rascunho' | 'pendente' | 'pendente_emissao' | 'pendente_consulta' | 'pendente_cancelamento' | 'autorizada' | 'cancelada' | 'rejeitada';
   nfeNumber?: string;
+  nfeEnvironment?: 1 | 2;
+  nfeProtocol?: string;
   nfeSeries?: string;
   nfeXml?: string;
   nfeIssuedAt?: string;
@@ -176,6 +198,42 @@ export interface FinancialRecord {
   paymentMethod?: 'Pix' | 'Credit' | 'Debit' | 'Cash';
 }
 
+export type ReconciliationCaseType =
+  | 'missing_revenue'
+  | 'orphan_revenue'
+  | 'duplicate_revenue'
+  | 'amount_mismatch'
+  | 'pending_sale_revenue'
+  | 'duplicate_reversal';
+
+export type ReconciliationCaseStatus = 'PENDING_REVIEW' | 'APPLIED' | 'RESOLVED';
+export type ReconciliationAction = 'review' | 'create_missing_revenue' | 'reverse_financial' | 'link_financial';
+
+export interface ReconciliationFinancial {
+  id: string;
+  date: string;
+  description: string;
+  amount: number;
+  paymentMethod?: FinancialRecord['paymentMethod'];
+}
+
+export interface ReconciliationCase {
+  caseKey: string;
+  caseType: ReconciliationCaseType;
+  status: ReconciliationCaseStatus;
+  saleId?: string | null;
+  financialId?: string | null;
+  adjustmentFinancialId?: string | null;
+  proposedAmount?: number | null;
+  evidence: Record<string, unknown>;
+  resolutionNote?: string | null;
+  resolutionAction?: ReconciliationAction | null;
+  createdAt: string;
+  resolvedAt?: string | null;
+  sale?: Pick<Sale, 'id' | 'date' | 'customerName' | 'total' | 'status' | 'branch' | 'paymentMethod'> | null;
+  financials: ReconciliationFinancial[];
+}
+
 export type Role = 'ADMIN' | 'OPERATOR' | 'FACTORY' | 'WHOLESALE_REPRESENTATIVE';
 
 export interface User {
@@ -187,9 +245,12 @@ export interface User {
   tenantId: string;
   tenantName?: string;
   allowedModules?: string[]; // IDs of modules the user can access
+  isActive: boolean;
+  mustChangePassword: boolean;
+  temporaryPasswordExpiresAt?: string;
 }
 
-export type ViewState = 'DASHBOARD' | 'INVENTORY' | 'SALES' | 'FINANCIAL' | 'AI_INSIGHTS' | 'SETTINGS' | 'CUSTOMERS' | 'PRICING' | 'ONLINE_MENU' | 'MENU_CONFIG' | 'PRODUCTION' | 'ORDER_CENTER' | 'REPORTS' | 'ATACADO' | 'CRM' | 'FESTAS_RADAR' | 'LOGISTICS' | 'CONCILIACAO';
+export type ViewState = 'DASHBOARD' | 'INVENTORY' | 'SALES' | 'FINANCIAL' | 'AI_INSIGHTS' | 'SETTINGS' | 'CUSTOMERS' | 'PRICING' | 'ONLINE_MENU' | 'MENU_CONFIG' | 'PRODUCTION' | 'ORDER_CENTER' | 'REPORTS' | 'ATACADO' | 'CRM' | 'FESTAS_RADAR' | 'LOGISTICS' | 'CONCILIACAO' | 'EMISSOR';
 
 // --- FESTAS RADAR MODULE ---
 
@@ -256,6 +317,13 @@ export interface StockMovement {
   reason: string;
   branch: Branch;
   matrizDeposit?: 'Ibotirama' | 'Barreiras';
+  operationId?: string;
+  eventType?: string;
+  saleId?: string;
+  actorId?: string;
+  responsible?: string;
+  stockBefore?: number;
+  stockAfter?: number;
 }
 
 export type Shift = 'Manhã' | 'Tarde' | 'Noite' | 'Madrugada';
@@ -283,6 +351,7 @@ export interface CashClosing {
     Credit: number;
     Debit: number;
     Cash: number;
+    Unknown?: number;
   };
   cashInDrawer: number; // Valor contado
   difference: number; // Sobra ou Falta

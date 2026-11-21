@@ -1,0 +1,140 @@
+{
+  "title": "Nova identidade para Gelo do Sertão",
+  "question": "Escolha a direção visual para o site, sistema e logística. Nome, logotipo, conteúdo factual e fluxos permanecem.",
+  "options": [
+    {
+      "id": "assigned",
+      "label": "Origem em Movimento",
+      "kicker": "DIREÇÃO PROPOSTA",
+      "lineage": "identidades editoriais de origem regional e distribuição",
+      "thesis": "Uma marca regional precisa e acolhedora, com o percurso real entre produção, venda e entrega como assinatura.",
+      "palette": ["#173451", "#F4F0E8", "#BD6B43", "#377990", "#1F2B31"],
+      "materials": ["superfícies minerais claras", "tipografia de leitura firme", "fotografia real do gelo e da operação"],
+      "viewport": "No sistema, navegação azul profunda, filtros e tarefas em superfície clara, uma faixa de contexto com filial e período; no site, produto real, origem em Ibotirama e ação comercial sem claims novos.",
+      "risk": "A referência regional precisa ficar na linguagem gráfica e nos fatos reais, sem parecer selo de certificação.",
+      "raised": [
+        {"from": "challenger-dark-console", "raise": "Ações destrutivas ganham distância e confirmação visual explícita."},
+        {"from": "challenger-type", "raise": "A escala tipográfica fica mais nítida, mesmo em tabelas densas."},
+        {"from": "challenger-catalog", "raise": "Listas extensas usam ritmo compacto e leitura rápida."}
+      ],
+      "wireframe": {"cols": 12, "rows": 10, "regions": [
+        {"label": "navegação", "x": 0, "y": 0, "w": 2, "h": 10, "accent": true},
+        {"label": "contexto e ações", "x": 2, "y": 0, "w": 10, "h": 2},
+        {"label": "tarefa principal", "x": 2, "y": 2, "w": 7, "h": 8},
+        {"label": "estado e apoio", "x": 9, "y": 2, "w": 3, "h": 8}
+      ]}
+    },
+    {
+      "id": "model-pick",
+      "label": "Expedição Clara",
+      "kicker": "IMPECCABLE’S PICK",
+      "lineage": "sinalização de expedição e cadeia fria",
+      "thesis": "Hierarquia direta de operação, azul de confiança e laranja reservado a ações e alertas.",
+      "palette": ["#11283E", "#F7F9F8", "#E8793E", "#68A7B4", "#263640"],
+      "materials": ["faixas de orientação", "campos brancos de alta legibilidade", "fotografia de produto"],
+      "viewport": "Menu e tarefas aparecem como áreas claras de trabalho; no site, uma apresentação objetiva de produto e distribuição conduz ao contato.",
+      "risk": "É a solução mais familiar para uma operação logística; exige execução cuidadosa para não ficar genérica.",
+      "wireframe": {"cols": 12, "rows": 10, "regions": [
+        {"label": "barra superior", "x": 0, "y": 0, "w": 12, "h": 1, "accent": true},
+        {"label": "módulos", "x": 0, "y": 1, "w": 3, "h": 9},
+        {"label": "trabalho", "x": 3, "y": 1, "w": 9, "h": 6},
+        {"label": "detalhes", "x": 3, "y": 7, "w": 9, "h": 3}
+      ]}
+    },
+    {
+      "id": "challenger-dark-console",
+      "label": "Superfície Grafite",
+      "verdict": "competitive",
+      "lineage": "painéis profissionais de alta densidade",
+      "thesis": "Um ambiente escuro com divisórias discretas e estados bem separados para leitura concentrada.",
+      "palette": ["#171D22", "#25313A", "#F1F3F1", "#D58251"],
+      "materials": ["grafite fosco", "linhas finas", "números tabulares"],
+      "viewport": "Áreas persistentes para navegação, tarefa e detalhes; alertas e ações críticas ficam visualmente isolados.",
+      "case": "Boa clareza para trabalho denso, com identificação regional mais fraca no site.",
+      "risk": "O uso prolongado em escritório claro pode cansar e reduzir a sensação de proximidade.",
+      "wireframe": {"cols": 12, "rows": 10, "regions": [
+        {"label": "módulos", "x": 0, "y": 0, "w": 2, "h": 10, "accent": true},
+        {"label": "resumo", "x": 2, "y": 0, "w": 7, "h": 3},
+        {"label": "dados", "x": 2, "y": 3, "w": 7, "h": 7},
+        {"label": "detalhes", "x": 9, "y": 0, "w": 3, "h": 10}
+      ]}
+    },
+    {
+      "id": "challenger-type",
+      "label": "Mostruário Tipográfico",
+      "verdict": "declined",
+      "lineage": "catálogos de tipos variáveis",
+      "thesis": "Escala tipográfica radical para destacar informação.",
+      "palette": ["#F6F4EF", "#171B1D", "#B96843"],
+      "materials": ["papel claro", "tinta escura"],
+      "viewport": "Dados e títulos usam contrastes extremos de escala.",
+      "case": "A expressão visual competiria com tarefas densas do PDV e do financeiro.",
+      "kept": "Hierarquia tipográfica precisa.",
+      "risk": "Reduz a velocidade de leitura em tabelas e formulários."
+    },
+    {
+      "id": "challenger-map",
+      "label": "Mapa de Áreas",
+      "verdict": "declined",
+      "lineage": "guias ilustrados de jardins",
+      "thesis": "Áreas coloridas criam um percurso lúdico.",
+      "palette": ["#8ED462", "#F5F1E4", "#2C2E2A", "#FF705D"],
+      "materials": ["cores planas", "contornos orgânicos"],
+      "viewport": "Uma região visual domina cada tela.",
+      "case": "O caráter lúdico enfraquece a precisão esperada em vendas e fiscal.",
+      "kept": "Caminho de navegação legível.",
+      "risk": "Pode parecer uma campanha infantil."
+    },
+    {
+      "id": "challenger-timetable",
+      "label": "Tabela de Partidas",
+      "verdict": "declined",
+      "lineage": "horários de viagem impressos",
+      "thesis": "Colunas rígidas e estados compactos ordenam as tarefas.",
+      "palette": ["#D7A72F", "#334653", "#F3EBD7", "#8A4A3D"],
+      "materials": ["papel marfim", "regras finas"],
+      "viewport": "Painéis de operação seguem o ritmo de uma tabela de horários.",
+      "case": "Sua gramática de tamanho único prejudica títulos e formulários complexos.",
+      "kept": "Estados alinhados em uma posição estável.",
+      "risk": "Dificulta leitura em celular."
+    },
+    {
+      "id": "challenger-catalog",
+      "label": "Catálogo de Corredores",
+      "verdict": "declined",
+      "lineage": "catálogos de eventos impressos",
+      "thesis": "Muitos itens visíveis em um ritmo compacto.",
+      "palette": ["#EAE7DD", "#202523", "#C26D47"],
+      "materials": ["papel de catálogo", "tinta escura"],
+      "viewport": "Produtos e registros aparecem em uma grade numerada.",
+      "case": "A densidade é útil no estoque, mas a estética de catálogo não cobre todo o sistema.",
+      "kept": "Densidade eficiente para listas.",
+      "risk": "Leitura pode ficar apertada no celular."
+    },
+    {
+      "id": "challenger-cassette",
+      "label": "Capa Dobrável",
+      "verdict": "declined",
+      "lineage": "capas de fitas cassete",
+      "thesis": "Uma identidade manual, íntima e dobrável.",
+      "palette": ["#F5F5F0", "#2D4C88", "#9B9C9B", "#C44D48"],
+      "materials": ["cartão branco", "tinta azul"],
+      "viewport": "Conteúdo principal se abre em painéis dobráveis.",
+      "case": "A navegação dobrável seria inadequada para tarefas frequentes e auditáveis.",
+      "kept": "Ritmo humano na comunicação.",
+      "risk": "Pode sugerir improviso em vez de segurança."
+    }
+  ],
+  "reroll": {"registers": ["safer", "bolder"]},
+  "buildPath": {"value": "code", "toggle": true},
+  "canon": true,
+  "canonCard": {
+    "label": "Padrão convencional",
+    "thesis": "Site comercial e painel administrativo familiares, executados com alto cuidado.",
+    "palette": ["#FFFFFF", "#172234", "#2563EB"],
+    "materials": ["grade regular", "fotografia de produto"],
+    "viewport": "Site com apresentação e contato; sistema com menu lateral, filtros e tabelas.",
+    "risk": "Oferece pouca diferenciação visual."
+  },
+  "steer": true
+}

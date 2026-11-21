@@ -1,0 +1,32 @@
+async page => {
+  const dialog = page.getByRole('dialog', { name: 'Confirmar pedido', exact: true });
+  await dialog.getByRole('combobox', { name: 'Origem do estoque' }).selectOption('Barreiras');
+  await dialog.getByRole('spinbutton', { name: '0.00', exact: true }).fill('40');
+  await dialog.getByRole('button', { name: 'Dinheiro', exact: true }).click();
+  await page.evaluate(() => { window.__stockFail = true; });
+  await dialog.getByRole('button', { name: 'Confirmar pedido', exact: true }).click();
+  await page.waitForTimeout(550);
+  if (!await dialog.isVisible()) throw new Error('Falha de gravação fechou a confirmação');
+  const receiptId = await page.evaluate(() => window.__stockRequests.at(-1).body.p_payload.paymentHistory.at(-1).id);
+  await dialog.getByRole('button', { name: 'Confirmar pedido', exact: true }).click();
+  await page.waitForTimeout(650);
+  const first = await page.evaluate(() => window.__stockRequests.at(-1).body.p_payload);
+  if (first.amountPaid !== 40 || first.status !== 'Pending' || first.fulfillmentStatus !== 'dispatched' || first.paymentHistory[0].id !== receiptId) throw new Error('Primeira parcela/retry não confirmou o pedido corretamente');
+  await page.getByRole('button', { name: 'inventory', exact: true }).click();
+  let row = page.getByRole('row').filter({ hasText: 'ID: ice' });
+  if (!await row.getByRole('cell', { name: '30 un', exact: true }).count() || !await row.getByRole('cell', { name: '100 un', exact: true }).count()) throw new Error('A primeira parcela não baixou somente Barreiras');
+  await page.getByRole('button', { name: 'wholesale', exact: true }).click();
+  await page.getByRole('button', { name: 'Vendas', exact: true }).click();
+  await page.getByRole('button', { name: 'Confirmar pedido', exact: true }).click();
+  if (!await dialog.getByRole('combobox', { name: 'Origem do estoque' }).isDisabled()) throw new Error('Origem da baixa anterior pode ser alterada');
+  await dialog.getByRole('spinbutton', { name: '0.00', exact: true }).fill('10');
+  await dialog.getByRole('button', { name: 'Dinheiro', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Confirmar pedido', exact: true }).click();
+  await page.waitForTimeout(650);
+  const second = await page.evaluate(() => window.__stockRequests.at(-1).body.p_payload);
+  if (second.amountPaid !== 50 || second.paymentHistory.length !== 2 || second.status !== 'Pending') throw new Error('Segunda parcela não preservou o saldo devedor');
+  await page.getByRole('button', { name: 'inventory', exact: true }).click();
+  row = page.getByRole('row').filter({ hasText: 'ID: ice' });
+  if (!await row.getByRole('cell', { name: '30 un', exact: true }).count()) throw new Error('Segunda parcela baixou estoque novamente');
+  return { firstPayment: 40, stockBefore: 40, stockAfterFirst: 30, secondPayment: 10, stockAfterSecond: 30, ibotiramaUnchanged: 100, totalPaid: 50, balanceDue: 30, failedRequestPreservedForm: true, receiptIdReused: true };
+}

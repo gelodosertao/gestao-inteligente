@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
-import { Product, StoreSettings, Sale, SaleItem, FinancialRecord, Customer, StockMovement, Branch, Category, ProductionRecord, Shift, User, Role, CategoryItem, CashClosing, Order } from '../types';
+import { Product, StoreSettings, Sale, SaleItem, FinancialRecord, Customer, StockMovement, Branch, Category, ProductionRecord, Shift, User, Role, CategoryItem, CashClosing, Order, ReconciliationAction, ReconciliationCase } from '../types';
+import { mapUserProfile } from '../security/userProfile';
 
 // --- HELPER DE PAGINAÇÃO PARA BYPASS LIMITE 1000 DO SUPABASE ---
 const fetchAllRecords = async (getQuery: (from: number, to: number) => any) => {
@@ -27,11 +28,53 @@ const fetchAllRecords = async (getQuery: (from: number, to: number) => any) => {
 
 // --- USERS & AUTH ---
 
-// --- USERS & AUTH ---
+const USER_PROFILE_SELECT = `
+  id,
+  name,
+  email,
+  role,
+  avatar_initials,
+  tenant_id,
+  allowed_modules,
+  is_active,
+  must_change_password,
+  temporary_password_expires_at,
+  tenants (name)
+`;
+
+async function loadUserProfile(userId: string): Promise<User> {
+  const { data, error } = await supabase
+    .from('app_users')
+    .select(USER_PROFILE_SELECT)
+    .eq('id', userId)
+    .single();
+
+  if (error || !data) {
+    throw new Error('Perfil de usuário não localizado no sistema.');
+  }
+
+  return mapUserProfile(data);
+}
+
+async function invokeAdminUsers<T>(body: Record<string, unknown>): Promise<T> {
+  const { data, error } = await supabase.functions.invoke('admin-users', { body });
+  if (error) {
+    const context = (error as { context?: unknown }).context;
+    if (context instanceof Response) {
+      const payload = await context.clone().json().catch(() => null) as { error?: string } | null;
+      if (payload?.error) throw new Error(payload.error);
+    }
+    if ((error as { name?: string }).name === 'FunctionsFetchError') {
+      throw new Error('Não foi possível conectar ao servidor. Verifique a internet e tente novamente.');
+    }
+    throw new Error(error.message || 'Falha ao executar operação administrativa.');
+  }
+  if (!data?.success) throw new Error(data?.error || 'Operação administrativa recusada.');
+  return data as T;
+}
 
 export const dbUsers = {
   async login(email: string, password: string): Promise<User> {
-    // 1. Logar usando o Auth Oficial do Supabase
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -42,134 +85,35 @@ export const dbUsers = {
       throw new Error('Usuário não encontrado ou senha incorreta.');
     }
 
-    // 2. Com a sessão gerada e protegida (JWT em mãos), puxar o perfil do usuário e a Empresa
-    const { data: user, error } = await supabase
-      .from('app_users')
-      .select(`
-        *,
-        tenants (name)
-      `)
-      .eq('id', authData.user.id)
-      .single();
-
-    if (error || !user) {
-      throw new Error('Perfil de usuário não localizado no sistema.');
+    const sessionUser = await loadUserProfile(authData.user.id);
+    if (!sessionUser.isActive) {
+      await supabase.auth.signOut();
+      throw new Error('Conta desativada. Procure o administrador da sua empresa.');
     }
 
-    // 3. Save to LocalStorage (Simple Session)
-    const sessionUser: User = {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role as Role,
-      avatarInitials: user.avatar_initials,
-      tenantId: user.tenant_id || '00000000-0000-0000-0000-000000000000',
-      tenantName: user.tenants?.name || 'G.AI Gestão',
-      allowedModules: user.allowed_modules
-    };
-    localStorage.setItem('app_user', JSON.stringify(sessionUser));
-
+    localStorage.removeItem('app_user');
     return sessionUser;
   },
 
-  async register(user: { name: string, email: string, password: string, role: Role, allowedModules?: string[] }, existingTenantId?: string): Promise<User> {
-    let tenantId = existingTenantId;
-
-    // 2. Create Tenant ONLY if not provided
-    if (!tenantId) {
-      const { data: tenant, error: tenantError } = await supabase
-        .from('tenants')
-        .insert([{ name: user.name + " Store" }])
-        .select()
-        .single();
-
-      if (tenantError) {
-        console.error("Erro ao criar tenant:", tenantError);
-        throw new Error("Erro ao criar organização.");
-      }
-      tenantId = tenant.id;
-    }
-
-    // 3. Criar a conta oficial no Supabase Auth usando o Client Secundário
-    // (Avisando que, se um admin estiver logado e criando contas pra gerentes, o persistSession:false impede ele de ser deslogado!)
-    const { createClient } = await import('@supabase/supabase-js');
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-    if (!supabaseUrl || !supabaseKey) {
-      throw new Error("Configuração do Supabase (URL/Key) não encontrada no .env");
-    }
-
-    const registerClient = createClient(supabaseUrl, supabaseKey, { auth: { persistSession: false, autoRefreshToken: false } });
-
-    // Criar conta de autenticação
-    const { data: authData, error: authError } = await registerClient.auth.signUp({
-      email: user.email,
-      password: user.password
-    });
-
-    if (authError) {
-      throw new Error(authError.message === 'User already registered' ? 'Este email já está cadastrado.' : authError.message);
-    }
-
-    const authUid = authData.user!.id;
-
-    // 4. Inserir na app_users ligando ao UID do Auth
-    const newUser = {
-      id: authUid,
+  async register(user: { name: string, email: string, password: string, role: Role, allowedModules?: string[] }): Promise<User> {
+    const result = await invokeAdminUsers<{ success: true; user: unknown }>({
+      action: 'create',
       name: user.name,
       email: user.email,
+      temporaryPassword: user.password,
       role: user.role,
-      avatar_initials: user.name.substring(0, 2).toUpperCase(),
-      tenant_id: tenantId,
-      allowed_modules: user.allowedModules
-    };
-
-    const { data, error } = await supabase
-      .from('app_users')
-      .insert([newUser])
-      .select()
-      .single();
-
-    if (error) {
-      console.error("Erro ao registrar perfíl:", error);
-      throw new Error("Conta Auth criada, mas falhou ao gravar perfil: " + error.message);
-    }
-
-    const sessionUser: User = {
-      id: data.id,
-      name: data.name,
-      email: data.email,
-      role: data.role as Role,
-      avatarInitials: data.avatar_initials,
-      tenantId: data.tenant_id,
-      allowedModules: data.allowed_modules
-    };
-
-    // Puxar o nome da empresa para guardar na sessão inicial
-    if (sessionUser.tenantId) {
-      const { data: tenantData } = await supabase.from('tenants').select('name').eq('id', sessionUser.tenantId).single();
-      if (tenantData) sessionUser.tenantName = tenantData.name;
-    }
-
-    if (!existingTenantId) {
-      localStorage.setItem('app_user', JSON.stringify(sessionUser));
-      // Precisamos avisar o client atual do Supabase caso seja auto-registro sem ser admin
-      await supabase.auth.signInWithPassword({ email: user.email, password: user.password });
-    }
-
-    return sessionUser;
+      allowedModules: user.allowedModules ?? [],
+    });
+    return mapUserProfile(result.user as Record<string, unknown>);
   },
 
   async logout(): Promise<void> {
     localStorage.removeItem('app_user');
-    // Also sign out from Supabase just in case
     await supabase.auth.signOut();
   },
 
   async getCurrentUser(): Promise<User | null> {
     try {
-      // Verify with Supabase Auth to ensure session is still valid
       const { data: { session }, error } = await supabase.auth.getSession();
 
       if (error || !session) {
@@ -177,15 +121,13 @@ export const dbUsers = {
         return null;
       }
 
-      // Check LocalStorage cache 
-      const stored = localStorage.getItem('app_user');
-      if (stored) {
-        const user = JSON.parse(stored);
-        if (user && !user.tenantId) {
-          user.tenantId = '00000000-0000-0000-0000-000000000000';
-        }
-        return user;
+      localStorage.removeItem('app_user');
+      const user = await loadUserProfile(session.user.id);
+      if (!user.isActive) {
+        await supabase.auth.signOut();
+        return null;
       }
+      return user;
     } catch (e) {
       console.error("Erro ao ler usuário:", e);
       localStorage.removeItem('app_user');
@@ -194,88 +136,43 @@ export const dbUsers = {
   },
 
   async getAll(): Promise<User[]> {
-    const data = await fetchAllRecords((from, to) => supabase.from('app_users').select('*').range(from, to));
-
-    return (data || []).map((row: any) => ({
-      id: row.id,
-      name: row.name,
-      email: row.email,
-      role: row.role as Role,
-      avatarInitials: row.avatar_initials,
-      tenantId: row.tenant_id || '00000000-0000-0000-0000-000000000000',
-      allowedModules: row.allowed_modules
-    }));
+    const data = await fetchAllRecords((from, to) => supabase
+      .from('app_users')
+      .select(USER_PROFILE_SELECT)
+      .range(from, to));
+    return (data || []).map(mapUserProfile);
   },
 
   async update(user: User): Promise<void> {
-    const { error } = await supabase
-      .from('app_users')
-      .update({
-        name: user.name,
-        role: user.role,
-        allowed_modules: user.allowedModules
-      })
-      .eq('id', user.id);
-    if (error) throw error;
+    await invokeAdminUsers({
+      action: 'update',
+      userId: user.id,
+      name: user.name,
+      role: user.role,
+      allowedModules: user.allowedModules ?? [],
+      isActive: user.isActive,
+    });
   },
 
   async updatePassword(userId: string, newPassword: string): Promise<void> {
-    const { error } = await supabase.rpc('update_user_password', {
-      target_user_id: userId,
-      new_password: newPassword
+    await invokeAdminUsers({
+      action: 'reset-password',
+      userId,
+      temporaryPassword: newPassword,
     });
-
-    if (error) throw new Error(error.message || 'Falha ao atualizar a senha no servidor.');
   },
 
   async delete(userId: string): Promise<void> {
-    const { error } = await supabase.rpc('delete_auth_user', {
-      target_user_id: userId
-    });
-
-    if (error) throw new Error(error.message || 'Falha ao excluir o usuário do servidor.');
-  }
-};
-
-// --- TENANTS & SaaS ---
-export const dbTenants = {
-  async registerCompany(data: {
-    companyName: string,
-    cnpj: string,
-    ownerName: string,
-    ownerEmail: string,
-    ownerPassword: string
-  }): Promise<User> {
-    // 1. Criar a Empresa (Tenant)
-    const { data: tenant, error: tenantError } = await supabase
-      .from('tenants')
-      .insert([{
-        name: data.companyName,
-        cnpj: data.cnpj,
-        subscription_status: 'TRIAL'
-      }])
-      .select()
-      .single();
-
-    if (tenantError) {
-      if (tenantError.code === '23505') throw new Error("Este CNPJ já está cadastrado em nosso sistema.");
-      throw new Error("Falha ao registrar empresa: " + tenantError.message);
-    }
-
-    // 2. Registrar o Usuário como ADMIN (Owner) vinculado a essa empresa
-    return dbUsers.register({
-      name: data.ownerName,
-      email: data.ownerEmail,
-      password: data.ownerPassword,
-      role: 'ADMIN',
-      allowedModules: ['DASHBOARD', 'SALES', 'INVENTORY', 'FINANCIAL', 'CUSTOMERS', 'PRODUCTION', 'ORDER_CENTER', 'REPORTS', 'CRM', 'SETTINGS']
-    }, tenant.id);
+    await invokeAdminUsers({ action: 'delete', userId });
   },
 
-  async getMyCompany(tenantId: string) {
-    const { data, error } = await supabase.from('tenants').select('*').eq('id', tenantId).single();
-    if (error) throw error;
-    return data;
+  async changeOwnPassword(newPassword: string): Promise<User> {
+    const { data, error } = await supabase.functions.invoke('change-password', {
+      body: { newPassword },
+    });
+    if (error) throw new Error(error.message || 'Falha ao alterar a senha.');
+    if (!data?.success) throw new Error(data?.error || 'Alteração de senha recusada.');
+    return mapUserProfile(data.user);
   }
 };
 
@@ -311,13 +208,47 @@ export const dbCategories = {
 };
 
 // --- PRODUCTS ---
+export type InventoryDeposit = 'Ibotirama' | 'Barreiras' | 'Filial';
+export interface InventoryMutation {
+  operationId: string;
+  action: 'transfer' | 'loss' | 'adjust';
+  productId: string;
+  quantity: number;
+  fromDeposit?: InventoryDeposit;
+  toDeposit?: InventoryDeposit;
+  deposit?: InventoryDeposit;
+  expectedStock?: number;
+  reason: string;
+}
+export interface InventoryReceiptItem {
+  productId: string;
+  quantity: number;
+  supplierCode?: string;
+  product?: Product;
+}
+export interface InventoryReceipt {
+  operationId: string;
+  invoiceKey: string;
+  deposit: InventoryDeposit;
+  items: InventoryReceiptItem[];
+}
+
+async function productCreationOperationId(tenantId: string, productId: string) {
+  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(['inventory-product', tenantId, productId]))));
+  digest[6] = (digest[6] & 15) | 80;
+  digest[8] = (digest[8] & 63) | 128;
+  const hex = Array.from(digest.slice(0, 16), byte => byte.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
 export const dbProducts = {
   async getAll(tenantId: string): Promise<Product[]> {
     const data = await fetchAllRecords((from, to) => supabase.from('products').select('*').eq('tenant_id', tenantId).range(from, to));
     
     if (!data) return [];
 
-    return (data || []).map((row: any) => ({
+    // Older databases do not have archived_at until the archival migration is applied.
+    return (data || []).filter((row: any) => row.archived_at == null).map((row: any) => ({
       id: row.id,
       name: row.name,
       category: row.category,
@@ -344,33 +275,12 @@ export const dbProducts = {
     }));
   },
 
-  async add(product: Product, tenantId: string) {
-    const { error } = await supabase.from('products').insert([{
-      id: product.id,
-      name: product.name,
-      category: product.category,
-      price_matriz: product.priceMatriz,
-      price_filial: product.priceFilial,
-      cost: product.cost,
-      stock_matriz_ibotirama: product.stockMatrizIbotirama,
-      stock_matriz_barreiras: product.stockMatrizBarreiras,
-      stock_filial: product.stockFilial,
-      unit: product.unit,
-      min_stock: product.minStock,
-      pack_size: product.packSize,
-      price_pack: product.pricePack,
-      is_stock_controlled: product.isStockControlled,
-      combo_items: product.comboItems,
-      image: product.image,
-      recipe: product.recipe,
-      recipe_batch_size: product.recipeBatchSize,
-      operational_cost: product.operationalCost,
-
-      options: product.options,
-      barcode: product.barcode,
-      expiration_date: product.expirationDate,
-      tenant_id: tenantId
-    }]);
+  async add(product: Product, tenantId: string, operationId?: string) {
+    const { error } = await supabase.rpc('create_inventory_product', {
+      p_operation_id: operationId ?? await productCreationOperationId(tenantId, product.id),
+      p_product: product,
+      p_tenant_id: tenantId
+    });
     if (error) throw error;
   },
 
@@ -381,9 +291,6 @@ export const dbProducts = {
       price_matriz: product.priceMatriz,
       price_filial: product.priceFilial,
       cost: product.cost,
-      stock_matriz_ibotirama: product.stockMatrizIbotirama,
-      stock_matriz_barreiras: product.stockMatrizBarreiras,
-      stock_filial: product.stockFilial,
       unit: product.unit,
       min_stock: product.minStock,
       pack_size: product.packSize,
@@ -402,8 +309,16 @@ export const dbProducts = {
     if (error) throw error;
   },
 
-  async delete(id: string) {
-    const { error } = await supabase.from('products').delete().eq('id', id);
+  async delete(id: string, tenantId: string) {
+    const { error } = await supabase.rpc('archive_inventory_product', {
+      p_product_id: id, p_tenant_id: tenantId
+    });
+    if (error?.code === '42501') {
+      throw new Error('Você não tem permissão para excluir este produto. Entre novamente com uma conta de administrador.');
+    }
+    if (error?.code === 'PGRST202' || error?.code === '42883') {
+      throw new Error('A retirada de produtos do cadastro ainda não está disponível neste banco. A atualização do banco de dados precisa ser aplicada.');
+    }
     if (error) throw error;
   }
 };
@@ -456,18 +371,32 @@ export const dbSettings = {
 };
 
 // --- SALES ---
+export type SaleOperationAction = 'create' | 'update' | 'cancel';
+
+export interface SaleOperationResult {
+  operationId: string;
+  saleId: string;
+  action: SaleOperationAction;
+  status: Sale['status'];
+}
+
 export const dbSales = {
   async getAll(tenantId: string): Promise<Sale[]> {
     const data = await fetchAllRecords((from, to) => supabase.from('sales').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false }).range(from, to));
-
     return (data || []).map((row: any) => ({
       id: row.id,
       date: row.date,
       customerName: row.customer_name,
+      customerId: row.customer_id,
+      fiscalContext: row.fiscal_context,
       total: row.total,
       branch: row.branch as Branch,
       matrizDeposit: row.matriz_deposit,
       status: row.status as any,
+      fulfillmentStatus: row.fulfillment_status ?? undefined,
+      revision: row.revision ?? 0,
+      cancelledAt: row.cancelled_at,
+      dispatchedAt: row.dispatched_at,
       paymentMethod: row.payment_method as any,
       paymentSplits: row.payment_splits,
       hasInvoice: row.has_invoice,
@@ -486,6 +415,8 @@ export const dbSales = {
       commissionAmount: row.commission_amount,
       nfeStatus: row.nfe_status,
       nfeNumber: row.nfe_number,
+      nfeEnvironment: row.nfe_environment,
+      nfeProtocol: row.nfe_protocol,
       nfeSeries: row.nfe_series,
       nfeXml: row.nfe_xml,
       nfeIssuedAt: row.nfe_issued_at,
@@ -495,11 +426,29 @@ export const dbSales = {
     }));
   },
 
+  async applyOperation(
+    action: SaleOperationAction,
+    sale: Sale,
+    operationId: string
+  ): Promise<SaleOperationResult> {
+    const { data, error } = await supabase.rpc('apply_sale_operation', {
+      p_operation_id: operationId,
+      p_sale_id: sale.id,
+      p_action: action,
+      p_payload: action === 'cancel' ? { revision: sale.revision ?? 0 } : sale
+    });
+
+    if (error) throw error;
+    return data as SaleOperationResult;
+  },
+
   async add(sale: Sale, tenantId: string) {
     const saleData: any = {
       id: sale.id,
       date: sale.date,
       customer_name: sale.customerName,
+      customer_id: sale.customerId,
+      fiscal_context: sale.fiscalContext,
       total: sale.total,
       branch: sale.branch,
       matriz_deposit: sale.matrizDeposit,
@@ -561,6 +510,8 @@ export const dbSales = {
     const saleData: any = {
       date: sale.date,
       customer_name: sale.customerName,
+      customer_id: sale.customerId,
+      fiscal_context: sale.fiscalContext,
       total: sale.total,
       branch: sale.branch,
       matriz_deposit: sale.matrizDeposit,
@@ -774,6 +725,21 @@ export const dbCustomers = {
 
 // --- STOCK MOVEMENTS ---
 export const dbStockMovements = {
+  async mutate(operation: InventoryMutation) {
+    const { error } = await supabase.rpc('mutate_inventory_stock', { p_operation: operation });
+    if (error) throw error;
+  },
+
+  async receiveXml(receipt: InventoryReceipt) {
+    const { error } = await supabase.rpc('receive_inventory_xml', {
+      p_operation_id: receipt.operationId,
+      p_invoice_key: receipt.invoiceKey,
+      p_deposit: receipt.deposit,
+      p_items: receipt.items
+    });
+    if (error) throw error;
+  },
+
   async getAll(tenantId: string): Promise<StockMovement[]> {
     const data = await fetchAllRecords((from, to) => supabase.from('stock_movements').select('*').eq('tenant_id', tenantId).order('date', { ascending: false }).range(from, to));
 
@@ -786,7 +752,14 @@ export const dbStockMovements = {
       type: row.type,
       reason: row.reason,
       branch: row.branch as Branch,
-      matrizDeposit: row.matriz_deposit
+      matrizDeposit: row.matriz_deposit,
+      eventType: row.event_type,
+      saleId: row.sale_id,
+      responsible: row.responsible,
+      actorId: row.actor_id,
+      stockBefore: row.stock_before,
+      stockAfter: row.stock_after,
+      operationId: row.operation_id
     }));
   },
 
@@ -803,6 +776,16 @@ export const dbStockMovements = {
       matriz_deposit: movement.matrizDeposit,
       tenant_id: tenantId
     }]);
+    if (error) throw error;
+  },
+
+  async registerProductionLoss(operationId: string, productId: string, quantity: number, reason: string) {
+    const { error } = await supabase.rpc('register_production_loss', {
+      p_operation_id: operationId,
+      p_product_id: productId,
+      p_quantity: quantity,
+      p_reason: reason
+    });
     if (error) throw error;
   }
 };
@@ -824,18 +807,16 @@ export const dbProduction = {
     }));
   },
 
-  async add(record: ProductionRecord, tenantId: string) {
-    const { error } = await supabase.from('production_logs').insert([{
-      id: record.id,
-      date: record.date,
-      product_id: record.productId,
-      product_name: record.productName,
-      quantity: record.quantity,
-      shift: record.shift,
-      responsible: record.responsible,
-      notes: record.notes,
-      tenant_id: tenantId
-    }]);
+  async register(
+    operationId: string,
+    record: Pick<ProductionRecord, 'productId' | 'quantity' | 'shift' | 'notes'>,
+    ingredients: { ingredientId: string; quantity: number }[]
+  ) {
+    const { error } = await supabase.rpc('register_production_batch', {
+      p_operation_id: operationId,
+      p_record: record,
+      p_ingredients: ingredients.map(({ ingredientId, quantity }) => ({ ingredientId, quantity }))
+    });
     if (error) throw error;
   }
 };
@@ -1136,5 +1117,30 @@ export const dbCrm = {
 
     // Fallback error handling if Edge Function fails
     if (error) throw new Error(error.message || 'Erro ao comunicar com o servidor de e-mail.');
+  },
+};
+
+// --- FINANCIAL RECONCILIATION ---
+export const dbReconciliation = {
+  async getCases(): Promise<ReconciliationCase[]> {
+    const { data, error } = await supabase.rpc('get_financial_reconciliation_cases');
+    if (error) throw error;
+    return Array.isArray(data) ? data as ReconciliationCase[] : [];
+  },
+
+  async resolveCase(
+    caseKey: string,
+    action: ReconciliationAction,
+    options: { financialId?: string; saleId?: string; note?: string } = {}
+  ) {
+    const { data, error } = await supabase.rpc('resolve_financial_reconciliation_case', {
+      p_case_key: caseKey,
+      p_action: action,
+      p_financial_id: options.financialId ?? null,
+      p_sale_id: options.saleId ?? null,
+      p_note: options.note ?? null,
+    });
+    if (error) throw error;
+    return data as { caseKey: string; status: string; adjustmentFinancialId?: string | null; idempotent: boolean };
   },
 };

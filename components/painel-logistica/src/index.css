@@ -1,9 +1,28 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bree+Serif&family=JetBrains+Mono:wght@400;500;700&family=Montserrat:wght@400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Montserrat", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+:focus-visible {
+  outline: 3px solid #f59e0b;
+  outline-offset: 2px;
+}
+
+button {
+  min-height: 44px;
+}
+
+input, select, textarea {
+  max-width: 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in {
+    animation: none;
+  }
 }
 
 /* Custom Scrollbar for premium custom UI feel */
@@ -42,4 +61,105 @@
     background-color: white !important;
     color: black !important;
   }
+}
+
+/* Identidade Gelo do Sertão no painel independente de logística. */
+@theme {
+  --font-sans: "Montserrat", ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Shared operational palette for the standalone route planner. */
+.route-world {
+  background: #f4f7fb;
+  color: #163559;
+  background-image: none;
+}
+.route-decor { display: none; }
+.route-header {
+  background: #123e92;
+  border-color: #3fa9e1;
+  border-bottom-width: 2px;
+}
+.route-header h1 { letter-spacing: -.035em; }
+.route-mark { background: #f57c1f; border-radius: 10px; }
+.route-brand { color: #d8ecff; border: 1px solid #80b2ee; border-radius: 10px; }
+.route-header [class*="text-blue"] { color: #d8ecff; }
+.route-header [class*="bg-blue-600"] { background: #1a4fb8; }
+.route-world button[class*="bg-blue-600"], .route-world button[class*="bg-blue-500"] { background: #1a4fb8; }
+.route-world button[class*="bg-blue-600"]:hover, .route-world button[class*="bg-blue-500"]:hover { background: #123e92; }
+.route-header [class*="rounded-xl"], .route-world main [class*="rounded-xl"] { border-radius: 14px; }
+.route-header button { min-height: 44px; }
+.route-header button:disabled { opacity: .55; cursor: not-allowed; background: #435258; color: #edf0ef; }
+.route-world main [class*="shadow-"] { box-shadow: none; }
+.route-world main [class*="bg-slate-900"] { background: #21343b; }
+.route-world main [class*="bg-slate-800"] { background: #2b4047; }
+.route-world main [class*="border-white/"] { border-color: #627176; }
+.route-world :focus-visible { outline-color: #f57c1f; }
+.route-board {
+  background: #ffffff;
+  color: #163559;
+  border: 1px solid #dce5f0;
+  border-radius: 14px;
+  box-shadow: 0 8px 24px rgba(18,54,111,.05);
+}
+.route-demo-notice {
+  display: grid;
+  gap: .4rem;
+  padding: .8rem 1rem;
+  border: 1px solid #f57c1f;
+  background: #fff3e9;
+  color: #753c0f;
+  font-size: .83rem;
+  line-height: 1.4;
+}
+.route-demo-notice strong { text-transform: uppercase; letter-spacing: .06em; font-size: .7rem; }
+.route-demo-notice button { justify-self: start; text-decoration: underline; font-weight: 700; min-height: 44px; }
+.route-board h3, .route-board h4, .route-board h5, .route-board p { color: #163559; }
+.route-board h3, .route-board h4, .route-board h5 { font-family: 'Bree Serif', Georgia, serif; }
+.route-board span.font-semibold { color: #163559; }
+.route-board [class*="text-rose-300"] { color: #8f382f; }
+.route-board [class*="text-slate-4"], .route-board [class*="text-slate-3"] { color: #4a5a5e; }
+.route-board > div:first-child { border-color: #aebbb9; }
+.route-board button:not([class*="bg-blue-600"]):not([class*="text-emerald"]):not([class*="text-rose"]) {
+  color: #163559;
+  border-color: #aebbb9;
+  background: #f4f4ef;
+}
+.route-board button[class*="bg-blue-600"] { color: white; }
+.route-board [class*="bg-white/5"] { background: #f1f3f0; border-color: #b9c4c0; }
+.route-board [class*="bg-rose-500/10"] { background: #f5e9e5; border-color: #c7a39d; }
+.route-board [class*="bg-rose-500/10"] h4 { color: #163559; }
+.route-board [class*="text-rose-200"] { color: #5f6464; }
+.route-board [class*="border-dashed"] p { color: #35484f; }
+.route-board [class*="border-dashed"] p:last-child { color: #526167; }
+.route-stats { border: 1px solid #aebbb9; background: #fffefa; }
+.route-stats > div {
+  background: transparent;
+  border: 0;
+  border-right: 1px solid #cbd2d0;
+  border-bottom: 1px solid #cbd2d0;
+  border-radius: 0;
+  min-height: 98px;
+  box-shadow: none;
+}
+.route-stats [class*="text-white"] { color: #163559; }
+.route-stats [class*="text-slate-400"] { color: #526167; }
+.route-stats span[class*="text-[10px]"] { font-size: 11px; }
+.route-world main > div:last-child { border-radius: 3px; border-color: #aebbb9; box-shadow: none; }
+.route-map-status {
+  position: absolute;
+  inset: 0;
+  z-index: 15;
+  display: grid;
+  place-items: center;
+  padding: 2rem;
+  text-align: center;
+  color: #163559;
+  background: #e9eef5;
+  font-size: .9rem;
+  font-weight: 700;
+  line-height: 1.5;
+}
+@media print {
+  .route-world { background: white; }
 }

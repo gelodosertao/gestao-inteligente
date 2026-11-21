@@ -7,7 +7,9 @@ export const MOCK_USERS: User[] = [
     email: 'admin@gelodosertao.com',
     role: 'ADMIN',
     avatarInitials: 'JP',
-    tenantId: '00000000-0000-0000-0000-000000000000'
+    tenantId: '00000000-0000-0000-0000-000000000000',
+    isActive: true,
+    mustChangePassword: false
   },
   {
     id: 'u2',
@@ -15,7 +17,9 @@ export const MOCK_USERS: User[] = [
     email: 'caixa@gelodosertao.com',
     role: 'OPERATOR',
     avatarInitials: 'CX',
-    tenantId: '00000000-0000-0000-0000-000000000000'
+    tenantId: '00000000-0000-0000-0000-000000000000',
+    isActive: true,
+    mustChangePassword: false
   }
 ];
 

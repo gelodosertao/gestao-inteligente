@@ -1,3 +1,6 @@
+# Local Git worktree
+/.release-ux-ui/
+
 # Dependencies
 node_modules/
 .pnp
@@ -80,6 +83,9 @@ Thumbs.db
 
 # Local environment overrides
 .env.local
+
+# Supabase CLI local cache and linked project metadata
+supabase/.temp/
 
 # Certificate directories
 certs/

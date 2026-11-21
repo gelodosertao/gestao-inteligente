@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { User, Role } from '../types';
 import { dbUsers } from '../services/db';
-import { Save, Shield, Globe, Users, Key, FileBadge, CheckCircle, CreditCard, QrCode, Smartphone, Server, Database, Download, Cloud, Trash2, X, Plus, Edit } from 'lucide-react';
+import { Save, Shield, Globe, Users, Key, CheckCircle, CreditCard, QrCode, Smartphone, Server, Database, Download, Cloud, Trash2, X, Plus, Edit } from 'lucide-react';
 import { MOCK_PRODUCTS, MOCK_SALES, MOCK_FINANCIALS } from '../constants';
 import { getTodayDate } from '../services/utils';
 import { ALL_MENU_ITEMS } from './AppSidebar';
+import FiscalIntegrationNotice from './FiscalIntegrationNotice';
+import { validateTemporaryPassword } from '../supabase/functions/_shared/userValidation';
+
+const PASSWORD_RULE = 'A senha deve ter 12 caracteres e incluir maiúscula, minúscula, número e símbolo.';
 
 interface SettingsProps {
    currentUser: User;
@@ -55,8 +59,8 @@ const Settings: React.FC<SettingsProps> = ({ currentUser, onResetData }) => {
    };
 
    const handleUpdatePassword = async () => {
-      if (passwordData.newPassword.length < 6) {
-         alert("A senha deve ter no mínimo 6 caracteres.");
+      if (!validateTemporaryPassword(passwordData.newPassword)) {
+         alert(PASSWORD_RULE);
          return;
       }
 
@@ -71,11 +75,8 @@ const Settings: React.FC<SettingsProps> = ({ currentUser, onResetData }) => {
       }
    };
 
-   // SEFAZ Integration State
-   const [environment, setEnvironment] = useState<'HOMOLOGATION' | 'PRODUCTION'>('HOMOLOGATION');
-   const [certificateName, setCertificateName] = useState('');
-
    const handleSave = () => {
+      if (activeTab === 'INTEGRATIONS') return;
       setLoading(true);
       setTimeout(() => {
          setLoading(false);
@@ -87,6 +88,10 @@ const Settings: React.FC<SettingsProps> = ({ currentUser, onResetData }) => {
    const handleAddUser = async () => {
       if (!newUser.name || !newUser.email || (!editingUserId && !newUser.password)) {
          alert("Preencha todos os campos obrigatórios.");
+         return;
+      }
+      if (!editingUserId && !validateTemporaryPassword(newUser.password)) {
+         alert(PASSWORD_RULE);
          return;
       }
       setLoading(true);
@@ -102,7 +107,7 @@ const Settings: React.FC<SettingsProps> = ({ currentUser, onResetData }) => {
             });
             setSuccessMsg('Usuário atualizado com sucesso!');
          } else {
-            await dbUsers.register(newUser, currentUser.tenantId);
+            await dbUsers.register(newUser);
             setSuccessMsg('Usuário cadastrado com sucesso!');
          }
          setShowUserModal(false);
@@ -127,12 +132,6 @@ const Settings: React.FC<SettingsProps> = ({ currentUser, onResetData }) => {
       });
       setEditingUserId(user.id);
       setShowUserModal(true);
-   };
-
-   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-      if (e.target.files && e.target.files[0]) {
-         setCertificateName(e.target.files[0].name);
-      }
    };
 
    const handleDownloadBackup = () => {
@@ -162,7 +161,7 @@ const Settings: React.FC<SettingsProps> = ({ currentUser, onResetData }) => {
    return (
       <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 relative">
          <div>
-            <h2 className="text-2xl font-bold text-slate-800">Configurações</h2>
+            <h1 className="text-2xl font-bold text-slate-900">Configurações</h1>
             <p className="text-slate-500">Gerencie integrações, usuários e dados da empresa.</p>
          </div>
 
@@ -185,7 +184,7 @@ const Settings: React.FC<SettingsProps> = ({ currentUser, onResetData }) => {
                   onClick={() => setActiveTab('INTEGRATIONS')}
                   className={`text-left px-4 py-3 rounded-xl font-medium flex items-center gap-3 transition-colors ${activeTab === 'INTEGRATIONS' ? 'bg-white text-orange-600 shadow-sm border border-slate-200' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'}`}
                >
-                  <Globe size={18} /> Integrações (SEFAZ)
+                  <Globe size={18} /> Integração fiscal
                </button>
 
                {currentUser.role === 'ADMIN' && (
@@ -322,63 +321,9 @@ const Settings: React.FC<SettingsProps> = ({ currentUser, onResetData }) => {
 
                {/* INTEGRATIONS TAB */}
                {activeTab === 'INTEGRATIONS' && (
-                  <div className="max-w-2xl space-y-8">
-                     <div>
-                        <h3 className="text-lg font-bold text-slate-800 mb-1">Nota Fiscal Eletrônica (NF-e/NFC-e)</h3>
-                        <p className="text-sm text-slate-500">Configure a comunicação com a SEFAZ do seu estado.</p>
-                     </div>
-
-                     <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-4">
-                        <div className="flex justify-between items-center">
-                           <span className="font-medium text-slate-700">Ambiente de Emissão</span>
-                           <div className="flex bg-slate-200 p-1 rounded-lg">
-                              <button
-                                 onClick={() => setEnvironment('HOMOLOGATION')}
-                                 className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${environment === 'HOMOLOGATION' ? 'bg-white shadow text-slate-800' : 'text-slate-500'}`}
-                              >
-                                 Homologação (Teste)
-                              </button>
-                              <button
-                                 onClick={() => setEnvironment('PRODUCTION')}
-                                 className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${environment === 'PRODUCTION' ? 'bg-white shadow text-red-600' : 'text-slate-500'}`}
-                              >
-                                 Produção
-                              </button>
-                           </div>
-                        </div>
-
-                        <div className="space-y-2">
-                           <label className="block text-sm font-medium text-slate-700">Certificado Digital (A1)</label>
-                           <div className="flex items-center gap-3">
-                              <label className="flex-1 cursor-pointer">
-                                 <input type="file" className="hidden" accept=".pfx" onChange={handleFileUpload} />
-                                 <div className="w-full border-2 border-dashed border-slate-300 rounded-lg p-4 flex flex-col items-center justify-center text-slate-500 hover:bg-white hover:border-orange-500 transition-colors">
-                                    <FileBadge size={24} className="mb-2" />
-                                    {certificateName ? <span className="text-orange-600 font-bold">{certificateName}</span> : <span>Clique para carregar arquivo .PFX</span>}
-                                 </div>
-                              </label>
-                           </div>
-                        </div>
-
-                        <div>
-                           <label className="block text-sm font-medium text-slate-700 mb-1">Senha do Certificado</label>
-                           <input type="password" placeholder="••••••" className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500" />
-                        </div>
-                     </div>
-
-                     <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-4">
-                        <h4 className="font-bold text-slate-800">Parâmetros NFC-e</h4>
-                        <div className="grid grid-cols-2 gap-4">
-                           <div>
-                              <label className="block text-sm font-medium text-slate-700 mb-1">CSC (Token ID)</label>
-                              <input type="text" placeholder="Ex: 000001" className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500" />
-                           </div>
-                           <div>
-                              <label className="block text-sm font-medium text-slate-700 mb-1">Código CSC</label>
-                              <input type="text" placeholder="Ex: A1B2C3D4..." className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500" />
-                           </div>
-                        </div>
-                     </div>
+                  <div className="max-w-2xl space-y-4">
+                     <h3 className="text-lg font-bold text-slate-800">Integração fiscal</h3>
+                     <FiscalIntegrationNotice />
                   </div>
                )}
 
@@ -561,7 +506,7 @@ const Settings: React.FC<SettingsProps> = ({ currentUser, onResetData }) => {
                   )}
                   <button
                      onClick={handleSave}
-                     disabled={loading}
+                     disabled={loading || activeTab === 'INTEGRATIONS'}
                      className="bg-blue-800 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-bold flex items-center gap-2 shadow-lg shadow-blue-900/10 transition-all disabled:opacity-70"
                   >
                      {loading ? 'Salvando...' : <><Save size={18} /> Salvar Alterações</>}
@@ -620,11 +565,13 @@ const Settings: React.FC<SettingsProps> = ({ currentUser, onResetData }) => {
                      {!editingUserId && (
                         <div>
                            <label className="block text-sm font-medium text-slate-700 mb-1">Senha Inicial</label>
+                           <p className="text-xs text-slate-500 mt-1">{PASSWORD_RULE}</p>
                            <input
                               type="password"
                               className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-white text-slate-900"
                               value={newUser.password}
                               onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                              minLength={12}
                            />
                         </div>
                      )}

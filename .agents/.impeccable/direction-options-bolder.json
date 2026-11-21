@@ -1,0 +1,115 @@
+{
+  "title": "Nova rodada: identidade mais ousada",
+  "question": "Escolha uma linguagem visual marcante para o site, sistema e logística; cada opção mantém leitura e ações confiáveis.",
+  "options": [
+    {
+      "id": "assigned",
+      "label": "Malha Operacional",
+      "kicker": "DIREÇÃO PROPOSTA",
+      "lineage": "interfaces japonesas de alta densidade",
+      "thesis": "Uma malha precisa de informação: módulos compactos, títulos claros e ações em posições constantes.",
+      "palette": ["#FAFAF7", "#15232B", "#B74336", "#C5CDD0", "#F0EDE7"],
+      "materials": ["superfícies claras", "linhas finas", "fotografia real de produto"],
+      "viewport": "No sistema, menu persistente e áreas compactas para tarefa, filtros e resultados; no site, uma malha editorial reúne origem, produtos e contato em um primeiro olhar.",
+      "risk": "A alta densidade exige tamanho de texto e alvos de toque confortáveis para não cansar no celular.",
+      "raised": [
+        {"from": "challenger-transit", "raise": "O percurso da tarefa ganha uma indicação simples de etapa atual."},
+        {"from": "challenger-boarding", "raise": "Mudanças de estado permanecem visíveis no mesmo lugar até serem compreendidas."}
+      ],
+      "wireframe": {"cols": 12, "rows": 10, "regions": [
+        {"label": "menu", "x": 0, "y": 0, "w": 2, "h": 10, "accent": true},
+        {"label": "contexto", "x": 2, "y": 0, "w": 10, "h": 2},
+        {"label": "tarefas", "x": 2, "y": 2, "w": 6, "h": 4},
+        {"label": "indicadores", "x": 8, "y": 2, "w": 4, "h": 4},
+        {"label": "registros", "x": 2, "y": 6, "w": 10, "h": 4}
+      ]}
+    },
+    {
+      "id": "challenger-transit",
+      "label": "Linhas do Sertão",
+      "verdict": "competitive",
+      "lineage": "diagramas de transporte esmaltados",
+      "thesis": "Uma rede disciplinada de percursos e estados dá unidade às tarefas e à presença regional da marca.",
+      "palette": ["#102C48", "#F5F3EA", "#D45243", "#DFAE4E", "#3E8D83"],
+      "materials": ["azul profundo", "marcas de conexão", "fotografia do gelo em campo claro"],
+      "viewport": "O sistema mantém menu e controles padrão; uma linha de progresso discreta mostra a etapa de uma venda ou entrega. O site usa o percurso factual de Ibotirama ao Oeste Baiano como assinatura visual.",
+      "case": "Identificação regional mais forte que a malha; a clareza depende de manter a rede como informação, não ornamento.",
+      "risk": "Linhas demais fariam a interface parecer um mapa fictício e distrairiam do trabalho.",
+      "wireframe": {"cols": 12, "rows": 10, "regions": [
+        {"label": "menu", "x": 0, "y": 0, "w": 2, "h": 10, "accent": true},
+        {"label": "etapa e contexto", "x": 2, "y": 0, "w": 10, "h": 2},
+        {"label": "tarefa", "x": 2, "y": 2, "w": 8, "h": 8},
+        {"label": "estado", "x": 10, "y": 2, "w": 2, "h": 8}
+      ]}
+    },
+    {
+      "id": "challenger-boarding",
+      "label": "Painel de Fluxo",
+      "verdict": "competitive",
+      "lineage": "painéis de embarque e documentos de viagem",
+      "thesis": "Estados que mudam sem sumir de vista; cada pedido mantém identidade e posição durante a atualização.",
+      "palette": ["#202A32", "#F7F7F3", "#D37B46", "#4C7885"],
+      "materials": ["blocos rotulados", "números tabulares", "alerta reservado"],
+      "viewport": "No sistema, pedidos e vendas mostram estado e próxima ação em linhas persistentes; no site, uma sequência curta mostra produto, distribuição e contato.",
+      "case": "Clareza de estado mais forte que a malha; a metáfora de viagem tem pouca relação natural com a marca.",
+      "risk": "Pode parecer uma companhia de transporte em vez de uma produtora de gelo.",
+      "wireframe": {"cols": 12, "rows": 10, "regions": [
+        {"label": "menu", "x": 0, "y": 0, "w": 2, "h": 10},
+        {"label": "ações", "x": 2, "y": 0, "w": 10, "h": 2, "accent": true},
+        {"label": "painel de estados", "x": 2, "y": 2, "w": 10, "h": 5},
+        {"label": "detalhe", "x": 2, "y": 7, "w": 10, "h": 3}
+      ]}
+    },
+    {
+      "id": "challenger-folio",
+      "label": "Fólio de Transformação",
+      "verdict": "declined",
+      "lineage": "folhas botânicas sequenciais",
+      "thesis": "Uma sequência visual acompanha cada fase do processo.",
+      "palette": ["#F3EBDD", "#344E3C", "#A44640"],
+      "materials": ["papel creme", "regras sépia"],
+      "viewport": "Etapas ficam lado a lado na mesma escala.",
+      "case": "A sequência ajuda produção, mas a referência botânica não identifica o gelo nem a operação.",
+      "kept": "Etapas comparáveis no mesmo lugar.",
+      "risk": "A estética naturalista sugeriria outro produto."
+    },
+    {
+      "id": "challenger-score",
+      "label": "Partitura de Movimento",
+      "verdict": "declined",
+      "lineage": "notação coreográfica vertical",
+      "thesis": "A duração das ações vira forma gráfica.",
+      "palette": ["#FFFFFF", "#151719", "#D7D8D5"],
+      "materials": ["blocos pretos", "papel branco"],
+      "viewport": "Atividades sobem em uma faixa central.",
+      "case": "Exige interpretação nova para ações que precisam ser imediatas.",
+      "kept": "Duração e simultaneidade podem ser mostradas com clareza.",
+      "risk": "Aumenta o treinamento necessário."
+    },
+    {
+      "id": "challenger-exposure",
+      "label": "Camadas de Exposição",
+      "verdict": "declined",
+      "lineage": "registros de laboratório fotográfico",
+      "thesis": "Camadas sobrepostas tornam conflitos visíveis.",
+      "palette": ["#ECEDEA", "#262B30", "#C34E88"],
+      "materials": ["tons neutros", "tramas de conflito"],
+      "viewport": "Painéis densos revelam riscos por interseção.",
+      "case": "A linguagem de câmara escura não se relaciona com o uso cotidiano do sistema.",
+      "kept": "Conflitos merecem marcação explícita.",
+      "risk": "Sobreposições dificultam leitura e foco."
+    }
+  ],
+  "reroll": {"registers": ["safer", "bolder"]},
+  "buildPath": {"value": "code", "toggle": true},
+  "canon": true,
+  "canonCard": {
+    "label": "Padrão convencional",
+    "thesis": "Site comercial e painel administrativo familiares, executados com alto cuidado.",
+    "palette": ["#FFFFFF", "#172234", "#2563EB"],
+    "materials": ["grade regular", "fotografia de produto"],
+    "viewport": "Site com apresentação e contato; sistema com menu lateral, filtros e tabelas.",
+    "risk": "Oferece pouca diferenciação visual."
+  },
+  "steer": true
+}

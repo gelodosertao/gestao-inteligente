@@ -1,0 +1,59 @@
+- generic [ref=f7e3]:
+  - navigation [ref=f7e4]:
+    - button "inventory" [ref=f7e5] [cursor=pointer]
+    - button "wholesale" [active] [ref=f7e6] [cursor=pointer]
+    - button "production" [ref=f7e7] [cursor=pointer]
+    - button "financial" [ref=f7e8] [cursor=pointer]
+  - generic [ref=f7e135]:
+    - banner [ref=f7e136]:
+      - generic [ref=f7e137]:
+        - generic [ref=f7e138]:
+          - button "Voltar à gestão" [ref=f7e139] [cursor=pointer]
+          - img "Logo" [ref=f7e143]
+          - generic [ref=f7e144]:
+            - heading "PDV Atacado" [level=1] [ref=f7e145]
+            - paragraph [ref=f7e146]: Gelo do Sertão
+        - navigation "Navegação do PDV" [ref=f7e147]:
+          - button "Novo pedido" [ref=f7e148] [cursor=pointer]
+          - button "Vendas" [ref=f7e153] [cursor=pointer]
+        - generic [ref=f7e158]:
+          - generic [ref=f7e159]:
+            - paragraph [ref=f7e160]: Operador
+            - paragraph [ref=f7e161]: Administrador
+          - button "Sair" [ref=f7e162] [cursor=pointer]
+    - main [ref=f7e166]:
+      - generic [ref=f7e167]:
+        - region "Catálogo" [ref=f7e168]:
+          - generic [ref=f7e169]:
+            - generic [ref=f7e170]:
+              - generic [ref=f7e171]:
+                - heading "Catálogo de produtos" [level=2] [ref=f7e172]
+                - paragraph [ref=f7e173]: Selecione os produtos para montar o pedido.
+              - generic [ref=f7e174]: 1 produtos
+            - generic [ref=f7e175]:
+              - generic [ref=f7e176]: Origem do estoque
+              - combobox "Origem do estoque" [ref=f7e177]:
+                - option "Selecione o depósito" [selected]
+                - option "Ibotirama"
+                - option "Barreiras"
+              - paragraph [ref=f7e178]: A saída será baixada neste depósito ao confirmar a expedição.
+            - generic [ref=f7e179]:
+              - generic [ref=f7e180]:
+                - paragraph [ref=f7e181]: Categoria
+                - generic [ref=f7e182]:
+                  - button "TODOS" [ref=f7e183] [cursor=pointer]
+                  - button "CUBO" [ref=f7e184] [cursor=pointer]
+                  - button "SABOR" [ref=f7e185] [cursor=pointer]
+              - textbox "Buscar produtos" [ref=f7e190]:
+                - /placeholder: Buscar em Gelo Atacado...
+            - generic [ref=f7e192] [cursor=pointer]:
+              - generic [ref=f7e193]:
+                - paragraph [ref=f7e195]: Gelo Cubo
+                - heading "Gelo Cubo 5kg" [level=3] [ref=f7e196]
+                - paragraph [ref=f7e197]: R$ 8.00
+                - paragraph [ref=f7e198]: "Ibotirama: 100 · Barreiras: 35"
+              - button "Adicionar" [ref=f7e199]
+        - complementary "Carrinho do pedido" [ref=f7e201]:
+          - generic [ref=f7e202]:
+            - heading "Carrinho Vazio" [level=2] [ref=f7e207]
+            - paragraph [ref=f7e208]: Adicione produtos pelo catálogo para iniciar um pedido.

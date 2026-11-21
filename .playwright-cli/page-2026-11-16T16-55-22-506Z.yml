@@ -1,0 +1,112 @@
+- generic [ref=f11e3]:
+  - navigation [ref=f11e4]:
+    - button "inventory" [ref=f11e5] [cursor=pointer]
+    - button "wholesale" [ref=f11e6] [cursor=pointer]
+    - button "production" [ref=f11e7] [cursor=pointer]
+    - button "financial" [ref=f11e8] [cursor=pointer]
+  - generic [ref=f11e9]:
+    - generic [ref=f11e10]:
+      - generic [ref=f11e11]:
+        - button "Voltar à gestão" [ref=f11e12] [cursor=pointer]
+        - generic [ref=f11e15]:
+          - heading "Controle de Estoque" [level=1] [ref=f11e16]
+          - paragraph [ref=f11e17]: Gerenciamento dinâmico de níveis e movimentações
+      - generic [ref=f11e18]:
+        - button "Geral" [ref=f11e19] [cursor=pointer]
+        - button "Matriz" [ref=f11e20] [cursor=pointer]
+        - button "Filial" [ref=f11e21] [cursor=pointer]
+      - generic [ref=f11e22]:
+        - button "Movimentações e relatório" [ref=f11e23] [cursor=pointer]
+        - button "Transferir" [ref=f11e28] [cursor=pointer]
+        - button "Novo" [ref=f11e33] [cursor=pointer]
+        - generic [ref=f11e36] [cursor=pointer]:
+          - generic [ref=f11e40]: Receber XML
+          - button "Receber compra por XML" [ref=f11e41]
+    - generic [ref=f11e42]:
+      - generic [ref=f11e43]:
+        - textbox "Buscar produto por nome ou categoria" [ref=f11e48]:
+          - /placeholder: Buscar produto por nome ou categoria...
+        - button "Filtrar produtos por categoria" [ref=f11e49] [cursor=pointer]
+      - table [ref=f11e53]:
+        - rowgroup [ref=f11e54]:
+          - row [ref=f11e55]:
+            - columnheader "Produto" [ref=f11e56]
+            - columnheader "Categoria" [ref=f11e57]
+            - columnheader "Preço Varejo (Filial)" [ref=f11e58]
+            - columnheader "Preço Atacado" [ref=f11e59]
+            - columnheader "Matriz (Ibotirama)" [ref=f11e60]
+            - columnheader "Matriz (Barreiras)" [ref=f11e61]
+            - columnheader "Estoque Filial" [ref=f11e62]
+            - columnheader "Status" [ref=f11e63]
+            - columnheader "Ações" [ref=f11e64]
+        - rowgroup [ref=f11e65]:
+          - row [ref=f11e172]:
+            - 'cell "Gelo Cubo 5kg ID: ice" [ref=f11e67]':
+              - paragraph [ref=f11e68]: Gelo Cubo 5kg
+              - generic [ref=f11e69]: "ID: ice"
+            - cell "Gelo Cubo" [ref=f11e70]
+            - cell "R$ 10,00" [ref=f11e71]
+            - cell "R$ 8,00" [ref=f11e72]
+            - cell "110 un" [ref=f11e173]
+            - cell "25 un" [ref=f11e174]
+            - cell "2 un" [ref=f11e77]
+            - cell "OK" [ref=f11e79]
+            - cell [ref=f11e82]:
+              - button "Ajustar" [active] [ref=f11e83] [cursor=pointer]
+              - button "Receita" [ref=f11e85] [cursor=pointer]
+              - button "Registrar Perda" [ref=f11e89] [cursor=pointer]
+              - button "Editar" [ref=f11e92] [cursor=pointer]
+              - button "Excluir Produto" [ref=f11e96] [cursor=pointer]
+          - row [ref=f11e100]:
+            - 'cell "Embalagem 5kg ID: bag" [ref=f11e101]':
+              - paragraph [ref=f11e102]: Embalagem 5kg
+              - generic [ref=f11e103]: "ID: bag"
+            - cell "Insumo (Matéria-prima)" [ref=f11e104]
+            - cell "R$ 1,00" [ref=f11e105]
+            - cell "R$ 1,00" [ref=f11e106]
+            - cell "20 un" [ref=f11e107]
+            - cell "0 un" [ref=f11e109]
+            - cell "0 un" [ref=f11e111]
+            - cell "OK" [ref=f11e113]
+            - cell [ref=f11e116]:
+              - button "Ajustar" [ref=f11e117] [cursor=pointer]
+              - button "Receita" [ref=f11e119] [cursor=pointer]
+              - button "Registrar Perda" [ref=f11e123] [cursor=pointer]
+              - button "Editar" [ref=f11e126] [cursor=pointer]
+              - button "Excluir Produto" [ref=f11e130] [cursor=pointer]
+      - generic [ref=f11e134]: Mostrando 2 produtos
+  - dialog "Ajustar inventário físico" [ref=f11e176]:
+    - generic [ref=f11e177]:
+      - heading "Ajustar inventário físico" [level=3] [ref=f11e178]
+      - button "Fechar ajuste" [ref=f11e179] [cursor=pointer]
+    - generic [ref=f11e183]:
+      - paragraph [ref=f11e184]: Informe a quantidade contada no depósito. O ajuste registra a diferença e seu motivo no histórico.
+      - generic [ref=f11e185]:
+        - text: Produto
+        - combobox "Produto" [ref=f11e186]:
+          - option "Gelo Cubo 5kg" [selected]
+          - option "Embalagem 5kg"
+      - generic [ref=f11e187]:
+        - text: Depósito
+        - combobox "Depósito" [ref=f11e188]:
+          - option "Ibotirama" [selected]
+          - option "Barreiras"
+          - option "Filial"
+      - generic [ref=f11e189]:
+        - text: Quantidade contada (un)
+        - spinbutton "Quantidade contada (un)" [ref=f11e190]
+      - generic [ref=f11e191]:
+        - text: Motivo do ajuste
+        - textbox "Motivo do ajuste" [ref=f11e192]:
+          - /placeholder: Descreva a divergência encontrada na contagem
+      - generic [ref=f11e193]:
+        - paragraph [ref=f11e194]:
+          - text: "Saldo na abertura:"
+          - strong [ref=f11e195]: 110 un
+        - paragraph [ref=f11e196]:
+          - text: "Diferença:"
+          - strong [ref=f11e197]: —
+        - paragraph [ref=f11e198]:
+          - text: "Saldo após o ajuste:"
+          - strong [ref=f11e199]: — un
+      - button "Confirmar ajuste" [disabled] [ref=f11e200]

@@ -1,15 +1,17 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import { canReconcileHistoricalDelivery, confirmWholesalePayment, hasSaleStockCommitted, prepareWholesaleDispatch, wholesaleEditTotal, wholesaleStock } from '../services/salePayments';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Product, Sale, Customer, User, Branch, SaleItem, InvoiceCustomerDetails, PaymentEntry } from '../types';
-import { ShoppingCart, LogOut, User as UserIcon, Plus, Minus, Search, CheckCircle, ArrowLeft, History, Store, Banknote, MapPin, Edit, Trash2, Save, X, Printer, Check, FileText, Clock, Send, Download, AlertTriangle } from 'lucide-react';
+import { Product, Sale, Customer, User, Branch, SaleItem } from '../types';
+import { ShoppingCart, LogOut, User as UserIcon, Plus, Minus, Search, CheckCircle, ArrowLeft, History, Store, Banknote, MapPin, Edit, Trash2, Save, X, Printer, Check, FileText, Clock, Download } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { CUSTOMER_SEGMENTS } from '../constants';
 import { hardwareBridge } from '../services/hardwareBridge';
-import { translatePaymentMethod } from '../services/utils';
-import { dbCustomers, dbSales } from '../services/db';
-import { invoiceService } from '../services/invoiceService';
-import { generateDanfe } from '../services/danfeService';
+import { getTodayDate, translatePaymentMethod } from '../services/utils';
+import { dbCustomers } from '../services/db';
+import FiscalIntegrationModal from './FiscalIntegrationModal';
+import FiscalIntegrationNotice from './FiscalIntegrationNotice';
+import { fiscalIntegration } from '../services/fiscalIntegration';
 
 interface WholesalePOSProps {
     products: Product[];
@@ -98,13 +100,15 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
     const [deliveryFee, setDeliveryFee] = useState<number>(0);
     const [tempAddress, setTempAddress] = useState<string>('');
     const [tempCity, setTempCity] = useState<string>('');
+    const [stockOrigin, setStockOrigin] = useState<'' | 'Ibotirama' | 'Barreiras'>('');
+    const [savingOrder, setSavingOrder] = useState(false);
+    const checkoutInFlight = useRef(false);
+    const pendingCheckout = useRef<{ key: string; sale: Sale } | null>(null);
+    const pendingPayment = useRef<{ key: string; sale: Sale } | null>(null);
 
-    // NF-e Modal State
-    // NF-e Modal State
     const [nfeSale, setNfeSale] = useState<Sale | null>(null);
-    const [nfeStep, setNfeStep] = useState<'FORM' | 'DADOS_FISCAIS' | 'PROCESSING' | 'SUCCESS'>('FORM');
-    const [nfeCpf, setNfeCpf] = useState('');
-    const [nfeDetailsForm, setNfeDetailsForm] = useState<Partial<InvoiceCustomerDetails>>({});
+    const [savingPayment, setSavingPayment] = useState(false);
+    const paymentInFlight = useRef(false);
 
     // Debt Payment State
     const [showDebtModal, setShowDebtModal] = useState(false);
@@ -113,6 +117,8 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
     const [paymentDateInput, setPaymentDateInput] = useState('');
     const [paymentMethodInput, setPaymentMethodInput] = useState<'Pix' | 'Credit' | 'Debit' | 'Cash'>('Pix');
     const [paymentNotesInput, setPaymentNotesInput] = useState('');
+    const [paymentOrigin, setPaymentOrigin] = useState<'' | 'Ibotirama' | 'Barreiras'>('');
+    const [historicalStockAlreadyDebited, setHistoricalStockAlreadyDebited] = useState(false);
 
     const formatCurrency = (value: number) => {
         return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -120,55 +126,53 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
 
     const openDebtPaymentModal = (sale: Sale) => {
         setSelectedDebtSale(sale);
+        setHistoricalStockAlreadyDebited(false);
         const remaining = sale.total - (sale.amountPaid || 0);
-        setPaymentAmountInput(remaining.toFixed(2));
-        setPaymentDateInput(new Date().toISOString().split('T')[0]);
+        setPaymentAmountInput(remaining > 0 ? remaining.toFixed(2) : '');
+        setPaymentOrigin(sale.matrizDeposit || '');
+        setPaymentDateInput(getTodayDate());
         setPaymentMethodInput('Pix');
         setPaymentNotesInput('');
         setShowDebtModal(true);
     };
 
-    const handleRegisterPayment = () => {
-        if (!selectedDebtSale) return;
+    const handleRegisterPayment = async () => {
+        if (!selectedDebtSale || !onUpdateSale || paymentInFlight.current) return;
 
-        const amount = parseFloat(paymentAmountInput.replace(',', '.'));
-        if (isNaN(amount) || amount <= 0) {
-            alert('Valor inválido');
+        let updatedSale: Sale;
+        try {
+            const currentSale = sales.find(sale => sale.id === selectedDebtSale.id);
+            if (!currentSale) throw new Error('Venda não encontrada. Atualize o histórico.');
+            const input = {
+                amount: paymentAmountInput, date: paymentDateInput,
+                method: paymentMethodInput, notes: paymentNotesInput,
+            };
+            const key = JSON.stringify([selectedDebtSale.id, selectedDebtSale.revision, input, paymentOrigin, historicalStockAlreadyDebited]);
+            const attempted = pendingPayment.current?.key === key ? pendingPayment.current.sale : undefined;
+            const attemptedId = attempted?.paymentHistory?.at(-1)?.id;
+            if (attempted && hasSaleStockCommitted(currentSale) && ((attemptedId && currentSale.paymentHistory?.some(entry => entry.id === attemptedId)) || (!attemptedId && currentSale.revision !== attempted.revision))) {
+                pendingPayment.current = null;
+                setShowDebtModal(false);
+                setSelectedDebtSale(null);
+                return;
+            }
+            updatedSale = attempted || confirmWholesalePayment(currentSale, input, products, paymentOrigin || undefined, selectedDebtSale, crypto.randomUUID(), historicalStockAlreadyDebited);
+            pendingPayment.current = { key, sale: updatedSale };
+        } catch (error) {
+            alert((error as Error).message);
             return;
         }
 
-        const currentPaid = selectedDebtSale.amountPaid || 0;
-        const remaining = selectedDebtSale.total - currentPaid;
-
-        if (amount > remaining + 0.1) {
-            alert(`O valor não pode ser maior que o restante (R$ ${remaining.toFixed(2)})`);
-            return;
-        }
-
-        const newEntry: PaymentEntry = {
-            id: crypto.randomUUID(),
-            date: paymentDateInput,
-            amount: amount,
-            method: paymentMethodInput,
-            notes: paymentNotesInput
-        };
-
-        const newPaid = currentPaid + amount;
-        const history = selectedDebtSale.paymentHistory || [];
-        const newHistory = [...history, newEntry];
-
-        const isFullyPaid = newPaid >= selectedDebtSale.total - 0.05;
-
-        const updatedSale: Sale = {
-            ...selectedDebtSale,
-            amountPaid: newPaid,
-            paymentHistory: newHistory,
-            status: isFullyPaid ? 'Completed' : 'Pending',
-        };
-
-        onUpdateSale?.(updatedSale);
-        setShowDebtModal(false);
-        setSelectedDebtSale(null);
+        paymentInFlight.current = true;
+        setSavingPayment(true);
+        try {
+            await onUpdateSale(updatedSale);
+            pendingPayment.current = null;
+            setShowDebtModal(false);
+            setSelectedDebtSale(null);
+        } catch {
+            alert('Falha ao registrar pagamento. Confira o hist?rico antes de tentar novamente.');
+        } finally { paymentInFlight.current = false; setSavingPayment(false); }
     };
 
     useEffect(() => {
@@ -386,11 +390,19 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
     };
 
     const handleFinishSale = async () => {
+        if (checkoutInFlight.current) return;
         if (cart.length === 0) return alert("Carrinho vazio!");
         if (!selectedCustomer) return alert("Selecione um cliente para o atacado.");
+        if (!stockOrigin) return alert('Selecione a origem do estoque: Ibotirama ou Barreiras.');
+        if (cart.some(item => !Number.isFinite(item.quantity) || item.quantity <= 0 || !Number.isFinite(getProductPrice(item.product, item.customPrice)) || getProductPrice(item.product, item.customPrice) < 0)) return alert('Confira as quantidades e os preços.');
+        if (!Number.isFinite(deliveryFee) || deliveryFee < 0 || !Number.isFinite(adminDiscount) || adminDiscount < 0 || adminDiscount > cartTotal + (deliveryMethod === 'Delivery' ? deliveryFee : 0)) return alert('Confira o frete e o desconto.');
         if (deliveryMethod === 'Delivery' && (!tempAddress || !tempCity)) {
             return alert("Para entregas, preencha o endereço de entrega e a cidade!");
         }
+
+        checkoutInFlight.current = true;
+        setSavingOrder(true);
+        try {
 
         // Auto-update customer address if changed during checkout
         if (deliveryMethod === 'Delivery' && selectedCustomer && (selectedCustomer.address !== tempAddress || selectedCustomer.city !== tempCity)) {
@@ -432,7 +444,9 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
             date: saleDate,
             createdAt: new Date().toISOString(),
             customerName: selectedCustomer.name,
+            customerId: selectedCustomer.id,
             customerDetails: {
+                cpfCnpj: selectedCustomer.cpfCnpj,
                 razaoSocial: selectedCustomer.razaoSocial || undefined,
                 inscricaoEstadual: selectedCustomer.inscricaoEstadual || undefined,
                 logradouro: selectedCustomer.logradouro || undefined,
@@ -444,8 +458,11 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                 state: selectedCustomer.state || undefined,
             },
             total: finalTotal,
-            items: saleItems.map(item => ({ ...item, ncm: '22019000', cfop: '5101' })),
+            items: saleItems,
             branch: Branch.MATRIZ,
+            matrizDeposit: stockOrigin,
+            fulfillmentStatus: 'committed',
+            revision: 0,
             status: 'Pending',
             paymentMethod,
             deliveryMethod,
@@ -464,8 +481,18 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
         };
 
         try {
-            await onAddSale(newSale);
-            setLastCompletedSale(newSale);
+            prepareWholesaleDispatch({ ...newSale, fulfillmentStatus: 'pending' }, products, stockOrigin);
+        } catch (error) {
+            alert((error as Error).message);
+            return;
+        }
+        const checkoutKey = JSON.stringify({ ...newSale, id: undefined, createdAt: undefined });
+        const saleToSave = pendingCheckout.current?.key === checkoutKey ? pendingCheckout.current.sale : newSale;
+        pendingCheckout.current = { key: checkoutKey, sale: saleToSave };
+        try {
+            await onAddSale(saleToSave);
+            pendingCheckout.current = null;
+            setLastCompletedSale(saleToSave);
             setCart([]);
             setSelectedCustomer(null);
             setCustomerSearchQuery('');
@@ -475,6 +502,10 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
         } catch (e) {
             console.error(e);
             alert("Erro ao lançar pedido.");
+        }
+        } finally {
+            checkoutInFlight.current = false;
+            setSavingOrder(false);
         }
     };
 
@@ -559,7 +590,16 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
     const handleSaveEditedSale = async () => {
         if (!editingSale || !onUpdateSale) return;
 
-        const total = editingSale.items.reduce((acc, item) => acc + (item.priceAtSale * item.quantity), 0);
+        let total: number;
+        const paid = editingSale.fulfillmentStatus === undefined && (editingSale.status === 'Completed' || editingSale.status === 'Finalizado pela Fábrica') ? editingSale.total : (editingSale.amountPaid || 0);
+        try {
+            total = wholesaleEditTotal(editingSale);
+            if (!editingSale.matrizDeposit) throw new Error('Selecione o depósito de origem.');
+            if (total < paid) throw new Error('O total não pode ser menor que o valor já recebido.');
+        } catch (error) {
+            alert((error as Error).message);
+            return;
+        }
         const isSeller = editingSale.sellerRole === 'WHOLESALE_REPRESENTATIVE';
         const commissionRate = isSeller ? 0.05 : 0; // 5% flat apenas vendedores
         const commissionAmount = total * commissionRate;
@@ -568,6 +608,7 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
             await onUpdateSale({
                 ...editingSale,
                 total,
+                status: editingSale.status === 'Cancelled' ? 'Cancelled' : Math.round(paid * 100) === Math.round(total * 100) ? 'Completed' : 'Pending',
                 commissionAmount
             });
             setShowEditSaleModal(false);
@@ -581,11 +622,32 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
 
     // ---------------- UI RENDERS ----------------
 
+    const renderStockOrigin = (id: string) => (
+        <div className="mb-4 rounded-xl border border-blue-100 bg-blue-50 p-4">
+            <label htmlFor={id} className="mb-2 block text-sm font-bold text-slate-700">Origem do estoque</label>
+            <select id={id} value={stockOrigin} onChange={event => setStockOrigin(event.target.value as typeof stockOrigin)} className="min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900">
+                <option value="">Selecione o depósito</option>
+                <option value="Ibotirama">Ibotirama</option>
+                <option value="Barreiras">Barreiras</option>
+            </select>
+            <p className="mt-2 text-xs text-slate-600">Ao criar o pedido, as quantidades saem do saldo disponível deste depósito.</p>
+        </div>
+    );
+
     const renderCatalog = () => (
-        <div className="p-4 pb-48">
-            <div className="relative mb-6">
-                <label className="block text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider">Filtrar por Categoria</label>
-                <div className="flex bg-slate-100 rounded-2xl p-1 gap-1 border border-slate-200 shadow-inner mb-3">
+        <div className="p-4 sm:p-6 lg:p-0">
+            <div className="mb-5 flex items-end justify-between gap-3">
+                <div>
+                    <h2 className="text-xl font-bold text-slate-800 sm:text-2xl">Catálogo de produtos</h2>
+                    <p className="mt-1 text-sm text-slate-500">Selecione os produtos para montar o pedido.</p>
+                </div>
+                <span className="hidden shrink-0 text-sm text-slate-500 sm:block">{filteredProducts.length} produtos</span>
+            </div>
+            {renderStockOrigin('catalog-stock-origin')}
+            <div className="mb-5 grid items-end gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                <div>
+                <p className="block text-xs font-bold text-slate-500 mb-1">Categoria</p>
+                <div className="flex bg-slate-100 rounded-xl p-1 gap-1 border border-slate-200">
                     <button
                         onClick={() => setCategoryFilter('ALL')}
                         className={`flex-1 py-2.5 text-xs font-black rounded-xl transition-all ${categoryFilter === 'ALL' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-200'}`}
@@ -607,11 +669,13 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                         SABOR
                     </button>
                 </div>
+                </div>
 
                 <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
                     <input
                         type="text"
+                        aria-label="Buscar produtos"
                         placeholder={`Buscar em ${categoryFilter === 'ALL' ? 'Gelo Atacado' : categoryFilter}...`}
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
@@ -635,51 +699,54 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                 </div>
             )}
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(145px,1fr))] gap-3 sm:grid-cols-[repeat(auto-fill,minmax(190px,1fr))] sm:gap-4">
+                {filteredProducts.length === 0 && <p className="col-span-full py-12 text-center text-slate-500">Nenhum produto encontrado. Tente outra busca ou categoria.</p>}
                 {filteredProducts.map(product => {
                     const cartItem = cart.find(c => c.product.id === product.id);
-                    const totalStock = product.stockMatrizIbotirama + product.stockMatrizBarreiras;
+                    const totalStock = wholesaleStock(product, stockOrigin || undefined);
 
                     return (
                         <div
                             key={product.id}
                             onClick={() => !cartItem && addToCart(product)}
-                            className={`bg-white p-3 rounded-2xl shadow-sm border-2 transition-all group flex flex-col justify-between cursor-pointer ${cartItem ? 'border-blue-500 ring-4 ring-blue-50' : 'border-slate-100 hover:border-blue-300 hover:shadow-xl active:scale-95'}`}
+                            className={`min-w-0 bg-white p-3 sm:p-4 rounded-2xl shadow-sm border-2 transition-colors group flex flex-col justify-between cursor-pointer ${cartItem ? 'border-blue-500 ring-2 ring-blue-50' : 'border-slate-200 hover:border-blue-300'}`}
                         >
                             <div>
-                                <div className="flex justify-between items-start mb-1">
+                                <div className="flex flex-wrap justify-between items-start gap-1 mb-2">
                                     <p className="text-[10px] text-blue-500 font-black uppercase tracking-widest">{product.category}</p>
                                     {cartItem && (
-                                        <div className="bg-blue-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full animate-bounce">
+                                        <div className="bg-blue-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full">
                                             {cartItem.quantity} No Carrinho
                                         </div>
                                     )}
                                 </div>
-                                <h3 className="font-bold text-slate-800 leading-tight mb-1 text-sm group-hover:text-blue-700 transition-colors">{product.name}</h3>
+                                <h3 className="font-bold text-slate-800 leading-snug mb-2 text-sm sm:text-base break-words group-hover:text-blue-700 transition-colors">{product.name}</h3>
                                 <p className="text-lg font-black text-slate-900 mb-2 tracking-tighter">
                                     R$ {getProductPrice(product).toFixed(2)}
                                     {product.category === 'Gelo Sabor' && <span className="text-[10px] text-orange-500 ml-1 font-bold italic">dinâmico</span>}
                                 </p>
+                                <p className="mb-2 text-xs text-slate-500">{product.isStockControlled === false ? 'Sem controle de estoque' : stockOrigin ? `${totalStock} ${product.unit} em ${stockOrigin}` : `Ibotirama: ${product.stockMatrizIbotirama} · Barreiras: ${product.stockMatrizBarreiras}`}</p>
                             </div>
 
                             {cartItem ? (
                                 <div className="flex flex-col gap-1 mt-auto" onClick={(e) => e.stopPropagation()}>
                                     {product.category === 'Gelo Sabor' && (
                                         <div className="flex gap-1 mb-1">
-                                            <button onClick={() => updateQuantity(product.id, cartItem.quantity + 10)} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-black py-1.5 rounded-lg transition-all">+10</button>
-                                            <button onClick={() => updateQuantity(product.id, cartItem.quantity + 50)} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-black py-1.5 rounded-lg transition-all">+50</button>
+                                            <button aria-label={`Adicionar 10 unidades de ${product.name}`} onClick={() => updateQuantity(product.id, cartItem.quantity + 10)} className="min-h-11 flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold rounded-lg transition-colors">+10</button>
+                                            <button aria-label={`Adicionar 50 unidades de ${product.name}`} onClick={() => updateQuantity(product.id, cartItem.quantity + 50)} className="min-h-11 flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold rounded-lg transition-colors">+50</button>
                                         </div>
                                     )}
-                                    <div className="flex items-center justify-between bg-blue-50 rounded-xl p-1.5 border border-blue-100 shadow-inner">
-                                        <button onClick={() => updateQuantity(product.id, cartItem.quantity - (product.category === 'Gelo Sabor' ? 10 : 1))} className="w-9 h-9 flex items-center justify-center bg-white text-blue-600 rounded-lg shadow-sm font-black active:scale-90 transition-all border border-blue-100">-</button>
+                                    <div className="flex items-center justify-between bg-blue-50 rounded-xl p-1 border border-blue-100">
+                                        <button aria-label={`Diminuir quantidade de ${product.name}`} onClick={() => updateQuantity(product.id, cartItem.quantity - (product.category === 'Gelo Sabor' ? 10 : 1))} className="w-11 h-11 shrink-0 flex items-center justify-center bg-white text-blue-600 rounded-lg font-bold border border-blue-100">-</button>
                                         <input
                                             type="number"
                                             value={cartItem.quantity || ''}
                                             onChange={(e) => updateQuantity(product.id, parseInt(e.target.value) || 0)}
                                             onFocus={(e) => e.target.select()}
-                                            className="w-12 text-center font-black text-blue-900 bg-transparent outline-none hide-arrows text-lg"
+                                            aria-label={`Quantidade de ${product.name}`}
+                                            className="min-w-0 w-10 flex-1 text-center font-black text-blue-900 bg-transparent outline-none hide-arrows text-base"
                                         />
-                                        <button onClick={() => updateQuantity(product.id, cartItem.quantity + (product.category === 'Gelo Sabor' ? 10 : 1))} className="w-9 h-9 flex items-center justify-center bg-blue-600 text-white rounded-lg shadow-lg font-black active:scale-90 transition-all shadow-blue-200">+</button>
+                                        <button aria-label={`Aumentar quantidade de ${product.name}`} onClick={() => updateQuantity(product.id, cartItem.quantity + (product.category === 'Gelo Sabor' ? 10 : 1))} className="w-11 h-11 shrink-0 flex items-center justify-center bg-blue-600 text-white rounded-lg font-bold">+</button>
                                     </div>
                                 </div>
                             ) : (
@@ -700,11 +767,11 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
     const renderCart = () => {
         if (cart.length === 0) {
             return (
-                <div className="flex flex-col items-center justify-center h-[60vh] text-slate-400 p-6 text-center">
+                <div className="flex min-h-full flex-col items-center justify-center text-slate-500 p-6 text-center">
                     <ShoppingCart size={64} className="mb-4 text-slate-300" />
                     <h2 className="text-xl font-bold mb-2">Carrinho Vazio</h2>
                     <p>Adicione produtos pelo catálogo para iniciar um pedido.</p>
-                    <button onClick={() => setActiveTab('CATALOG')} className="mt-6 px-6 py-2 bg-orange-500 text-white font-bold rounded-lg shadow-lg">
+                    <button onClick={() => setActiveTab('CATALOG')} className="mt-6 px-6 py-3 bg-orange-500 text-white font-bold rounded-lg shadow-lg lg:hidden">
                         Ir para Catálogo
                     </button>
                 </div>
@@ -721,14 +788,15 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
             const displayCommissionRate = effectiveSellerRole === 'WHOLESALE_REPRESENTATIVE' ? 0.05 : 0;
 
             return (
-                <div className="p-4 pb-28 animate-in fade-in slide-in-from-right-4 duration-300">
+                <div className="mx-auto w-full max-w-6xl p-4 sm:p-6 lg:p-0">
                     <button onClick={() => setIsCheckingOut(false)} className="flex items-center gap-2 text-slate-500 mb-6 font-medium">
                         <ArrowLeft size={18} /> Voltar ao Carrinho
                     </button>
 
                     <h2 className="text-2xl font-black text-slate-800 mb-4">Finalizar Pedido</h2>
 
-                    <div className="space-y-4">
+                    <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_340px] xl:grid-cols-[minmax(0,1fr)_380px]">
+                    <div className="min-w-0 space-y-4">
                         {/* Customer Selection */}
                         <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
                             <div className="flex justify-between items-center mb-3">
@@ -745,27 +813,27 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                             {showInlineCustomer ? (
                                 <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 space-y-3 animate-in slide-in-from-top-2 duration-200">
                                     <p className="text-xs font-black text-blue-700 uppercase tracking-widest">Cadastro Rápido de Cliente</p>
-                                    <input type="text" placeholder="Nome Fantasia / Cliente *" className="w-full px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-400" value={newCustomer.name} onChange={e => setNewCustomer({ ...newCustomer, name: e.target.value })} />
-                                    <input type="text" placeholder="Nome do Estabelecimento / Razão Social" className="w-full px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-400" value={newCustomer.establishmentName} onChange={e => setNewCustomer({ ...newCustomer, establishmentName: e.target.value })} />
-                                    <input type="text" placeholder="Nome do Responsável" className="w-full px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-400" value={newCustomer.responsibleName} onChange={e => setNewCustomer({ ...newCustomer, responsibleName: e.target.value })} />
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <input type="text" placeholder="Telefone" className="px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" value={newCustomer.phone} onChange={e => setNewCustomer({ ...newCustomer, phone: e.target.value })} />
-                                        <input type="text" placeholder="CEP" className="px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" value={newCustomer.zipCode} onChange={e => setNewCustomer({ ...newCustomer, zipCode: e.target.value })} />
+                                    <input type="text" aria-label="Nome fantasia ou cliente" placeholder="Nome Fantasia / Cliente *" className="w-full px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-400" value={newCustomer.name} onChange={e => setNewCustomer({ ...newCustomer, name: e.target.value })} />
+                                    <input type="text" aria-label="Nome do estabelecimento ou razão social" placeholder="Nome do Estabelecimento / Razão Social" className="w-full px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-400" value={newCustomer.establishmentName} onChange={e => setNewCustomer({ ...newCustomer, establishmentName: e.target.value })} />
+                                    <input type="text" aria-label="Nome do responsável" placeholder="Nome do Responsável" className="w-full px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-400" value={newCustomer.responsibleName} onChange={e => setNewCustomer({ ...newCustomer, responsibleName: e.target.value })} />
+                                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                        <input type="text" aria-label="Telefone do cliente" placeholder="Telefone" className="px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" value={newCustomer.phone} onChange={e => setNewCustomer({ ...newCustomer, phone: e.target.value })} />
+                                        <input type="text" aria-label="CEP do cliente" placeholder="CEP" className="px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" value={newCustomer.zipCode} onChange={e => setNewCustomer({ ...newCustomer, zipCode: e.target.value })} />
                                     </div>
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <input type="text" placeholder="Cidade" className="px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" value={newCustomer.city} onChange={e => setNewCustomer({ ...newCustomer, city: e.target.value })} />
-                                        <input type="text" placeholder="UF" className="px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" value={newCustomer.state} onChange={e => setNewCustomer({ ...newCustomer, state: e.target.value })} />
+                                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                        <input type="text" aria-label="Cidade do cliente" placeholder="Cidade" className="px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" value={newCustomer.city} onChange={e => setNewCustomer({ ...newCustomer, city: e.target.value })} />
+                                        <input type="text" aria-label="UF do cliente" placeholder="UF" className="px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" value={newCustomer.state} onChange={e => setNewCustomer({ ...newCustomer, state: e.target.value })} />
                                     </div>
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <input type="text" placeholder="CPF / CNPJ" className="px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" value={newCustomer.cpfCnpj} onChange={e => setNewCustomer({ ...newCustomer, cpfCnpj: e.target.value })} />
-                                        <input type="text" placeholder="Inscrição Estadual" className="px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" value={newCustomer.inscricaoEstadual} onChange={e => setNewCustomer({ ...newCustomer, inscricaoEstadual: e.target.value })} />
+                                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                        <input type="text" aria-label="CPF ou CNPJ do cliente" placeholder="CPF / CNPJ" className="px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" value={newCustomer.cpfCnpj} onChange={e => setNewCustomer({ ...newCustomer, cpfCnpj: e.target.value })} />
+                                        <input type="text" aria-label="Inscrição estadual do cliente" placeholder="Inscrição Estadual" className="px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" value={newCustomer.inscricaoEstadual} onChange={e => setNewCustomer({ ...newCustomer, inscricaoEstadual: e.target.value })} />
                                     </div>
-                                    <div className="grid grid-cols-3 gap-2">
-                                        <input type="text" placeholder="Logradouro" className="col-span-2 px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" value={newCustomer.logradouro} onChange={e => setNewCustomer({ ...newCustomer, logradouro: e.target.value })} />
-                                        <input type="text" placeholder="Número" className="px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" value={newCustomer.numero} onChange={e => setNewCustomer({ ...newCustomer, numero: e.target.value })} />
+                                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                                        <input type="text" aria-label="Logradouro do cliente" placeholder="Logradouro" className="sm:col-span-2 px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" value={newCustomer.logradouro} onChange={e => setNewCustomer({ ...newCustomer, logradouro: e.target.value })} />
+                                        <input type="text" aria-label="Número do endereço" placeholder="Número" className="px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" value={newCustomer.numero} onChange={e => setNewCustomer({ ...newCustomer, numero: e.target.value })} />
                                     </div>
-                                    <input type="text" placeholder="Bairro" className="w-full px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" value={newCustomer.bairro} onChange={e => setNewCustomer({ ...newCustomer, bairro: e.target.value })} />
-                                    <select className="w-full px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" value={newCustomer.segment} onChange={e => setNewCustomer({ ...newCustomer, segment: e.target.value })}>
+                                    <input type="text" aria-label="Bairro do cliente" placeholder="Bairro" className="w-full px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" value={newCustomer.bairro} onChange={e => setNewCustomer({ ...newCustomer, bairro: e.target.value })} />
+                                    <select aria-label="Segmento do cliente" className="w-full px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" value={newCustomer.segment} onChange={e => setNewCustomer({ ...newCustomer, segment: e.target.value })}>
                                         <option value="">Segmento</option>
                                         {CUSTOMER_SEGMENTS.map(s => <option key={s} value={s}>{s}</option>)}
                                     </select>
@@ -910,6 +978,9 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                             </div>
                         )}
 
+                        {renderStockOrigin('checkout-stock-origin')}
+                        <FiscalIntegrationNotice />
+
                         {/* Payment Method */}
                         <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
                             <label className="block text-sm font-bold text-slate-700 mb-3">Forma de Pagamento</label>
@@ -922,7 +993,13 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                             </div>
                         </div>
 
+                    </div>
+                    <div className="min-w-0 space-y-4 lg:sticky lg:top-0">
                         <div className="bg-slate-800 text-white p-5 rounded-2xl shadow-lg">
+                            <h3 className="mb-4 text-lg font-bold">Resumo do pedido</h3>
+                            <div className="mb-4 max-h-60 overflow-y-auto space-y-2 border-b border-slate-700 pb-4">
+                                {cart.map(item => <div key={item.product.id} className="flex justify-between gap-3 text-sm"><span className="min-w-0 break-words text-slate-300">{item.quantity} × {item.product.name}</span><span className="shrink-0 font-medium">{formatCurrency(item.quantity * getProductPrice(item.product, item.customPrice))}</span></div>)}
+                            </div>
                             {isAdmin && adminDiscount > 0 && (
                                 <div className="flex justify-between items-center mb-2 border-b border-slate-700 pb-2 text-orange-300">
                                     <span className="font-medium text-sm">Desconto aplicado:</span>
@@ -945,29 +1022,30 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                                 <span className="text-slate-300 text-sm">Total do Pedido:</span>
                                 <span className="text-2xl font-black text-orange-400">R$ {Math.max(cartTotal - (adminDiscount || 0) + (deliveryMethod === 'Delivery' ? (deliveryFee || 0) : 0), 0).toFixed(2)}</span>
                             </div>
-                            <p className="text-xs text-slate-400 mt-2 text-right italic">* ADM confirma recebimento e estoque.</p>
+                            <p className="text-xs text-slate-400 mt-2">Origem: {stockOrigin || 'Selecione o depósito'}. O estoque será comprometido ao criar o pedido. O pagamento será registrado separadamente.</p>
                         </div>
 
-                        <button onClick={handleFinishSale} className="w-full bg-green-500 hover:bg-green-600 active:scale-95 text-white py-4 rounded-xl font-black text-lg shadow-xl shadow-green-900/20 transition-all flex items-center justify-center gap-2">
-                            <CheckCircle size={24} /> Confirmar Pedido
+                        <button onClick={handleFinishSale} disabled={savingOrder || !stockOrigin} className="w-full bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white py-4 rounded-xl font-black text-lg shadow-xl shadow-green-900/20 transition-all flex items-center justify-center gap-2">
+                            <CheckCircle size={24} /> {savingOrder ? 'Salvando pedido...' : 'Registrar pedido'}
                         </button>
+                    </div>
                     </div>
                 </div>
             );
         }
 
         return (
-            <div className="p-4 pb-48">
-                <h2 className="text-2xl font-black text-slate-800 mb-6 flex items-center gap-2">
+            <div className="flex h-full min-h-0 flex-col">
+                <h2 className="shrink-0 p-4 sm:p-5 text-xl font-bold text-slate-800 flex items-center gap-2 border-b border-slate-200">
                     <ShoppingCart /> Carrinho
                 </h2>
 
-                <div className="space-y-3 mb-6">
-                    {cart.map((item, idx) => {
+                <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4 sm:p-5">
+                    {cart.map(item => {
                         const currentPrice = getProductPrice(item.product, item.customPrice);
                         return (
-                            <div key={idx} className="bg-white p-3 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between">
-                                <div className="flex-1">
+                            <div key={item.product.id} className="bg-white p-3 rounded-xl border border-slate-200 flex flex-wrap items-center justify-between gap-3">
+                                <div className="min-w-0 flex-1 basis-36">
                                     <h4 className="font-bold text-slate-800 leading-tight">{item.product.name}</h4>
                                     {isAdmin ? (
                                         <div className="flex items-center gap-1 mt-1">
@@ -987,31 +1065,32 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                                         </p>
                                     )}
                                 </div>
-                                <div className="flex items-center gap-2 bg-slate-50 rounded-lg p-1 border border-slate-100">
-                                    <button onClick={() => updateQuantity(item.product.id, item.quantity - (item.product.category === 'Gelo Sabor' ? 10 : 1))} className="w-8 h-8 flex items-center justify-center text-slate-500 font-bold text-xl active:scale-95">-</button>
+                                <div className="flex shrink-0 items-center gap-1 bg-slate-50 rounded-lg p-1 border border-slate-100">
+                                    <button aria-label={`Diminuir no carrinho: ${item.product.name}`} onClick={() => updateQuantity(item.product.id, item.quantity - (item.product.category === 'Gelo Sabor' ? 10 : 1))} className="w-11 h-11 flex items-center justify-center text-slate-500 font-bold text-xl active:scale-95">-</button>
                                     <input
                                         type="number"
+                                        aria-label={`Quantidade no carrinho de ${item.product.name}`}
                                         value={item.quantity || ''}
                                         onChange={(e) => updateQuantity(item.product.id, parseInt(e.target.value) || 0)}
                                         onFocus={(e) => e.target.select()}
                                         className="w-10 text-center font-bold text-slate-800 bg-transparent outline-none hide-arrows"
                                     />
-                                    <button onClick={() => updateQuantity(item.product.id, item.quantity + (item.product.category === 'Gelo Sabor' ? 10 : 1))} className="w-8 h-8 flex items-center justify-center text-orange-500 font-bold text-xl active:scale-95">+</button>
+                                    <button aria-label={`Aumentar no carrinho: ${item.product.name}`} onClick={() => updateQuantity(item.product.id, item.quantity + (item.product.category === 'Gelo Sabor' ? 10 : 1))} className="w-11 h-11 flex items-center justify-center text-orange-500 font-bold text-xl active:scale-95">+</button>
                                 </div>
                             </div>
                         );
                     })}
                 </div>
 
-                <div className="fixed bottom-20 left-4 right-4 z-10">
-                    <div className="bg-white p-4 rounded-2xl shadow-2xl border border-slate-200 flex items-center justify-between">
+                <div className="shrink-0 border-t border-slate-200 bg-white p-4 sm:p-5">
+                    <div className="flex flex-wrap items-center justify-between gap-3 lg:flex-col lg:items-stretch">
                         <div>
                             <p className="text-xs font-bold text-slate-500 uppercase">Total</p>
                             <p className="text-2xl font-black text-slate-800">R$ {cartTotal.toFixed(2)}</p>
                         </div>
                         <button
-                            onClick={() => setIsCheckingOut(true)}
-                            className="bg-orange-500 active:bg-orange-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg flex items-center gap-2 transition-all"
+                            onClick={() => { setActiveTab('CART'); setIsCheckingOut(true); }}
+                            className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-colors"
                         >
                             Avançar <ArrowLeft size={18} className="rotate-180" />
                         </button>
@@ -1021,165 +1100,9 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
         );
     };
 
-    const getMissingCustomerFields = (customer: Customer): string[] => {
-        const missing: string[] = [];
-        if (!customer.razaoSocial) missing.push('Razão Social');
-        if (!customer.logradouro) missing.push('Logradouro');
-        if (!customer.numero) missing.push('Número');
-        if (!customer.bairro) missing.push('Bairro');
-        if (!customer.city) missing.push('Cidade');
-        if (!customer.state) missing.push('UF');
-        if (!customer.phone) missing.push('Telefone');
-        if (!customer.zipCode) missing.push('CEP');
-        return missing;
-    };
-
-    const handleEmitirNfe = async () => {
-        if (!nfeSale) return;
-
-        const customer = myCustomers.find(c =>
-            c.name.toLowerCase() === nfeSale.customerName.toLowerCase()
-        );
-
-        if (customer) {
-            const missing = getMissingCustomerFields(customer);
-            if (missing.length > 0) {
-                setNfeDetailsForm({
-                    razaoSocial: customer.razaoSocial || '',
-                    inscricaoEstadual: customer.inscricaoEstadual || '',
-                    logradouro: customer.logradouro || '',
-                    numero: customer.numero || '',
-                    bairro: customer.bairro || '',
-                    city: customer.city || '',
-                    state: customer.state || '',
-                    phone: customer.phone || '',
-                    zipCode: customer.zipCode || '',
-                });
-                setNfeStep('DADOS_FISCAIS');
-                return;
-            }
-            const hasAddress = customer.logradouro &&
-                customer.bairro &&
-                customer.city &&
-                customer.state;
-
-            if (!hasAddress) {
-                setNfeDetailsForm({
-                    razaoSocial: customer.razaoSocial || '',
-                    inscricaoEstadual: customer.inscricaoEstadual || '',
-                    logradouro: customer.logradouro || '',
-                    numero: customer.numero || '',
-                    bairro: customer.bairro || '',
-                    city: customer.city || '',
-                    state: customer.state || '',
-                    phone: customer.phone || '',
-                    zipCode: customer.zipCode || '',
-                });
-                setNfeStep('DADOS_FISCAIS');
-                return;
-            }
-        }
-
-        setNfeStep('PROCESSING');
-        try {
-            const updated = { ...nfeSale, nfeStatus: 'pendente' as const };
-            await dbSales.update(updated);
-            const result = await invoiceService.emitNFCe(nfeSale, nfeCpf);
-            if (result.success) {
-                await dbSales.update({
-                    ...updated,
-                    hasInvoice: true,
-                    nfeStatus: 'autorizada',
-                    invoiceKey: result.invoiceKey,
-                    invoiceUrl: result.invoiceUrl,
-                    nfeXml: result.nfeXml,
-                    nfeNumber: result.nfeNumber,
-                    nfeIssuedAt: new Date().toISOString(),
-                });
-                setNfeStep('SUCCESS');
-            } else {
-                await dbSales.update({ ...updated, nfeStatus: 'rejeitada' });
-                alert("Erro ao emitir nota: " + result.message);
-                setNfeStep('FORM');
-            }
-        } catch (e) {
-            console.error(e);
-            await dbSales.update({ ...nfeSale, nfeStatus: 'rejeitada', hasInvoice: false });
-            alert("Erro técnico ao tentar emitir nota.");
-            setNfeStep('FORM');
-        }
-    };
-
-    const handleSaveCustomerDetailsAndEmit = async () => {
-        if (!nfeSale) return;
-
-        const customer = myCustomers.find(c =>
-            c.name.toLowerCase() === nfeSale.customerName.toLowerCase()
-        );
-
-        const snapshot: InvoiceCustomerDetails = {
-            razaoSocial: nfeDetailsForm.razaoSocial || undefined,
-            inscricaoEstadual: nfeDetailsForm.inscricaoEstadual || undefined,
-            logradouro: nfeDetailsForm.logradouro || undefined,
-            numero: nfeDetailsForm.numero || undefined,
-            bairro: nfeDetailsForm.bairro || undefined,
-            zipCode: nfeDetailsForm.zipCode || undefined,
-            phone: nfeDetailsForm.phone || undefined,
-            city: nfeDetailsForm.city || undefined,
-            state: nfeDetailsForm.state || undefined,
-        };
-
-        try {
-            // 1. Update customer record for future emissions
-            if (customer) {
-                await dbCustomers.update({
-                    ...customer,
-                    razaoSocial: nfeDetailsForm.razaoSocial || customer.razaoSocial,
-                    inscricaoEstadual: nfeDetailsForm.inscricaoEstadual || customer.inscricaoEstadual,
-                    logradouro: nfeDetailsForm.logradouro || customer.logradouro,
-                    numero: nfeDetailsForm.numero || customer.numero,
-                    bairro: nfeDetailsForm.bairro || customer.bairro,
-                    city: nfeDetailsForm.city || customer.city,
-                    state: nfeDetailsForm.state || customer.state,
-                    phone: nfeDetailsForm.phone || customer.phone,
-                    zipCode: nfeDetailsForm.zipCode || customer.zipCode,
-                });
-            }
-
-            // 2. Save snapshot to the sale
-            const saleWithDetails = { ...nfeSale, customerDetails: snapshot };
-            await dbSales.update(saleWithDetails);
-            setNfeSale(saleWithDetails);
-
-            // 3. Proceed with emission
-            setNfeStep('PROCESSING');
-            const result = await invoiceService.emitNFCe(nfeSale, nfeCpf);
-            if (result.success) {
-                await dbSales.update({
-                    ...saleWithDetails,
-                    hasInvoice: true,
-                    nfeStatus: 'autorizada',
-                    invoiceKey: result.invoiceKey,
-                    invoiceUrl: result.invoiceUrl,
-                    nfeXml: result.nfeXml,
-                    nfeNumber: result.nfeNumber,
-                    nfeIssuedAt: new Date().toISOString(),
-                });
-                setNfeStep('SUCCESS');
-            } else {
-                await dbSales.update({ ...saleWithDetails, nfeStatus: 'rejeitada' });
-                alert("Erro ao emitir nota: " + result.message);
-                setNfeStep('DADOS_FISCAIS');
-            }
-        } catch (e) {
-            console.error(e);
-            alert("Erro ao salvar dados do cliente ou emitir nota.");
-            setNfeStep('DADOS_FISCAIS');
-        }
-    };
-
     const renderHistory = () => (
-        <div className="grid gap-4 pb-20 md:pb-0 p-4">
+        <div className="mx-auto grid w-full max-w-7xl gap-4 p-4 sm:p-6 lg:p-0">
+            <h2 className="text-xl font-bold text-slate-800 sm:text-2xl">Histórico de vendas</h2>
             <div className="flex flex-col md:flex-row gap-4 mb-4">
                 <div className="relative flex-1">
                     <Search size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -1197,8 +1120,8 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                     className="px-4 py-3 border border-slate-200 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white font-medium text-slate-700"
                 >
                     <option value="ALL">Todos os Status</option>
-                    <option value="Pending">Pendentes (Fiado)</option>
-                    <option value="Completed">Concluídos</option>
+                    <option value="Pending">Pagamento pendente</option>
+                    <option value="Completed">Quitados</option>
                     <option value="Cancelled">Cancelados</option>
                 </select>
                 <input
@@ -1298,52 +1221,36 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                                     </div>
                                     <div className="flex gap-1.5 flex-wrap justify-start md:justify-end">
                                         <span className={`px-2 py-1 rounded-md text-[10px] md:text-xs font-bold border flex items-center gap-1 ${sale.status === 'Completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : sale.status === 'Finalizado pela Fábrica' ? 'bg-blue-50 text-blue-700 border-blue-200' : sale.status === 'Pending' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
-                                            {sale.status === 'Completed' ? 'Concluído' : sale.status === 'Finalizado pela Fábrica' ? 'Finalizado Fábrica' : sale.status === 'Pending' ? 'Pendente' : 'Cancelado'}
+                                            {sale.status === 'Completed' ? 'Quitado' : sale.status === 'Finalizado pela Fábrica' ? 'Finalizado Fábrica' : sale.status === 'Pending' ? 'Pagamento pendente' : 'Cancelado'}
                                         </span>
                                         <span className="px-2 py-1 rounded-md text-[10px] md:text-xs font-bold bg-slate-50 text-slate-600 border border-slate-200">
                                             {translatePaymentMethod(sale.paymentMethod)}
                                         </span>
-                                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${sale.nfeStatus === 'autorizada' ? 'bg-green-100 text-green-700' : sale.nfeStatus === 'pendente' ? 'bg-amber-100 text-amber-700' : sale.nfeStatus === 'rejeitada' ? 'bg-red-100 text-red-700' : sale.nfeStatus === 'cancelada' ? 'bg-slate-200 text-slate-500' : 'bg-slate-100 text-slate-500'}`}>
-                                            {sale.nfeStatus === 'autorizada' ? 'NF-e OK' : sale.nfeStatus === 'pendente' ? 'Pendente SEFAZ' : sale.nfeStatus === 'rejeitada' ? 'Rejeitada' : sale.nfeStatus === 'cancelada' ? 'Cancelada' : 'Sem NF-e'}
+                                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${sale.nfeStatus === 'autorizada' && sale.nfeEnvironment === 1 ? 'bg-green-100 text-green-700' : sale.nfeStatus === 'autorizada' && sale.nfeEnvironment === 2 ? 'bg-blue-100 text-blue-700' : ['pendente', 'pendente_emissao', 'pendente_consulta', 'pendente_cancelamento', 'rascunho'].includes(sale.nfeStatus || '') ? 'bg-amber-100 text-amber-700' : sale.nfeStatus === 'rejeitada' ? 'bg-red-100 text-red-700' : sale.nfeStatus === 'cancelada' ? 'bg-slate-200 text-slate-500' : 'bg-slate-100 text-slate-500'}`}>
+                                            {sale.nfeStatus === 'autorizada' && sale.nfeEnvironment === 2 ? 'Teste SEFAZ' : sale.nfeStatus === 'autorizada' ? 'NF-e OK' : sale.nfeStatus === 'rascunho' ? 'Nota salva' : sale.nfeStatus === 'pendente_consulta' ? 'Consultar SEFAZ' : sale.nfeStatus === 'pendente_cancelamento' ? 'Consultar cancelamento' : ['pendente', 'pendente_emissao'].includes(sale.nfeStatus || '') ? 'Pendente SEFAZ' : sale.nfeStatus === 'rejeitada' ? 'Rejeitada' : sale.nfeStatus === 'cancelada' ? 'Cancelada' : 'Sem NF-e'}
                                         </span>
                                     </div>
                                     <div className="flex flex-wrap gap-2 mt-3 md:justify-end w-full">
-                                        {sale.status === 'Pending' && (
+                                        {sale.status !== 'Cancelled' && <span className="w-full text-xs font-semibold text-slate-500">{hasSaleStockCommitted(sale) ? 'Estoque comprometido' : 'Conferir baixa anterior'}</span>}
+                                        {(sale.status === 'Pending' || (sale.status === 'Completed' && !hasSaleStockCommitted(sale) && (sale.amountPaid || 0) > 0)) && (
                                             <>
                                                 <button
                                                     onClick={() => openDebtPaymentModal(sale)}
-                                                    className="flex-1 md:flex-none justify-center text-xs font-bold text-orange-700 flex items-center gap-1.5 cursor-pointer bg-orange-50 px-3 py-2 rounded-lg hover:bg-orange-100 transition-colors border border-orange-200 shadow-sm"
+                                                    className="flex-1 md:flex-none justify-center text-xs font-bold text-white flex items-center gap-1.5 cursor-pointer bg-emerald-600 px-3 py-2 rounded-lg hover:bg-emerald-700 transition-colors border border-emerald-700 shadow-sm"
                                                 >
-                                                    <Banknote size={14} /> Receber
+                                                    <CheckCircle size={14} /> Confirmar pagamento
                                                 </button>
-                                                {isAdmin && (
-                                                    <button
-                                                        onClick={() => {
-                                                            if (confirm("Confirmar recebimento deste pedido de atacado? Status mudará para 'Finalizado pela Fábrica'.")) {
-                                                                onUpdateSale?.({ ...sale, status: 'Finalizado pela Fábrica' });
-                                                            }
-                                                        }}
-                                                        className="flex-1 md:flex-none justify-center text-xs font-bold text-white flex items-center gap-1.5 cursor-pointer bg-emerald-600 px-3 py-2 rounded-lg hover:bg-emerald-700 transition-colors shadow-sm"
-                                                    >
-                                                        <CheckCircle size={14} /> Confirmar Recebimento
-                                                    </button>
-                                                )}
                                             </>
                                         )}
                                         {sale.status !== 'Cancelled' && (
                                             <div className="flex gap-2 flex-1 md:flex-none min-w-full md:min-w-0 mt-1 md:mt-0">
-                                                {(sale.nfeStatus === 'nao_emitir' || !sale.nfeStatus) && (
-                                                    <button onClick={() => {
-                                                        const c = customers.find(c2 => c2.name === sale.customerName);
-                                                        setNfeSale(sale);
-                                                        setNfeStep('FORM');
-                                                        setNfeCpf(c?.cpfCnpj || '');
-                                                    }} className="flex-1 md:flex-none justify-center text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 rounded flex items-center gap-1 font-bold border border-blue-200 px-3 py-2">
-                                                        <Send size={14} /> NF-e
+                                                {sale.nfeStatus !== 'cancelada' && (
+                                                    <button onClick={() => setNfeSale(sale)} className="flex-1 md:flex-none justify-center text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 rounded flex items-center gap-1 font-bold border border-blue-200 px-3 py-2">
+                                                        <FileText size={14} /> Nota fiscal
                                                     </button>
                                                 )}
-                                                {sale.nfeStatus === 'autorizada' && (
-                                                    <button onClick={() => generateDanfe(sale)} className="flex-1 md:flex-none justify-center text-xs bg-green-50 hover:bg-green-100 text-green-700 rounded flex items-center gap-1 font-bold border border-green-200 px-3 py-2">
+                                                {isAdmin && sale.nfeStatus === 'autorizada' && (
+                                                    <button disabled={!fiscalIntegration.getStatus().configured} title={fiscalIntegration.getStatus().message} className="flex-1 md:flex-none justify-center text-xs bg-green-50 hover:bg-green-100 text-green-700 rounded flex items-center gap-1 font-bold border border-green-200 px-3 py-2">
                                                         <Download size={14} /> DANFE
                                                     </button>
                                                 )}
@@ -1373,13 +1280,13 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
     );
 
     return (
-        <div className="h-[100dvh] overflow-hidden bg-slate-50 flex flex-col font-sans">
+        <div className="app-shell h-[100dvh] min-h-0 w-full min-w-0 flex-1 overflow-hidden bg-slate-50 flex flex-col font-sans [&_button:focus-visible]:outline [&_button:focus-visible]:outline-2 [&_button:focus-visible]:outline-offset-2 [&_button:focus-visible]:outline-orange-500">
             {/* Top Header */}
-            <header className="bg-blue-900 text-white sticky top-0 z-20 w-full pt-safe shadow-xl">
-                <div className="h-16 flex items-center justify-between px-4">
+            <header className="shrink-0 bg-blue-900 text-white z-20 w-full pt-safe shadow-sm">
+                <div className="mx-auto max-w-[1600px] h-16 lg:h-20 flex items-center justify-between gap-4 px-4 sm:px-6">
                     <div className="flex items-center gap-2">
                         {onBack && (
-                            <button onClick={onBack} className="p-2 hover:bg-white/10 rounded-xl transition-colors active-scale touch-target">
+                            <button onClick={onBack} aria-label="Voltar à gestão" className="p-2 hover:bg-white/10 rounded-xl transition-colors active-scale touch-target">
                                 <ArrowLeft size={20} />
                             </button>
                         )}
@@ -1387,14 +1294,19 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                             <img src="/logo.png" alt="Logo" className="h-6 w-auto object-contain" />
                         </div>
                         <div className="flex flex-col ml-1">
-                            <h1 className="font-black leading-none text-sm uppercase tracking-wider">Pedidos</h1>
-                            <p className="text-[9px] text-blue-200 uppercase tracking-[0.2em] font-black">Atacado</p>
+                            <h1 className="font-bold leading-none text-sm sm:text-lg" style={{ color: '#fff' }}>PDV Atacado</h1>
+                            <p className="mt-1 text-xs text-blue-200">Gelo do Sertão</p>
                         </div>
                     </div>
+                    <nav aria-label="Navegação do PDV" className="hidden items-center gap-2 lg:flex">
+                        <button onClick={() => { setActiveTab('CATALOG'); setIsCheckingOut(false); }} aria-current={activeTab !== 'HISTORY' && !isCheckingOut ? 'page' : undefined} className={`flex items-center gap-2 rounded-lg px-4 py-3 text-sm font-bold transition-colors ${activeTab !== 'HISTORY' && !isCheckingOut ? 'bg-white text-blue-900' : 'text-blue-100 hover:bg-white/10'}`}><Store size={18} /> Novo pedido</button>
+                        {activeTab === 'CART' && isCheckingOut && <span aria-current="page" className="rounded-lg bg-white px-4 py-3 text-sm font-bold text-blue-900">Finalizar pedido</span>}
+                        <button onClick={() => { setActiveTab('HISTORY'); setIsCheckingOut(false); }} aria-current={activeTab === 'HISTORY' ? 'page' : undefined} className={`flex items-center gap-2 rounded-lg px-4 py-3 text-sm font-bold transition-colors ${activeTab === 'HISTORY' ? 'bg-white text-blue-900' : 'text-blue-100 hover:bg-white/10'}`}><History size={18} /> Vendas</button>
+                    </nav>
                     <div className="flex items-center gap-3">
                         <div className="text-right hidden sm:block">
-                            <p className="text-sm font-bold truncate max-w-[80px]">{currentUser.name.split(' ')[0]}</p>
-                            <p className="text-[10px] text-blue-300 font-bold uppercase tracking-widest">Vendedor</p>
+                            <p className="text-sm font-bold truncate max-w-[160px]">{currentUser.name.split(' ')[0]}</p>
+                            <p className="text-xs text-blue-200">{isAdmin ? 'Administrador' : 'Vendedor'}</p>
                         </div>
                         <button onClick={onLogout} className="p-2 bg-white/10 text-white hover:bg-red-500/20 hover:text-red-200 rounded-xl transition-all active-scale touch-target" aria-label="Sair">
                             <LogOut size={18} />
@@ -1404,17 +1316,25 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
             </header>
 
             {/* Main Content Area */}
-            <main className="flex-1 overflow-y-auto pb-16 md:pb-0">
-                {activeTab === 'CATALOG' && renderCatalog()}
-                {activeTab === 'CART' && renderCart()}
-                {activeTab === 'HISTORY' && renderHistory()}
+            <main className="mx-auto w-full max-w-[1600px] flex-1 min-h-0 overflow-hidden lg:p-6">
+                {activeTab === 'HISTORY' ? (
+                    <section aria-label="Vendas" className="h-full overflow-y-auto">{renderHistory()}</section>
+                ) : activeTab === 'CART' && isCheckingOut ? (
+                    <section aria-label="Finalização do pedido" className="h-full overflow-y-auto">{renderCart()}</section>
+                ) : (
+                    <div className="grid h-full min-h-0 grid-cols-1 gap-0 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-6 xl:grid-cols-[minmax(0,1fr)_400px]">
+                        <section aria-label="Catálogo" className={`min-h-0 min-w-0 overflow-y-auto lg:block lg:pr-1 ${activeTab === 'CATALOG' ? 'block' : 'hidden'}`}>{renderCatalog()}</section>
+                        <aside aria-label="Carrinho do pedido" className={`min-h-0 min-w-0 overflow-hidden lg:block lg:rounded-2xl lg:border lg:border-slate-200 lg:bg-white ${activeTab === 'CART' ? 'block' : 'hidden'}`}>{renderCart()}</aside>
+                    </div>
+                )}
             </main>
 
             {/* Bottom Navigation */}
-            <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 flex justify-around p-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] shadow-[0_-8px_30px_rgba(0,0,0,0.08)] z-20">
+            <nav aria-label="Navegação do PDV no celular" className="shrink-0 bg-white border-t border-slate-200 flex justify-around gap-1 px-2 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] z-20 lg:hidden">
                 <button
                     onClick={() => { setActiveTab('CATALOG'); setIsCheckingOut(false); }}
-                    className={`flex flex-col items-center p-2 px-6 rounded-2xl transition-all active-scale touch-target ${activeTab === 'CATALOG' ? 'text-orange-500 bg-orange-50/50 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                    aria-current={activeTab === 'CATALOG' ? 'page' : undefined}
+                    className={`flex flex-1 min-w-0 flex-col items-center p-2 rounded-xl transition-colors touch-target ${activeTab === 'CATALOG' ? 'text-orange-600 bg-orange-50' : 'text-slate-500 hover:text-slate-700'}`}
                 >
                     <Store size={24} className={activeTab === 'CATALOG' ? 'scale-110 transition-transform' : ''} />
                     <span className="text-[10px] font-black uppercase tracking-[0.1em] mt-1">Produtos</span>
@@ -1422,12 +1342,13 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
 
                 <button
                     onClick={() => setActiveTab('CART')}
-                    className={`relative flex flex-col items-center p-2 px-6 rounded-2xl transition-all active-scale touch-target ${activeTab === 'CART' ? 'text-orange-500 bg-orange-50/50 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                    aria-current={activeTab === 'CART' ? 'page' : undefined}
+                    className={`relative flex flex-1 min-w-0 flex-col items-center p-2 rounded-xl transition-colors touch-target ${activeTab === 'CART' ? 'text-orange-600 bg-orange-50' : 'text-slate-500 hover:text-slate-700'}`}
                 >
                     <div className="relative">
                         <ShoppingCart size={24} className={activeTab === 'CART' ? 'scale-110 transition-transform' : ''} />
                         {cart.length > 0 && (
-                            <span className="absolute -top-2 -right-2 bg-red-600 text-white text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-full border-2 border-white shadow-md animate-in zoom-in duration-300">
+                            <span className="absolute -top-2 left-4 bg-red-600 text-white text-[10px] font-bold min-w-5 h-5 px-1 flex items-center justify-center rounded-full border-2 border-white">
                                 {cart.reduce((a, b) => a + b.quantity, 0)}
                             </span>
                         )}
@@ -1437,7 +1358,8 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
 
                 <button
                     onClick={() => { setActiveTab('HISTORY'); setIsCheckingOut(false); }}
-                    className={`flex flex-col items-center p-2 px-6 rounded-2xl transition-all active-scale touch-target ${activeTab === 'HISTORY' ? 'text-orange-500 bg-orange-50/50 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                    aria-current={activeTab === 'HISTORY' ? 'page' : undefined}
+                    className={`flex flex-1 min-w-0 flex-col items-center p-2 rounded-xl transition-colors touch-target ${activeTab === 'HISTORY' ? 'text-orange-600 bg-orange-50' : 'text-slate-500 hover:text-slate-700'}`}
                 >
                     <History size={24} className={activeTab === 'HISTORY' ? 'scale-110 transition-transform' : ''} />
                     <span className="text-[10px] font-black uppercase tracking-[0.1em] mt-1">Vendas</span>
@@ -1456,16 +1378,10 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
 
                         <div className="p-4 space-y-4">
                             <div>
-                                <label className="block text-sm font-bold text-slate-700 mb-1">Status</label>
-                                <select
-                                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
-                                    value={editingSale.status}
-                                    onChange={(e) => setEditingSale({ ...editingSale, status: e.target.value as any })}
-                                >
-                                    <option value="Completed">Concluído</option>
-                                    <option value="Pending">Pendente</option>
-                                    <option value="Cancelled">Cancelado</option>
-                                </select>
+                                <p className="text-sm font-bold text-slate-700">Pagamento: {editingSale.status === 'Completed' || editingSale.status === 'Finalizado pela Fábrica' ? 'Quitado' : editingSale.status === 'Cancelled' ? 'Cancelado' : 'Pendente'}</p>
+                                <p className="mt-1 text-xs text-slate-500">Use Confirmar pagamento para registrar parcelas. O estoque é comprometido na criação; alterações de quantidade movimentam apenas a diferença.</p>
+                                <label htmlFor="edit-stock-origin" className="mt-3 block text-sm font-bold text-slate-700">Origem do estoque</label>
+                                <select id="edit-stock-origin" disabled={hasSaleStockCommitted(editingSale)} value={editingSale.matrizDeposit || ''} onChange={event => setEditingSale({ ...editingSale, matrizDeposit: event.target.value as Sale['matrizDeposit'] })} className="mt-2 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3"><option value="">Selecione o depósito</option><option value="Ibotirama">Ibotirama</option><option value="Barreiras">Barreiras</option></select>
                             </div>
 
                             {isAdmin && (
@@ -1474,6 +1390,7 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                                     <select
                                         className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
                                         value={editingSale.paymentMethod}
+                                        disabled={(editingSale.amountPaid || 0) > 0 || (editingSale.fulfillmentStatus === undefined && (editingSale.status === 'Completed' || editingSale.status === 'Finalizado pela Fábrica'))}
                                         onChange={(e) => setEditingSale({ ...editingSale, paymentMethod: e.target.value as any })}
                                     >
                                         <option value="Pix">PIX</option>
@@ -1525,7 +1442,7 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                                 <div className="flex justify-between items-center mt-3 bg-slate-100 p-3 rounded-lg border border-slate-200">
                                     <span className="text-sm font-bold text-slate-700">Novo Total:</span>
                                     <span className="text-xl font-black text-orange-600">
-                                        R$ {editingSale.items.reduce((acc, item) => acc + (item.priceAtSale * item.quantity), 0).toFixed(2)}
+                                        R$ {(editingSale.items.reduce((acc, item) => acc + (item.priceAtSale * item.quantity), 0) + (editingSale.deliveryFee || 0) - (editingSale.discount || 0)).toFixed(2)}
                                     </span>
                                 </div>
                             </div>
@@ -1725,6 +1642,9 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                         <p className="text-slate-500 font-medium mb-8">O pedido foi enviado para conferência administrativa.</p>
 
                         <div className="space-y-3">
+                            <button onClick={() => { if (lastCompletedSale) { setNfeSale(lastCompletedSale); setShowSuccessModal(false); } }} className="w-full rounded-2xl border border-blue-600 py-3 font-bold text-blue-700">
+                                Ver situação fiscal
+                            </button>
                             <button
                                 onClick={() => lastCompletedSale && handlePrint(lastCompletedSale)}
                                 className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-2xl font-black flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20 active:scale-95 transition-all text-lg"
@@ -1742,167 +1662,22 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                 </div>
             )}
 
-            {/* NF-e Modal */}
-            {nfeSale && (
-                <div className="fixed inset-0 bg-blue-900/50 backdrop-blur-sm z-50 flex items-start sm:items-center justify-center p-4 pt-safe-offset-4 sm:p-4 overflow-y-auto animate-in fade-in duration-200">
-                    <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
-                        <div className="p-4 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
-                            <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                                <FileText size={18} className="text-blue-600" /> Emissão de NF-e
+            {nfeSale && <FiscalIntegrationModal
+                sale={sales.find(sale => sale.id === nfeSale.id) || nfeSale}
+                onClose={() => setNfeSale(null)}
+            />}
+
+            {showDebtModal && selectedDebtSale && createPortal(
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[120] flex items-start sm:items-center justify-center p-4 pt-safe-offset-4 sm:p-4 overflow-y-auto animate-in fade-in duration-200">
+                    <div role="dialog" aria-modal="true" aria-labelledby="confirm-order-title" className="bg-white w-full max-w-md max-h-[calc(100dvh-2rem)] rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+                        <div className="shrink-0 p-4 bg-emerald-600 text-white flex justify-between items-center">
+                            <h3 id="confirm-order-title" className="font-bold flex items-center gap-2">
+                                <CheckCircle size={20} /> Confirmar pagamento
                             </h3>
-                            <button onClick={() => setNfeSale(null)} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
+                            <button disabled={savingPayment} aria-label="Fechar confirmação do pedido" onClick={() => setShowDebtModal(false)}><X size={20} /></button>
                         </div>
 
-                        <div className="p-6">
-                            {nfeStep === 'FORM' && (
-                                <>
-                                    <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-100 text-sm text-blue-700">
-                                        <p><strong>Venda #{nfeSale.id.substring(0, 8)}</strong> — {nfeSale.customerName}</p>
-                                        <p>Valor: <strong>R$ {nfeSale.total.toFixed(2)}</strong></p>
-                                    </div>
-
-                                    <div className="space-y-4">
-                                        <div>
-                                            <label className="block text-sm font-medium text-slate-700 mb-1">CPF / CNPJ do Cliente</label>
-                                            <input
-                                                type="text"
-                                                placeholder="000.000.000-00"
-                                                className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:outline-none"
-                                                value={nfeCpf}
-                                                onChange={(e) => setNfeCpf(e.target.value)}
-                                            />
-                                        </div>
-                                        {(() => {
-                                            const c = customers.find(c2 => c2.name === nfeSale.customerName);
-                                            if (!c) return null;
-                                            return (
-                                                <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 text-xs text-slate-600 space-y-1">
-                                                    {c.razaoSocial && <p><span className="font-medium text-slate-700">Razão Social:</span> {c.razaoSocial}</p>}
-                                                    {c.inscricaoEstadual && <p><span className="font-medium text-slate-700">IE:</span> {c.inscricaoEstadual}</p>}
-                                                    <p>
-                                                        <span className="font-medium text-slate-700">Endereço:</span>{' '}
-                                                        {[c.logradouro, c.numero, c.bairro, c.city, c.state].filter(Boolean).join(', ') || 'Não informado'}
-                                                    </p>
-                                                </div>
-                                            );
-                                        })()}
-                                    </div>
-
-                                    <button
-                                        onClick={handleEmitirNfe}
-                                        className="w-full mt-6 bg-blue-600 hover:bg-blue-500 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20 transition-all"
-                                    >
-                                        <Send size={18} /> Transmitir para SEFAZ
-                                    </button>
-                                </>
-                            )}
-
-                            {nfeStep === 'DADOS_FISCAIS' && (
-                                <div className="space-y-4">
-                                    <div className="mb-2 p-3 bg-amber-50 rounded-lg border border-amber-200 text-sm text-amber-800">
-                                        <p className="font-bold flex items-center gap-1"><AlertTriangle size={16} /> Dados fiscais incompletos</p>
-                                        <p className="text-xs mt-1">Preencha os dados abaixo para emitir a NF-e. Eles serão salvos no cadastro do cliente para emissões futuras.</p>
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Razão Social</label>
-                                        <input type="text" placeholder="Razão Social" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:outline-none" value={nfeDetailsForm.razaoSocial || ''} onChange={(e) => setNfeDetailsForm(p => ({ ...p, razaoSocial: e.target.value }))} />
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Inscrição Estadual</label>
-                                        <input type="text" placeholder="Inscrição Estadual" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:outline-none" value={nfeDetailsForm.inscricaoEstadual || ''} onChange={(e) => setNfeDetailsForm(p => ({ ...p, inscricaoEstadual: e.target.value }))} />
-                                    </div>
-                                    <div className="grid grid-cols-3 gap-2">
-                                        <div className="col-span-2">
-                                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Logradouro</label>
-                                            <input type="text" placeholder="Logradouro" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:outline-none" value={nfeDetailsForm.logradouro || ''} onChange={(e) => setNfeDetailsForm(p => ({ ...p, logradouro: e.target.value }))} />
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Número</label>
-                                            <input type="text" placeholder="Nº" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:outline-none" value={nfeDetailsForm.numero || ''} onChange={(e) => setNfeDetailsForm(p => ({ ...p, numero: e.target.value }))} />
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Bairro</label>
-                                        <input type="text" placeholder="Bairro" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:outline-none" value={nfeDetailsForm.bairro || ''} onChange={(e) => setNfeDetailsForm(p => ({ ...p, bairro: e.target.value }))} />
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <div>
-                                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Cidade</label>
-                                            <input type="text" placeholder="Cidade" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:outline-none" value={nfeDetailsForm.city || ''} onChange={(e) => setNfeDetailsForm(p => ({ ...p, city: e.target.value }))} />
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">UF</label>
-                                            <input type="text" placeholder="UF" maxLength={2} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:outline-none uppercase" value={nfeDetailsForm.state || ''} onChange={(e) => setNfeDetailsForm(p => ({ ...p, state: e.target.value }))} />
-                                        </div>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <div>
-                                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">CEP</label>
-                                            <input type="text" placeholder="CEP" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:outline-none" value={nfeDetailsForm.zipCode || ''} onChange={(e) => setNfeDetailsForm(p => ({ ...p, zipCode: e.target.value }))} />
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Telefone</label>
-                                            <input type="text" placeholder="Telefone" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:outline-none" value={nfeDetailsForm.phone || ''} onChange={(e) => setNfeDetailsForm(p => ({ ...p, phone: e.target.value }))} />
-                                        </div>
-                                    </div>
-                                    <button
-                                        onClick={handleSaveCustomerDetailsAndEmit}
-                                        className="w-full bg-blue-600 hover:bg-blue-500 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20 transition-all"
-                                    >
-                                        <Send size={18} /> Salvar e Transmitir para SEFAZ
-                                    </button>
-                                    <button
-                                        onClick={() => setNfeStep('FORM')}
-                                        className="w-full bg-slate-100 hover:bg-slate-200 text-slate-600 py-2 rounded-lg font-medium text-sm"
-                                    >
-                                        Voltar
-                                    </button>
-                                </div>
-                            )}
-
-                            {nfeStep === 'PROCESSING' && (
-                                <div className="flex flex-col items-center justify-center py-8">
-                                    <div className="w-12 h-12 border-4 border-blue-100 border-t-blue-500 rounded-full animate-spin mb-4"></div>
-                                    <h4 className="font-bold text-slate-800">Autorizando Nota...</h4>
-                                    <p className="text-sm text-slate-500">Conectando aos servidores da SEFAZ</p>
-                                </div>
-                            )}
-
-                            {nfeStep === 'SUCCESS' && (
-                                <div className="flex flex-col items-center justify-center py-4 text-center">
-                                    <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-4">
-                                        <CheckCircle size={32} />
-                                    </div>
-                                    <h4 className="text-xl font-bold text-slate-800 mb-1">Nota Autorizada!</h4>
-                                    <p className="text-sm text-slate-500 mb-6">Chave: {nfeSale.invoiceKey || 'Processada com sucesso'}</p>
-
-                                    <div className="flex gap-3 w-full">
-                                        <button
-                                            onClick={() => setNfeSale(null)}
-                                            className="flex-1 bg-blue-600 hover:bg-blue-500 text-white py-2 rounded-lg font-medium"
-                                        >
-                                            Fechar
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* --- DEBT PAYMENT MODAL --- */}
-            {showDebtModal && selectedDebtSale && (
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-start sm:items-center justify-center p-4 pt-safe-offset-4 sm:p-4 overflow-y-auto animate-in fade-in duration-200">
-                    <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col ">
-                        <div className="p-4 bg-orange-600 text-white flex justify-between items-center">
-                            <h3 className="font-bold flex items-center gap-2">
-                                <Banknote size={20} /> Registrar Pagamento de Fiado
-                            </h3>
-                            <button onClick={() => setShowDebtModal(false)}><X size={20} /></button>
-                        </div>
-
-                        <div className="p-6 space-y-4">
+                        <div className="p-6 space-y-4 overflow-y-auto">
                             <div>
                                 <p className="text-sm text-slate-500 mb-1">Cliente</p>
                                 <p className="font-bold text-lg text-slate-800">{selectedDebtSale.customerName}</p>
@@ -1923,6 +1698,23 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                                 </div>
                             </div>
 
+                            <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+                                {isAdmin && canReconcileHistoricalDelivery(selectedDebtSale) && <label className="mb-3 flex items-start gap-2 text-sm text-slate-800">
+                                    <input type="checkbox" className="mt-1" checked={historicalStockAlreadyDebited} disabled={savingPayment} onChange={event => setHistoricalStockAlreadyDebited(event.target.checked)} />
+                                    <span>Pedido já entregue e estoque descontado anteriormente. Registrar somente o pagamento, sem nova baixa.</span>
+                                </label>}
+                                <label htmlFor="payment-stock-origin" className="mb-2 block text-sm font-bold text-slate-700">Origem do estoque</label>
+                                <select id="payment-stock-origin" required disabled={savingPayment || hasSaleStockCommitted(selectedDebtSale)} value={paymentOrigin} onChange={event => setPaymentOrigin(event.target.value as typeof paymentOrigin)} className="min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-slate-900">
+                                    <option value="">Selecione o depósito</option><option value="Ibotirama">Ibotirama</option><option value="Barreiras">Barreiras</option>
+                                </select>
+                                <p className="mt-2 text-sm text-slate-700">{historicalStockAlreadyDebited ? 'A entrega anterior será reconhecida. Este recebimento não altera o estoque.' : hasSaleStockCommitted(selectedDebtSale) ? `Estoque comprometido em ${selectedDebtSale.matrizDeposit || 'depósito registrado'}. Este pagamento abate somente a dívida.` : 'Pedido anterior à nova regra: confira se o estoque já foi descontado. O recebimento não deve gerar outra baixa.'}</p>
+                                <ul className="mt-2 space-y-1 text-xs text-slate-600">{selectedDebtSale.items.map((item, index) => {
+                                    const product = products.find(product => product.id === item.productId);
+                                    return <li key={`${item.productId}-${index}`}>{item.quantity} × {item.productName}{!historicalStockAlreadyDebited && !hasSaleStockCommitted(selectedDebtSale) && product && paymentOrigin && ` · Saldo: ${wholesaleStock(product, paymentOrigin)} ${product.unit}`}</li>;
+                                })}</ul>
+                                {!hasSaleStockCommitted(selectedDebtSale) && (selectedDebtSale.amountPaid || 0) > 0 && <p className="mt-2 text-xs text-slate-600">Já existe um pagamento registrado. <button disabled={savingPayment} onClick={() => setPaymentAmountInput('')} className="font-bold underline">Usar pagamento já registrado</button> confirma o pedido sem criar outra parcela.</p>}
+                            </div>
+
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-bold text-slate-700 mb-1">Data Pagamento</label>
@@ -1934,7 +1726,7 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-bold text-slate-700 mb-1">Valor (R$)</label>
+                                    <label className="block text-sm font-bold text-slate-700 mb-1">Valor recebido agora (R$)</label>
                                     <input
                                         type="number"
                                         className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 font-bold text-lg"
@@ -1974,15 +1766,16 @@ const WholesalePOS: React.FC<WholesalePOSProps> = ({
                             </div>
 
                             <button
+                                disabled={savingPayment || !paymentOrigin}
                                 onClick={handleRegisterPayment}
-                                className="w-full bg-orange-600 hover:bg-orange-700 text-white py-3 rounded-xl font-bold text-lg shadow-lg shadow-orange-900/10 flex items-center justify-center gap-2 mt-2"
+                                className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white py-3 rounded-xl font-bold text-lg shadow-lg flex items-center justify-center gap-2 mt-2"
                             >
-                                <Save size={20} /> Confirmar Pagamento
+                                <CheckCircle size={20} /> {savingPayment ? 'Confirmando pagamento...' : 'Confirmar pagamento'}
                             </button>
                         </div>
                     </div>
                 </div>
-            )}
+            , document.body)}
         </div>
     );
 };

@@ -1,0 +1,112 @@
+- generic [ref=f4e3]:
+  - navigation [ref=f4e4]:
+    - button "inventory" [ref=f4e5] [cursor=pointer]
+    - button "wholesale" [ref=f4e6] [cursor=pointer]
+    - button "production" [ref=f4e7] [cursor=pointer]
+    - button "financial" [ref=f4e8] [cursor=pointer]
+  - generic [ref=f4e9]:
+    - generic [ref=f4e10]:
+      - generic [ref=f4e11]:
+        - button "Voltar à gestão" [ref=f4e12] [cursor=pointer]
+        - generic [ref=f4e15]:
+          - heading "Controle de Estoque" [level=1] [ref=f4e16]
+          - paragraph [ref=f4e17]: Gerenciamento dinâmico de níveis e movimentações
+      - generic [ref=f4e18]:
+        - button "Geral" [ref=f4e19] [cursor=pointer]
+        - button "Matriz" [ref=f4e20] [cursor=pointer]
+        - button "Filial" [ref=f4e21] [cursor=pointer]
+      - generic [ref=f4e22]:
+        - button "Transferir" [ref=f4e23] [cursor=pointer]
+        - button "Novo" [ref=f4e28] [cursor=pointer]
+        - generic [ref=f4e31] [cursor=pointer]:
+          - generic [ref=f4e35]: XML
+          - button "Importar produtos de arquivo XML" [ref=f4e36]
+    - generic [ref=f4e37]:
+      - generic [ref=f4e38]:
+        - textbox "Buscar produto por nome ou categoria" [ref=f4e43]:
+          - /placeholder: Buscar produto por nome ou categoria...
+        - button "Filtrar produtos por categoria" [ref=f4e44] [cursor=pointer]
+      - table [ref=f4e48]:
+        - rowgroup [ref=f4e49]:
+          - row [ref=f4e50]:
+            - columnheader "Produto" [ref=f4e51]
+            - columnheader "Categoria" [ref=f4e52]
+            - columnheader "Preço Varejo (Filial)" [ref=f4e53]
+            - columnheader "Preço Atacado" [ref=f4e54]
+            - columnheader "Matriz (Ibotirama)" [ref=f4e55]
+            - columnheader "Matriz (Barreiras)" [ref=f4e56]
+            - columnheader "Estoque Filial" [ref=f4e57]
+            - columnheader "Status" [ref=f4e58]
+            - columnheader "Ações" [ref=f4e59]
+        - rowgroup [ref=f4e60]:
+          - row [ref=f4e61]:
+            - 'cell "Gelo Cubo 5kg ID: ice" [ref=f4e62]':
+              - paragraph [ref=f4e63]: Gelo Cubo 5kg
+              - generic [ref=f4e64]: "ID: ice"
+            - cell "Gelo Cubo" [ref=f4e65]
+            - cell "R$ 10,00" [ref=f4e66]
+            - cell "R$ 8,00" [ref=f4e67]
+            - cell "100 un" [ref=f4e68]
+            - cell "40 un" [ref=f4e70]
+            - cell "2 un" [ref=f4e72]
+            - cell "OK" [ref=f4e74]
+            - cell [ref=f4e77]:
+              - button "Ajustar" [ref=f4e78] [cursor=pointer]
+              - button "Receita" [ref=f4e80] [cursor=pointer]
+              - button "Registrar Perda" [active] [ref=f4e84] [cursor=pointer]
+              - button "Editar" [ref=f4e87] [cursor=pointer]
+              - button "Excluir Produto" [ref=f4e91] [cursor=pointer]
+          - row [ref=f4e95]:
+            - 'cell "Embalagem 5kg ID: bag" [ref=f4e96]':
+              - paragraph [ref=f4e97]: Embalagem 5kg
+              - generic [ref=f4e98]: "ID: bag"
+            - cell "Insumo (Matéria-prima)" [ref=f4e99]
+            - cell "R$ 10,00" [ref=f4e100]
+            - cell "R$ 8,00" [ref=f4e101]
+            - cell "20 un" [ref=f4e102]
+            - cell "0 un" [ref=f4e104]
+            - cell "0 un" [ref=f4e106]
+            - cell "OK" [ref=f4e108]
+            - cell [ref=f4e111]:
+              - button "Ajustar" [ref=f4e112] [cursor=pointer]
+              - button "Receita" [ref=f4e114] [cursor=pointer]
+              - button "Registrar Perda" [ref=f4e118] [cursor=pointer]
+              - button "Editar" [ref=f4e121] [cursor=pointer]
+              - button "Excluir Produto" [ref=f4e125] [cursor=pointer]
+      - generic [ref=f4e129]: Mostrando 2 produtos
+  - generic [ref=f4e131]:
+    - generic [ref=f4e132]:
+      - heading "Registrar Perda de Estoque" [level=3] [ref=f4e133]
+      - button [ref=f4e136] [cursor=pointer]
+    - generic [ref=f4e140]:
+      - generic [ref=f4e141]:
+        - paragraph [ref=f4e142]: Gelo Cubo 5kg
+        - paragraph [ref=f4e143]: O estoque será deduzido automaticamente.
+      - generic [ref=f4e144]:
+        - generic [ref=f4e145]: Depósito da Perda
+        - combobox "Depósito da Perda" [ref=f4e146]:
+          - option "Ibotirama" [selected]
+          - option "Barreiras"
+          - option "Filial"
+      - generic [ref=f4e147]:
+        - generic [ref=f4e148]:
+          - generic [ref=f4e149]: Quantidade
+          - spinbutton [ref=f4e150]: "1"
+        - generic [ref=f4e151]:
+          - generic [ref=f4e152]: Motivo
+          - combobox [ref=f4e153]:
+            - option "Quebra/Dano" [selected]
+            - option "Derretimento"
+            - option "Validade/Vencido"
+            - option "Roubo/Furto"
+            - option "Consumo Interno"
+            - option "Ajuste de Inventário"
+            - option "Outros"
+      - generic [ref=f4e154]:
+        - strong [ref=f4e155]: "Atenção:"
+        - text: Esta ação reduzirá o estoque atual de
+        - strong [ref=f4e156]: "100"
+        - text: para
+        - strong [ref=f4e157]: "99"
+        - text: .
+      - button "Confirmar Perda" [ref=f4e158] [cursor=pointer]

@@ -1,6 +1,7 @@
+import { registerSalePayment } from '../services/salePayments';
 import React, { useState, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Sale, Branch, Product, Customer, User, PaymentEntry } from '../types';
+import { Sale, Branch, Product, Customer, User } from '../types';
 import { hardwareBridge } from '../services/hardwareBridge';
 import { ShoppingCart, FileText, CheckCircle, Clock, X, Printer, Send, ScanBarcode, Search, Trash2, Plus, Minus, CreditCard, Banknote, QrCode, Bluetooth, ArrowRight, Store, Factory, Calculator, User as UserIcon, UserPlus, Edit, Save, ArrowLeft, Download, Camera, Package, LogOut } from 'lucide-react';
 import html2canvas from 'html2canvas';
@@ -13,10 +14,10 @@ interface SalesProps {
    sales: Sale[];
    products: Product[];
    customers: Customer[];
-   onAddSale: (sale: Sale) => void;
+   onAddSale: (sale: Sale) => Promise<void>;
    onAddCustomer: (customer: Customer) => void;
    currentUser: User;
-   onUpdateSale: (sale: Sale) => void;
+   onUpdateSale: (sale: Sale) => Promise<void>;
    onDeleteSale: (saleId: string) => void;
    onBack?: () => void;
    onLogout?: () => void;
@@ -44,8 +45,17 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
       setShowEditSaleModal(true);
    };
 
-   const handleSaveEditedSale = () => {
+   const handleSaveEditedSale = async () => {
       if (!editingSale) return;
+      const originalSale = sales.find(sale => sale.id === editingSale.id);
+      const isWholesale = editingSale.source === 'ATACADO';
+      const legacyPaid = originalSale?.fulfillmentStatus === undefined
+         && (originalSale?.status === 'Completed' || originalSale?.status === 'Finalizado pela Fábrica');
+      const paid = legacyPaid ? (originalSale?.total || 0) : (editingSale.amountPaid || 0);
+      if (isWholesale && originalSale && editingSale.status !== originalSale.status) {
+         alert('Use Confirmar pedido para registrar pagamentos e a ação de cancelamento para cancelar o pedido.');
+         return;
+      }
 
       // Validation for wholesale orders being completed
       if (editingSale.branch === Branch.MATRIZ && editingSale.status === 'Completed' && !editingSale.matrizDeposit) {
@@ -61,9 +71,18 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
       // However, if we want to allow "Discount" editing, we should probably add a discount field to Sale type or just manipulate total.
       // Let's assume we update total directly from items sum.
 
-      const updatedSale = { ...editingSale, total: newTotal };
+      const updatedSale = { ...editingSale, total: newTotal + (editingSale.deliveryFee || 0) - (editingSale.discount || 0) };
+      if (!Number.isFinite(updatedSale.total) || updatedSale.total < paid
+         || !editingSale.items.length || editingSale.items.some(item => !Number.isFinite(item.quantity) || item.quantity <= 0 || !Number.isFinite(item.priceAtSale) || item.priceAtSale < 0)) {
+         alert('Confira os itens e o total. O pedido não pode ficar abaixo do valor já recebido.');
+         return;
+      }
 
-      onUpdateSale(updatedSale);
+      try {
+         await onUpdateSale(updatedSale);
+      } catch {
+         return;
+      }
       setShowEditSaleModal(false);
       setEditingSale(null);
    };
@@ -86,6 +105,8 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
    const [saleToDownload, setSaleToDownload] = useState<Sale | null>(null); // For downloading history receipt
 
    // --- DEBT PAYMENT STATE ---
+   const [savingPayment, setSavingPayment] = useState(false);
+   const paymentInFlight = useRef(false);
    const [showDebtModal, setShowDebtModal] = useState(false);
    const [selectedDebtSale, setSelectedDebtSale] = useState<Sale | null>(null);
    const [paymentAmountInput, setPaymentAmountInput] = useState('');
@@ -103,50 +124,34 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
       setShowDebtModal(true);
    };
 
-   const handleRegisterPayment = () => {
-      if (!selectedDebtSale) return;
+   const handleRegisterPayment = async () => {
+      if (!selectedDebtSale || paymentInFlight.current) return;
 
-      const amount = parseFloat(paymentAmountInput.replace(',', '.'));
-      if (isNaN(amount) || amount <= 0) {
-         alert('Valor inválido');
-         return;
+      let updatedSale: Sale;
+      try {
+          const currentSale = sales.find(sale => sale.id === selectedDebtSale.id);
+          if (!currentSale) throw new Error('Venda não encontrada. Atualize o histórico.');
+          updatedSale = registerSalePayment(currentSale, {
+              amount: paymentAmountInput, date: paymentDateInput,
+              method: paymentMethodInput, notes: paymentNotesInput,
+          }, selectedDebtSale);
+      } catch (error) {
+          alert((error as Error).message);
+          return;
       }
 
-      const currentPaid = selectedDebtSale.amountPaid || 0;
-      const remaining = selectedDebtSale.total - currentPaid;
-
-      if (amount > remaining + 0.1) {
-         alert(`O valor não pode ser maior que o restante (R$ ${remaining.toFixed(2)})`);
-         return;
+      paymentInFlight.current = true;
+      setSavingPayment(true);
+      try {
+         await onUpdateSale(updatedSale);
+         setShowDebtModal(false);
+         setSelectedDebtSale(null);
+      } catch {
+         alert('Falha ao registrar pagamento. Confira a venda antes de tentar novamente.');
+      } finally {
+         paymentInFlight.current = false;
+         setSavingPayment(false);
       }
-
-      const newEntry: PaymentEntry = {
-         id: crypto.randomUUID(),
-         date: paymentDateInput,
-         amount: amount,
-         method: paymentMethodInput,
-         notes: paymentNotesInput
-      };
-
-      const newPaid = currentPaid + amount;
-      const history = selectedDebtSale.paymentHistory || [];
-      const newHistory = [...history, newEntry];
-
-      // Tolerance for float comparison
-      const isFullyPaid = newPaid >= selectedDebtSale.total - 0.05;
-
-      const updatedSale: Sale = {
-         ...selectedDebtSale,
-         amountPaid: newPaid,
-         paymentHistory: newHistory,
-         status: isFullyPaid ? 'Completed' : 'Pending',
-         // If fully paid, we keep hasInvoice as is (usually false for Fiado), 
-         // user can emit later or we could auto-emit? Keeping manual for flexibility.
-      };
-
-      onUpdateSale(updatedSale);
-      setShowDebtModal(false);
-      setSelectedDebtSale(null);
    };
 
    // --- POS (PDV) STATE ---
@@ -447,7 +452,8 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
       c.cpfCnpj?.includes(customerSearch)
    );
 
-   const processPayment = () => {
+   const processPayment = async () => {
+      if (checkoutStep === 'PROCESSING') return;
       // Validation for Split
       if (selectedPaymentMethod === 'Split') {
          const v1 = parseFloat(splitValue1) || 0;
@@ -461,8 +467,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
 
       setCheckoutStep('PROCESSING');
 
-      // Simulate transaction time
-      setTimeout(() => {
+      try {
          // Generate a unique ID (check against existing sales to be 100% sure)
          let newId = crypto.randomUUID();
          let attempts = 0;
@@ -487,7 +492,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                { method: splitMethod1, amount: parseFloat(splitValue1) },
                { method: splitMethod2, amount: parseFloat(splitValue2) }
             ] : undefined,
-            hasInvoice: !isPendingSale, // Auto emit NFC-e only if completed
+            hasInvoice: false,
             items: cart.map(c => ({
                productId: c.product.id,
                productName: c.isPack ? `${c.product.name} (Fardo c / ${c.product.packSize})` : c.product.name,
@@ -501,11 +506,13 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
          };
 
          // Call Global Add Sale (updates Stock and Sales History)
-         onAddSale(newSale);
+         await onAddSale(newSale);
          setLastCompletedSale(newSale);
 
          setCheckoutStep('RECEIPT');
-      }, 1500);
+      } catch {
+         setCheckoutStep('METHOD');
+      }
    };
 
    const finishSale = () => {
@@ -595,16 +602,16 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
 
    return (
       <>
-         <div className={`animate-in fade-in slide-in-from-bottom-4 duration-500 relative flex flex-col ${activeTab === 'POS' ? 'h-[calc(100dvh-5rem)] md:h-[calc(100dvh-2rem)]' : 'h-full space-y-6'}`}>
+         <div className={`app-shell relative flex min-w-0 flex-col ${activeTab === 'POS' ? 'h-[calc(100dvh-5rem)] md:h-[calc(100dvh-2rem)]' : 'h-full space-y-6'}`}>
             {activeTab !== 'POS' && (
                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
                   <div className="flex items-center gap-3 w-full md:w-auto">
-                     <button onClick={onBack} className="p-2 hover:bg-slate-200 rounded-full transition-colors shrink-0" title="Voltar para Início">
+                     <button onClick={onBack} aria-label="Voltar à gestão" className="p-2 hover:bg-slate-200 rounded-full transition-colors shrink-0 touch-target" title="Voltar para Início">
                         <ArrowLeft size={24} className="text-slate-600" />
                      </button>
                      <div>
-                        <h2 className="text-2xl font-bold text-slate-800">Vendas & PDV</h2>
-                        <p className="text-slate-500 text-xs md:text-sm">Gerencie vendas e emita Notas.</p>
+                        <h1 className="text-2xl font-bold text-slate-900">Vendas & PDV</h1>
+                        <p className="text-slate-500 text-xs md:text-sm">Gerencie vendas e recebimentos.</p>
                      </div>
                   </div>
                   {onLogout && (
@@ -734,6 +741,11 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                                  </div>
                               </div>
                               <div className="flex gap-1.5 flex-wrap justify-start md:justify-end">
+                                 {sale.source === 'ATACADO' && sale.fulfillmentStatus !== undefined && (
+                                    <span className="px-2 py-1 rounded-md text-[10px] md:text-xs font-bold border bg-blue-50 text-blue-700 border-blue-200">
+                                       {sale.fulfillmentStatus === 'dispatched' ? 'Gelo expedido' : 'Aguardando saída'} · {sale.matrizDeposit || 'Origem pendente'}
+                                    </span>
+                                 )}
                                  <span className={`px-2 py-1 rounded-md text-[10px] md:text-xs font-bold border flex items-center gap-1 ${sale.status === 'Completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : sale.status === 'Finalizado pela Fábrica' ? 'bg-blue-50 text-blue-700 border-blue-200' : sale.status === 'Pending' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-red-50 text-red-700 border-red-200'} `}>
                                     {sale.status === 'Completed' ? 'Concluído' : sale.status === 'Finalizado pela Fábrica' ? 'Finalizado Fábrica' : sale.status === 'Pending' ? 'Pendente' : 'Cancelado'}
                                  </span>
@@ -750,18 +762,6 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                                         >
                                            <Banknote size={14} /> Receber
                                         </button>
-                                        {currentUser.role === 'ADMIN' && sale.source === 'ATACADO' && (
-                                           <button
-                                              onClick={() => {
-                                                 if (confirm("Confirmar recebimento deste pedido de atacado? Status mudará para 'Finalizado pela Fábrica'.")) {
-                                                    onUpdateSale({ ...sale, status: 'Finalizado pela Fábrica' });
-                                                 }
-                                              }}
-                                              className="flex-1 md:flex-none justify-center text-xs font-bold text-white flex items-center gap-1.5 cursor-pointer bg-emerald-600 px-3 py-2 rounded-lg hover:bg-emerald-700 transition-colors shadow-sm"
-                                           >
-                                              <CheckCircle size={14} /> Confirmar Recebimento
-                                           </button>
-                                        )}
                                      </>
                                   )}
                                   {currentUser.role === 'ADMIN' && (
@@ -847,10 +847,10 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
 
                      <div className="flex-1 overflow-y-auto bg-white">
                         {cart.length === 0 ? (
-                           <div className="h-full flex flex-col items-center justify-center p-8 text-slate-200">
-                              <ShoppingCart size={56} strokeWidth={1} className="opacity-10 mb-3" />
-                              <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">Carrinho Vazio</p>
-                              <p className="text-[10px] text-slate-300 mt-1">Busque ou escaneie produtos ao lado</p>
+                           <div className="h-full flex flex-col items-center justify-center p-8 text-slate-600 text-center">
+                              <ShoppingCart size={40} strokeWidth={1.5} className="mb-3 text-slate-400" aria-hidden="true" />
+                              <p className="text-sm font-semibold text-slate-800">Carrinho vazio</p>
+                              <p className="mt-1 text-sm">Busque ou escaneie produtos para iniciar a venda.</p>
                            </div>
                         ) : (
                            <div className="divide-y divide-slate-100">
@@ -1302,7 +1302,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                               <div className="flex flex-col items-center justify-center py-12">
                                  <div className="w-16 h-16 border-4 border-blue-100 border-t-orange-500 rounded-full animate-spin mb-6"></div>
                                  <h4 className="text-xl font-bold text-slate-800">Processando...</h4>
-                                 <p className="text-slate-500">Autorizando NFC-e junto à SEFAZ</p>
+                                 <p className="text-slate-500">Registrando venda no sistema de gestão</p>
                               </div>
                            )}
 
@@ -1316,7 +1316,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                                     <p className="text-slate-500">Venda registrada com sucesso.</p>
                                  </div>
 
-                                 {/* Simulated Thermal Receipt */}
+                                 {/* Management receipt */}
                                  <div id="receipt-content" className="bg-yellow-50 border border-yellow-100 p-2 px-[2mm] rounded-none font-mono text-[10px] text-black mb-6 shadow-inner overflow-hidden mx-auto w-[40mm] shrink-0">
                                     <div className="text-center mb-4 border-b border-yellow-200 pb-4">
                                        <h2 className="font-bold text-[11px] uppercase leading-tight whitespace-pre-wrap">
@@ -1365,12 +1365,9 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                                        </div>
                                     )}
                                     <div className="text-center mt-4 pt-2 border-t border-yellow-200">
-                                       <p className="font-bold text-sm">CUPOM FISCAL</p>
+                                       <p className="font-bold text-sm">COMPROVANTE NÃO FISCAL</p>
                                        <p>Nº {lastCompletedSale?.id.padStart(6, '0')}</p>
                                        <p className="text-[10px] mt-1">{new Date().toLocaleString()}</p>
-                                       <div className="w-24 h-24 bg-white mx-auto mt-2 flex items-center justify-center text-[8px] text-center p-1 border border-slate-200">
-                                          [QR CODE]
-                                       </div>
                                     </div>
                                  </div>
 
@@ -1431,6 +1428,7 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                                  <select
                                     className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
                                     value={editingSale.status}
+                                    disabled={editingSale.source === 'ATACADO'}
                                     onChange={(e) => setEditingSale({ ...editingSale, status: e.target.value as any })}
                                  >
                                     <option value="Completed">Concluído</option>
@@ -1438,12 +1436,14 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                                     <option value="Finalizado pela Fábrica">Finalizado pela Fábrica</option>
                                     <option value="Cancelled">Cancelado</option>
                                  </select>
+                                 {editingSale.source === 'ATACADO' && <p className="mt-1 text-xs text-slate-500">Confirmar pedido registra o pagamento e baixa o estoque uma única vez, no depósito escolhido.</p>}
                               </div>
                               <div>
                                  <label className="block text-sm font-bold text-slate-700 mb-1">Método de Pagamento</label>
                                  <select
                                     className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
                                     value={editingSale.paymentMethod}
+                                    disabled={editingSale.source === 'ATACADO' && ((editingSale.amountPaid || 0) > 0 || !!editingSale.paymentHistory?.length || (editingSale.fulfillmentStatus === undefined && (editingSale.status === 'Completed' || editingSale.status === 'Finalizado pela Fábrica')))}
                                     onChange={(e) => setEditingSale({ ...editingSale, paymentMethod: e.target.value as PaymentMethod })}
                                  >
                                     <option value="Cash">Dinheiro</option>
@@ -1634,11 +1634,8 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                         <span>{formatCurrency((lastCompletedSale || saleToDownload || saleToDownload)?.total || 0)}</span>
                      </div>
                      <div className="text-center mt-4 pt-2 border-t border-black">
-                        <p className="font-bold">CUPOM FISCAL</p>
+                        <p className="font-bold">COMPROVANTE NÃO FISCAL</p>
                         <p>Nº {(lastCompletedSale || saleToDownload || saleToDownload)?.id.padStart(6, '0')}</p>
-                        <div className="w-20 h-20 bg-white border border-black mx-auto mt-2 flex items-center justify-center text-[8px]">
-                           [QR CODE]
-                        </div>
                      </div>
                      <div className="mt-4 text-center text-[10px]">
                         <p>Obrigado pela preferência!</p>
@@ -1731,10 +1728,11 @@ const Sales: React.FC<SalesProps> = ({ sales, products, customers, onAddSale, on
                            </div>
 
                            <button
+                              disabled={savingPayment}
                               onClick={handleRegisterPayment}
                               className="w-full bg-orange-600 hover:bg-orange-700 text-white py-3 rounded-xl font-bold text-lg shadow-lg shadow-orange-900/10 flex items-center justify-center gap-2 mt-2"
                            >
-                              <Save size={20} /> Confirmar Pagamento
+                              <Save size={20} /> {savingPayment ? 'Salvando pagamento...' : 'Confirmar Pagamento'}
                            </button>
                         </div>
                      </div>

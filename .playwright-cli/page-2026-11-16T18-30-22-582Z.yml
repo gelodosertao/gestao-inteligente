@@ -1,0 +1,53 @@
+- generic [ref=f1e1]:
+  - generic [ref=f1e3]:
+    - navigation [ref=f1e4]:
+      - button "inventory" [ref=f1e5] [cursor=pointer]
+      - button "wholesale" [ref=f1e6] [cursor=pointer]
+      - button "production" [ref=f1e7] [cursor=pointer]
+      - button "financial" [ref=f1e8] [cursor=pointer]
+    - generic [ref=f1e626]:
+      - generic [ref=f1e627]:
+        - button [ref=f1e628] [cursor=pointer]
+        - generic [ref=f1e631]:
+          - heading "Gestão Financeira" [level=1] [ref=f1e632]
+          - paragraph [ref=f1e633]: Fluxo de caixa, DRE, fechamento de caixa e controle de despesas.
+      - generic [ref=f1e635]:
+        - button "DRE Gerencial" [ref=f1e636] [cursor=pointer]
+        - button "Movimentações" [active] [ref=f1e639] [cursor=pointer]
+        - button "Fechamento" [ref=f1e643] [cursor=pointer]
+      - generic [ref=f1e647]:
+        - generic [ref=f1e648]:
+          - button "Geral" [ref=f1e649] [cursor=pointer]
+          - button "Matriz" [ref=f1e650] [cursor=pointer]
+          - button "Filial" [ref=f1e651] [cursor=pointer]
+        - generic [ref=f1e652]:
+          - button "Esconder Valores" [ref=f1e653] [cursor=pointer]
+          - button "Lançar Despesa" [ref=f1e657] [cursor=pointer]:
+            - generic [ref=f1e659]: Lançar
+            - text: Despesa
+          - button "Adicionar Receita" [ref=f1e660] [cursor=pointer]
+          - button "Categorias" [ref=f1e662] [cursor=pointer]
+        - combobox "Período das movimentações" [ref=f1e667] [cursor=pointer]:
+          - option "Hoje"
+          - option "Esta Semana"
+          - option "Este Mês"
+          - option "Últimos 30 Dias"
+          - option "Últimos 60 Dias"
+          - option "Últimos 90 Dias"
+          - option "Todo o Período" [selected]
+          - option "Personalizado"
+      - generic [ref=f1e867]:
+        - generic [ref=f1e868]:
+          - heading "Movimentações Recentes" [level=3] [ref=f1e869]
+          - textbox "Buscar movimentação" [ref=f1e874]:
+            - /placeholder: Buscar movimentação...
+        - generic [ref=f1e877]:
+          - generic [ref=f1e883]:
+            - paragraph [ref=f1e884]: "Venda #33333333 - Cliente de teste"
+            - generic [ref=f1e885]:
+              - paragraph [ref=f1e886]: 2026-11-16
+              - generic [ref=f1e889]: Vendas
+              - generic [ref=f1e890]: Matriz
+              - generic [ref=f1e891]: Dinheiro
+          - generic [ref=f1e892]: + R$ 40,00
+  - generic [aria-hidden] [ref=f1e865]: R$ 0k

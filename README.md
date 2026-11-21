@@ -101,6 +101,13 @@ npm run dev
 
 ---
 
+## Integração fiscal
+
+A conexão fiscal é opcional e está desativada. A gestão mostra **Integração fiscal
+não configurada** e bloqueia operações fiscais. Vendas, estoque, clientes e
+financeiro continuam independentes. Dados e documentos anteriores são preservados.
+Consulte [a documentação](docs/integracao-fiscal.md).
+
 ## 🗺️ Roadmap para SaaS (Futuro)
 
 Para transformar este sistema em um produto comercializável para múltiplos geleiros, os seguintes passos são sugeridos:

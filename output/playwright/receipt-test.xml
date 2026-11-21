@@ -1,0 +1,2 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<nfeProc xmlns="http://www.portalfiscal.inf.br/nfe"><NFe><infNFe Id="NFe29261112345678000195550010000000110000000100"><emit><CNPJ>12345678000195</CNPJ><xNome>Fornecedor de teste</xNome></emit><det nItem="1"><prod><cProd>SACOS-5</cProd><xProd>Embalagens de gelo caixa</xProd><uCom>CX</uCom><qCom>2</qCom><vUnCom>5</vUnCom></prod></det></infNFe></NFe></nfeProc>
