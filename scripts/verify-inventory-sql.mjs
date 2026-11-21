@@ -41,6 +41,12 @@ const receipt = (id, key, items, deposit = 'Barreiras') => db.query('select rece
 try {
   await db.exec(schema);
   await db.exec(await readFile(new URL('../supabase/migrations/202611160001_inventory_operations.sql', import.meta.url), 'utf8'));
+  await db.exec(await readFile(new URL('../supabase/migrations/202611210001_archive_inventory_products.sql', import.meta.url), 'utf8'));
+  const saleMigration = await readFile(new URL('../supabase/migrations/202609220001_atomic_sale_operations.sql', import.meta.url), 'utf8');
+  const stockProductFk = saleMigration.match(/alter table public\.stock_movements\s+add constraint stock_movements_tenant_product_fk[\s\S]*?not valid;/)?.[0];
+  assert.ok(stockProductFk, 'Use the actual stock/product foreign key from the sale migration');
+  await db.exec('create unique index products_tenant_id_id_uidx on products(tenant_id,id)');
+  await db.exec(stockProductFk);
   const initialId = operationId();
   const initial = product('ice');
   await create(initialId, initial);
@@ -105,10 +111,37 @@ try {
   await assert.rejects(mutate({ ...loss, operationId: operationId(), productId: 'new', quantity: 1 }), /Custo do produto inválido/);
   assert.equal(await count('stock_movements'), ledgerBeforeInvalidCost);
   assert.equal((await stocks('new')).barreiras, 2);
+  // Reproduce the original failure using a real product and its initial ledger entries.
+  await assert.rejects(db.query("delete from products where id='ice'"), error => error.code === '23503');
+  const movementsBeforeArchive = await count('stock_movements');
+  const balancesBeforeArchive = await stocks('ice');
+  const archive = (id = 'ice', factory = tenant) => db.query('select archive_inventory_product($1,$2)', [id, factory]);
+  await db.exec("update products set recipe='[{\"ingredientId\":\"ice\",\"quantity\":1}]' where id='new'");
+  await assert.rejects(archive(), /combo ou receita/);
+  await db.exec("update products set recipe=null,combo_items='[{\"productId\":\"ice\",\"quantity\":1}]' where id='new'");
+  await assert.rejects(archive(), /combo ou receita/);
+  await db.exec("update products set combo_items=null where id='new'; set role authenticated;");
+  await archive();
+  await archive();
+  await assert.rejects(archive('missing'), /Produto não encontrado/);
+  await assert.rejects(archive('new', '55555555-5555-4555-8555-555555555555'), /Fábrica inválida/);
+  await db.exec('reset role');
+  assert.equal(await scalar("select count(*)::int as value from products where id='ice' and archived_at is not null"), 1);
+  assert.equal(await scalar("select count(*)::int as value from products where id='ice' and archived_at is null"), 0);
+  assert.equal(await count('stock_movements'), movementsBeforeArchive);
+  assert.deepEqual(await stocks('ice'), balancesBeforeArchive);
+  await db.exec(`update app_users set is_active=false where id='${user}'`);
+  await assert.rejects(archive('new'), /Apenas administradores/);
+  await db.exec(`update app_users set is_active=true,must_change_password=true where id='${user}'`);
+  await assert.rejects(archive('new'), /Apenas administradores/);
+  await db.exec(`update app_users set must_change_password=false where id='${user}'`);
   await db.exec(`insert into app_users values ('44444444-4444-4444-8444-444444444444','${tenant}','Vendedor','WHOLESALE_REPRESENTATIVE',true,false,'{}'); set test.uid='44444444-4444-4444-8444-444444444444';`);
   await assert.rejects(mutate({ ...loss, operationId: operationId() }), /sem acesso/);
+  await assert.rejects(archive('new'), /Apenas administradores/);
   await db.exec(`set test.uid='${user}'; update app_users set tenant_id='55555555-5555-4555-8555-555555555555' where id='${user}'; insert into tenants values ('55555555-5555-4555-8555-555555555555');`);
   await assert.rejects(mutate({ ...loss, operationId: operationId() }), /indisponível/);
+  await assert.rejects(archive('new', '55555555-5555-4555-8555-555555555555'), /Produto não encontrado/);
+  console.log('Product archival verified: original FK failure, preserved history/balances, active catalogue filter, retry, recipe/combo dependencies, admin permissions and tenant isolation.');
   console.log('Inventory SQL verified: atomic creation, transfer, loss/finance, adjustment conflicts, receipt deduplication, rollback, fractional units, authenticated balance guard, permissions and tenant isolation.');
 } finally {
   await db.close();

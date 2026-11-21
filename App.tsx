@@ -266,11 +266,11 @@ const App: React.FC = () => {
       return;
     }
     try {
-      await dbProducts.delete(productId);
+      await dbProducts.delete(productId, currentUser.tenantId);
       setProducts(prev => prev.filter(p => p.id !== productId));
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      alert("Erro ao excluir produto no banco.");
+      alert(e?.message || 'Não foi possível excluir o produto. Verifique sua conexão e tente novamente.');
     }
   };
 

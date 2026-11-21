@@ -638,7 +638,7 @@ const Inventory: React.FC<InventoryProps> = ({ products, sales, financials, onUp
                         </button>
                         <button
                           onClick={() => {
-                            if (confirm(`Tem certeza que deseja excluir o produto "${product.name}"?`)) {
+                            if (confirm(`Retirar o produto "${product.name}" do cadastro ativo? Ele deixará de aparecer no estoque e nas novas operações. Vendas, movimentações e registros fiscais serão preservados.`)) {
                               onDeleteProduct(product.id);
                             }
                           }}

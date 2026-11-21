@@ -247,7 +247,8 @@ export const dbProducts = {
     
     if (!data) return [];
 
-    return (data || []).map((row: any) => ({
+    // Older databases do not have archived_at until the archival migration is applied.
+    return (data || []).filter((row: any) => row.archived_at == null).map((row: any) => ({
       id: row.id,
       name: row.name,
       category: row.category,
@@ -308,8 +309,16 @@ export const dbProducts = {
     if (error) throw error;
   },
 
-  async delete(id: string) {
-    const { error } = await supabase.from('products').delete().eq('id', id);
+  async delete(id: string, tenantId: string) {
+    const { error } = await supabase.rpc('archive_inventory_product', {
+      p_product_id: id, p_tenant_id: tenantId
+    });
+    if (error?.code === '42501') {
+      throw new Error('Você não tem permissão para excluir este produto. Entre novamente com uma conta de administrador.');
+    }
+    if (error?.code === 'PGRST202' || error?.code === '42883') {
+      throw new Error('A retirada de produtos do cadastro ainda não está disponível neste banco. A atualização do banco de dados precisa ser aplicada.');
+    }
     if (error) throw error;
   }
 };

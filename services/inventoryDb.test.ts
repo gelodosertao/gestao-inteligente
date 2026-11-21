@@ -22,6 +22,49 @@ beforeEach(() => {
 });
 
 describe('operações de estoque', () => {
+  it.each([
+    ['banco atualizado', [{ id: 'active', archived_at: null }, { id: 'archived', archived_at: '2026-11-21T12:00:00Z' }]],
+    ['banco anterior à migração', [{ id: 'active' }]],
+  ])('carrega o cadastro ativo sem depender da coluna de arquivamento: %s', async (_, rows) => {
+    const range = vi.fn().mockResolvedValue({ data: rows, error: null });
+    const eq = vi.fn().mockReturnValue({ range });
+    const select = vi.fn().mockReturnValue({ eq });
+    mocks.from.mockReturnValueOnce({ select });
+    const products = await dbProducts.getAll(tenantId);
+    expect(products.map(product => product.id)).toEqual(['active']);
+    expect(eq).toHaveBeenCalledWith('tenant_id', tenantId);
+    expect(range).toHaveBeenCalledWith(0, 999);
+  });
+
+  it('continua propagando falhas reais de carregamento', async () => {
+    const failure = { code: '42501', message: 'permission denied' };
+    const range = vi.fn().mockResolvedValue({ data: null, error: failure });
+    const eq = vi.fn().mockReturnValue({ range });
+    mocks.from.mockReturnValueOnce({ select: vi.fn().mockReturnValue({ eq }) });
+    await expect(dbProducts.getAll(tenantId)).rejects.toBe(failure);
+  });
+
+  it('retira produto do cadastro por RPC sem apagar o histórico', async () => {
+    await dbProducts.delete(product.id, tenantId);
+    expect(mocks.rpc).toHaveBeenCalledWith('archive_inventory_product', {
+      p_product_id: product.id, p_tenant_id: tenantId
+    });
+    expect(mocks.from).not.toHaveBeenCalled();
+  });
+
+  it('explica quando falta aplicar a atualização do banco', async () => {
+    mocks.rpc.mockResolvedValue({ error: { code: 'PGRST202' } });
+    await expect(dbProducts.delete(product.id, tenantId)).rejects.toThrow('atualização do banco');
+  });
+
+  it('preserva o erro de dependência e rejeita falta de permissão', async () => {
+    const failure = { code: '23514', message: 'Remova o vínculo com a receita.' };
+    mocks.rpc.mockResolvedValue({ error: failure });
+    await expect(dbProducts.delete(product.id, tenantId)).rejects.toBe(failure);
+    mocks.rpc.mockResolvedValue({ error: { code: '42501' } });
+    await expect(dbProducts.delete(product.id, tenantId)).rejects.toThrow('permissão');
+  });
+
   it('editar preço não envia saldos absolutos ao banco', async () => {
     await dbProducts.update({ ...product, priceMatriz: 7 });
     const payload = mocks.update.mock.calls[0][0];
